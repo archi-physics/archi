@@ -416,6 +416,7 @@ GIT_TOKEN=your_token
       projects:
         - PROJECT_KEY
       anonymize_data: true
+      cutoff_date: &quot;2023-01-01&quot;
 </code></pre>
 <p>You can further customise anonymisation via the global anonymiser settings.</p>
 <pre><code class="language-yaml">data_manager:
@@ -432,7 +433,8 @@ GIT_TOKEN=your_token
       username_pattern: '\[~[^\]]+\]'
 </code></pre>
 <p>The anonymizer will remove names, emails, usernames, greetings, signoffs, and any other words you specify from the fetched data.
-This is useful if you want to avoid having personal information in the vector store.</p>
+This is useful if you want to avoid having personal information in the vector store.
+The optional <code>cutoff_date</code> can be used to skip tickets created before a specified ISO-8601 date.</p>
 <h4 id="secrets_2">Secrets</h4>
 <p>A personal access token (PAT) is required to authenticate and authorize with JIRA.
 Add <code>JIRA_PAT=&lt;token&gt;</code> to your <code>.env</code> file before deploying with <code>--sources jira</code>.</p>
