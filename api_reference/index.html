@@ -73,11 +73,13 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#2-delete">2. delete</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#3-list-services">3. list-services</a>
+    <li class="toctree-l4"><a class="reference internal" href="#3-restart">3. restart</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#4-list-deployments">4. list-deployments</a>
+    <li class="toctree-l4"><a class="reference internal" href="#4-list-services">4. list-services</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#5-evaluate">5. evaluate</a>
+    <li class="toctree-l4"><a class="reference internal" href="#5-list-deployments">5. list-deployments</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#6-evaluate">6. evaluate</a>
     </li>
         </ul>
     </li>
@@ -181,19 +183,56 @@
 <li><code>--list</code>: List all available deployments.</li>
 </ul>
 <hr />
-<h4 id="3-list-services">3. <code>list-services</code></h4>
+<h4 id="3-restart">3. <code>restart</code></h4>
+<p>Restart a specific service in an existing deployment without restarting the entire stack.</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-sh">a2rchi restart --name &lt;deployment_name&gt; --service &lt;service_name&gt; [OPTIONS]
+</code></pre>
+<p><strong>Options:</strong></p>
+<ul>
+<li><code>--name, -n</code> (str, required): Name of the existing deployment.</li>
+<li><code>--service, -s</code> (str): Service to restart (default: <code>chatbot</code>).</li>
+<li><code>--config, -c</code> (str): Path to updated YAML configuration file(s) (can be specified multiple times).</li>
+<li><code>--config-dir, -cd</code> (str): Path to directory containing configuration files.</li>
+<li><code>--env-file, -e</code> (str): Path to <code>.env</code> file with secrets.</li>
+<li><code>--no-build</code>: Restart without rebuilding the container image.</li>
+<li><code>--with-deps</code>: Also restart dependent services (by default, only the specified service is restarted).</li>
+<li><code>--podman, -p</code>: Use Podman instead of Docker.</li>
+<li><code>--verbosity, -v</code> (int): Logging verbosity level (0-4, default: 3).</li>
+</ul>
+<p><strong>Notes:</strong></p>
+<ul>
+<li><strong>Configuration changes</strong>: Restarting with <code>--no-build</code> will reflect changes to configuration files. If you've modified code, you must rebuild the image (omit the <code>--no-build</code> flag).</li>
+<li><strong>Updating configuration</strong>: If you provide <code>--config</code> or <code>--config-dir</code>, the command will update the deployment's configuration before restarting the service.</li>
+<li><strong>Finding services</strong>: Use <code>a2rchi list-deployments</code> to see existing deployments. If you specify an invalid service name, the restart command will display the available services for that deployment.</li>
+</ul>
+<p><strong>Examples:</strong></p>
+<p>Quick config update without rebuilding:</p>
+<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot --no-build
+</code></pre>
+<p>Test new agent code (requires rebuild):</p>
+<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot -c updated_config.yaml
+</code></pre>
+<p>Restart with updated secrets:</p>
+<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot -e new_secrets.env --no-build
+</code></pre>
+<p>Restart data_manager to re-scrape sources:</p>
+<pre><code class="language-sh">a2rchi restart -n mybot --service data_manager
+</code></pre>
+<hr />
+<h4 id="4-list-services">4. <code>list-services</code></h4>
 <p>List all available A2RCHI services and data sources.</p>
 <p><strong>Usage:</strong></p>
 <pre><code class="language-sh">a2rchi list-services
 </code></pre>
 <hr />
-<h4 id="4-list-deployments">4. <code>list-deployments</code></h4>
+<h4 id="5-list-deployments">5. <code>list-deployments</code></h4>
 <p>List all existing A2RCHI deployments.</p>
 <p><strong>Usage:</strong></p>
 <pre><code class="language-sh">a2rchi list-deployments
 </code></pre>
 <hr />
-<h4 id="5-evaluate">5. <code>evaluate</code></h4>
+<h4 id="6-evaluate">6. <code>evaluate</code></h4>
 <p>Launch the benchmarking runtime to evaluate one or more configurations against a set of questions/answers.</p>
 <p><strong>Usage:</strong></p>
 <pre><code class="language-sh">a2rchi evaluate --name &lt;run_name&gt; --env-file &lt;secrets.env&gt; --config &lt;file.yaml&gt; [OPTIONS]
@@ -211,6 +250,9 @@
 </code></pre>
 <p><strong>Delete a deployment and remove images/volumes:</strong></p>
 <pre><code class="language-sh">a2rchi delete --name mybot --rmi --rmv
+</code></pre>
+<p><strong>Restart a service without rebuilding:</strong></p>
+<pre><code class="language-sh">a2rchi restart --name mybot --service chatbot --no-build
 </code></pre>
 <p><strong>List all deployments:</strong></p>
 <pre><code class="language-sh">a2rchi list-deployments
