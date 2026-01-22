@@ -318,7 +318,7 @@
 <p>Defines pipelines and model routing.</p>
 <ul>
 <li><strong>pipelines:</strong> List of pipeline names to load (e.g., <code>QAPipeline</code>).</li>
-<li><strong>pipeline_map:</strong> Per-pipeline configuration of prompts, models, and token limits.</li>
+<li><strong>pipeline_map:</strong> Per-pipeline configuration of prompts, models, token limits, and ReAct recursion limits (<code>recursion_limit</code>, default <code>100</code>).</li>
 <li><strong>model_class_map:</strong> Definitions for each model family (base model names, provider-specific kwargs).</li>
 <li><strong>chain_update_time:</strong> Polling interval for hot-reloading chains.</li>
 </ul>

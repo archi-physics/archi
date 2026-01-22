@@ -706,6 +706,7 @@ data_manager:
 <li><code>services.grader_app.local_rubric_dir</code> -- Directory containing the <code>solution_with_rubric_*.txt</code> files.</li>
 <li><code>services.grader_app.local_users_csv_dir</code> -- Directory containing the <code>users.csv</code> file.</li>
 </ol>
+<p>For ReAct-style agents (e.g., <code>CMSCompOpsAgent</code>), you may optionally set <code>a2rchi.pipeline_map.&lt;Agent&gt;.recursion_limit</code> (default <code>100</code>) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.</p>
 <h4 id="running_8">Running</h4>
 <pre><code class="language-bash">a2rchi create [...] --services=grader
 </code></pre>
