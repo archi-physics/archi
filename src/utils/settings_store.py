@@ -1,10 +1,8 @@
 import copy
 import logging
-from pathlib import Path
+from importlib import resources
 from typing import Dict, List, Optional, Tuple
 
-import psycopg2
-import psycopg2.extras
 import yaml
 
 from src.utils.env import read_secret
@@ -28,6 +26,11 @@ def load_a2rchi_settings(config: Dict) -> Dict:
     base_a2rchi = _load_a2rchi_defaults(config)
     pg_config = _build_pg_config(config)
     if not pg_config:
+        return base_a2rchi
+
+    psycopg2 = _load_psycopg2()
+    if psycopg2 is None:
+        LOGGER.warning("psycopg2 unavailable; using config defaults for a2rchi settings.")
         return base_a2rchi
 
     try:
@@ -357,6 +360,9 @@ def _fetch_option_catalogs(cursor):
 
 
 def _seed_options_from_a2rchi(cursor, a2rchi: Dict) -> None:
+    psycopg2 = _load_psycopg2()
+    if psycopg2 is None:
+        return
     (
         model_options,
         pipeline_options,
@@ -460,13 +466,10 @@ def _seed_options_from_a2rchi(cursor, a2rchi: Dict) -> None:
 
 def _load_a2rchi_defaults(config: Dict) -> Dict:
     base_settings = copy.deepcopy(config.get("a2rchi") or {})
-    settings_path = _resolve_settings_path(config)
-    if not settings_path:
-        return base_settings
     try:
-        with open(settings_path, "r") as f:
-            payload = yaml.safe_load(f) or {}
-    except FileNotFoundError:
+        settings_path = resources.files("src.a2rchi").joinpath("a2rchi-settings.yaml")
+        payload = yaml.safe_load(settings_path.read_text()) or {}
+    except Exception:
         return base_settings
 
     if "a2rchi" in payload:
@@ -476,15 +479,10 @@ def _load_a2rchi_defaults(config: Dict) -> Dict:
     return base_settings
 
 
-def _resolve_settings_path(config: Dict) -> Optional[Path]:
-    config_path = config.get("_config_path")
-    if not config_path:
-        return None
-    base = Path(config_path)
-    return base.with_name(f"{base.stem}.a2rchi-settings.yaml")
-
-
 def _upsert_settings(cursor, settings_id, current_payload, new_payload) -> None:
+    psycopg2 = _load_psycopg2()
+    if psycopg2 is None:
+        return
     if current_payload == new_payload and settings_id is not None:
         return
 
@@ -504,3 +502,12 @@ def _upsert_settings(cursor, settings_id, current_payload, new_payload) -> None:
         """,
         (psycopg2.extras.Json(new_payload), settings_id),
     )
+
+
+def _load_psycopg2():
+    try:
+        import psycopg2
+        import psycopg2.extras
+        return psycopg2
+    except Exception:
+        return None

@@ -1,0 +1,153 @@
+a2rchi:
+  pipelines:
+    - QAPipeline
+  agent_description: No description provided
+  pipeline_map:
+    QAPipeline:
+      max_tokens: 10000
+      prompts:
+        required:
+          condense_prompt: null
+          chat_prompt: null
+      models:
+        required:
+          condense_model: DumbLLM
+          chat_model: DumbLLM
+    GradingPipeline:
+      max_tokens: 10000
+      prompts:
+        required:
+          final_grade_prompt: null
+        optional:
+          summary_prompt: null
+          analysis_prompt: null
+      models:
+        required:
+          final_grade_model: HuggingFaceOpenLLM
+        optional:
+          summary_model: HuggingFaceOpenLLM
+          analysis_model: HuggingFaceOpenLLM
+    ImageProcessingPipeline:
+      max_tokens: 10000
+      prompts:
+        required:
+          image_processing_prompt: null
+      models:
+        required:
+          image_processing_model: HuggingFaceImageLLM
+    CMSCompOpsAgent:
+      recursion_limit: 100
+      prompts:
+        required:
+          agent_prompt: null
+      models:
+        required:
+          agent_model: OpenAIGPT4
+      tools:
+        enabled:
+          - search_local_files
+          - search_metadata_index
+          - fetch_catalog_document
+          - search_knowledge_base
+      middleware:
+        enabled: []
+        configs:
+          LLMToolSelectorMiddleware:
+            max_tools: 3
+  model_class_map:
+    AnthropicLLM:
+      class: AnthropicLLM
+      kwargs:
+        model_name: claude-3-opus-20240229
+        temperature: 1
+    OpenAIGPT4:
+      class: OpenAILLM
+      kwargs:
+        model_name: gpt-4
+        temperature: 1
+    OpenAIGPT35:
+      class: OpenAILLM
+      kwargs:
+        model_name: gpt-3.5-turbo
+        temperature: 1
+    DumbLLM:
+      class: DumbLLM
+      kwargs:
+        sleep_time_mean: 3
+        filler: I am a dummy LLM response.
+    LlamaLLM:
+      class: LlamaLLM
+      kwargs:
+        base_model: meta-llama/Llama-2-7b-chat-hf
+        peft_model: null
+        enable_salesforce_content_safety: false
+        quantization: true
+        max_new_tokens: 4096
+        seed: null
+        do_sample: true
+        min_length: null
+        use_cache: true
+        top_p: 0.9
+        temperature: 0.6
+        top_k: 50
+        repetition_penalty: 1.0
+        length_penalty: 1
+        max_padding_length: null
+    HuggingFaceOpenLLM:
+      class: HuggingFaceOpenLLM
+      kwargs:
+        base_model: Qwen/Qwen2.5-7B-Instruct-1M
+        peft_model: null
+        enable_salesforce_content_safety: false
+        quantization: true
+        max_new_tokens: 4096
+        seed: null
+        do_sample: true
+        min_length: null
+        use_cache: true
+        top_p: 0.9
+        temperature: 0.6
+        top_k: 50
+        repetition_penalty: 1.0
+        length_penalty: 1
+        max_padding_length: null
+    HuggingFaceImageLLM:
+      class: HuggingFaceImageLLM
+      kwargs:
+        base_model: Qwen/Qwen2.5-VL-7B-Instruct
+        quantization: true
+        min_pixels: 175616
+        max_pixels: 1003520
+        max_new_tokens: 4096
+        seed: null
+        do_sample: false
+        min_length: null
+        use_cache: true
+        top_k: 50
+        repetition_penalty: 1.0
+        length_penalty: 1
+    VLLM:
+      class: VLLM
+      kwargs:
+        base_model: Qwen/Qwen2.5-7B-Instruct-1M
+        seed: null
+        enable_salesforce_content_safety: false
+        max_new_tokens: 4096
+        top_p: 0.95
+        temperature: 0.6
+        top_k: 50
+        repetition_penalty: 1.0
+        tensor_parallel_size: 1
+        gpu_memory_utilization: 0.7
+        trust_remote_code: true
+        tokenizer_mode: auto
+        max_model_len: 10000
+    OllamaInterface:
+      class: OllamaInterface
+      kwargs:
+        base_model: gemma3
+        temperature: 1
+        max_tokens: 1000
+        url: http://localhost:7870
+  chain_update_time: 10
+  mcp_servers: {}

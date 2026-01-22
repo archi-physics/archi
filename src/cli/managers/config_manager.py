@@ -1,5 +1,6 @@
 import os
 from functools import reduce
+from importlib import resources
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -17,6 +18,7 @@ class ConfigurationManager:
     """Manages A2rchi configuration loading and validation"""
     
     def __init__(self, config_paths_list: List[str], env):
+        self.env = env
         self.configs = []
         for config_filepath in config_paths_list:
             config_filepath = Path(config_filepath)
@@ -29,8 +31,6 @@ class ConfigurationManager:
         assert(len(self.configs)>0)        
         self.config = self.configs[0]
 
-        self.env = env
-    
     def _load_config(self, config_filepath) -> Dict[str, Any]:
         """Load and validate basic structure of config file"""
         if not config_filepath.exists():
@@ -45,25 +45,29 @@ class ConfigurationManager:
         # Track origin for relative-path resolution (e.g., prompts).
         config["_config_path"] = str(config_filepath)
 
-        settings_path = config_filepath.with_name(f"{config_filepath.stem}.a2rchi-settings.yaml")
-        config["_a2rchi_settings_path"] = str(settings_path)
-        settings_payload = self._load_settings_file(settings_path)
-        if settings_payload is not None:
-            config["a2rchi"] = settings_payload
-        elif "a2rchi" not in config:
-            config["a2rchi"] = {}
+        settings_payload, settings_path = self._load_settings_defaults()
+        config["_a2rchi_settings_path"] = str(settings_path) if settings_path else None
+        if "a2rchi" in config:
+            logger.warning(
+                "Ignoring inline a2rchi settings in %s; use src/a2rchi/a2rchi-settings.yaml instead.",
+                config_filepath,
+            )
+        config["a2rchi"] = settings_payload
 
         return config
 
-    def _load_settings_file(self, settings_path: Path) -> Optional[Dict[str, Any]]:
-        """Load a2rchi settings defaults from the sibling settings file, if present."""
-        if not settings_path.exists():
-            return None
-        with open(settings_path, "r") as f:
-            payload = yaml.safe_load(f) or {}
+    def _load_settings_defaults(self) -> tuple[Dict[str, Any], Optional[Path]]:
+        """Load plain a2rchi settings defaults from src/a2rchi/a2rchi-settings.yaml."""
+        try:
+            settings_path = resources.files("src.a2rchi").joinpath("a2rchi-settings.yaml")
+            payload = yaml.safe_load(settings_path.read_text()) or {}
+        except Exception as exc:
+            logger.error("Failed to load a2rchi settings defaults: %s", exc)
+            return {}, None
+
         if "a2rchi" in payload:
-            return payload.get("a2rchi") or {}
-        return payload or {}
+            return payload.get("a2rchi") or {}, Path(settings_path)
+        return payload or {}, Path(settings_path)
     
     def _append(self,config):
         """Appends configuration to the config list if the static portions are equivalent to the previous one."""

@@ -17,7 +17,6 @@ logger = get_logger(__name__)
 
 TEMPLATE_COMPARISON_PATHS = (
     "base-static-config.yaml",
-    "a2rchi-settings.yaml",
     "base-compose.yaml",
     "base-init.sql",
     "grafana/datasources.yaml",
