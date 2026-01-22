@@ -168,7 +168,7 @@ Finally, the <code>VectorStoreManager</code> reads these files, splits them into
 <li><code>get_metadata()</code>: returns a metadata object (typically <code>ResourceMetadata</code>) describing the item. Keys should be serialisable strings and are flattened into the vector store metadata.</li>
 <li><code>get_metadata_path()</code>: inherited helper that derives a <code>.meta.yaml</code> path when metadata is present.</li>
 </ul>
-<p><code>ResourceMetadata</code> (<code>src/data_manager/collectors/utils/metadata.py</code>) enforces a required <code>display_name</code> and normalises the <code>extra</code> dictionary so all values become strings. Use this to expose source-specific information such as URLs, ticket identifiers, or visibility flags.</p>
+<p><code>ResourceMetadata</code> (<code>src/data_manager/collectors/utils/metadata.py</code>) enforces a required <code>file_name</code> and normalises the <code>extra</code> dictionary so all values become strings. Optional UI labels like <code>display_name</code> live in <code>extra</code>, alongside source-specific information such as URLs, ticket identifiers, or visibility flags.</p>
 <p>The guiding philosophy is that <strong>resources describe content</strong>, but never write to disk themselves. This separation keeps collectors simple, testable, and ensures consistent validation when persisting different resource types.</p>
 <h3 id="persistence-service">Persistence Service</h3>
 <p><code>PersistenceService</code> (<code>src/data_manager/collectors/persistence.py</code>) centralises all filesystem writes for both the document content, and its metadata. When <code>persist_resource()</code> is called it:</p>

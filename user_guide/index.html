@@ -59,6 +59,8 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
         <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#agent-tools-search-retrieval">Agent tools (search + retrieval)</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#optional-command-line-options">Optional command line options</a>
     </li>
         </ul>
@@ -315,6 +317,17 @@ Both pipelines and models are configured via the configuration file.</p>
 <p>Finally, we support various <strong>retrievers</strong> and <strong>embedding techniques</strong> for document retrieval.
 These are configured via the configuration file.
 See the <code>Vector Store</code> section below for more details.</p>
+<h3 id="agent-tools-search-retrieval">Agent tools (search + retrieval)</h3>
+<p>The chat agent can use a few built-in tools to locate evidence. These are internal capabilities of the chat service:</p>
+<ul>
+<li><strong>Metadata search</strong>: find files by name/path/source metadata. Use free-text for partial matches, or exact filters with <code>key:value</code>.
+  Example: <code>mz_dilepton.py</code> or <code>relative_path:full/path/to/mz_dilepton.py</code>.</li>
+<li><strong>Content search (grep)</strong>: line-level search inside file contents; supports regex and context lines.
+  Example: <code>timeout error</code> with <code>before=2</code> and <code>after=2</code>.</li>
+<li><strong>Document fetch</strong>: pull full text for a specific file by hash (truncated with <code>max_chars</code>).</li>
+<li><strong>Vectorstore search</strong>: semantic retrieval of relevant passages when you don't know exact keywords.</li>
+</ul>
+<p>These tools are meant to be used together: search first, then fetch only the most relevant documents.</p>
 <h3 id="optional-command-line-options">Optional command line options</h3>
 <p>In addition to the required <code>--name</code>, <code>--config/--config-dir</code>, <code>--env-file</code>, and <code>--services</code> arguments, the <code>a2rchi create</code> command accepts several useful flags:</p>
 <ol>
@@ -326,7 +339,8 @@ See the <code>Vector Store</code> section below for more details.</p>
 <li><strong><code>--verbosity</code> / <code>-v</code></strong>: Control CLI logging level (0 = quiet, 4 = debug).</li>
 <li><strong><code>--force</code></strong> / <strong><code>--dry-run</code></strong>: Force recreation of an existing deployment and/or show what would happen without actually deploying.</li>
 </ol>
-<p>You can inspect the available services and sources, together with descriptions, using <code>a2rchi list-services</code>.</p>
+<p>You can inspect the available services and sources, together with descriptions, using <code>a2rchi list-services</code>.
+The CLI checks that host ports are free before deploying; if a port is already in use, adjust <code>services.*.external_port</code> (or <code>services.*.port</code> in <code>--hostmode</code>) and retry.</p>
 <blockquote>
 <p><strong>GPU helpers</strong></p>
 <p>GPU access requires the NVIDIA drivers plus the NVIDIA Container Toolkit. After installing the toolkit, generate CDI entries (for Podman) with <code>sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml</code> and confirm with <code>nvidia-ctk cdi list</code>. Docker users should run <code>sudo nvidia-ctk runtime configure --runtime=docker</code>.</p>
@@ -892,7 +906,7 @@ data_manager:
 <p>You can evaluate one or more configurations by specifying the <code>evaluate</code> command with the <code>-cd</code> flag pointing to the directory containing your configuration file(s). You can also specify individual files with the <code>-c</code> flag. This can be useful if you're interested in comparing different hyperparameter settings.</p>
 <p>We support two modes, which you can specify in the configuration file under <code>services:benchmarking:modes</code>. You can choose either or both of <code>RAGAS</code> and <code>SOURCES</code>.</p>
 <p>The RAGAS mode will use the Ragas RAG evaluator module to return numerical values judging by 4 of their provided metrics: <code>answer_relevancy</code>, <code>faithfulness</code>, <code>context precision</code>, and <code>context relevancy</code>. More information about these metrics can be found on the <a href="https://docs.ragas.io/en/stable/concepts/metrics/">Ragas website</a>. </p>
-<p>The SOURCES mode will check if the retrieved documents contain any of the correct sources. The matching is done by comparing a given metadata field for any source. The default is <code>display_name</code>, as per the configuration file (<code>data_manager:services:benchmarking:mode_settings:sources:default_match_field</code>). You can override this on a per-query basis by specifying the <code>sources_match_field</code> field in the queries file, as described above.</p>
+<p>The SOURCES mode will check if the retrieved documents contain any of the correct sources. The matching is done by comparing a given metadata field for any source. The default is <code>file_name</code>, as per the configuration file (<code>data_manager:services:benchmarking:mode_settings:sources:default_match_field</code>). You can override this on a per-query basis by specifying the <code>sources_match_field</code> field in the queries file, as described above.</p>
 <p>The configuration file should look like the following:</p>
 <pre><code class="language-yaml">services:
   benchmarking:
@@ -903,7 +917,7 @@ data_manager:
       - &quot;SOURCES&quot;
     mode_settings:
       sources:
-        default_match_field: [&quot;display_name&quot;] # default field to match sources against, can be overridden in the queries file
+        default_match_field: [&quot;file_name&quot;] # default field to match sources against, can be overridden in the queries file
       ragas_settings:
         provider: &lt;provider name&gt; # can be one of OpenAI, HuggingFace, Ollama, and Anthropic
         evaluation_model_settings:
