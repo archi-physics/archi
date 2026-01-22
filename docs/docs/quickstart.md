@@ -47,7 +47,7 @@ You specify which pipelines should be available in the configuration file.
 
 Once you have chosen the services, sources, and pipelines you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under `examples/deployments/`, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.
 
-> **Important:** The configuration file follows the format of `src/cli/templates/base-config.yaml`. Any fields not specified in your configuration will be populated with the defaults from this template.
+> **Important:** Static configuration is rendered from `src/cli/templates/base-static-config.yaml`. A2RCHI runtime settings are rendered to a separate `configs/<name>.a2rchi-settings.yaml` file from `src/cli/templates/a2rchi-settings.yaml` and seeded into Postgres.
 
 Example configuration (`examples/deployments/basic-gpu/config.yaml`) for the `chatbot` service using `QAPipeline` with a local VLLM model:
 
@@ -103,7 +103,7 @@ services:
   - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
   - `embedding_name`: Embedding model used for vectorization.
   - `chunk_size`: Controls how documents are split prior to embedding.
-- `a2rchi`: Core pipeline settings.
+- `a2rchi`: Core pipeline settings (now stored in `configs/<name>.a2rchi-settings.yaml`, seeded into Postgres, and read from there at runtime).
   - `pipelines`: Pipelines to use (e.g., `QAPipeline`).
   - `pipeline_map`: Configuration for each pipeline, including prompts and models.
   - `model_class_map`: Mapping of model names to their classes and parameters.

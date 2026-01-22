@@ -16,7 +16,8 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 TEMPLATE_COMPARISON_PATHS = (
-    "base-config.yaml",
+    "base-static-config.yaml",
+    "a2rchi-settings.yaml",
     "base-compose.yaml",
     "base-init.sql",
     "grafana/datasources.yaml",
@@ -214,13 +215,15 @@ def _render_config_for_compare(
         updated_config["host_mode"] = True
         TemplateManager(env)._apply_host_mode_port_overrides(updated_config)
 
-    config_template = env.get_template("base-config.yaml")
+    config_template = env.get_template("base-static-config.yaml")
     rendered = config_template.render(verbosity=verbosity, **updated_config)
     return yaml.safe_load(rendered)
 
 def _load_rendered_configs(configs_dir: Path) -> Dict[str, Dict[str, Any]]:
     rendered: Dict[str, Dict[str, Any]] = {}
     for config_path in configs_dir.glob("*.yaml"):
+        if config_path.name.endswith(".a2rchi-settings.yaml"):
+            continue
         with open(config_path, "r") as f:
             data = yaml.safe_load(f) or {}
         name = data.get("name") or config_path.stem

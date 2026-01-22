@@ -103,17 +103,27 @@ class CMSCompOpsAgent(BaseReActAgent):
 
         return all_tools
     
-    # def _build_static_middleware(self) -> List[Callable]:
-    #     """
-    #     Initialize middleware: currently, testing what works best.
-    #     This is static.
-    #     """
-    #     todolist_middleware = TodoListMiddleware()
-    #     llmtoolselector_middleware = LLMToolSelectorMiddleware(
-    #         model=self.agent_llm,
-    #         max_tools=3,
-    #     )
-    #     return [todolist_middleware, llmtoolselector_middleware]
+    def _build_static_middleware(self) -> List[Callable]:
+        """Initialize middleware based on configured settings."""
+        middleware_cfg = self.pipeline_config.get("middleware", {}) or {}
+        enabled = middleware_cfg.get("enabled") or []
+        configs = middleware_cfg.get("configs", {}) or {}
+        middleware: List[Callable] = []
+
+        if "TodoListMiddleware" in enabled:
+            middleware.append(TodoListMiddleware())
+
+        if "LLMToolSelectorMiddleware" in enabled:
+            selector_cfg = configs.get("LLMToolSelectorMiddleware", {}) or {}
+            max_tools = selector_cfg.get("max_tools", 3)
+            middleware.append(
+                LLMToolSelectorMiddleware(
+                    model=self.agent_llm,
+                    max_tools=max_tools,
+                )
+            )
+
+        return middleware
 
     def _store_documents(self, stage: str, docs: Sequence[Document]) -> None:
         """Centralised helper used by tools to record documents into the active memory."""

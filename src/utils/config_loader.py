@@ -2,6 +2,8 @@ import os
 
 import yaml
 
+from src.utils.settings_store import load_a2rchi_settings
+
 # DEFINITIONS
 CONFIGS_PATH = "/root/A2rchi/configs/"
 
@@ -12,12 +14,23 @@ def load_config(map: bool = False, name: str = None):
     """
 
     if name is None:
-        default_path = CONFIGS_PATH + os.listdir(CONFIGS_PATH)[0]
+        config_files = [
+            filename
+            for filename in os.listdir(CONFIGS_PATH)
+            if filename.endswith(".yaml") and not filename.endswith(".a2rchi-settings.yaml")
+        ]
+        default_path = CONFIGS_PATH + config_files[0]
         with open(default_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
+        config_path = default_path
     else:
-        with open(CONFIGS_PATH+f"{name}.yaml", "r") as f:
+        config_path = CONFIGS_PATH + f"{name}.yaml"
+        with open(config_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
+
+    config["_config_path"] = config_path
+
+    config["a2rchi"] = load_a2rchi_settings(config)
 
     # change the model class parameter from a string to an actual class
     if map:
@@ -42,8 +55,10 @@ def load_config(map: bool = False, name: str = None):
             "VLLM": VLLM,
             "OllamaInterface": OllamaInterface, 
         }
-        for model in config["a2rchi"]["model_class_map"].keys():
-            config["a2rchi"]["model_class_map"][model]["class"] = MODEL_MAPPING[model]
+        a2rchi_map = config.get("a2rchi", {}) or {}
+        model_class_map = a2rchi_map.get("model_class_map", {}) or {}
+        for model in model_class_map.keys():
+            model_class_map[model]["class"] = MODEL_MAPPING[model]
 
         EMBEDDING_MAPPING = {
             "OpenAIEmbeddings": OpenAIEmbeddings,
@@ -79,7 +94,12 @@ def load_global_config(name: str = None):
     """
 
     if name is None:
-        default_path = CONFIGS_PATH + os.listdir(CONFIGS_PATH)[0]
+        config_files = [
+            filename
+            for filename in os.listdir(CONFIGS_PATH)
+            if filename.endswith(".yaml") and not filename.endswith(".a2rchi-settings.yaml")
+        ]
+        default_path = CONFIGS_PATH + config_files[0]
         with open(default_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
     else:
@@ -95,7 +115,12 @@ def load_data_manager_config(name: str = None):
     """
 
     if name is None:
-        default_path = CONFIGS_PATH + os.listdir(CONFIGS_PATH)[0]
+        config_files = [
+            filename
+            for filename in os.listdir(CONFIGS_PATH)
+            if filename.endswith(".yaml") and not filename.endswith(".a2rchi-settings.yaml")
+        ]
+        default_path = CONFIGS_PATH + config_files[0]
         with open(default_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
     else:
@@ -111,7 +136,12 @@ def load_services_config(name: str = None):
     """
 
     if name is None:
-        default_path = CONFIGS_PATH + os.listdir(CONFIGS_PATH)[0]
+        config_files = [
+            filename
+            for filename in os.listdir(CONFIGS_PATH)
+            if filename.endswith(".yaml") and not filename.endswith(".a2rchi-settings.yaml")
+        ]
+        default_path = CONFIGS_PATH + config_files[0]
         with open(default_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
     else:
@@ -125,7 +155,11 @@ def get_config_names():
     Gets the available configurations names.
     """
 
-    names = [n.replace('.yaml','') for n in os.listdir(CONFIGS_PATH)]
+    names = []
+    for filename in os.listdir(CONFIGS_PATH):
+        if not filename.endswith(".yaml"):
+            continue
+        if filename.endswith(".a2rchi-settings.yaml"):
+            continue
+        names.append(filename.replace(".yaml", ""))
     return names
-
-

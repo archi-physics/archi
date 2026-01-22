@@ -18,7 +18,8 @@ logger = get_logger(__name__)
 
 
 # Template file constants
-BASE_CONFIG_TEMPLATE = "base-config.yaml"
+BASE_STATIC_CONFIG_TEMPLATE = "base-static-config.yaml"
+BASE_A2RCHI_SETTINGS_TEMPLATE = "a2rchi-settings.yaml"
 BASE_COMPOSE_TEMPLATE = "base-compose.yaml"
 BASE_INIT_SQL_TEMPLATE = "base-init.sql"
 BASE_GRAFANA_DATASOURCES_TEMPLATE = "grafana/datasources.yaml"
@@ -196,7 +197,7 @@ class TemplateManager:
         prompt_mappings: Dict[str, Dict[str, str]] = {}
         for config in configs:
             name = config["name"]
-            config_path = config.get("_config_path")
+            config_path = config.get("_a2rchi_settings_path") or config.get("_config_path")
             config_dir = Path(config_path).expanduser().parent if config_path else None
             pipeline_names = config.get("a2rchi", {}).get("pipelines") or []
             for pipeline_name in pipeline_names:
@@ -279,12 +280,20 @@ class TemplateManager:
                 updated_config["host_mode"] = context.plan.host_mode
                 self._apply_host_mode_port_overrides(updated_config)
 
-            config_template = self.env.get_template(BASE_CONFIG_TEMPLATE)
-            config_rendered = config_template.render(verbosity=context.plan.verbosity, **updated_config)
+            static_template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
+            static_rendered = static_template.render(verbosity=context.plan.verbosity, **updated_config)
 
             with open(configs_path / f"{name}.yaml", "w") as f:
-                f.write(config_rendered)
-            logger.info(f"Rendered configuration file {configs_path / name}.yaml")
+                f.write(static_rendered)
+            logger.info(f"Rendered static configuration file {configs_path / name}.yaml")
+
+            settings_template = self.env.get_template(BASE_A2RCHI_SETTINGS_TEMPLATE)
+            settings_rendered = settings_template.render(verbosity=context.plan.verbosity, **updated_config)
+            with open(configs_path / f"{name}.a2rchi-settings.yaml", "w") as f:
+                f.write(settings_rendered)
+            logger.info(
+                f"Rendered a2rchi settings file {configs_path / f'{name}.a2rchi-settings.yaml'}"
+            )
 
     # service-specific assets
     def _render_grafana_assets(self, context: TemplateContext) -> None:

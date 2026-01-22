@@ -257,7 +257,7 @@ class BaseReActAgent:
 
     def rebuild_static_tools(self) -> List[Callable]:
         """Recompute and cache the static tool list."""
-        self._static_tools = list(self._build_static_tools())
+        self._static_tools = self._filter_tools(self._build_static_tools())
         return self._static_tools
 
     @property
@@ -269,7 +269,7 @@ class BaseReActAgent:
     
     def rebuild_static_middleware(self) -> List[Callable]:
         """Recompute and cache the static middleware list."""
-        self._static_middleware = list(self._build_static_middleware())
+        self._static_middleware = self._filter_middleware(self._build_static_middleware())
         return self._static_middleware
     
     @property
@@ -296,7 +296,7 @@ class BaseReActAgent:
         base_tools = list(static_tools) if static_tools is not None else self.tools
         toolset: List[Callable] = list(base_tools)
         if extra_tools:
-            toolset.extend(extra_tools)
+            toolset.extend(self._filter_tools(extra_tools))
        
         middleware = list(middleware) if middleware is not None else self.middleware
 
@@ -312,6 +312,31 @@ class BaseReActAgent:
             self._active_tools = list(toolset)
             self._active_middleware = list(middleware)
         return self.agent
+
+    def _filter_tools(self, tools: Sequence[Callable]) -> List[Callable]:
+        enabled = self.pipeline_config.get("tools", {}).get("enabled")
+        if not enabled:
+            return list(tools)
+        enabled_set = set(enabled)
+        include_all = "*" in enabled_set
+        filtered: List[Callable] = []
+        for tool in tools:
+            tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", "")
+            if include_all or tool_name in enabled_set:
+                filtered.append(tool)
+        return filtered
+
+    def _filter_middleware(self, middleware: Sequence[Callable]) -> List[Callable]:
+        enabled = self.pipeline_config.get("middleware", {}).get("enabled")
+        if not enabled:
+            return list(middleware)
+        enabled_set = set(enabled)
+        filtered: List[Callable] = []
+        for item in middleware:
+            name = item.__class__.__name__
+            if name in enabled_set:
+                filtered.append(item)
+        return filtered
 
     def _create_agent(self, tools: Sequence[Callable], middleware: Sequence[Callable]) -> CompiledStateGraph:
         """Create the LangGraph agent with the specified LLM, tools, and system prompt."""

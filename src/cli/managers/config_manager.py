@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
-from src.cli.managers.templates_manager import BASE_CONFIG_TEMPLATE
+from src.cli.managers.templates_manager import BASE_STATIC_CONFIG_TEMPLATE
 from src.cli.source_registry import source_registry
 from src.utils.logging import get_logger
 
@@ -45,7 +45,25 @@ class ConfigurationManager:
         # Track origin for relative-path resolution (e.g., prompts).
         config["_config_path"] = str(config_filepath)
 
+        settings_path = config_filepath.with_name(f"{config_filepath.stem}.a2rchi-settings.yaml")
+        config["_a2rchi_settings_path"] = str(settings_path)
+        settings_payload = self._load_settings_file(settings_path)
+        if settings_payload is not None:
+            config["a2rchi"] = settings_payload
+        elif "a2rchi" not in config:
+            config["a2rchi"] = {}
+
         return config
+
+    def _load_settings_file(self, settings_path: Path) -> Optional[Dict[str, Any]]:
+        """Load a2rchi settings defaults from the sibling settings file, if present."""
+        if not settings_path.exists():
+            return None
+        with open(settings_path, "r") as f:
+            payload = yaml.safe_load(f) or {}
+        if "a2rchi" in payload:
+            return payload.get("a2rchi") or {}
+        return payload or {}
     
     def _append(self,config):
         """Appends configuration to the config list if the static portions are equivalent to the previous one."""
@@ -73,8 +91,8 @@ class ConfigurationManager:
             
         # Base fields always required
         requirements = [
-            'name', 
-            'a2rchi.pipelines'
+            'name',
+            'a2rchi.pipelines',
         ]
 
         # Services that have additional required fields
@@ -89,7 +107,7 @@ class ConfigurationManager:
     
     def _get_service_fields(self):
         """Generates dictionary of service fields for services that have additional required fields"""
-        template = self.env.get_template(BASE_CONFIG_TEMPLATE)
+        template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
         default_config = template.render()
         default_config = yaml.safe_load(default_config)
 

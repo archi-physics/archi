@@ -5,6 +5,44 @@ CREATE TABLE IF NOT EXISTS configs (
     config_name TEXT NOT NULL,
     PRIMARY KEY (config_id)
 );
+CREATE TABLE IF NOT EXISTS a2rchi_settings (
+    settings_id SERIAL,
+    a2rchi JSONB NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (settings_id)
+);
+CREATE TABLE IF NOT EXISTS a2rchi_model_options (
+    name TEXT PRIMARY KEY,
+    config JSONB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS a2rchi_pipeline_options (
+    name TEXT PRIMARY KEY,
+    config JSONB NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS a2rchi_agent_options (
+    name TEXT PRIMARY KEY,
+    config JSONB NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS a2rchi_tool_options (
+    agent_name TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (agent_name, tool_name)
+);
+CREATE TABLE IF NOT EXISTS a2rchi_middleware_options (
+    agent_name TEXT NOT NULL,
+    middleware_name TEXT NOT NULL,
+    config JSONB,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (agent_name, middleware_name)
+);
+CREATE TABLE IF NOT EXISTS a2rchi_mcp_server_options (
+    name TEXT PRIMARY KEY,
+    config JSONB NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE
+);
 CREATE TABLE IF NOT EXISTS conversation_metadata (
     conversation_id SERIAL,
     client_id TEXT,

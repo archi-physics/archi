@@ -569,6 +569,8 @@ data_manager:
 10. `services.grader_app.local_rubric_dir` -- Directory containing the `solution_with_rubric_*.txt` files.
 11. `services.grader_app.local_users_csv_dir` -- Directory containing the `users.csv` file.
 
+Note: `a2rchi` settings live in `configs/<name>.a2rchi-settings.yaml`, are seeded into Postgres at startup, and are read from the database at runtime; the static config file provides deployment defaults. Agent tool/middleware/MCP selections should be configured under the `a2rchi` settings file.
+
 For ReAct-style agents (e.g., `CMSCompOpsAgent`), you may optionally set `a2rchi.pipeline_map.<Agent>.recursion_limit` (default `100`) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.
 
 #### Running

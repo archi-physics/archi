@@ -1,0 +1,149 @@
+a2rchi:
+  pipelines: {{ a2rchi.pipelines | default(['QAPipeline'], true) }}
+  agent_description: {{ a2rchi.agent_description | default('No description provided', true) }}
+  pipeline_map:
+    QAPipeline:
+      max_tokens: {{ a2rchi.pipeline_map.QAPipeline.max_tokens | default(10000, true) }}
+      prompts:
+        required:
+          condense_prompt: {% if a2rchi.pipeline_map.QAPipeline.prompts.required.condense_prompt %}"{{ a2rchi.pipeline_map.QAPipeline.prompts.required.condense_prompt }}"{% else %}null{% endif %}
+          chat_prompt: {% if a2rchi.pipeline_map.QAPipeline.prompts.required.chat_prompt %}"{{ a2rchi.pipeline_map.QAPipeline.prompts.required.chat_prompt }}"{% else %}null{% endif %}
+      models:
+        required:
+          condense_model: {{ a2rchi.pipeline_map.QAPipeline.models.required.condense_model | default('DumbLLM', true) }}
+          chat_model: {{ a2rchi.pipeline_map.QAPipeline.models.required.chat_model | default('DumbLLM', true) }}
+    GradingPipeline:
+      max_tokens: {{ a2rchi.pipeline_map.GradingPipeline.max_tokens | default(10000, true) }}
+      prompts:
+        required:
+          final_grade_prompt: {% if a2rchi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt %}"{{ a2rchi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt }}"{% else %}null{% endif %}
+        optional:
+          summary_prompt: {% if a2rchi.pipeline_map.GradingPipeline.prompts.optional.summary_prompt %}"{{ a2rchi.pipeline_map.GradingPipeline.prompts.optional.summary_prompt }}"{% else %}null{% endif %}
+          analysis_prompt: {% if a2rchi.pipeline_map.GradingPipeline.prompts.optional.analysis_prompt %}"{{ a2rchi.pipeline_map.GradingPipeline.prompts.optional.analysis_prompt }}"{% else %}null{% endif %}
+      models:
+        required:
+          final_grade_model: {{ a2rchi.pipeline_map.GradingPipeline.models.required.final_grade_model | default('HuggingFaceOpenLLM', true) }}
+        optional:
+          summary_model: {{ a2rchi.pipeline_map.GradingPipeline.models.optional.summary_model | default('HuggingFaceOpenLLM', true) }}
+          analysis_model: {{ a2rchi.pipeline_map.GradingPipeline.models.optional.analysis_model | default('HuggingFaceOpenLLM', true) }}
+    ImageProcessingPipeline:
+      max_tokens: {{ a2rchi.pipeline_map.ImageProcessingPipeline.max_tokens | default(10000, true) }}
+      prompts:
+        required:
+          image_processing_prompt: {% if a2rchi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt %}"{{ a2rchi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt }}"{% else %}null{% endif %}
+      models:
+        required:
+          image_processing_model: {{ a2rchi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model | default('HuggingFaceImageLLM', true) }}
+    CMSCompOpsAgent:
+      recursion_limit: {{ a2rchi.pipeline_map.CMSCompOpsAgent.recursion_limit | default(100, true) }}
+      prompts:
+        required:
+          agent_prompt: {% if a2rchi.pipeline_map.CMSCompOpsAgent.prompts.required.agent_prompt %}"{{ a2rchi.pipeline_map.CMSCompOpsAgent.prompts.required.agent_prompt }}"{% else %}null{% endif %}
+      models:
+        required:
+          agent_model: {{ a2rchi.pipeline_map.CMSCompOpsAgent.models.required.agent_model | default('OllamaInterface', true) }}
+      tools:
+        enabled: {{ a2rchi.pipeline_map.CMSCompOpsAgent.tools.enabled | default(['search_local_files', 'search_metadata_index', 'fetch_catalog_document', 'search_knowledge_base'], true) }}
+      middleware:
+        enabled: {{ a2rchi.pipeline_map.CMSCompOpsAgent.middleware.enabled | default([], true) }}
+        configs:
+          LLMToolSelectorMiddleware:
+            max_tools: {{ a2rchi.pipeline_map.CMSCompOpsAgent.middleware.configs.LLMToolSelectorMiddleware.max_tools | default(3, true) }}
+
+  model_class_map:
+    AnthropicLLM:
+      class: AnthropicLLM
+      kwargs:
+        model_name: {{ a2rchi.model_class_map.AnthropicLLM.kwargs.model_name | default('claude-3-opus-20240229', true) }}
+        temperature: {{ a2rchi.model_class_map.AnthropicLLM.kwargs.temperature | default(1, true) }}
+    OpenAIGPT4:
+      class: OpenAILLM
+      kwargs:
+        model_name: {{ a2rchi.model_class_map.OpenAIGPT4.kwargs.model_name | default('gpt-4', true) }}
+        temperature: {{ a2rchi.model_class_map.OpenAIGPT4.kwargs.temperature | default(1, true) }}
+    OpenAIGPT35:
+      class: OpenAILLM
+      kwargs:
+        model_name: {{ a2rchi.model_class_map.OpenAIGPT35.kwargs.model_name | default('gpt-3.5-turbo', true) }}
+        temperature: {{ a2rchi.model_class_map.OpenAIGPT35.kwargs.temperature | default(1, true) }}
+    DumbLLM:
+      class: DumbLLM
+      kwargs:
+        sleep_time_mean: {{ a2rchi.model_class_map.DumbLLM.kwargs.sleep_time_mean | default(3, true) }}
+        filler: {{ a2rchi.model_class_map.DumbLLM.kwargs.filler | default('I am a dummy LLM response.', true) }}
+    LlamaLLM:
+      class: LlamaLLM
+      kwargs:
+        base_model: {{ a2rchi.model_class_map.LlamaLLM.kwargs.base_model | default("meta-llama/Llama-2-7b-chat-hf", true) }}
+        peft_model: {{ a2rchi.model_class_map.LlamaLLM.kwargs.peft_model | default("null", true) }}
+        enable_salesforce_content_safety: {{ a2rchi.model_class_map.LlamaLLM.kwargs.enable_salesforce_content_safety | default(false, false) }}
+        quantization: {{ a2rchi.model_class_map.LlamaLLM.kwargs.quantization | default(true, true) }}
+        max_new_tokens: {{ a2rchi.model_class_map.LlamaLLM.kwargs.max_new_tokens | default(4096, true) }}
+        seed: {{ a2rchi.model_class_map.LlamaLLM.kwargs.seed | default("null", true) }}
+        do_sample: {{ a2rchi.model_class_map.LlamaLLM.kwargs.do_sample | default(true, true) }}
+        min_length: {{ a2rchi.model_class_map.LlamaLLM.kwargs.min_length | default("null", true) }}
+        use_cache: {{ a2rchi.model_class_map.LlamaLLM.kwargs.use_cache | default(true, true) }}
+        top_p: {{ a2rchi.model_class_map.LlamaLLM.kwargs.top_p | default(0.9, true) }}
+        temperature: {{ a2rchi.model_class_map.LlamaLLM.kwargs.temperature | default(0.6, true) }}
+        top_k: {{ a2rchi.model_class_map.LlamaLLM.kwargs.top_k | default(50, true) }}
+        repetition_penalty: {{ a2rchi.model_class_map.LlamaLLM.kwargs.repetition_penalty | default(1.0, true) }}
+        length_penalty: {{ a2rchi.model_class_map.LlamaLLM.kwargs.length_penalty | default(1, true) }}
+        max_padding_length: {{ a2rchi.model_class_map.LlamaLLM.kwargs.max_padding_length | default("null", true) }}
+    HuggingFaceOpenLLM:
+      class: HuggingFaceOpenLLM
+      kwargs:
+        base_model: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.base_model | default("Qwen/Qwen2.5-7B-Instruct-1M", true) }}
+        peft_model: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.peft_model | default("null", true) }}
+        enable_salesforce_content_safety: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.enable_salesforce_content_safety | default(false, false) }}
+        quantization: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.quantization | default(true, true) }}
+        max_new_tokens: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.max_new_tokens | default(4096, true) }}
+        seed: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.seed | default("null", true) }}
+        do_sample: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.do_sample | default(true, true) }}
+        min_length: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.min_length | default("null", true) }}
+        use_cache: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.use_cache | default(true, true) }}
+        top_p: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.top_p | default(0.9, true) }}
+        temperature: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.temperature | default(0.6, true) }}
+        top_k: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.top_k | default(50, true) }}
+        repetition_penalty: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.repetition_penalty | default(1.0, true) }}
+        length_penalty: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.length_penalty | default(1, true) }}
+        max_padding_length: {{ a2rchi.model_class_map.HuggingFaceOpenLLM.kwargs.max_padding_length | default("null", true) }}
+    HuggingFaceImageLLM:
+      class: HuggingFaceImageLLM
+      kwargs:
+        base_model: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.base_model | default("Qwen/Qwen2.5-VL-7B-Instruct", true) }}
+        quantization: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.quantization | default(true, true) }}
+        min_pixels: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.min_pixels | default(175616, true) }}
+        max_pixels: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.max_pixels | default(1003520, true) }}
+        max_new_tokens: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.max_new_tokens | default(4096, true) }}
+        seed: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.seed | default("null", true) }}
+        do_sample: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.do_sample | default(false, false) }}
+        min_length: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.min_length | default("null", true) }}
+        use_cache: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.use_cache | default(true, true) }}
+        top_k: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.top_k | default(50, true) }}
+        repetition_penalty: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.repetition_penalty | default(1.0, true) }}
+        length_penalty: {{ a2rchi.model_class_map.HuggingFaceImageLLM.kwargs.length_penalty | default(1, true) }}
+    VLLM:
+      class: VLLM
+      kwargs:
+        base_model: {{ a2rchi.model_class_map.VLLM.kwargs.base_model | default('Qwen/Qwen2.5-7B-Instruct-1M', true) }}
+        seed: {{ a2rchi.model_class_map.VLLM.kwargs.seed | default("null", true) }}
+        enable_salesforce_content_safety: {{ a2rchi.model_class_map.VLLM.kwargs.enable_salesforce_content_safety | default(false, false) }}
+        max_new_tokens: {{ a2rchi.model_class_map.VLLM.kwargs.max_new_tokens | default(4096, true) }}
+        top_p: {{ a2rchi.model_class_map.VLLM.kwargs.top_p | default(0.95, true) }}
+        temperature: {{ a2rchi.model_class_map.VLLM.kwargs.temperature | default(0.6, true) }}
+        top_k: {{ a2rchi.model_class_map.VLLM.kwargs.top_k | default(50, true) }}
+        repetition_penalty: {{ a2rchi.model_class_map.VLLM.kwargs.repetition_penalty | default(1.0, true) }}
+        tensor_parallel_size: {{ a2rchi.model_class_map.VLLM.kwargs.tensor_parallel_size | default(1, true) }}
+        gpu_memory_utilization: {{ a2rchi.model_class_map.VLLM.kwargs.gpu_memory_utilization | default(0.7, true) }}
+        trust_remote_code: {{ a2rchi.model_class_map.VLLM.kwargs.trust_remote_code | default(true, true) }}
+        tokenizer_mode: {{ a2rchi.model_class_map.VLLM.kwargs.tokenizer_mode | default("auto", true) }}
+        max_model_len: {{ a2rchi.model_class_map.VLLM.kwargs.max_model_len | default(10000, true) }}
+    OllamaInterface:
+      class: OllamaInterface
+      kwargs:
+        base_model: {{ a2rchi.model_class_map.OllamaInterface.kwargs.base_model | default("gemma3", true) }}
+        temperature: {{ a2rchi.model_class_map.OllamaInterface.kwargs.temperature | default(1, true) }}
+        max_tokens: {{ a2rchi.model_class_map.OllamaInterface.kwargs.max_tokens | default(1000, true) }}
+        url: {{ a2rchi.model_class_map.OllamaInterface.kwargs.url | default("http://localhost:7870", true) }}
+  chain_update_time: {{ a2rchi.chain_update_time | default(10, true) }}
+  mcp_servers: {{ a2rchi.mcp_servers | default({}, true) }}
