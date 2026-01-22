@@ -815,7 +815,7 @@ data_manager:
 <ol>
 <li><strong>Adding documents</strong>: New files in the data directory are automatically chunked, embedded, and added to the collection</li>
 <li><strong>Removing documents</strong>: Files deleted from the data directory are removed from the collection</li>
-<li><strong>Source tracking</strong>: Each ingested artifact is recorded in the unified <code>index.yaml</code> file as <code>&lt;resource-hash&gt;: &lt;relative file path&gt;</code> inside the data directory</li>
+<li><strong>Source tracking</strong>: Each ingested artifact is recorded in the Postgres catalog (<code>resources</code> table) with its resource hash and relative file path</li>
 </ol>
 <h3 id="hybrid-search">Hybrid Search</h3>
 <p>Combine semantic search with keyword-based BM25 search for improved retrieval:</p>

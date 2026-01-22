@@ -81,6 +81,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#vector-database">Vector Database</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#catalog-verification-checklist">Catalog Verification Checklist</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#extending-the-stack">Extending the stack</a>
@@ -154,7 +156,8 @@ cat requirements/gpu-requirementsHEADER.txt requirements/requirements-base.txt &
 <h2 id="data-ingestion-architecture">Data Ingestion Architecture</h2>
 <p>A2RCHI ingests content through <strong>sources</strong> which are collected by <strong>collectors</strong> (<code>data_manager/collectors</code>).
 These documents are written to persistent, local files via the <code>PersistenceService</code>, which uses <code>Resource</code> objects as an abstraction for different content types, and <code>ResourceMetadata</code> for associated metadata.
-A catalog of persisted files is maintained in <code>index.yaml</code> and <code>metadata_index.yaml</code>.
+A catalog of persisted files and metadata is maintained in Postgres via
+<code>CatalogService</code> (table: <code>resources</code>).
 Finally, the <code>VectorStoreManager</code> reads these files, splits them into chunks, generates embeddings, and indexes them in ChromaDB.</p>
 <h3 id="resources-and-baseresource">Resources and <code>BaseResource</code></h3>
 <p>Every collected artifact from the collectors is represented as a subclass of <code>BaseResource</code> (<code>src/data_manager/collectors/resource_base.py</code>). Subclasses must implement:</p>
@@ -166,34 +169,38 @@ Finally, the <code>VectorStoreManager</code> reads these files, splits them into
 <p>Resources may optionally override:</p>
 <ul>
 <li><code>get_metadata()</code>: returns a metadata object (typically <code>ResourceMetadata</code>) describing the item. Keys should be serialisable strings and are flattened into the vector store metadata.</li>
-<li><code>get_metadata_path()</code>: inherited helper that derives a <code>.meta.yaml</code> path when metadata is present.</li>
+<li><code>get_metadata_path()</code>: legacy helper for <code>.meta.yaml</code> paths (metadata is now stored in Postgres).</li>
 </ul>
 <p><code>ResourceMetadata</code> (<code>src/data_manager/collectors/utils/metadata.py</code>) enforces a required <code>file_name</code> and normalises the <code>extra</code> dictionary so all values become strings. Optional UI labels like <code>display_name</code> live in <code>extra</code>, alongside source-specific information such as URLs, ticket identifiers, or visibility flags.</p>
 <p>The guiding philosophy is that <strong>resources describe content</strong>, but never write to disk themselves. This separation keeps collectors simple, testable, and ensures consistent validation when persisting different resource types.</p>
 <h3 id="persistence-service">Persistence Service</h3>
-<p><code>PersistenceService</code> (<code>src/data_manager/collectors/persistence.py</code>) centralises all filesystem writes for both the document content, and its metadata. When <code>persist_resource()</code> is called it:</p>
+<p><code>PersistenceService</code> (<code>src/data_manager/collectors/persistence.py</code>) centralises all filesystem writes for document content and metadata catalog updates. When <code>persist_resource()</code> is called it:</p>
 <ol>
 <li>Resolves the target path under the configured <code>DATA_PATH</code>.</li>
 <li>Validates and writes the resource content (rejecting empty payloads or unknown types).</li>
-<li>Serialises metadata, if provided, to an adjacent <code>*.meta.yaml</code> file.</li>
-<li>Updates two catalogs:</li>
-<li><code>index.yaml</code>: maps each resource hash to the content file path.</li>
-<li><code>metadata_index.yaml</code>: maps resource hashes to the metadata file path.</li>
+<li>Normalises metadata (if provided) for storage.</li>
+<li>Upserts a row into the Postgres <code>resources</code> catalog with file and metadata fields.</li>
 </ol>
 <p>Collectors only interact with <code>PersistenceService</code>; they should not touch the filesystem directly.</p>
 <h3 id="vector-database">Vector Database</h3>
-<p>The vector store lives under the <code>data_manager/vectorstore</code> package. <code>VectorStoreManager</code> reads the persistence catalogs and synchronises them with ChromaDB:</p>
+<p>The vector store lives under the <code>data_manager/vectorstore</code> package. <code>VectorStoreManager</code> reads the Postgres catalog and synchronises it with ChromaDB:</p>
 <ol>
-<li>Loads the tracked files and metadata hashes from <code>index.yaml</code>.</li>
+<li>Loads the tracked files and metadata hashes from the Postgres catalog.</li>
 <li>Splits documents into chunks, optional stemming, and builds embeddings via the configured model.</li>
 <li>Adds chunks to the Chroma collection with flattened metadata (including resource hash, filename, human-readable display fields, and any source-specific extras).</li>
 <li>Deletes stale entries when the underlying files disappear or are superseded.</li>
 </ol>
 <p>Because the manager defers to the catalog, any resource persisted through <code>PersistenceService</code> automatically becomes eligible for indexing—no extra plumbing is required.</p>
+<h3 id="catalog-verification-checklist">Catalog Verification Checklist</h3>
+<ul>
+<li>Confirm the Postgres <code>resources</code> table exists and is reachable from the service containers.</li>
+<li>Ingest or upload a new document and verify a new row appears in <code>resources</code>.</li>
+<li>Verify <code>VectorStoreManager</code> can update the collection using the Postgres catalog.</li>
+</ul>
 <h2 id="extending-the-stack">Extending the stack</h2>
 <p>When integrating a new source, create a collector under <code>data_manager/collectors</code>. Collectors should yield <code>Resource</code> objects. A new <code>Resource</code> subclass is only needed if the content type is not already represented (e.g., text, HTML, markdown, images, etc.), but it must implement the required methods described above.</p>
 <p>When integrating a new collector, ensure that any per-source configuration is encoded in the resource metadata so downstream consumers—such as the chat app—can honour it.</p>
-<p>When extending the embedding pipeline or storage schema, keep this flow in mind: collectors produce resources → <code>PersistenceService</code> writes files and updates indexes → <code>VectorStoreManager</code> promotes the indexed files into Chroma. Keeping responsibilities narrowly scoped makes the ingestion stack easier to reason about and evolve.</p>
+<p>When extending the embedding pipeline or storage schema, keep this flow in mind: collectors produce resources → <code>PersistenceService</code> writes files and updates the Postgres catalog → <code>VectorStoreManager</code> promotes the indexed files into Chroma. Keeping responsibilities narrowly scoped makes the ingestion stack easier to reason about and evolve.</p>
               
             </div>
           </div><footer>
