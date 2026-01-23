@@ -5,8 +5,6 @@ from typing import Any, Callable, Dict, List, Sequence
 from langchain_core.documents import Document
 import asyncio
 import nest_asyncio
-from langchain.agents.middleware import TodoListMiddleware, LLMToolSelectorMiddleware
-
 from src.utils.logging import get_logger
 from src.a2rchi.pipelines.agents.base_react import BaseReActAgent
 from src.data_manager.vectorstore.retrievers import HybridRetriever
@@ -40,7 +38,6 @@ class CMSCompOpsAgent(BaseReActAgent):
         self._vector_tool = None
 
         self.rebuild_static_tools()
-        self.rebuild_static_middleware()
         self.refresh_agent()
 
     def _build_static_tools(self) -> List[Callable]:
@@ -103,28 +100,6 @@ class CMSCompOpsAgent(BaseReActAgent):
 
         return all_tools
     
-    def _build_static_middleware(self) -> List[Callable]:
-        """Initialize middleware based on configured settings."""
-        middleware_cfg = self.pipeline_config.get("middleware", {}) or {}
-        enabled = middleware_cfg.get("enabled") or []
-        configs = middleware_cfg.get("configs", {}) or {}
-        middleware: List[Callable] = []
-
-        if "TodoListMiddleware" in enabled:
-            middleware.append(TodoListMiddleware())
-
-        if "LLMToolSelectorMiddleware" in enabled:
-            selector_cfg = configs.get("LLMToolSelectorMiddleware", {}) or {}
-            max_tools = selector_cfg.get("max_tools", 3)
-            middleware.append(
-                LLMToolSelectorMiddleware(
-                    model=self.agent_llm,
-                    max_tools=max_tools,
-                )
-            )
-
-        return middleware
-
     def _store_documents(self, stage: str, docs: Sequence[Document]) -> None:
         """Centralised helper used by tools to record documents into the active memory."""
         memory = self.active_memory

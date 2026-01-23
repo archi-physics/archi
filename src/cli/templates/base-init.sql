@@ -31,13 +31,6 @@ CREATE TABLE IF NOT EXISTS a2rchi_tool_options (
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (agent_name, tool_name)
 );
-CREATE TABLE IF NOT EXISTS a2rchi_middleware_options (
-    agent_name TEXT NOT NULL,
-    middleware_name TEXT NOT NULL,
-    config JSONB,
-    enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    PRIMARY KEY (agent_name, middleware_name)
-);
 CREATE TABLE IF NOT EXISTS a2rchi_mcp_server_options (
     name TEXT PRIMARY KEY,
     config JSONB NOT NULL,
@@ -106,6 +99,64 @@ CREATE TABLE IF NOT EXISTS agent_tool_calls (
     FOREIGN KEY (conversation_id) REFERENCES conversation_metadata(conversation_id) ON DELETE CASCADE,
     FOREIGN KEY (message_id) REFERENCES conversations(message_id) ON DELETE CASCADE
 );
+
+-- seed configs/settings
+{% if configs %}
+{% for cfg in configs %}
+INSERT INTO configs (config, config_name)
+VALUES ('{{ cfg.payload }}', '{{ cfg.name }}');
+{% endfor %}
+{% endif %}
+
+{% if a2rchi_settings_json %}
+INSERT INTO a2rchi_settings (a2rchi)
+VALUES ('{{ a2rchi_settings_json }}'::jsonb);
+{% endif %}
+
+{% if a2rchi_model_options %}
+INSERT INTO a2rchi_model_options (name, config)
+VALUES
+{% for opt in a2rchi_model_options %}
+  ('{{ opt.name }}', '{{ opt.config }}'::jsonb){% if not loop.last %},{% endif %}
+{% endfor %}
+;
+{% endif %}
+
+{% if a2rchi_pipeline_options %}
+INSERT INTO a2rchi_pipeline_options (name, config, enabled)
+VALUES
+{% for opt in a2rchi_pipeline_options %}
+  ('{{ opt.name }}', '{{ opt.config }}'::jsonb, {{ 'true' if opt.enabled else 'false' }}){% if not loop.last %},{% endif %}
+{% endfor %}
+;
+{% endif %}
+
+{% if a2rchi_agent_options %}
+INSERT INTO a2rchi_agent_options (name, config, enabled)
+VALUES
+{% for opt in a2rchi_agent_options %}
+  ('{{ opt.name }}', '{{ opt.config }}'::jsonb, {{ 'true' if opt.enabled else 'false' }}){% if not loop.last %},{% endif %}
+{% endfor %}
+;
+{% endif %}
+
+{% if a2rchi_tool_options %}
+INSERT INTO a2rchi_tool_options (agent_name, tool_name, enabled)
+VALUES
+{% for opt in a2rchi_tool_options %}
+  ('{{ opt.agent_name }}', '{{ opt.tool_name }}', {{ 'true' if opt.enabled else 'false' }}){% if not loop.last %},{% endif %}
+{% endfor %}
+;
+{% endif %}
+
+{% if a2rchi_mcp_server_options %}
+INSERT INTO a2rchi_mcp_server_options (name, config, enabled)
+VALUES
+{% for opt in a2rchi_mcp_server_options %}
+  ('{{ opt.name }}', '{{ opt.config }}'::jsonb, {{ 'true' if opt.enabled else 'false' }}){% if not loop.last %},{% endif %}
+{% endfor %}
+;
+{% endif %}
 
 -- create grafana user if it does not exist
 {% if use_grafana -%}

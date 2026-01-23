@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.utils.config_loader import load_global_config
+from src.utils.runtime_config_loader import load_runtime_global_config
 
-global_config = load_global_config()
+global_config = load_runtime_global_config()
 
 def stringify_history(chat_history: List[Tuple[str, str]]) -> str:
     """

@@ -3,7 +3,7 @@ import getpass
 import imaplib
 import os
 
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -64,7 +64,7 @@ def get_email_body(msg):
 
     return body, body_html  
 
-config = load_config()
+config = load_runtime_config()
 M = imaplib.IMAP4(host='ppc.mit.edu', port=config["services"]["redmine_mailbox"]["imap4_port"], timeout=None)
 #M.login(getpass.getuser(),getpass.getpass())
 M.login('cmsprod',getpass.getpass())

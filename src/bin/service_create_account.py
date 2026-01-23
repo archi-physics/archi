@@ -3,7 +3,7 @@ import getpass
 import os
 
 from src.interfaces.chat_app.document_utils import add_username_password
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
 
@@ -11,7 +11,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 # load config and create accounts path if it doesn't exist
-global_config = load_config()["global"]
+global_config = load_runtime_config()["global"]
 os.makedirs(global_config["ACCOUNTS_PATH"], exist_ok=True)
 
 # read salt

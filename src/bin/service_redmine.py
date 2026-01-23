@@ -3,7 +3,7 @@ import os
 import time
 
 from src.interfaces.redmine_mailer_integration import redmine
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import setup_logging
 
@@ -20,7 +20,8 @@ os.environ['HUGGING_FACE_HUB_TOKEN'] = read_secret("HUGGING_FACE_HUB_TOKEN")
 time.sleep(30)
 
 print("Starting Redmine Service")
-redmine_config = load_config()["services"]["redmine_mailbox"]
+runtime_config = load_runtime_config()
+redmine_config = runtime_config["services"]["redmine_mailbox"]
 redmine = redmine.Redmine('Redmine_Helpdesk')
 
 while True:

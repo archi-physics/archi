@@ -6,12 +6,12 @@ from src.data_manager.collectors.tickets.integrations.jira import JiraClient
 from src.data_manager.collectors.tickets.integrations.redmine_tickets import \
     RedmineClient
 from src.data_manager.collectors.tickets.ticket_resource import TicketResource
-from src.utils.config_loader import load_global_config
+from src.utils.runtime_config_loader import load_runtime_global_config
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-global_config = load_global_config()
+global_config = load_runtime_global_config()
 
 class TicketManager:
     """Coordinates ticket integrations and delegates persistence."""

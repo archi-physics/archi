@@ -11,7 +11,7 @@ from flask import Flask, jsonify
 from src.data_manager.data_manager import DataManager
 from src.data_manager.scheduler import CronScheduler
 from src.interfaces.uploader_app.app import FlaskAppWrapper
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
 
@@ -25,10 +25,10 @@ def main() -> None:
     os.environ["OPENAI_API_KEY"] = read_secret("OPENAI_API_KEY")
     os.environ["HUGGING_FACE_HUB_TOKEN"] = read_secret("HUGGING_FACE_HUB_TOKEN")
 
-    config = load_config()
-    services_config = config["services"]
+    runtime_config = load_runtime_config()
+    services_config = runtime_config["services"]
     data_manager_cfg = services_config.get("data_manager", {})
-    status_file = Path(config["global"]["DATA_PATH"]) / "ingestion_status.json"
+    status_file = Path(runtime_config["global"]["DATA_PATH"]) / "ingestion_status.json"
 
     data_manager = DataManager(run_ingestion=False)
     lock = threading.RLock()
@@ -76,7 +76,7 @@ def main() -> None:
     }
 
     scheduler = CronScheduler()
-    sources_cfg = config.get("data_manager", {}).get("sources", {}) or {}
+    sources_cfg = runtime_config.get("data_manager", {}).get("sources", {}) or {}
     # seed status with schedules
     initial_status = load_status()
     for source_name, source_cfg in sources_cfg.items():

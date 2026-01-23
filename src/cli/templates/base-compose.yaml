@@ -47,6 +47,18 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
     secrets:
       {% for secret in required_secrets | default([]) -%}
       - {{ secret.lower() }}
@@ -119,6 +131,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
@@ -217,6 +235,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
@@ -339,6 +363,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
@@ -407,6 +437,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
@@ -464,6 +500,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
@@ -513,6 +555,12 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      {% if postgres_enabled -%}
+      A2RCHI_PG_HOST: {{ postgres_host }}
+      A2RCHI_PG_PORT: {{ postgres_port }}
+      A2RCHI_PG_USER: {{ postgres_user }}
+      A2RCHI_PG_DATABASE: {{ postgres_database }}
+      {% endif %}
       {% if gpu_ids -%}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics

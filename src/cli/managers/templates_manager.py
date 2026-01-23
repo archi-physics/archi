@@ -7,11 +7,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+import json
+import yaml
 from jinja2 import Environment
 
 from src.cli.service_registry import service_registry
 from src.cli.utils.service_builder import DeploymentPlan
 from src.cli.utils.grafana_styling import assign_feedback_palette
+from src.utils.a2rchi_settings_store import derive_option_catalogs
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -286,7 +289,7 @@ class TemplateManager:
                 f.write(static_rendered)
             logger.info(f"Rendered static configuration file {configs_path / name}.yaml")
 
-            # a2rchi settings defaults are loaded from src/a2rchi/a2rchi-settings.yaml
+            # a2rchi settings defaults are loaded from src/a2rchi/a2rchi-default-settings.yaml
 
     # service-specific assets
     def _render_grafana_assets(self, context: TemplateContext) -> None:
@@ -353,10 +356,86 @@ class TemplateManager:
             context.secrets_manager.get_secret("GRAFANA_PG_PASSWORD") if grafana_enabled else ""
         )
 
+        configs: List[Dict[str, str]] = []
+        updated_configs: List[Dict[str, Any]] = []
+        raw_configs = context.config_manager.get_configs() or []
+        static_template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
+        for cfg in raw_configs:
+            config_name = cfg.get("name") or "default"
+            updated_config = copy.deepcopy(cfg)
+            prompt_mapping = context.prompt_mappings.get(config_name, {})
+            pipeline_names = updated_config.get("a2rchi", {}).get("pipelines") or []
+            for pipeline_name in pipeline_names:
+                pipeline_config = (
+                    updated_config.get("a2rchi", {}).get("pipeline_map", {}).get(pipeline_name, {})
+                )
+                prompts_config = pipeline_config.get("prompts", {})
+                for section_prompts in prompts_config.values():
+                    if not isinstance(section_prompts, dict):
+                        continue
+                    for prompt_key in list(section_prompts.keys()):
+                        if prompt_key in prompt_mapping:
+                            section_prompts[prompt_key] = prompt_mapping[prompt_key]
+            if context.plan.host_mode:
+                updated_config["host_mode"] = context.plan.host_mode
+                self._apply_host_mode_port_overrides(updated_config)
+            updated_configs.append(updated_config)
+            static_rendered = static_template.render(
+                verbosity=context.plan.verbosity,
+                **updated_config,
+            )
+            stored_config = yaml.safe_load(static_rendered) or {}
+            if not isinstance(stored_config, dict):
+                raise ValueError("Rendered static config must be a mapping.")
+            stored_config["a2rchi"] = updated_config.get("a2rchi") or {}
+            cleaned = {k: v for k, v in stored_config.items() if not str(k).startswith("_")}
+            payload = yaml.safe_dump(cleaned, sort_keys=False)
+            configs.append({"name": config_name, "payload": payload.replace("'", "''")})
+
+        a2rchi_settings = (updated_configs[0].get("a2rchi") if updated_configs else {}) or {}
+        settings_json = json.dumps(a2rchi_settings).replace("'", "''")
+        (
+            model_options,
+            pipeline_options,
+            agent_options,
+            tool_options,
+            mcp_server_options,
+        ) = derive_option_catalogs(a2rchi_settings)
+
+        def _json_payload(payload: Dict[str, Any]) -> str:
+            return json.dumps(payload).replace("'", "''")
+
+        model_rows = [
+            {"name": name, "config": _json_payload(config)} for name, config in model_options
+        ]
+        pipeline_rows = [
+            {"name": name, "config": _json_payload(config), "enabled": enabled}
+            for name, config, enabled in pipeline_options
+        ]
+        agent_rows = [
+            {"name": name, "config": _json_payload(config), "enabled": enabled}
+            for name, config, enabled in agent_options
+        ]
+        tool_rows = [
+            {"agent_name": agent, "tool_name": tool, "enabled": enabled}
+            for agent, tool, enabled in tool_options
+        ]
+        mcp_rows = [
+            {"name": name, "config": _json_payload(config), "enabled": enabled}
+            for name, config, enabled in mcp_server_options
+        ]
+
         init_sql_template = self.env.get_template(BASE_INIT_SQL_TEMPLATE)
         init_sql = init_sql_template.render(
             use_grafana=grafana_enabled,
             grafana_pg_password=grafana_pg_password,
+            configs=configs,
+            a2rchi_settings_json=settings_json,
+            a2rchi_model_options=model_rows,
+            a2rchi_pipeline_options=pipeline_rows,
+            a2rchi_agent_options=agent_rows,
+            a2rchi_tool_options=tool_rows,
+            a2rchi_mcp_server_options=mcp_rows,
         )
 
         dest = context.base_dir / "init.sql"
@@ -370,7 +449,12 @@ class TemplateManager:
         allow_port_reuse = context.get_option("allow_port_reuse", False)
         self._check_ports_available(context, port_config, allow_port_reuse=allow_port_reuse)
         template_vars.update(port_config)
-        template_vars.setdefault("postgres_port", context.config_manager.config.get("services", {}).get("postgres", {}).get("port", 5432))
+        postgres_cfg = context.config_manager.config.get("services", {}).get("postgres", {}) or {}
+        template_vars.setdefault("postgres_port", postgres_cfg.get("port", 5432))
+        postgres_host = "localhost" if context.plan.host_mode else postgres_cfg.get("host", "postgres")
+        template_vars.setdefault("postgres_host", postgres_host)
+        template_vars.setdefault("postgres_user", postgres_cfg.get("user", "a2rchi"))
+        template_vars.setdefault("postgres_database", postgres_cfg.get("database", "a2rchi-db"))
 
         template_vars["app_version"] = get_git_version()
 

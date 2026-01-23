@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 
 from src.data_manager.collectors.localfile_resource import LocalFileResource
 from src.data_manager.collectors.persistence import PersistenceService
-from src.utils.config_loader import load_global_config
+from src.utils.runtime_config_loader import load_runtime_global_config
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,7 +18,7 @@ class LocalFileManager:
     """Collects local files/directories into the shared data path."""
 
     def __init__(self, dm_config: Optional[Dict[str, Any]] = None) -> None:
-        global_config = load_global_config()
+        global_config = load_runtime_global_config()
         self.data_path = Path(global_config["DATA_PATH"])
 
         sources_config = (dm_config or {}).get("sources", {}) or {}

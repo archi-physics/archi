@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pandas as pd
-import yaml
 from datasets import Dataset
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -20,10 +19,10 @@ from ragas.metrics import (answer_relevancy, context_precision, context_recall,
 from src.a2rchi.a2rchi import A2rchi
 from src.a2rchi.models import HuggingFaceOpenLLM
 from src.utils.env import read_secret
+from src.utils.runtime_config_loader import get_runtime_config_names, load_runtime_config
 from src.utils.logging import get_logger, setup_logging
 from src.utils.generate_benchmark_report import parse_benchmark_results, format_html_output
 
-CONFIG_PATH = "/root/A2rchi/config.yaml"
 OUTPUT_PATH = "/root/A2rchi/benchmarks"
 EXTRA_METADATA_PATH = "/root/A2rchi/git_info.yaml"
 OUTPUT_DIR = Path(OUTPUT_PATH)
@@ -55,17 +54,14 @@ class ResultHandler:
 
 
     @staticmethod
-    def handle_results(config_path: Path, results: Dict, total_results: Dict):
-        with open(config_path, "r") as f: 
-            config = yaml.load(f, Loader=yaml.FullLoader)
-
+    def handle_results(config_name: str, config: Dict, results: Dict, total_results: Dict):
         ResultHandler.map_prompts(config)
 
-        current_results = { 
-            "single_question_results": results, 
-            "total_results": total_results, 
-            "configuration_file": str(config_path),
-            "configuration": config, 
+        current_results = {
+            "single_question_results": results,
+            "total_results": total_results,
+            "configuration_name": config_name,
+            "configuration": config,
         }
 
         ResultHandler.results.append(current_results)
@@ -125,8 +121,8 @@ class Benchmarker:
         self.queries_to_answers = q_to_a 
         self.required_fields = ['question']
         self.benchmark_name = os.environ['container_name']
-        self.all_config_files = self.get_all_configs(configs)
-        self.all_config_files.append('FINISHED')
+        self.all_config_names = self.get_all_configs()
+        self.all_config_names.append('FINISHED')
         self.previous_input_list = []
         self.chain = None 
         self.config = None 
@@ -135,22 +131,13 @@ class Benchmarker:
         self.load_new_configuration()
         self.data_path = self.config["global"]["DATA_PATH"]
     
-    def get_all_configs(self, configs_dir):
-        all_paths = []
-        for root, _, filenames in os.walk(configs_dir):
-            for file in filenames: 
-                full_path = os.path.join(root, file)
-                all_paths.append(full_path)
-        return all_paths
+    def get_all_configs(self):
+        return get_runtime_config_names()
 
     def load_new_configuration(self):
-        self.current_config = self.all_config_files.pop(0)
+        self.current_config = self.all_config_names.pop(0)
         if self.current_config == 'FINISHED': return
-        with open(self.current_config, "r") as f:
-            config = yaml.safe_load(f)
-
-        with open(CONFIG_PATH, 'w') as f: 
-            yaml.dump(config, stream=f)
+        config = load_runtime_config(name=self.current_config)
 
         del self.chain
         self.config = config 
@@ -164,7 +151,7 @@ class Benchmarker:
         logger.info(f"loaded new configuration: {self.current_config}")
         pipeline = config.get('a2rchi').get('pipelines')[0]
 
-        self.chain = A2rchi(pipeline) 
+        self.chain = A2rchi(pipeline, config_name=self.current_config)
 
 
     def get_ragas_llm_evaluator(self):
@@ -508,7 +495,7 @@ class Benchmarker:
                 total_results['relative_source_accuracy'] = relative_source_accuracy / len(self.queries_to_answers)
                 total_results['source_accuracy'] = source_accuracy / len(self.queries_to_answers)
 
-            ResultHandler.handle_results(Path(self.current_config), question_wise_results, total_results)
+            ResultHandler.handle_results(self.current_config, self.config, question_wise_results, total_results)
             self.load_new_configuration()
 
         ResultHandler.add_metadata()

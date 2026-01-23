@@ -29,7 +29,7 @@ from pygments.lexers import (BashLexer, CLexer, CppLexer, FortranLexer,
 
 from src.a2rchi.a2rchi import A2rchi
 # from src.data_manager.data_manager import DataManager
-from src.utils.config_loader import CONFIGS_PATH, get_config_names, load_config
+from src.utils.runtime_config_loader import get_runtime_config_names, load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 from src.utils.sql import SQL_INSERT_CONVO, SQL_INSERT_FEEDBACK, SQL_INSERT_TIMING, SQL_QUERY_CONVO, SQL_INSERT_CONFIG, SQL_CREATE_CONVERSATION, SQL_UPDATE_CONVERSATION_TIMESTAMP, SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION, SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK, SQL_DELETE_REACTION_FEEDBACK
@@ -69,7 +69,7 @@ class AnswerRenderer(mt.HTMLRenderer):
         }
 
     def __init__(self):
-        self.config = load_config()
+        self.config = load_runtime_config()
         super().__init__()
 
     def block_code(self, code, info=None):
@@ -114,7 +114,7 @@ class ChatWrapper:
     """
     def __init__(self):
         # load configs
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.data_path = self.global_config["DATA_PATH"]
@@ -175,7 +175,7 @@ class ChatWrapper:
 
     def _get_config_payload(self, config_name):
         if config_name not in self._config_cache:
-            self._config_cache[config_name] = load_config(name=config_name)
+            self._config_cache[config_name] = load_runtime_config(name=config_name)
         return self._config_cache[config_name]
 
     def _get_or_create_config_id(self, config_name, config_payload=None):
@@ -204,7 +204,7 @@ class ChatWrapper:
             conn.close()
 
     def _store_config_ids(self):
-        for config_name in get_config_names():
+        for config_name in get_runtime_config_names():
             try:
                 payload = self._get_config_payload(config_name)
                 self._get_or_create_config_id(config_name, payload)
@@ -1049,7 +1049,7 @@ class FlaskAppWrapper(object):
         logger.info("Entering FlaskAppWrapper")
         self.app = app
         self.configs(**configs)
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.chat_app_config = self.config["services"]["chat_app"]
@@ -1329,11 +1329,25 @@ class FlaskAppWrapper(object):
         is parsed and inserted into the `configs` table. Finally, the chat wrapper's
         config_id is updated.
         """
-        # parse config and write it out to CONFIGS_PATH
-        config_str = request.json.get('config')
-        config_name = config_str['name']
-        with open(CONFIGS_PATH+f'{config_name}.yaml', 'w') as f:
-            f.write(config_str)
+        # parse config payload and persist it in Postgres
+        config_payload = request.json.get('config')
+        if isinstance(config_payload, str):
+            config_payload = yaml.safe_load(config_payload)
+        if not isinstance(config_payload, dict):
+            return jsonify({'error': 'Invalid config payload'}), 400
+        config_name = config_payload.get('name')
+        if not config_name:
+            return jsonify({'error': 'Config name is required'}), 400
+
+        config_text = yaml.safe_dump(config_payload, sort_keys=False)
+        insert_tup = [(config_text, config_name)]
+        self.conn = psycopg2.connect(**self.pg_config)
+        self.cursor = self.conn.cursor()
+        psycopg2.extras.execute_values(self.cursor, SQL_INSERT_CONFIG, insert_tup)
+        self.conn.commit()
+        self.cursor.close()
+        self.conn.close()
+        self.cursor, self.conn = None, None
 
         # parse prompts and write them to their respective locations
         # TODO fix
@@ -1350,7 +1364,7 @@ class FlaskAppWrapper(object):
             f.write(summary_prompt)
 
         # re-read config using load_config and update dependent variables
-        self.config = load_config()
+        self.config = load_runtime_config(name=config_name)
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.chat_app_config = self.config["services"]["chat_app"]
@@ -1380,12 +1394,12 @@ class FlaskAppWrapper(object):
             A json with a response list of the configs names
         """
 
-        config_names = get_config_names()
+        config_names = get_runtime_config_names()
         options = []
         for name in config_names:
             description = ""
             try:
-                payload = load_config(name=name)
+                payload = load_runtime_config(name=name)
                 description = payload.get("a2rchi", {}).get("agent_description", "No description provided")
             except Exception as exc:
                 logger.warning(f"Failed to load config {name} for description: {exc}")

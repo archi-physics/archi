@@ -49,11 +49,6 @@ a2rchi:
           - search_metadata_index
           - fetch_catalog_document
           - search_knowledge_base
-      middleware:
-        enabled: []
-        configs:
-          LLMToolSelectorMiddleware:
-            max_tools: 3
   model_class_map:
     AnthropicLLM:
       class: AnthropicLLM

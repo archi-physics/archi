@@ -2,7 +2,7 @@ import logging
 
 import yaml
 
-from src.utils.config_loader import load_global_config
+from src.utils.runtime_config_loader import load_runtime_global_config
 
 # ignore debug logs from these modules, too verbose :)
 ignore_debug_modules = ["urllib3.connectionpool", "filelock", "httpcore", "openai._base_client"]
@@ -17,8 +17,8 @@ logging_verboseLevel = [
 
 def setup_logging():
 
-    config = load_global_config()
-    verbosity = config["verbosity"]
+    runtime_global = load_runtime_global_config()
+    verbosity = runtime_global["verbosity"]
 
     format_str = '(%(asctime)s) [%(name)s] %(levelname)s: %(message)s'
 

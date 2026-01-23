@@ -6,7 +6,7 @@ from src.data_manager.collectors.scrapers.scraper_manager import ScraperManager
 from src.data_manager.collectors.tickets.ticket_manager import TicketManager
 from src.data_manager.collectors.localfile_manager import LocalFileManager
 from src.data_manager.vectorstore.manager import VectorStoreManager
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 
@@ -16,7 +16,7 @@ class DataManager():
 
     def __init__(self, *, run_ingestion: bool = True):
 
-        self.config = load_config(map=True)
+        self.config = load_runtime_config(map=True)
         self.global_config = self.config["global"]
         self.data_path = self.global_config["DATA_PATH"]
         self.should_run_ingestion = run_ingestion

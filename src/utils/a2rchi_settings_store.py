@@ -1,9 +1,7 @@
 import copy
 import logging
-from importlib import resources
-from typing import Dict, List, Optional, Tuple
-
-import yaml
+import os
+from typing import Dict, List, Tuple
 
 from src.utils.env import read_secret
 
@@ -14,30 +12,26 @@ TABLE_MODEL_OPTIONS = "a2rchi_model_options"
 TABLE_PIPELINE_OPTIONS = "a2rchi_pipeline_options"
 TABLE_AGENT_OPTIONS = "a2rchi_agent_options"
 TABLE_TOOL_OPTIONS = "a2rchi_tool_options"
-TABLE_MIDDLEWARE_OPTIONS = "a2rchi_middleware_options"
 TABLE_MCP_SERVER_OPTIONS = "a2rchi_mcp_server_options"
 
 
-def load_a2rchi_settings(config: Dict) -> Dict:
+def load_a2rchi_settings() -> Dict:
     """
-    Load the a2rchi settings from Postgres, seeding from config defaults when empty.
-    Falls back to the config file when Postgres is unavailable.
+    Load the a2rchi settings from Postgres.
+    Fails fast when Postgres is unavailable or empty.
     """
-    base_a2rchi = _load_a2rchi_defaults(config)
-    pg_config = _build_pg_config(config)
+    pg_config = _build_pg_config()
     if not pg_config:
-        return base_a2rchi
+        raise RuntimeError("Postgres configuration missing for a2rchi settings.")
 
     psycopg2 = _load_psycopg2()
     if psycopg2 is None:
-        LOGGER.warning("psycopg2 unavailable; using config defaults for a2rchi settings.")
-        return base_a2rchi
+        raise RuntimeError("psycopg2 unavailable; cannot load a2rchi settings.")
 
     try:
         conn = psycopg2.connect(**pg_config)
     except Exception as exc:
-        LOGGER.warning("Failed to connect to Postgres for settings: %s", exc)
-        return base_a2rchi
+        raise RuntimeError(f"Failed to connect to Postgres for settings: {exc}") from exc
 
     try:
         with conn:
@@ -45,33 +39,13 @@ def load_a2rchi_settings(config: Dict) -> Dict:
                 _ensure_tables(cursor)
                 settings_id, settings_payload = _fetch_latest_settings(cursor)
                 if settings_payload is None:
-                    _seed_options_from_a2rchi(cursor, base_a2rchi)
-                    (
-                        model_opts,
-                        pipeline_opts,
-                        agent_opts,
-                        tool_opts,
-                        middleware_opts,
-                        mcp_opts,
-                    ) = _fetch_option_catalogs(cursor)
-                    composed = compose_a2rchi_settings(
-                        base_a2rchi,
-                        model_opts,
-                        pipeline_opts,
-                        agent_opts,
-                        tool_opts,
-                        middleware_opts,
-                        mcp_opts,
-                    )
-                    _upsert_settings(cursor, settings_id, settings_payload, composed)
-                    return composed
+                    raise RuntimeError("No a2rchi settings found in Postgres.")
 
                 (
                     model_opts,
                     pipeline_opts,
                     agent_opts,
                     tool_opts,
-                    middleware_opts,
                     mcp_opts,
                 ) = _fetch_option_catalogs(cursor)
                 if not model_opts and not pipeline_opts and not agent_opts:
@@ -81,7 +55,6 @@ def load_a2rchi_settings(config: Dict) -> Dict:
                         pipeline_opts,
                         agent_opts,
                         tool_opts,
-                        middleware_opts,
                         mcp_opts,
                     ) = _fetch_option_catalogs(cursor)
 
@@ -91,7 +64,6 @@ def load_a2rchi_settings(config: Dict) -> Dict:
                     pipeline_opts,
                     agent_opts,
                     tool_opts,
-                    middleware_opts,
                     mcp_opts,
                 )
                 _upsert_settings(cursor, settings_id, settings_payload, composed)
@@ -106,7 +78,6 @@ def compose_a2rchi_settings(
     pipeline_options: List[Tuple[str, Dict, bool]],
     agent_options: List[Tuple[str, Dict, bool]],
     tool_options: List[Tuple[str, str, bool]],
-    middleware_options: List[Tuple[str, str, bool, Optional[Dict]]],
     mcp_server_options: List[Tuple[str, Dict, bool]],
 ) -> Dict:
     """
@@ -136,19 +107,6 @@ def compose_a2rchi_settings(
             pipeline_map.setdefault(agent_name, {})["tools"] = {"enabled": tools}
         composed["pipeline_map"] = pipeline_map
 
-    if middleware_options:
-        middleware_map: Dict[str, Dict[str, object]] = {}
-        for agent_name, middleware_name, enabled, config in middleware_options:
-            agent_entry = middleware_map.setdefault(agent_name, {"enabled": [], "configs": {}})
-            if enabled:
-                agent_entry["enabled"].append(middleware_name)
-            if config:
-                agent_entry["configs"][middleware_name] = config
-        pipeline_map = composed.get("pipeline_map", {})
-        for agent_name, entry in middleware_map.items():
-            pipeline_map.setdefault(agent_name, {})["middleware"] = entry
-        composed["pipeline_map"] = pipeline_map
-
     if mcp_server_options:
         mcp_servers: Dict[str, Dict] = {}
         for name, config, enabled in mcp_server_options:
@@ -166,7 +124,6 @@ def derive_option_catalogs(
     List[Tuple[str, Dict, bool]],
     List[Tuple[str, Dict, bool]],
     List[Tuple[str, str, bool]],
-    List[Tuple[str, str, bool, Optional[Dict]]],
     List[Tuple[str, Dict, bool]],
 ]:
     """
@@ -187,26 +144,12 @@ def derive_option_catalogs(
             pipeline_options.append(entry)
 
     tool_options: List[Tuple[str, str, bool]] = []
-    middleware_options: List[Tuple[str, str, bool, Optional[Dict]]] = []
-
     for name, config in pipeline_map.items():
         if not _is_agent_name(name) or not isinstance(config, dict):
             continue
         tools_cfg = config.get("tools", {}) or {}
         for tool_name in tools_cfg.get("enabled") or []:
             tool_options.append((name, tool_name, True))
-
-        middleware_cfg = config.get("middleware", {}) or {}
-        middleware_configs = middleware_cfg.get("configs", {}) or {}
-        for middleware_name in middleware_cfg.get("enabled") or []:
-            middleware_options.append(
-                (
-                    name,
-                    middleware_name,
-                    True,
-                    middleware_configs.get(middleware_name),
-                )
-            )
 
     mcp_servers = a2rchi.get("mcp_servers", {}) or {}
     mcp_server_options: List[Tuple[str, Dict, bool]] = []
@@ -224,7 +167,6 @@ def derive_option_catalogs(
         pipeline_options,
         agent_options,
         tool_options,
-        middleware_options,
         mcp_server_options,
     )
 
@@ -233,16 +175,20 @@ def _is_agent_name(name: str) -> bool:
     return name.lower().endswith("agent")
 
 
-def _build_pg_config(config: Dict) -> Dict:
-    services = config.get("services") or {}
-    postgres_config = services.get("postgres") or {}
-    if not postgres_config:
+def _build_pg_config() -> Dict:
+    host = os.getenv("A2RCHI_PG_HOST") or os.getenv("PGHOST")
+    port = os.getenv("A2RCHI_PG_PORT") or os.getenv("PGPORT")
+    user = os.getenv("A2RCHI_PG_USER") or os.getenv("PGUSER")
+    database = os.getenv("A2RCHI_PG_DATABASE") or os.getenv("PGDATABASE")
+    if not host or not user or not database:
         return {}
-    pg_config = {
+    return {
+        "host": host,
+        "port": int(port) if port else 5432,
+        "user": user,
+        "database": database,
         "password": read_secret("PG_PASSWORD"),
-        **postgres_config,
     }
-    return pg_config
 
 
 def _ensure_tables(cursor) -> None:
@@ -293,17 +239,6 @@ def _ensure_tables(cursor) -> None:
     )
     cursor.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {TABLE_MIDDLEWARE_OPTIONS} (
-            agent_name TEXT NOT NULL,
-            middleware_name TEXT NOT NULL,
-            config JSONB,
-            enabled BOOLEAN NOT NULL DEFAULT TRUE,
-            PRIMARY KEY (agent_name, middleware_name)
-        );
-        """
-    )
-    cursor.execute(
-        f"""
         CREATE TABLE IF NOT EXISTS {TABLE_MCP_SERVER_OPTIONS} (
             name TEXT PRIMARY KEY,
             config JSONB NOT NULL,
@@ -341,11 +276,6 @@ def _fetch_option_catalogs(cursor):
     cursor.execute(f"SELECT agent_name, tool_name, enabled FROM {TABLE_TOOL_OPTIONS};")
     tool_options = [(row[0], row[1], row[2]) for row in cursor.fetchall()]
 
-    cursor.execute(
-        f"SELECT agent_name, middleware_name, enabled, config FROM {TABLE_MIDDLEWARE_OPTIONS};"
-    )
-    middleware_options = [(row[0], row[1], row[2], row[3]) for row in cursor.fetchall()]
-
     cursor.execute(f"SELECT name, config, enabled FROM {TABLE_MCP_SERVER_OPTIONS};")
     mcp_server_options = [(row[0], row[1], row[2]) for row in cursor.fetchall()]
 
@@ -354,7 +284,6 @@ def _fetch_option_catalogs(cursor):
         pipeline_options,
         agent_options,
         tool_options,
-        middleware_options,
         mcp_server_options,
     )
 
@@ -368,7 +297,6 @@ def _seed_options_from_a2rchi(cursor, a2rchi: Dict) -> None:
         pipeline_options,
         agent_options,
         tool_options,
-        middleware_options,
         mcp_server_options,
     ) = derive_option_catalogs(a2rchi)
 
@@ -431,22 +359,6 @@ def _seed_options_from_a2rchi(cursor, a2rchi: Dict) -> None:
             [(agent, tool, enabled) for agent, tool, enabled in tool_options],
         )
 
-    if middleware_options:
-        psycopg2.extras.execute_values(
-            cursor,
-            f"""
-            INSERT INTO {TABLE_MIDDLEWARE_OPTIONS} (agent_name, middleware_name, enabled, config)
-            VALUES %s
-            ON CONFLICT (agent_name, middleware_name) DO UPDATE
-            SET enabled = EXCLUDED.enabled,
-                config = EXCLUDED.config;
-            """,
-            [
-                (agent, name, enabled, psycopg2.extras.Json(config) if config else None)
-                for agent, name, enabled, config in middleware_options
-            ],
-        )
-
     if mcp_server_options:
         psycopg2.extras.execute_values(
             cursor,
@@ -462,21 +374,6 @@ def _seed_options_from_a2rchi(cursor, a2rchi: Dict) -> None:
                 for name, config, enabled in mcp_server_options
             ],
         )
-
-
-def _load_a2rchi_defaults(config: Dict) -> Dict:
-    base_settings = copy.deepcopy(config.get("a2rchi") or {})
-    try:
-        settings_path = resources.files("src.a2rchi").joinpath("a2rchi-settings.yaml")
-        payload = yaml.safe_load(settings_path.read_text()) or {}
-    except Exception:
-        return base_settings
-
-    if "a2rchi" in payload:
-        return payload.get("a2rchi") or {}
-    if isinstance(payload, dict):
-        return payload
-    return base_settings
 
 
 def _upsert_settings(cursor, settings_id, current_payload, new_payload) -> None:

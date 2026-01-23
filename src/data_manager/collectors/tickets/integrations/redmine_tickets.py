@@ -4,14 +4,14 @@ from redminelib import Redmine
 
 from src.data_manager.collectors.tickets.ticket_resource import TicketResource
 from src.data_manager.collectors.utils.anonymizer import Anonymizer
-from src.utils.config_loader import load_services_config
+from src.utils.runtime_config_loader import load_runtime_services_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 # use this to grab the answer for a given ticket, then remove it from answer text
-ANSWER_TAG = load_services_config()["redmine_mailbox"]["answer_tag"]
+ANSWER_TAG = load_runtime_services_config()["redmine_mailbox"]["answer_tag"]
 
 
 class RedmineClient:

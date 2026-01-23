@@ -221,7 +221,7 @@ def _render_config_for_compare(
 def _load_rendered_configs(configs_dir: Path) -> Dict[str, Dict[str, Any]]:
     rendered: Dict[str, Dict[str, Any]] = {}
     for config_path in configs_dir.glob("*.yaml"):
-        if config_path.name.endswith(".a2rchi-settings.yaml"):
+        if config_path.name.endswith(".a2rchi-default-settings.yaml"):
             continue
         with open(config_path, "r") as f:
             data = yaml.safe_load(f) or {}

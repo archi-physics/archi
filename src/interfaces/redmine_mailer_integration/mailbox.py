@@ -6,7 +6,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -27,7 +27,7 @@ class Mailbox:
         self.mailbox = None
         self.user = user
         self.password = password
-        config = load_config()
+        config = load_runtime_config()
         services_config = config.get("services", {}) if isinstance(config, dict) else {}
         self.config = services_config.get("redmine_mailbox", {})
 

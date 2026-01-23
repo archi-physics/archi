@@ -3,7 +3,7 @@ import os
 import time
 
 from src.interfaces.redmine_mailer_integration import mailbox, redmine
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import setup_logging
 
@@ -22,7 +22,8 @@ password = read_secret('IMAP_PW')
 time.sleep(60)
 
 print("Starting Mailbox Service")
-mailbox_config = load_config()["services"]["redmine_mailbox"]
+runtime_config = load_runtime_config()
+mailbox_config = runtime_config["services"]["redmine_mailbox"]
 redmine = redmine.Redmine('Redmine_Helpdesk_Mail') # this name tells redmine class to not initialize A2rchi() class
 
 while True:

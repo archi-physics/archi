@@ -34,7 +34,7 @@ from sklearn.metrics.pairwise import \
 
 from src.a2rchi.a2rchi import A2rchi
 from src.data_manager.data_manager import DataManager
-from src.utils.config_loader import CONFIG_PATH, load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 from src.utils.sql import (SQL_INSERT_CONFIG, SQL_INSERT_CONVO,
@@ -48,7 +48,7 @@ csv.field_size_limit(sys.maxsize)
 
 class ImageToTextWrapper:
     def __init__(self):
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.data_path = self.global_config["DATA_PATH"]
@@ -94,7 +94,7 @@ class ImageToTextWrapper:
 
 class GradingWrapper:
     def __init__(self):
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.data_path = self.global_config["DATA_PATH"]
@@ -150,7 +150,7 @@ class FlaskAppWrapper(object):
     def __init__(self, app: Flask, **configs):
         self.app = app
         self.configs(**configs)
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.data_path = self.global_config["DATA_PATH"]

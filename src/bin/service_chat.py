@@ -5,7 +5,7 @@ import os
 from flask import Flask
 
 from src.interfaces.chat_app.app import FlaskAppWrapper
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import setup_logging
 
@@ -19,9 +19,9 @@ def main():
     os.environ['OPENAI_API_KEY'] = read_secret("OPENAI_API_KEY")
     os.environ['HUGGING_FACE_HUB_TOKEN'] = read_secret("HUGGING_FACE_HUB_TOKEN")
     
-    config = load_config()
-    chat_config = config["services"]["chat_app"]
-    a2rchi_config = config["a2rchi"]
+    runtime_config = load_runtime_config()
+    chat_config = runtime_config["services"]["chat_app"]
+    a2rchi_config = runtime_config["a2rchi"]
     print(f"Starting Chat Service with (host, port): ({chat_config['host']}, {chat_config['port']})")
     print(f"Accessible externally at (host, port): ({chat_config['hostname']}, {chat_config['external_port']})")
 
@@ -54,4 +54,3 @@ def generate_script(chat_config, a2rchi_config):
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     main()
-

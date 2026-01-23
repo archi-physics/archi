@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 
-data_path = load_config()["global"]["DATA_PATH"]
+data_path = load_runtime_config()["global"]["DATA_PATH"]
 
 class PromptLogger(BaseCallbackHandler):
     """Lightweight callback handler to log prompts and responses to file"""

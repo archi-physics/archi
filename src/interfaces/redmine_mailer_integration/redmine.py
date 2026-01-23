@@ -11,7 +11,7 @@ from src.a2rchi.a2rchi import A2rchi
 from src.data_manager.collectors.utils.index_utils import CatalogService
 from src.data_manager.data_manager import DataManager
 from src.interfaces.redmine_mailer_integration.utils import sender
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 from src.utils.sql import SQL_INSERT_CONVO
@@ -34,7 +34,7 @@ class RedmineAIWrapper:
         self.data_manager = DataManager(run_ingestion=False)
 
         # configs
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
         self.redmine_config = self.services_config.get("redmine_mailbox", {})
@@ -155,7 +155,7 @@ class Redmine:
             self.ai_wrapper = RedmineAIWrapper()
 
         # read configuration for Redmine mailbox service
-        config = load_config()
+        config = load_runtime_config()
         services_config = config.get("services", {}) if isinstance(config, dict) else {}
         redmine_mailbox_config = services_config.get("redmine_mailbox", {})
 

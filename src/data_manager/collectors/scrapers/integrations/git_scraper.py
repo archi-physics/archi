@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from git import Repo
 from mkdocs.utils.yaml import yaml_load
 
-from src.utils.config_loader import load_global_config
+from src.utils.runtime_config_loader import load_runtime_global_config
 from src.data_manager.collectors.scrapers.scraped_resource import ScrapedResource
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from src.data_manager.collectors.scrapers.scraper_manager import \
         ScraperManager
 
-global_config = load_global_config()
+global_config = load_runtime_global_config()
 
 class GitScraper:
     """Scraper integration that clones Git repositories and indexes MkDocs sites and code files."""

@@ -49,7 +49,7 @@ class ConfigurationManager:
         config["_a2rchi_settings_path"] = str(settings_path) if settings_path else None
         if "a2rchi" in config:
             logger.warning(
-                "Ignoring inline a2rchi settings in %s; use src/a2rchi/a2rchi-settings.yaml instead.",
+                "Ignoring inline a2rchi settings in %s; use src/a2rchi/a2rchi-default-settings.yaml instead.",
                 config_filepath,
             )
         config["a2rchi"] = settings_payload
@@ -57,9 +57,9 @@ class ConfigurationManager:
         return config
 
     def _load_settings_defaults(self) -> tuple[Dict[str, Any], Optional[Path]]:
-        """Load plain a2rchi settings defaults from src/a2rchi/a2rchi-settings.yaml."""
+        """Load plain a2rchi settings defaults from src/a2rchi/a2rchi-default-settings.yaml."""
         try:
-            settings_path = resources.files("src.a2rchi").joinpath("a2rchi-settings.yaml")
+            settings_path = resources.files("src.a2rchi").joinpath("a2rchi-default-settings.yaml")
             payload = yaml.safe_load(settings_path.read_text()) or {}
         except Exception as exc:
             logger.error("Failed to load a2rchi settings defaults: %s", exc)

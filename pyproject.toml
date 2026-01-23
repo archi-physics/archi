@@ -31,7 +31,7 @@ a2rchi = "src.cli.cli_main:main"
 
 [tool.setuptools.package-data]
 "src.cli" = ["templates/**/*"]
-"src.a2rchi" = ["a2rchi-settings.yaml"]
+"src.a2rchi" = ["a2rchi-default-settings.yaml"]
 
 [tool.setuptools]
 include-package-data = true

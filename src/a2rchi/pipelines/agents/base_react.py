@@ -34,8 +34,6 @@ class BaseReActAgent:
         self._active_memory: Optional[DocumentMemory] = None
         self._static_tools: Optional[List[Callable]] = None
         self._active_tools: List[Callable] = []
-        self._static_middleware: Optional[List[Callable]] = None
-        self._active_middleware: List[Callable] = []
         self.agent: Optional[CompiledStateGraph] = None
         self.agent_llm: Optional[Any] = None
         self.agent_prompt: Optional[str] = None
@@ -267,18 +265,6 @@ class BaseReActAgent:
             return self.rebuild_static_tools()
         return list(self._static_tools)
     
-    def rebuild_static_middleware(self) -> List[Callable]:
-        """Recompute and cache the static middleware list."""
-        self._static_middleware = self._filter_middleware(self._build_static_middleware())
-        return self._static_middleware
-    
-    @property
-    def middleware(self) -> List[Callable]:
-        """Return the cached static middleware, rebuilding if necessary."""
-        if self._static_middleware is None:
-            return self.rebuild_static_middleware()
-        return list(self._static_middleware)
-
     @tools.setter
     def tools(self, value: Sequence[Callable]) -> None:
         """Explicitly set the static tools cache."""
@@ -289,7 +275,6 @@ class BaseReActAgent:
         *,
         static_tools: Optional[Sequence[Callable]] = None,
         extra_tools: Optional[Sequence[Callable]] = None,
-        middleware: Optional[Sequence[Callable]] = None,
         force: bool = False,
     ) -> CompiledStateGraph:
         """Ensure the LangGraph agent reflects the latest tool set."""
@@ -297,8 +282,6 @@ class BaseReActAgent:
         toolset: List[Callable] = list(base_tools)
         if extra_tools:
             toolset.extend(self._filter_tools(extra_tools))
-       
-        middleware = list(middleware) if middleware is not None else self.middleware
 
         requires_refresh = (
             force
@@ -308,9 +291,8 @@ class BaseReActAgent:
         )
         if requires_refresh:
             logger.debug("Refreshing agent %s", self.__class__.__name__)
-            self.agent = self._create_agent(toolset, middleware)
+            self.agent = self._create_agent(toolset)
             self._active_tools = list(toolset)
-            self._active_middleware = list(middleware)
         return self.agent
 
     def _filter_tools(self, tools: Sequence[Callable]) -> List[Callable]:
@@ -326,27 +308,14 @@ class BaseReActAgent:
                 filtered.append(tool)
         return filtered
 
-    def _filter_middleware(self, middleware: Sequence[Callable]) -> List[Callable]:
-        enabled = self.pipeline_config.get("middleware", {}).get("enabled")
-        if not enabled:
-            return list(middleware)
-        enabled_set = set(enabled)
-        filtered: List[Callable] = []
-        for item in middleware:
-            name = item.__class__.__name__
-            if name in enabled_set:
-                filtered.append(item)
-        return filtered
-
-    def _create_agent(self, tools: Sequence[Callable], middleware: Sequence[Callable]) -> CompiledStateGraph:
+    def _create_agent(self, tools: Sequence[Callable]) -> CompiledStateGraph:
         """Create the LangGraph agent with the specified LLM, tools, and system prompt."""
         logger.debug("Creating agent %s with:", self.__class__.__name__)
         logger.debug("%d tools", len(tools))
-        logger.debug("%d middleware components", len(middleware))
         return create_agent(
             model=self.agent_llm,
             tools=tools,
-            middleware=middleware,
+            middleware=[],
             system_prompt=self.agent_prompt,
         )
 
@@ -354,10 +323,6 @@ class BaseReActAgent:
         """Build and returns static tools defined in the config."""
         return []
     
-    def _build_static_middleware(self) -> List[Callable]:
-        """Build and returns static middleware defined in the config."""
-        return []
-
     def _prepare_agent_inputs(self, **kwargs) -> Dict[str, Any]:
         """Subclasses must implement to provide agent input payloads."""
         raise NotImplementedError(f"{self.__class__.__name__} must implement _prepare_agent_inputs")

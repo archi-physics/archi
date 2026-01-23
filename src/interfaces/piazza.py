@@ -9,7 +9,7 @@ from piazza_api import Piazza as PiazzaAPI
 
 from src.a2rchi.a2rchi import A2rchi
 from src.data_manager.data_manager import DataManager
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 
@@ -47,7 +47,7 @@ class Piazza:
 
         logger.info("Initializing Piazza service")
 
-        self.piazza_config = load_config()["utils"].get("piazza", None)
+        self.piazza_config = load_runtime_config()["utils"].get("piazza", None)
 
         # login to piazza
         self.piazza = PiazzaAPI()

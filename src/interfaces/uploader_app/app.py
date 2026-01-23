@@ -19,7 +19,7 @@ from src.data_manager.collectors.utils.index_utils import CatalogService
 from src.data_manager.collectors.tickets.ticket_manager import TicketManager
 from src.data_manager.vectorstore.loader_utils import load_text_from_path
 from src.interfaces.chat_app.document_utils import check_credentials
-from src.utils.config_loader import load_config
+from src.utils.runtime_config_loader import load_runtime_config
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 
@@ -37,7 +37,7 @@ class FlaskAppWrapper:
         status_file: Optional[Path] = None,
     ) -> None:
         self.app = app
-        self.config = load_config()
+        self.config = load_runtime_config()
         self.global_config = self.config["global"]
         self.services_config = self.config["services"]
 
