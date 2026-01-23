@@ -1400,11 +1400,20 @@ class FlaskAppWrapper(object):
             description = ""
             try:
                 payload = load_runtime_config(name=name)
-                description = payload.get("a2rchi", {}).get("agent_description", "No description provided")
+                description = self._resolve_agent_description(payload)
             except Exception as exc:
                 logger.warning(f"Failed to load config {name} for description: {exc}")
             options.append({"name": name, "description": description})
         return jsonify({'options': options}), 200
+
+    def _resolve_agent_description(self, payload: Dict[str, Any]) -> str:
+        a2rchi_cfg = payload.get("a2rchi", {}) if isinstance(payload, dict) else {}
+        services_cfg = payload.get("services", {}) if isinstance(payload, dict) else {}
+        pipeline_name = services_cfg.get("chat_app", {}).get("pipeline")
+        if not pipeline_name:
+            pipeline_name = (a2rchi_cfg.get("pipelines") or [None])[0]
+        pipeline_cfg = a2rchi_cfg.get("pipeline_map", {}).get(pipeline_name, {}) if pipeline_name else {}
+        return pipeline_cfg.get("agent_description", "No description provided")
 
     def _parse_chat_request(self) -> Dict[str, Any]:
         payload = request.get_json(silent=True) or {}

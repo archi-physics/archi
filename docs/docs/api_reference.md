@@ -328,5 +328,5 @@ services:
 ---
 
 **Tip:**
-For a full template, see `src/cli/templates/base-config.yaml` in
-the repository.
+For a full template, see `src/cli/templates/base-static-config.yaml` and
+`src/a2rchi/a2rchi-default-settings.yaml` in the repository.

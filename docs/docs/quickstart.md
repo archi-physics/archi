@@ -47,7 +47,7 @@ You specify which pipelines should be available in the configuration file.
 
 Once you have chosen the services, sources, and pipelines you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under `examples/deployments/`, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.
 
-> **Important:** Static configuration is rendered from `src/cli/templates/base-static-config.yaml` and stored in Postgres at deployment. A2RCHI runtime settings defaults live in `src/a2rchi/a2rchi-default-settings.yaml` and are seeded into Postgres at deployment; runtime services read settings from Postgres only.
+> **Important:** Static configuration is rendered from `src/cli/templates/base-static-config.yaml` and stored in Postgres at deployment. A2RCHI runtime settings defaults live in `src/a2rchi/a2rchi-default-settings.yaml` and are seeded into Postgres at deployment; runtime services read settings from Postgres only. You can override defaults by providing an `a2rchi` section in the same config file.
 
 Example configuration (`examples/deployments/basic-gpu/config.yaml`) for the `chatbot` service using `QAPipeline` with a local VLLM model:
 
@@ -68,6 +68,7 @@ a2rchi:
     - QAPipeline
   pipeline_map:
     QAPipeline:
+      agent_description: "My data"
       prompts:
         required:
           condense_prompt: examples/deployments/basic-gpu/condense.prompt
@@ -103,7 +104,7 @@ services:
   - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
   - `embedding_name`: Embedding model used for vectorization.
   - `chunk_size`: Controls how documents are split prior to embedding.
-- `a2rchi`: Core pipeline settings (stored in `src/a2rchi/a2rchi-default-settings.yaml`, seeded into Postgres at deployment, and read from there at runtime).
+- `a2rchi`: Core pipeline settings (stored in `src/a2rchi/a2rchi-default-settings.yaml`, seeded into Postgres at deployment, and read from there at runtime). Provide an `a2rchi` section in your config to override defaults.
   - `pipelines`: Pipelines to use (e.g., `QAPipeline`).
   - `pipeline_map`: Configuration for each pipeline, including prompts and models.
   - `model_class_map`: Mapping of model names to their classes and parameters.

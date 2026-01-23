@@ -25,7 +25,7 @@ def main():
     print(f"Starting Chat Service with (host, port): ({chat_config['host']}, {chat_config['port']})")
     print(f"Accessible externally at (host, port): ({chat_config['hostname']}, {chat_config['external_port']})")
 
-    generate_script(chat_config, a2rchi_config)
+    generate_script(chat_config, a2rchi_config, runtime_config["services"])
     app = FlaskAppWrapper(Flask(
         __name__,
         template_folder=chat_config["template_folder"],
@@ -34,7 +34,15 @@ def main():
     app.run(debug=True, use_reloader=False, port=chat_config["port"], host=chat_config["host"])
 
 
-def generate_script(chat_config, a2rchi_config):
+def _resolve_agent_description(a2rchi_config, services_config):
+    pipeline_name = services_config.get("chat_app", {}).get("pipeline")
+    if not pipeline_name:
+        pipeline_name = (a2rchi_config.get("pipelines") or [None])[0]
+    pipeline_cfg = a2rchi_config.get("pipeline_map", {}).get(pipeline_name, {}) if pipeline_name else {}
+    return pipeline_cfg.get("agent_description", "No description provided")
+
+
+def generate_script(chat_config, a2rchi_config, services_config):
     """
     This is not elegant but it creates the javascript file from the template using the config.yaml parameters
     """
@@ -43,7 +51,8 @@ def generate_script(chat_config, a2rchi_config):
         template = f.read()
 
     filled_template = template.replace('XX-NUM-RESPONSES-XX', str(chat_config["num_responses_until_feedback"]))
-    filled_template = filled_template.replace('XX-TRAINED_ON-XX', str(a2rchi_config["agent_description"]))
+    agent_description = _resolve_agent_description(a2rchi_config, services_config)
+    filled_template = filled_template.replace('XX-TRAINED_ON-XX', str(agent_description))
 
     script_file = os.path.join(chat_config["static_folder"], "script.js")
     with open(script_file, "w") as f:

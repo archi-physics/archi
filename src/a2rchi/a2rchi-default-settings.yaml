@@ -1,9 +1,11 @@
 a2rchi:
   pipelines:
     - QAPipeline
-  agent_description: No description provided
+  chain_update_time: 10
+  mcp_servers: {}
   pipeline_map:
     QAPipeline:
+      agent_description: No description provided
       max_tokens: 10000
       prompts:
         required:
@@ -14,6 +16,7 @@ a2rchi:
           condense_model: DumbLLM
           chat_model: DumbLLM
     GradingPipeline:
+      agent_description: No description provided
       max_tokens: 10000
       prompts:
         required:
@@ -28,6 +31,7 @@ a2rchi:
           summary_model: HuggingFaceOpenLLM
           analysis_model: HuggingFaceOpenLLM
     ImageProcessingPipeline:
+      agent_description: No description provided
       max_tokens: 10000
       prompts:
         required:
@@ -36,6 +40,7 @@ a2rchi:
         required:
           image_processing_model: HuggingFaceImageLLM
     CMSCompOpsAgent:
+      agent_description: No description provided
       recursion_limit: 100
       prompts:
         required:
@@ -144,5 +149,3 @@ a2rchi:
         temperature: 1
         max_tokens: 1000
         url: http://localhost:7870
-  chain_update_time: 10
-  mcp_servers: {}

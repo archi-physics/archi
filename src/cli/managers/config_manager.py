@@ -47,14 +47,51 @@ class ConfigurationManager:
 
         settings_payload, settings_path = self._load_settings_defaults()
         config["_a2rchi_settings_path"] = str(settings_path) if settings_path else None
-        if "a2rchi" in config:
-            logger.warning(
-                "Ignoring inline a2rchi settings in %s; use src/a2rchi/a2rchi-default-settings.yaml instead.",
-                config_filepath,
-            )
-        config["a2rchi"] = settings_payload
+        user_settings = config.get("a2rchi") or {}
+        if user_settings:
+            normalized_settings = self._normalize_user_settings(user_settings, settings_payload)
+            merged_settings = self._deep_merge(settings_payload, normalized_settings)
+            config["a2rchi"] = merged_settings
+        else:
+            config["a2rchi"] = settings_payload
 
         return config
+
+    def _normalize_user_settings(
+        self,
+        user_settings: Dict[str, Any],
+        defaults: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        overrides = dict(user_settings)
+        legacy_description = overrides.pop("agent_description", None)
+        if legacy_description:
+            logger.warning(
+                "Global a2rchi.agent_description is deprecated; set "
+                "a2rchi.pipeline_map.<pipeline>.agent_description instead."
+            )
+            pipeline_map = overrides.get("pipeline_map") or {}
+            if not isinstance(pipeline_map, dict):
+                pipeline_map = {}
+            for pipeline_name in set((defaults.get("pipeline_map") or {}).keys()) | set(pipeline_map.keys()):
+                entry = pipeline_map.get(pipeline_name)
+                if not isinstance(entry, dict):
+                    entry = {}
+                entry.setdefault("agent_description", legacy_description)
+                pipeline_map[pipeline_name] = entry
+            overrides["pipeline_map"] = pipeline_map
+        return overrides
+
+    def _deep_merge(self, base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep merge overrides onto base without mutating inputs."""
+        if not isinstance(base, dict) or not isinstance(overrides, dict):
+            return overrides
+        merged = dict(base)
+        for key, value in overrides.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = self._deep_merge(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
 
     def _load_settings_defaults(self) -> tuple[Dict[str, Any], Optional[Path]]:
         """Load plain a2rchi settings defaults from src/a2rchi/a2rchi-default-settings.yaml."""
