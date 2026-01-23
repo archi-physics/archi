@@ -42,6 +42,9 @@ class ConfigurationManager:
         if not config:
             raise ValueError("Configuration file is empty or invalid")
 
+        static_defaults = self._load_static_defaults()
+        config = self._deep_merge(static_defaults, config)
+
         # Track origin for relative-path resolution (e.g., prompts).
         config["_config_path"] = str(config_filepath)
 
@@ -105,6 +108,19 @@ class ConfigurationManager:
         if "a2rchi" in payload:
             return payload.get("a2rchi") or {}, Path(settings_path)
         return payload or {}, Path(settings_path)
+
+    def _load_static_defaults(self) -> Dict[str, Any]:
+        defaults_path = Path(__file__).resolve().parent.parent / "templates" / BASE_STATIC_CONFIG_TEMPLATE
+        try:
+            with open(defaults_path, "r") as f:
+                payload = yaml.safe_load(f) or {}
+        except Exception as exc:
+            logger.error("Failed to load static defaults from %s: %s", defaults_path, exc)
+            return {}
+        if not isinstance(payload, dict):
+            logger.error("Static defaults file %s is not a mapping.", defaults_path)
+            return {}
+        return payload
     
     def _append(self,config):
         """Appends configuration to the config list if the static portions are equivalent to the previous one."""
@@ -148,9 +164,7 @@ class ConfigurationManager:
     
     def _get_service_fields(self):
         """Generates dictionary of service fields for services that have additional required fields"""
-        template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
-        default_config = template.render()
-        default_config = yaml.safe_load(default_config)
+        default_config = self._load_static_defaults()
 
         services = default_config['services']
         service_fields = {}

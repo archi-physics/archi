@@ -1,241 +1,219 @@
-name: {{ name | default("default", true) }}
+name: default
 
 global:
-  DATA_PATH: "{{ global.DATA_PATH | default('/root/data/', true) }}"
-  ACCOUNTS_PATH: "{{ global.ACCOUNTS_PATH | default('/root/.accounts/', true) }}"
+  DATA_PATH: "/root/data/"
+  ACCOUNTS_PATH: "/root/.accounts/"
   ACCEPTED_FILES:
-    {%- for file_type in global.ACCEPTED_FILES | default(['.txt', '.html', '.pdf']) %}
-    - "{{ file_type }}"
-    {%- endfor %}
+    - ".txt"
+    - ".html"
+    - ".pdf"
   LOGGING:
-    input_output_filename: "{{ global.LOGGING.input_output_filename | default('chain_input_output.log', true) }}"
-  verbosity: {{ verbosity | default(3, true) }}
+    input_output_filename: "chain_input_output.log"
+  verbosity: 3
 
 services:
   benchmarking:
-    out_dir: {{ services.benchmarking.out_dir | default(".", true) }}
-    queries_path: {{ services.benchmarking.queries_path | default("queries", true) }}
+    out_dir: .
+    queries_path: queries
     modes:
-      {%- for mode in services.benchmarking.modes | default(["SOURCES", "RAGAS"]) %}
-      - {{ mode }}
-      {%- endfor %}
+      - SOURCES
+      - RAGAS
     mode_settings:
       sources_settings:
-        default_match_field: {{ services.benchmarking.mode_settings.sources_settings.default_match_field | default("file_name", true) }} # metadata field to check for source matching
+        default_match_field: file_name # metadata field to check for source matching
       ragas_settings: 
         enabled_metrics:
-          {%- for metric in services.benchmarking.ragas_settings.enabled_metrics | default(["answer_relevancy", "faithfulness", "context_precision", "context_recall"]) %}
-          - {{ metric }}
-          {%- endfor %}
-        provider: {{ services.benchmarking.mode_settings.ragas_settings.provider | default("OpenAI", True)}} # supports OpenAI, Ollama, HuggingFace, and Anthropic
+          - answer_relevancy
+          - faithfulness
+          - context_precision
+          - context_recall
+        provider: OpenAI # supports OpenAI, Ollama, HuggingFace, and Anthropic
         evaluation_model_settings:
-          {%- set provider = services.benchmarking.mode_settings.ragas_settings.provider | default("OpenAI") %}
-          {%- set default_models = {
-              "OpenAI": "gpt-4",
-              "Ollama": "gemma3",
-              "HuggingFace": "Qwen/Qwen2.5-7B-Instruct-1M",
-              "Anthropic": "claude-3-sonnet-20240229"
-          } %}
-          {%- if services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.model_name %}
-          model_name: {{ services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.model_name }}
-          {%- else %}
-          model_name: {{ default_models.get(provider, "gpt-4") }}
-          {%- endif %}
-          base_url: {{ services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.base_url | default("", True) }} # for Ollama support
-        embedding_model: {{ services.benchmarking.mode_settings.ragas_settings.embedding_model | default("OpenAI", true) }}
-        timeout: {{ services.benchmarking.mode_settings.ragas_settings.timeout | default(180, true) }}
-        batch_size: {{ services.benchmarking.mode_settings.ragas_settings.batch_size | default(false, true) }}
+          model_name: gpt-4
+          base_url:  # for Ollama support
+        embedding_model: OpenAI
+        timeout: 180
+        batch_size: False
 
 
   piazza:
-    network_id: {{ services.piazza.network_id }}
-    update_time: {{ services.piazza.update_time | default(60, true) }}
+    network_id: 
+    update_time: 60
   mattermost:
-    update_time: {{ services.mattermost.update_time | default(60, true) }}
+    update_time: 60
   redmine_mailbox:
-    pipeline: {{ services.redmine_mailbox.pipeline | default('CMSCompOpsAgent', true) }}
-    url: {{ services.redmine_mailbox.url | default('', true) }}
-    project: {{ services.redmine_mailbox.project | default('', true) }}
-    redmine_update_time: {{ services.redmine_mailbox.redmine_update_time | default(10, true) }}
-    answer_tag: {{ services.redmine_mailbox.answer_tag | default('-- A2rchi -- Resolving email was sent', true) }}
-    imap4_port: {{ services.redmine_mailbox.imap4_port | default(143, true) }}
-    mailbox_update_time: {{ services.redmine_mailbox.mailbox_update_time | default(10, true) }}
+    pipeline: CMSCompOpsAgent
+    url: 
+    project: 
+    redmine_update_time: 10
+    answer_tag: -- A2rchi -- Resolving email was sent
+    imap4_port: 143
+    mailbox_update_time: 10
   postgres:
-    port: {{ services.postgres.port if host_mode else 5432 }}
-    user: {{ services.postgres.user | default('a2rchi', true) }}
-    database: {{ services.postgres.database | default('a2rchi-db', true) }}
-    host: {{ 'localhost' if host_mode else (utils.postgres.host | default('postgres', true)) }}
+    port: 5432
+    user: a2rchi
+    database: a2rchi-db
+    host: postgres
   chat_app:
-    pipeline: {{ services.chat_app.pipeline | default("QAPipeline", true) }}
-    trained_on: {{ services.chat_app.trained_on | default("No description provided.", true) }} # leaving for now for backwards compatibility can remove later
-    port: {{ services.chat_app.port | default(7861, true) }}
-    external_port: {{ services.chat_app.external_port | default(7861, true) }}
-    host: {{ services.chat_app.host | default("0.0.0.0", true) }}
-    hostname: {{ services.chat_app.hostname | default("localhost", true) }}
-    template_folder: "{{ services.chat_app.template_folder | default('/root/A2rchi/src/interfaces/chat_app/templates', true) }}"
-    static_folder: "{{ services.chat_app.static_folder | default('/root/A2rchi/src/interfaces/chat_app/static', true) }}"
-    num_responses_until_feedback: {{ services.chat_app.num_responses_until_feedback | default(3, true) }}
-    include_copy_button: {{ services.chat_app.include_copy_button | default(false, true) }}
-    enable_debug_chroma_endpoints: {{ services.chat_app.enable_debug_chroma_endpoints | default(false, true) }}
-    flask_debug_mode: {{ services.chat_app.flask_debug_mode | default(true, false) }}
+    pipeline: QAPipeline
+    trained_on: No description provided. # leaving for now for backwards compatibility can remove later
+    port: 7861
+    external_port: 7861
+    host: 0.0.0.0
+    hostname: localhost
+    template_folder: "/root/A2rchi/src/interfaces/chat_app/templates"
+    static_folder: "/root/A2rchi/src/interfaces/chat_app/static"
+    num_responses_until_feedback: 3
+    include_copy_button: False
+    enable_debug_chroma_endpoints: False
+    flask_debug_mode: True
     auth:
-      enabled: {{ services.chat_app.auth.enabled | default(false, true) }}
+      enabled: False
       sso:
-        enabled: {{ services.chat_app.auth.sso.enabled | default(false, true) }}
-        server_metadata_url: {{ services.chat_app.auth.sso.server_metadata_url | default("", true) }}
-        authorize_url: {{ services.chat_app.auth.sso.authorize_url | default("", true) }}
+        enabled: False
+        server_metadata_url: 
+        authorize_url: 
         client_kwargs:
-          scope: {{ services.chat_app.auth.sso.client_kwargs.scope | default("openid profile email", true) }}
+          scope: openid profile email
       basic:
-        enabled: {{ services.chat_app.auth.basic.enabled | default(false, true) }}
+        enabled: False
   data_manager:
     auth:
-      enabled: {{ services.data_manager.auth.enabled | default(true, true) }}
-      api_token: "{{ services.data_manager.auth.api_token | default('', true) }}"
-    enabled: {{ services.data_manager.enabled | default(true, true) }}
-    port: {{ services.data_manager.port | default(7871, true) }}
-    external_port: {{ services.data_manager.external_port | default(7871, true) }}
-    host: {{ services.data_manager.host | default("0.0.0.0", true) }}
-    hostname: {{ services.data_manager.hostname | default('host.containers.internal' if host_mode else 'data-manager', true) }}
-    template_folder: "{{ services.data_manager.template_folder | default('/root/A2rchi/src/interfaces/chat_app/templates', true) }}"
-    static_folder: "{{ services.data_manager.static_folder | default('/root/A2rchi/src/interfaces/chat_app/static', true) }}"
-    flask_debug_mode: {{ services.data_manager.flask_debug_mode | default(false, true) }}
+      enabled: True
+      api_token: ""
+    enabled: True
+    port: 7871
+    external_port: 7871
+    host: 0.0.0.0
+    hostname: data-manager
+    template_folder: "/root/A2rchi/src/interfaces/chat_app/templates"
+    static_folder: "/root/A2rchi/src/interfaces/chat_app/static"
+    flask_debug_mode: False
   grader_app:
-    port: {{ services.grader_app.port | default(7861, true) }}
-    external_port: {{ services.grader_app.external_port | default(7862, true) }}
-    host: {{ services.grader_app.host | default("0.0.0.0", true) }}
-    hostname: {{ services.grader_app.hostname | default("localhost", true) }}
-    template_folder: "{{ services.grader_app.template_folder | default('/root/A2rchi/src/interfaces/grader_app/templates', true) }}"
-    num_problems: {{ services.grader_app.num_problems | default(1, true) }}
-    local_rubric_dir: "{{ services.grader_app.local_rubric_dir }}"
-    local_users_csv_dir: "{{ services.grader_app.local_users_csv_dir }}"
-    flask_debug_mode: {{ services.grader_app.flask_debug_mode | default(true, false) }}
+    port: 7861
+    external_port: 7862
+    host: 0.0.0.0
+    hostname: localhost
+    template_folder: "/root/A2rchi/src/interfaces/grader_app/templates"
+    num_problems: 1
+    local_rubric_dir: ""
+    local_users_csv_dir: ""
+    flask_debug_mode: True
   chromadb:
-    use_HTTP_chromadb_client: {{ services.chromadb.use_HTTP_chromadb_client | default(true, true) }}
-    host: {{ 'localhost' if host_mode else (services.chromadb.host | default('chromadb', true)) }}
-    port: {{ services.chromadb.port | default(8000, true) }}
-    external_port: {{ services.chromadb.external_port | default(8000, true) }}
-    local_vstore_path: "{{ services.chromadb.local_vstore_path | default('/root/data/vstore/', true) }}"
+    use_HTTP_chromadb_client: True
+    host: chromadb
+    port: 8000
+    external_port: 8000
+    local_vstore_path: "/root/data/vstore/"
   grafana:
-    port: {{ services.grafana.port | default(3000, true) }}
-    external_port: {{ services.grafana.external_port | default(3000, true) }}
+    port: 3000
+    external_port: 3000
 
 data_manager:
-  collection_name: {{ collection_name | default("default_collection", true) }}
-  embedding_name: {{ data_manager.embedding_name | default('OpenAIEmbeddings', true) }}
+  collection_name: default_collection
+  embedding_name: OpenAIEmbeddings
   embedding_class_map:
     OpenAIEmbeddings:
       class: OpenAIEmbeddings
       kwargs:
-        model: {{ data_manager.embedding_class_map.OpenAIEmbeddings.kwargs.model | default('text-embedding-3-small', true) }}
-      similarity_score_reference: {{ data_manager.embedding_class_map.OpenAIEmbeddings.similarity_score_reference | default(10, true) }}
+        model: text-embedding-3-small
+      similarity_score_reference: 10
     HuggingFaceEmbeddings:
       class: HuggingFaceEmbeddings
       kwargs:
-        model_name: {{ data_manager.embedding_class_map.HuggingFaceEmbeddings.kwargs.model_name | default('sentence-transformers/all-MiniLM-L6-v2', true) }}
+        model_name: sentence-transformers/all-MiniLM-L6-v2
         model_kwargs:
-          device: {{ data_manager.embedding_class_map.HuggingFaceEmbeddings.kwargs.model_kwargs.device | default('cpu', true) }}
+          device: cpu
         encode_kwargs:
-          normalize_embeddings: {{ data_manager.embedding_class_map.HuggingFaceEmbeddings.kwargs.encode_kwargs.normalize_embeddings | default(true, true) }}
-      similarity_score_reference: {{ data_manager.embedding_class_map.HuggingFaceEmbeddings.similarity_score_reference | default(10, true) }}
-      query_embedding_instructions: {{ data_manager.embedding_class_map.HuggingFaceEmbeddings.query_embedding_instructions | default("null", true) }}
-  chunk_size: {{ data_manager.chunk_size | default(1000, true) }}
-  chunk_overlap: {{ data_manager.chunk_overlap | default(0, true) }}
-  parallel_workers: {{ data_manager.parallel_workers | default(32, true) }}
-  reset_collection: {{ data_manager.reset_collection | default(true, true) }}
+          normalize_embeddings: True
+      similarity_score_reference: 10
+      query_embedding_instructions: null
+  chunk_size: 1000
+  chunk_overlap: 0
+  parallel_workers: 32
+  reset_collection: True
   stemming:
-    enabled: {{ data_manager.stemming.enabled | default(false, true) }}
-  distance_metric: {{ data_manager.distance_metric | default('cosine', true) }}
+    enabled: False
+  distance_metric: cosine
   retrievers:
     semantic_retriever:
-      num_documents_to_retrieve: {{ data_manager.retrievers.semantic_retriever.num_documents_to_retrieve | default(5, true) }}
+      num_documents_to_retrieve: 5
     bm25_retriever:
-      num_documents_to_retrieve: {{ data_manager.retrievers.bm25_retriever.num_documents_to_retrieve | default(5, true) }}
-      k1: {{ data_manager.retrievers.bm25_retriever.k1 | default(0.5, true) }}
-      b: {{ data_manager.retrievers.bm25_retriever.b | default(0.75, true) }}
+      num_documents_to_retrieve: 5
+      k1: 0.5
+      b: 0.75
     hybrid_retriever:
-      num_documents_to_retrieve: {{ data_manager.retrievers.hybrid_retriever.num_documents_to_retrieve | default(5, true) }}
-      bm25_weight: {{ data_manager.retrievers.hybrid_retriever.bm25_weight | default(0.6, true) }}
-      semantic_weight: {{ data_manager.retrievers.hybrid_retriever.semantic_weight | default(0.4, true) }}
-      bm25_k1: {{ data_manager.retrievers.hybrid_retriever.bm25_k1 | default(0.5, true) }}
-      bm25_b: {{ data_manager.retrievers.hybrid_retriever.bm25_b | default(0.75, true) }}
+      num_documents_to_retrieve: 5
+      bm25_weight: 0.6
+      semantic_weight: 0.4
+      bm25_k1: 0.5
+      bm25_b: 0.75
   sources:
     local_files:
-      enabled: {{ data_manager.sources.local_files.enabled | default(true, true) }}
-      visible: {{ data_manager.sources.local_files.visible | default(true, true) }}
-      schedule: '{{ data_manager.sources.local_files.schedule | default("", true) }}'
+      enabled: True
+      visible: True
+      schedule: ''
       paths:
-        {%- set paths = data_manager.sources.local_files.paths | default([], true) %}
-        {%- for path in paths %}
-        - {{ path }}
-        {%- endfor %}
     links:
-      base_source_depth: {{ data_manager.sources.links.base_source_depth | default(1, true) }}
-      max_pages: {{ data_manager.sources.links.max_pages | default(null, true) }}
-      enabled: {{ data_manager.sources.links.enabled | default(true, true) }}
-      visible: {{ data_manager.sources.links.visible | default(true, true) }}
-      schedule: '{{ data_manager.sources.links.schedule | default("", true) }}'
+      base_source_depth: 1
+      max_pages: 
+      enabled: True
+      visible: True
+      schedule: ''
       input_lists:
-        {%- set link_lists = data_manager.sources.links.input_lists | default([], true) %}
-        {%- for input_list in link_lists %}
-        - {{ input_list }}
-        {%- endfor %}
       html_scraper:
-        reset_data: {{ data_manager.sources.links.html_scraper.reset_data | default(true, true) }}
-        verify_urls: {{ data_manager.sources.links.html_scraper.verify_urls | default(false, true) }}
-        enable_warnings: {{ data_manager.sources.links.html_scraper.enable_warnings | default(false, true) }}
+        reset_data: True
+        verify_urls: False
+        enable_warnings: False
       selenium_scraper:
-        enabled: {{ data_manager.sources.links.selenium_scraper.selenium_scraper.enabled | default(false, True) }}
-        visible: {{ data_manager.sources.links.selenium_scraper.selenium_scraper.visible | default(false, true) }}
-        use_for_scraping: {{ data_manager.sources.links.selenium_scraper.use_for_scraping | default(false, true) }}
-        selenium_class: {{  data_manager.sources.links.selenium_scraper.selenium_class | default('CERNSSOAuthenticator', true)  }}
+        enabled: False
+        visible: False
+        use_for_scraping: False
+        selenium_class: CERNSSOAuthenticator
         selenium_class_map:
           CERNSSOAuthenticator:
-            class: {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOAuthenticator.class | default('CERNSSOAuthenticator', true) }}
+            class: CERNSSOAuthenticator
             kwargs:
-              headless:  {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOAuthenticator.kwargs.headless | default(true, true) }}
+              headless:  True
     git:
-      enabled: {{ data_manager.sources.git.enabled | default(true, true) }}
-      visible: {{ data_manager.sources.git.visible | default(true, true) }}
-      schedule: '{{ data_manager.sources.git.schedule | default("", true) }}'
+      enabled: False
+      visible: True
+      schedule: ''
     sso:
-      enabled: {{ data_manager.sources.sso.enabled | default(true, true) }}
-      visible: {{ data_manager.sources.sso.visible | default(true, true) }}
-      schedule: '{{ data_manager.sources.sso.schedule | default("", true) }}'
-      sso_class: {{ data_manager.sources.sso.sso_class | default('CERNSSOScraper', true) }}
+      enabled: False
+      visible: True
+      schedule: ''
+      sso_class: CERNSSOScraper
       sso_class_map:
         CERNSSOScraper:
-          class: {{ data_manager.sources.sso.sso_class_map.CERNSSOScraper.class | default('CERNSSOScraper', true) }}
+          class: CERNSSOScraper
           kwargs:
-            headless: {{ data_manager.sources.sso.sso_class_map.CERNSSOScraper.kwargs.headless | default(true, true) }}
-            max_depth: {{ data_manager.sources.sso.sso_class_map.CERNSSOScraper.kwargs.max_depth | default(2, true) }}
+            headless: True
+            max_depth: 2
     jira:
-      enabled: {{ data_manager.sources.jira.enabled | default(true, true) }}
-      url: {{ data_manager.sources.jira.url | default('', true) }}
-      visible: {{ data_manager.sources.jira.visible | default(true, true) }}
-      schedule: '{{ data_manager.sources.jira.schedule | default("", true) }}'
+      enabled: False
+      url: 
+      visible: True
+      schedule: ''
       projects:
-        {%- for project in data_manager.sources.jira.projects | default([], true) %}
-        - {{ project }}
-        {%- endfor %}
-      anonymize_data: {{ data_manager.sources.jira.anonymize_data | default(false, true) }}
-      max_tickets: {{ data_manager.sources.jira.max_tickets | default(1e10, true) }}
-      cutoff_date: {{ data_manager.sources.jira.cutoff_date | default('', true) }}
+      anonymize_data: False
+      max_tickets: 10000000000.0
+      cutoff_date: 
     redmine:
-      enabled: {{ data_manager.sources.redmine.enabled | default(true, true) }}
-      url: {{ data_manager.sources.redmine.url | default('', true) }}
-      project: {{ data_manager.sources.redmine.project | default('', true) }}
-      visible: {{ data_manager.sources.redmine.visible | default(false, true) }}
-      schedule: '{{ data_manager.sources.redmine.schedule | default("", true) }}'
-      anonymize_data: {{ data_manager.sources.redmine.anonymize_data | default(true, true) }}
+      enabled: False
+      url: 
+      project: 
+      visible: False
+      schedule: ''
+      anonymize_data: True
 
 utils:
   sso:
-    enabled: {{ utils.sso.enabled | default(false, true) }}
-    sso_class: {{ utils.sso.sso_class | default('CERNSSOScraper', true) }}
+    enabled: False
+    sso_class: CERNSSOScraper
     sso_class_map:
       CERNSSOScraper:
         class: CERNSSOScraper
         kwargs:
-          headless: {{ utils.sso.sso_class_map.CERNSSOScraper.kwargs.headless | default(true, true) }}
-          max_depth: {{ utils.sso.sso_class_map.CERNSSOScraper.kwargs.max_depth | default(2, true) }}
+          headless: True
+          max_depth: 2

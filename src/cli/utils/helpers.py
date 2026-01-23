@@ -18,7 +18,9 @@ logger = get_logger(__name__)
 TEMPLATE_COMPARISON_PATHS = (
     "base-static-config.yaml",
     "base-compose.yaml",
-    "base-init.sql",
+    "sql/schema.sql",
+    "sql/seed.sql",
+    "sql/grafana.sql",
     "grafana/datasources.yaml",
     "grafana/dashboards.yaml",
     "grafana/a2rchi-default-dashboard.json",
@@ -208,15 +210,31 @@ def _render_config_for_compare(
     env,
 ) -> Dict[str, Any]:
     from src.cli.managers.templates_manager import TemplateManager
+    from src.cli.managers.templates_manager import BASE_STATIC_CONFIG_TEMPLATE
 
-    updated_config = copy.deepcopy(config)
+    def _deep_merge(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(base, dict) or not isinstance(overrides, dict):
+            return overrides
+        merged = dict(base)
+        for key, value in overrides.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = _deep_merge(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+
+    def _load_static_defaults() -> Dict[str, Any]:
+        defaults_path = Path(__file__).resolve().parent.parent / "templates" / BASE_STATIC_CONFIG_TEMPLATE
+        with open(defaults_path, "r") as f:
+            payload = yaml.safe_load(f) or {}
+        return payload if isinstance(payload, dict) else {}
+
+    updated_config = _deep_merge(_load_static_defaults(), copy.deepcopy(config))
     if host_mode:
         updated_config["host_mode"] = True
         TemplateManager(env)._apply_host_mode_port_overrides(updated_config)
 
-    config_template = env.get_template("base-static-config.yaml")
-    rendered = config_template.render(verbosity=verbosity, **updated_config)
-    return yaml.safe_load(rendered)
+    return updated_config
 
 def _load_rendered_configs(configs_dir: Path) -> Dict[str, Dict[str, Any]]:
     rendered: Dict[str, Dict[str, Any]] = {}

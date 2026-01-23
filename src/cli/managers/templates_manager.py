@@ -23,7 +23,9 @@ logger = get_logger(__name__)
 # Template file constants
 BASE_STATIC_CONFIG_TEMPLATE = "base-static-config.yaml"
 BASE_COMPOSE_TEMPLATE = "base-compose.yaml"
-BASE_INIT_SQL_TEMPLATE = "base-init.sql"
+SQL_SCHEMA_PATH = "sql/schema.sql"
+SQL_SEED_PATH = "sql/seed.sql"
+SQL_GRAFANA_PATH = "sql/grafana.sql"
 BASE_GRAFANA_DATASOURCES_TEMPLATE = "grafana/datasources.yaml"
 BASE_GRAFANA_DASHBOARDS_TEMPLATE = "grafana/dashboards.yaml"
 BASE_GRAFANA_A2RCHI_DEFAULT_DASHBOARDS_TEMPLATE = "grafana/a2rchi-default-dashboard.json"
@@ -282,11 +284,12 @@ class TemplateManager:
                 updated_config["host_mode"] = context.plan.host_mode
                 self._apply_host_mode_port_overrides(updated_config)
 
-            static_template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
-            static_rendered = static_template.render(verbosity=context.plan.verbosity, **updated_config)
-
+            static_payload = {
+                k: v for k, v in updated_config.items()
+                if not str(k).startswith("_") and k != "a2rchi"
+            }
             with open(configs_path / f"{name}.yaml", "w") as f:
-                f.write(static_rendered)
+                yaml.safe_dump(static_payload, f, sort_keys=False)
             logger.info(f"Rendered static configuration file {configs_path / name}.yaml")
 
             # a2rchi settings defaults are loaded from src/a2rchi/a2rchi-default-settings.yaml
@@ -359,7 +362,6 @@ class TemplateManager:
         configs: List[Dict[str, str]] = []
         updated_configs: List[Dict[str, Any]] = []
         raw_configs = context.config_manager.get_configs() or []
-        static_template = self.env.get_template(BASE_STATIC_CONFIG_TEMPLATE)
         for cfg in raw_configs:
             config_name = cfg.get("name") or "default"
             updated_config = copy.deepcopy(cfg)
@@ -380,13 +382,7 @@ class TemplateManager:
                 updated_config["host_mode"] = context.plan.host_mode
                 self._apply_host_mode_port_overrides(updated_config)
             updated_configs.append(updated_config)
-            static_rendered = static_template.render(
-                verbosity=context.plan.verbosity,
-                **updated_config,
-            )
-            stored_config = yaml.safe_load(static_rendered) or {}
-            if not isinstance(stored_config, dict):
-                raise ValueError("Rendered static config must be a mapping.")
+            stored_config = {k: v for k, v in updated_config.items() if not str(k).startswith("_")}
             stored_config["a2rchi"] = updated_config.get("a2rchi") or {}
             cleaned = {k: v for k, v in stored_config.items() if not str(k).startswith("_")}
             payload = yaml.safe_dump(cleaned, sort_keys=False)
@@ -425,23 +421,124 @@ class TemplateManager:
             for name, config, enabled in mcp_server_options
         ]
 
-        init_sql_template = self.env.get_template(BASE_INIT_SQL_TEMPLATE)
-        init_sql = init_sql_template.render(
-            use_grafana=grafana_enabled,
-            grafana_pg_password=grafana_pg_password,
+        schema_sql = self._read_sql_fragment(SQL_SCHEMA_PATH)
+        seed_header = self._read_sql_fragment(SQL_SEED_PATH)
+        seed_sql = self._build_seed_sql(
+            seed_header,
             configs=configs,
-            a2rchi_settings_json=settings_json,
-            a2rchi_model_options=model_rows,
-            a2rchi_pipeline_options=pipeline_rows,
-            a2rchi_agent_options=agent_rows,
-            a2rchi_tool_options=tool_rows,
-            a2rchi_mcp_server_options=mcp_rows,
+            settings_json=settings_json,
+            model_rows=model_rows,
+            pipeline_rows=pipeline_rows,
+            agent_rows=agent_rows,
+            tool_rows=tool_rows,
+            mcp_rows=mcp_rows,
         )
+        grafana_sql = ""
+        if grafana_enabled:
+            grafana_sql = self._build_grafana_sql(grafana_pg_password)
+
+        init_sql = "\n\n".join(part for part in [schema_sql, seed_sql, grafana_sql] if part).rstrip()
 
         dest = context.base_dir / "init.sql"
         with open(dest, "w") as f:
-            f.write(init_sql)
+            f.write(init_sql + "\n")
         logger.debug(f"Wrote PostgreSQL init script to {dest}")
+
+    def _read_sql_fragment(self, relative_path: str) -> str:
+        base_dir = Path(__file__).resolve().parent.parent / "templates"
+        sql_path = base_dir / relative_path
+        return sql_path.read_text()
+
+    def _build_grafana_sql(self, grafana_pg_password: str) -> str:
+        grafana_sql = self._read_sql_fragment(SQL_GRAFANA_PATH)
+        escaped_password = grafana_pg_password.replace("'", "''")
+        return grafana_sql.replace("__GRAFANA_PG_PASSWORD__", escaped_password)
+
+    def _build_seed_sql(
+        self,
+        seed_header: str,
+        *,
+        configs: List[Dict[str, str]],
+        settings_json: str,
+        model_rows: List[Dict[str, Any]],
+        pipeline_rows: List[Dict[str, Any]],
+        agent_rows: List[Dict[str, Any]],
+        tool_rows: List[Dict[str, Any]],
+        mcp_rows: List[Dict[str, Any]],
+    ) -> str:
+        statements: List[str] = []
+        if configs:
+            values = ",\n".join(
+                f"('{row['payload']}', '{row['name']}')" for row in configs
+            )
+            statements.append(
+                "INSERT INTO configs (config, config_name)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        if settings_json:
+            statements.append(
+                "INSERT INTO a2rchi_settings (a2rchi)\n"
+                f"VALUES ('{settings_json}'::jsonb);"
+            )
+
+        if model_rows:
+            values = ",\n".join(
+                f"('{row['name']}', '{row['config']}'::jsonb)" for row in model_rows
+            )
+            statements.append(
+                "INSERT INTO a2rchi_model_options (name, config)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        if pipeline_rows:
+            values = ",\n".join(
+                f"('{row['name']}', '{row['config']}'::jsonb, {'true' if row['enabled'] else 'false'})"
+                for row in pipeline_rows
+            )
+            statements.append(
+                "INSERT INTO a2rchi_pipeline_options (name, config, enabled)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        if agent_rows:
+            values = ",\n".join(
+                f"('{row['name']}', '{row['config']}'::jsonb, {'true' if row['enabled'] else 'false'})"
+                for row in agent_rows
+            )
+            statements.append(
+                "INSERT INTO a2rchi_agent_options (name, config, enabled)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        if tool_rows:
+            values = ",\n".join(
+                f"('{row['agent_name']}', '{row['tool_name']}', {'true' if row['enabled'] else 'false'})"
+                for row in tool_rows
+            )
+            statements.append(
+                "INSERT INTO a2rchi_tool_options (agent_name, tool_name, enabled)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        if mcp_rows:
+            values = ",\n".join(
+                f"('{row['name']}', '{row['config']}'::jsonb, {'true' if row['enabled'] else 'false'})"
+                for row in mcp_rows
+            )
+            statements.append(
+                "INSERT INTO a2rchi_mcp_server_options (name, config, enabled)\nVALUES\n"
+                + values
+                + ";"
+            )
+
+        body = "\n\n".join(statements).strip()
+        return "\n".join(part for part in [seed_header.strip(), body] if part)
 
     def _render_compose_file(self, context: TemplateContext) -> None:
         template_vars = context.plan.to_template_vars()
@@ -592,7 +689,7 @@ class TemplateManager:
         return [f"solution_with_rubric_{i}" for i in range(1, num_problems + 1)]
 
     def _apply_host_mode_port_overrides(self, config: Dict[str, Any]) -> None:
-        """Normalize service ports in host mode using port/external_port only."""
+        """Normalize service ports and hostnames in host mode."""
         services_cfg = config.get("services", {})
         if not isinstance(services_cfg, dict):
             return
@@ -604,6 +701,14 @@ class TemplateManager:
             external = service_cfg.get("external_port")
             if external is not None:
                 service_cfg["port"] = external
+
+        postgres_cfg = services_cfg.get("postgres")
+        if isinstance(postgres_cfg, dict):
+            postgres_cfg["host"] = "localhost"
+
+        chroma_cfg = services_cfg.get("chromadb")
+        if isinstance(chroma_cfg, dict):
+            chroma_cfg["host"] = "localhost"
 
     def _resolve_ports_from_config(
         self,

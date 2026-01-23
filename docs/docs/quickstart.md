@@ -48,6 +48,7 @@ You specify which pipelines should be available in the configuration file.
 Once you have chosen the services, sources, and pipelines you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under `examples/deployments/`, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.
 
 > **Important:** Static configuration is rendered from `src/cli/templates/base-static-config.yaml` and stored in Postgres at deployment. A2RCHI runtime settings defaults live in `src/a2rchi/a2rchi-default-settings.yaml` and are seeded into Postgres at deployment; runtime services read settings from Postgres only. You can override defaults by providing an `a2rchi` section in the same config file.
+> **Note:** Configuration files are plain YAML; Jinja templating is not supported.
 
 Example configuration (`examples/deployments/basic-gpu/config.yaml`) for the `chatbot` service using `QAPipeline` with a local VLLM model:
 
