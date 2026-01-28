@@ -111,18 +111,23 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python (GitHub runner)
-        if: ${{ !contains(runner.name, 'submit') && steps.detect.outputs.changed == 'true' }}
+        if: ${{ !contains(runner.name, 'submit') }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Set up Python (Self-hosted)
-        if: ${{ contains(runner.name, 'submit') && steps.detect.outputs.changed == 'true' }}
+        if: ${{ contains(runner.name, 'submit') }}
         run: |
           export PYENV_ROOT="$HOME/.pyenv"
           export PATH="$PYENV_ROOT/bin:$PATH"
           eval "$(pyenv init -)"
           python3 --version
+
+      - name: Create virtual environment
+        run: |
+          python3 -m venv .venv
+          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
 
       - name: Install a2rchi CLI
         run: |
