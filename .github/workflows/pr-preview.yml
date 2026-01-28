@@ -134,6 +134,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[all]" || pip install .
 
+      - name: Install docker-compose (for act/local testing)
+        if: ${{ !contains(runner.name, 'submit') }}
+        run: |
+          curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          docker-compose version
+
       - name: Prepare base image references
         if: needs.build-base-images.outputs.changed == 'true'
         run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source localhost --orig-tag all
@@ -156,7 +163,7 @@ jobs:
           wait-url: http://localhost:2786/api/health
           base-url: http://localhost:2786
           extra-env: A2RCHI_COMPOSE_UP_FLAGS=--build
-          use-podman: "true"
+          use-podman: ${{ contains(runner.name, 'submit') }}
 
       - name: Cleanup local base images
         if: ${{ always() && needs.build-base-images.outputs.changed == 'true' }}
