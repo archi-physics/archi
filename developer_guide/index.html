@@ -71,6 +71,10 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#editing-documentation">Editing Documentation</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#smoke-tests">Smoke Tests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#postgres-usage-overview">Postgres Usage Overview</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#dockerhub-images">DockerHub Images</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#data-ingestion-architecture">Data Ingestion Architecture</a>
@@ -129,6 +133,60 @@ mkdocs serve
 <pre><code class="language-bash">mkdocs gh-deploy
 </code></pre>
 <p>Always open a PR to merge documentation changes into <code>main</code>. Do not edit files directly in the <code>gh-pages</code> branch.</p>
+<h2 id="smoke-tests">Smoke Tests</h2>
+<p>If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:</p>
+<pre><code class="language-bash">export A2RCHI_DIR=~/.a2rchi
+export DEPLOYMENT_NAME=local-smoke
+export USE_PODMAN=true
+export SMOKE_FORCE_CREATE=true
+export SMOKE_OLLAMA_MODEL=gpt-oss:latest
+scripts/dev/run_smoke_preview.sh &quot;${DEPLOYMENT_NAME}&quot;
+</code></pre>
+<p>The shared runner performs these checks in order (ensuring the configured Ollama model is available via <code>ollama pull</code> before running the checks):</p>
+<ul>
+<li>Create a deployment from the preview config and wait for the chat app health endpoint.</li>
+<li>Wait for initial data ingestion to complete (5 minute timeout).</li>
+<li>Preflight checks: Postgres reachable, ChromaDB responsive, data-manager catalog searchable.</li>
+<li>Tool probes: catalog tools and vectorstore retriever (executed inside the chatbot container to match the agent runtime).</li>
+<li>ReAct agent smoke: stream response and observe at least one tool call.</li>
+</ul>
+<p>The combined smoke workflow alone does not start A2rchi for you. Start a deployment first, then run the checks (it validates Postgres, ChromaDB, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):</p>
+<pre><code class="language-bash">export A2RCHI_CONFIG_PATH=~/.a2rchi/a2rchi-&lt;deployment-name&gt;/configs/&lt;config-name&gt;.yaml
+export A2RCHI_CONFIG_NAME=&lt;config-name&gt;
+export A2RCHI_PIPELINE_NAME=CMSCompOpsAgent
+export USE_PODMAN=true
+export OLLAMA_MODEL=&lt;ollama-model-name&gt;
+export PGHOST=localhost
+export PGPORT=&lt;postgres-port&gt;
+export PGUSER=a2rchi
+export PGPASSWORD=&lt;pg-password&gt;
+export PGDATABASE=a2rchi-db
+export BASE_URL=http://localhost:2786
+export DM_BASE_URL=http://localhost:&lt;data-manager-port&gt;  # from your deployment config
+export CHROMA_URL=http://localhost:&lt;chroma-port&gt;       # from your deployment config
+export OLLAMA_URL=http://localhost:11434
+./tests/smoke/combined_smoke.sh &lt;deployment-name&gt;
+</code></pre>
+<p>Optional environment variables for deterministic queries:</p>
+<pre><code class="language-bash">export REACT_SMOKE_PROMPT=&quot;Use the search_local_files tool to find ... and summarize.&quot;
+export FILE_SEARCH_QUERY=&quot;first linux server installation&quot;
+export METADATA_SEARCH_QUERY=&quot;ppc.mit.edu&quot;
+export VECTORSTORE_QUERY=&quot;cms&quot;
+</code></pre>
+<h2 id="postgres-usage-overview">Postgres Usage Overview</h2>
+<p>A2RCHI relies on Postgres as the durable metadata store across services. Core usage falls into two buckets:</p>
+<ul>
+<li><strong>Ingestion catalog</strong>: the <code>resources</code> table tracks persisted files and metadata for the data manager catalog (<code>CatalogService</code>).</li>
+<li><strong>Conversation history</strong>: the <code>conversation_metadata</code> and <code>conversations</code> tables store chat/session metadata plus message history for interfaces like the chat app and ticketing integrations (e.g., Redmine mailer).</li>
+</ul>
+<p>Additional supporting tables store interaction telemetry and feedback:</p>
+<ul>
+<li><code>configs</code> stores serialized configuration snapshots used by services.</li>
+<li><code>feedback</code> captures like/dislike/comment feedback tied to conversation messages.</li>
+<li><code>timing</code> tracks per-message latency milestones.</li>
+<li><code>agent_tool_calls</code> stores tool call inputs/outputs extracted from agent messages.</li>
+</ul>
+<p>When extending an interface that writes to <code>conversations</code>, make sure a matching <code>conversation_metadata</code> row exists (create or update before inserting messages) to satisfy foreign key constraints.</p>
 <h2 id="dockerhub-images">DockerHub Images</h2>
 <p>A2RCHI loads different base images hosted on Docker Hub. The Python base image is used when GPUs are not required; otherwise the PyTorch base image is used. The Dockerfiles for these base images live in <code>src/cli/templates/dockerfiles/base-X-image</code>.</p>
 <p>Images are hosted at:</p>
