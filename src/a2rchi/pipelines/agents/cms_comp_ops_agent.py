@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Sequence
+from typing import Any, Callable, Dict, List, Sequence, Optional
 
 from langchain_core.documents import Document
 import asyncio
-import nest_asyncio
+import threading
 from langchain.agents.middleware import TodoListMiddleware, LLMToolSelectorMiddleware
 
 from src.utils.logging import get_logger
@@ -21,6 +21,81 @@ from src.a2rchi.pipelines.agents.tools import (
 from src.a2rchi.pipelines.agents.utils.history_utils import infer_speaker
 
 logger = get_logger(__name__)
+
+class AsyncLoopThread:
+    """
+    A dedicated background thread running a single event loop.
+
+    This ensures all async operations (MCP client init, tool calls) happen
+    on the same event loop, preventing ClosedResourceError.
+
+    Usage:
+        runner = AsyncLoopThread.get_instance()
+        result = runner.run(some_async_coroutine())
+    """
+
+    _instance: Optional["AsyncLoopThread"] = None
+    _lock = threading.Lock()
+
+    def __init__(self):
+        self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
+        self._started = threading.Event()
+        self.thread = threading.Thread(
+            target=self._run,
+            daemon=True,
+            name="mcp-async-loop"
+        )
+        self.thread.start()
+
+        # Wait for the loop to actually start before returning
+        if not self._started.wait(timeout=10.0):
+            raise RuntimeError("Failed to start async loop thread")
+        logger.info("Background async loop started for MCP operations")
+
+    def _run(self):
+        """Run the event loop forever in the background thread."""
+        asyncio.set_event_loop(self.loop)
+        self._started.set()
+        self.loop.run_forever()
+
+    def run(self, coro, timeout: Optional[float] = 120.0) -> Any:
+        """
+        Schedule a coroutine on the background loop and wait for result.
+
+        Args:
+            coro: An awaitable coroutine
+            timeout: Maximum seconds to wait (default 120s for MCP operations)
+
+        Returns:
+            The result of the coroutine
+
+        Raises:
+            TimeoutError: If the coroutine doesn't complete in time
+            Any exception raised by the coroutine
+        """
+        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+        return future.result(timeout=timeout)
+
+    def in_loop_thread(self) -> bool:
+        """Return True if called from the background event-loop thread."""
+        return threading.current_thread() is self.thread
+        # or: return threading.get_ident() == self.thread.ident
+
+    @classmethod
+    def get_instance(cls) -> "AsyncLoopThread":
+        """Get or create the singleton async runner instance."""
+        if cls._instance is None:
+            with cls._lock:
+                # Double-check locking pattern for thread safety
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
+
+    def shutdown(self):
+        """Gracefully shutdown the background loop."""
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.thread.join(timeout=5.0)
+        logger.info("Background async loop stopped")
 
 
 class CMSCompOpsAgent(BaseReActAgent):
@@ -75,20 +150,36 @@ class CMSCompOpsAgent(BaseReActAgent):
         all_tools = [file_search_tool, metadata_search_tool, fetch_tool]
 
         try:
-            nest_asyncio.apply()
+            self._async_runner = AsyncLoopThread.get_instance()
 
-            # 1. Fetch the tools (async)
-            client, mcp_tools = asyncio.run(initialize_mcp_client())
-            self.mcp_client = client  # Keep client alive
+            # Initialize MCP client on the background loop
+            # The client and sessions will live on this loop
+            client, mcp_tools = self._async_runner.run(initialize_mcp_client())
+            if client is None:
+                logger.info("No MCP servers configured.")
+                return all_tools
+            self.mcp_client = client
 
-            # 2. Patch tools to support synchronous execution
-            # This wrapper allows the sync agent to call the async tools
+            # Create synchronous wrappers that use the SAME loop
             def make_synchronous(async_tool):
-                def sync_wrapper(*args, **kwargs):
-                    # We reuse the existing client session via the closure of the original tool
-                    return asyncio.run(async_tool.coroutine(*args, **kwargs))
+                """
+                Wrap an async tool for synchronous execution.
 
-                # Assign the wrapper to the tool's 'func' attribute (standard LangChain sync entry point)
+                Key difference from broken version:
+                - Uses self._async_runner.run() instead of asyncio.run()
+                - Runs on the SAME loop where the client was initialized
+                - Session streams remain valid
+                """
+                # Capture the runner in closure
+                runner = self._async_runner
+
+                def sync_wrapper(*args, **kwargs):
+                    if runner.in_loop_thread():
+                        raise RuntimeError("sync_wrapper called from MCP loop thread; would deadlock")
+                    # Run on the background loop - NOT a new loop!
+                    return runner.run(async_tool.coroutine(*args, **kwargs))
+
+                # Assign the wrapper to the tool's 'func' attribute
                 async_tool.func = sync_wrapper
                 return async_tool
 
