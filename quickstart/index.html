@@ -104,7 +104,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">Quickstart</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/A2rchi/edit/master/docs/quickstart.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/mit-submit/archi/edit/master/docs/quickstart.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -116,7 +116,7 @@
 <p>Deploy your first instance of A2RCHI and walk through the important concepts.</p>
 <h2 id="sources-and-services">Sources and Services</h2>
 <p>A2RCHI can ingest data from a variety of <strong>sources</strong> and supports several <strong>services</strong>. List them with the CLI command below and decide which ones you want to use so that we can configure them.</p>
-<pre><code class="language-bash">a2rchi list-services
+<pre><code class="language-bash">archi list-services
 </code></pre>
 <p>Example output:</p>
 <pre><code>Available A2RCHI services:
@@ -149,7 +149,7 @@ Data Sources:
 <p><strong>Important:</strong> The configuration file follows the format of <code>src/cli/templates/base-config.yaml</code>. Any fields not specified in your configuration will be populated with the defaults from this template.</p>
 </blockquote>
 <p>Example configuration (<code>examples/deployments/basic-gpu/config.yaml</code>) for the <code>chatbot</code> service using <code>QAPipeline</code> with a local VLLM model:</p>
-<pre><code class="language-yaml">name: my_a2rchi
+<pre><code class="language-yaml">name: my_archi
 
 data_manager:
   sources:
@@ -160,7 +160,7 @@ data_manager:
   embedding_name: HuggingFaceEmbeddings
   chunk_size: 1000
 
-a2rchi:
+archi:
   pipelines:
     - QAPipeline
   pipeline_map:
@@ -187,8 +187,8 @@ services:
   chat_app:
     trained_on: &quot;My data&quot;
     hostname: &quot;&lt;your-hostname&gt;&quot;
-  chromadb:
-    chromadb_host: localhost
+  vectorstore:
+    backend: postgres  # Uses PostgreSQL with pgvector (default)
 </code></pre>
 <details>
 <summary>Explanation of configuration parameters</summary>
@@ -199,13 +199,13 @@ services:
   - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
   - `embedding_name`: Embedding model used for vectorization.
   - `chunk_size`: Controls how documents are split prior to embedding.
-- `a2rchi`: Core pipeline settings.
+- `archi`: Core pipeline settings.
   - `pipelines`: Pipelines to use (e.g., `QAPipeline`).
   - `pipeline_map`: Configuration for each pipeline, including prompts and models.
   - `model_class_map`: Mapping of model names to their classes and parameters.
 - `services`: Settings for individual services/interfaces.
   - `chat_app`: Chat interface configuration, including hostname and descriptive metadata.
-  - `chromadb`: Connection details for the vector store container.
+  - `vectorstore.backend`: Vector store backend (`postgres` with pgvector).
 
 </details>
 
@@ -221,13 +221,16 @@ services:
 <p>If you are not using open-source models, supply the relevant API credentials:</p>
 <ul>
 <li><code>OPENAI_API_KEY</code>: OpenAI API key.</li>
+<li><code>OPENROUTER_API_KEY</code>: OpenRouter API key (for <code>OpenRouterLLM</code>).</li>
+<li><code>OPENROUTER_SITE_URL</code>: Optional site URL for OpenRouter attribution.</li>
+<li><code>OPENROUTER_APP_NAME</code>: Optional app name for OpenRouter attribution.</li>
 <li><code>ANTHROPIC_API_KEY</code>: Anthropic API key.</li>
 <li><code>HUGGINGFACEHUB_API_TOKEN</code>: HuggingFace access token (for private models or embeddings).</li>
 </ul>
 <p>Other services may require additional secrets; see the <a href="../user_guide/">User Guide</a> for details.</p>
 <h2 id="creating-an-a2rchi-deployment">Creating an A2RCHI Deployment</h2>
 <p>Create your deployment with the CLI:</p>
-<pre><code class="language-bash">a2rchi create --name my-a2rchi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
 </code></pre>
 <p>This command specifies:</p>
 <ul>
@@ -242,26 +245,26 @@ services:
 <summary>Example output</summary>
 
 
-<pre><code class="language-bash">a2rchi create --name my-a2rchi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
 </code></pre>
 
 
 
 <pre><code>Starting A2RCHI deployment process...
-[a2rchi] Creating deployment 'my-a2rchi' with services: chatbot
-[a2rchi] Auto-enabling dependencies: postgres, chromadb
-[a2rchi] Configuration validated successfully
-[a2rchi] You are using an embedding model from HuggingFace; make sure to include a HuggingFace token if required for usage, it won't be explicitly enforced
-[a2rchi] Required secrets validated: PG_PASSWORD
-[a2rchi] Volume 'a2rchi-pg-my-a2rchi' already exists. No action needed.
-[a2rchi] Volume 'a2rchi-my-a2rchi' already exists. No action needed.
-[a2rchi] Starting compose deployment from /path/to/my/.a2rchi/a2rchi-my-a2rchi
-[a2rchi] Using compose file: /path/to/my/.a2rchi/a2rchi-my-a2rchi/compose.yaml
-[a2rchi] (This might take a minute...)
-[a2rchi] Deployment started successfully
-A2RCHI deployment 'my-a2rchi' created successfully!
-Services running: chatbot, postgres, chromadb
-[a2rchi] Chatbot: http://localhost:7861
+[archi] Creating deployment 'my-archi' with services: chatbot
+[archi] Auto-enabling dependencies: postgres
+[archi] Configuration validated successfully
+[archi] You are using an embedding model from HuggingFace; make sure to include a HuggingFace token if required for usage, it won't be explicitly enforced
+[archi] Required secrets validated: PG_PASSWORD
+[archi] Volume 'archi-pg-my-archi' already exists. No action needed.
+[archi] Volume 'archi-my-archi' already exists. No action needed.
+[archi] Starting compose deployment from /path/to/my/.archi/archi-my-archi
+[archi] Using compose file: /path/to/my/.archi/archi-my-archi/compose.yaml
+[archi] (This might take a minute...)
+[archi] Deployment started successfully
+A2RCHI deployment 'my-archi' created successfully!
+Services running: chatbot, postgres
+[archi] Chatbot: http://localhost:7861
 </code></pre>
 
 
@@ -275,7 +278,7 @@ Services running: chatbot, postgres, chromadb
 <p>When multiple configuration files are passed, their <code>services</code> sections must remain consistent, otherwise the deployment fails. The current use cases for multiple configurations include swapping pipelines/prompts dynamically via the chat app and maintaining separate benchmarking configurations.</p>
 <h3 id="verifying-a-deployment">Verifying a deployment</h3>
 <p>List running deployments with:</p>
-<pre><code class="language-bash">a2rchi list-deployments
+<pre><code class="language-bash">archi list-deployments
 </code></pre>
 <p>You should see output similar to:</p>
 <pre><code class="language-text">Existing deployments:
@@ -309,7 +312,7 @@ Services running: chatbot, postgres, chromadb
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/A2rchi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     

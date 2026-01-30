@@ -105,6 +105,8 @@
     </li>
     <li class="toctree-l4"><a class="reference internal" href="#directly-copying-files-to-the-container">Directly copying files to the container</a>
     </li>
+    <li class="toctree-l4"><a class="reference internal" href="#data-viewer">Data Viewer</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#redmine">Redmine</a>
@@ -180,13 +182,33 @@
     <li class="toctree-l3"><a class="reference internal" href="#local-models">Local Models</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#models-via-apis">Models via APIs</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#openrouter">OpenRouter</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#ollama">Ollama</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#bring-your-own-key-byok">Bring Your Own Key (BYOK)</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#key-hierarchy">Key Hierarchy</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#supported-providers">Supported Providers</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#security-considerations">Security Considerations</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#api-endpoints">API Endpoints</a>
+    </li>
+        </ul>
     </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#vector-store">Vector Store</a>
         <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#backend-selection">Backend Selection</a>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#configuration_9">Configuration</a>
         <ul>
     <li class="toctree-l4"><a class="reference internal" href="#core-settings">Core Settings</a>
@@ -211,13 +233,7 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#stemming">Stemming</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#chromadb-backend">ChromaDB Backend</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#local-persistent">Local (Persistent)</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#remote-http-client">Remote (HTTP Client)</a>
-    </li>
-        </ul>
+    <li class="toctree-l3"><a class="reference internal" href="#postgresql-backend-default">PostgreSQL Backend (Default)</a>
     </li>
         </ul>
     </li>
@@ -236,12 +252,44 @@
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#other">Other</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration-management">Configuration Management</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#add-chromadb-document-management-api-endpoints">Add ChromaDB Document Management API Endpoints</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#debugging-chromadb-endpoints">Debugging ChromaDB endpoints</a>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration-hierarchy">Configuration Hierarchy</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#effective-configuration">Effective Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#admin-only-settings">Admin-Only Settings</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#user-overridable-settings">User-Overridable Settings</a>
     </li>
         </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#prompt-customization">Prompt Customization</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#prompt-location">Prompt Location</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#prompt-types">Prompt Types</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#prompt-directory-structure">Prompt Directory Structure</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#creating-custom-prompts">Creating Custom Prompts</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#activating-prompts">Activating Prompts</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#reloading-prompts">Reloading Prompts</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#admin-guide">Admin Guide</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#becoming-an-admin">Becoming an Admin</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#admin-responsibilities">Admin Responsibilities</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#audit-logging">Audit Logging</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#best-practices">Best Practices</a>
     </li>
         </ul>
     </li>
@@ -276,7 +324,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">User Guide</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/A2rchi/edit/master/docs/user_guide.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/mit-submit/archi/edit/master/docs/user_guide.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -303,8 +351,8 @@
 <li><strong>Document uploader</strong>: web interface for uploading and managing documents</li>
 <li><strong>Grader</strong>: automated grading service for assignments with web interface</li>
 </ul>
-<p>Both data sources and interfaces/services are enabled via flags to the <code>a2rchi create</code> command,</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,piazza,... --sources jira,redmine,...
+<p>Both data sources and interfaces/services are enabled via flags to the <code>archi create</code> command,</p>
+<pre><code class="language-bash">archi create [...] --services=chatbot,piazza,... --sources jira,redmine,...
 </code></pre>
 <p>The parameters of the services and sources are configured via the configuration file. See below for more details.</p>
 <p>We support various <strong>pipelines</strong> which are pre-defined sequences of operations that process user inputs and generate responses.
@@ -329,7 +377,7 @@ See the <code>Vector Store</code> section below for more details.</p>
 </ul>
 <p>These tools are meant to be used together: search first, then fetch only the most relevant documents.</p>
 <h3 id="optional-command-line-options">Optional command line options</h3>
-<p>In addition to the required <code>--name</code>, <code>--config/--config-dir</code>, <code>--env-file</code>, and <code>--services</code> arguments, the <code>a2rchi create</code> command accepts several useful flags:</p>
+<p>In addition to the required <code>--name</code>, <code>--config/--config-dir</code>, <code>--env-file</code>, and <code>--services</code> arguments, the <code>archi create</code> command accepts several useful flags:</p>
 <ol>
 <li><strong><code>--podman</code></strong>: Run the deployment with Podman instead of Docker.</li>
 <li><strong><code>--sources</code> / <code>-src</code></strong>: Enable additional ingestion sources (<code>git</code>, <code>sso</code>, <code>jira</code>, <code>redmine</code>, ...). Provide a comma-separated list.</li>
@@ -339,7 +387,7 @@ See the <code>Vector Store</code> section below for more details.</p>
 <li><strong><code>--verbosity</code> / <code>-v</code></strong>: Control CLI logging level (0 = quiet, 4 = debug).</li>
 <li><strong><code>--force</code></strong> / <strong><code>--dry-run</code></strong>: Force recreation of an existing deployment and/or show what would happen without actually deploying.</li>
 </ol>
-<p>You can inspect the available services and sources, together with descriptions, using <code>a2rchi list-services</code>.
+<p>You can inspect the available services and sources, together with descriptions, using <code>archi list-services</code>.
 The CLI checks that host ports are free before deploying; if a port is already in use, adjust <code>services.*.external_port</code> (or <code>services.*.port</code> in <code>--hostmode</code>) and retry.</p>
 <blockquote>
 <p><strong>GPU helpers</strong></p>
@@ -370,14 +418,18 @@ https://example.com/page2
   sources:
     sso:
       enabled: true
-      sso_class: CERNSSOScraper  # or whichever class is appropriate
-      sso_class_map:
-        CERNSSOScraper:
-          kwargs:
-            headless: true
-            max_depth: 2
+    links:
+      selenium_scraper:
+        enabled: true
+        selenium_class: CERNSSOScraper  # or whichever class is appropriate
+        selenium_class_map:
+          CERNSSOScraper:
+            kwargs:
+              headless: true
+              max_depth: 2
 </code></pre>
-<p>Then, run <code>a2rchi create ... --sources sso</code> to activate the SSO collector.</p>
+<p>Then, run <code>archi create ... --sources sso</code> to activate the SSO collector.</p>
+<p>Note: source configuration is persisted to PostgreSQL <code>static_config</code> at deployment time and used at runtime.</p>
 <p>You can customise the HTTP scraper behaviour (for example, to avoid SSL verification warnings):</p>
 <pre><code class="language-yaml">data_manager:
   sources:
@@ -454,7 +506,7 @@ The optional <code>cutoff_date</code> can be used to skip tickets created before
 Add <code>JIRA_PAT=&lt;token&gt;</code> to your <code>.env</code> file before deploying with <code>--sources jira</code>.</p>
 <h4 id="running_2">Running</h4>
 <p>Enable the source at deploy time with:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot --sources jira
+<pre><code class="language-bash">archi create [...] --services=chatbot --sources jira
 </code></pre>
 <hr />
 <h3 id="adding-documents-and-the-uploader-interface">Adding Documents and the Uploader Interface</h3>
@@ -467,7 +519,7 @@ Add <code>JIRA_PAT=&lt;token&gt;</code> to your <code>.env</code> file before de
 <p>These methods are outlined below.</p>
 <h4 id="manual-uploader">Manual Uploader</h4>
 <p>In order to upload documents while A2RCHI is running via an easily accessible GUI, enable the uploader service when creating the deployment:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,uploader
+<pre><code class="language-bash">archi create [...] --services=chatbot,uploader
 </code></pre>
 <p>The exact port may vary based on configuration (default external port is <code>5003</code>).
 A quick <code>podman ps</code> or <code>docker ps</code> will show which port is exposed.</p>
@@ -482,6 +534,39 @@ A quick <code>podman ps</code> or <code>docker ps</code> will show which port is
 The GUI will then allow you to upload documents while A2RCHI is still running. Note that it may take a few minutes for all the documents to upload.</p>
 <h4 id="directly-copying-files-to-the-container">Directly copying files to the container</h4>
 <p>The documents used for RAG live in the chat container at <code>/root/data/&lt;directory&gt;/&lt;files&gt;</code>. Thus, in a pinch, you can <code>docker/podman cp</code> a file at this directory level, e.g., <code>podman/docker cp myfile.pdf &lt;container name or ID&gt;:/root/data/&lt;new_dir&gt;/</code>. If you need to make a new directory in the container, you can do <code>podman exec -it &lt;container name or ID&gt; mkdir /root/data/&lt;new_dir&gt;</code>.</p>
+<h4 id="data-viewer">Data Viewer</h4>
+<p>The chat interface includes a built-in Data Viewer for browsing and managing ingested documents. Access it at <code>/data</code> on your chat app (e.g., <code>http://localhost:7861/data</code>).</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li><strong>Browse documents</strong>: View all ingested documents with metadata (source, file type, chunk count)</li>
+<li><strong>Search and filter</strong>: Filter documents by name or source type</li>
+<li><strong>View content</strong>: Click on a document to see its full content and individual chunks</li>
+<li><strong>Enable/disable documents</strong>: Toggle whether specific documents are included in RAG retrieval</li>
+<li><strong>Bulk operations</strong>: Enable or disable multiple documents at once</li>
+</ul>
+<p><strong>Document States:</strong></p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enabled</td>
+<td>Document chunks are included in retrieval (default)</td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td>Document is excluded from retrieval but remains in the database</td>
+</tr>
+</tbody>
+</table>
+<p>Disabling documents is useful for:
+- Temporarily excluding outdated content
+- Testing retrieval with specific document subsets
+- Hiding sensitive documents from certain users</p>
 <hr />
 <h3 id="redmine">Redmine</h3>
 <p>Use the Redmine source to ingest solved tickets (question/answer pairs) into the vector store.</p>
@@ -500,7 +585,7 @@ REDMINE_PW=...
 </code></pre>
 <h4 id="running_3">Running</h4>
 <p>Enable the source at deploy time with:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot --sources redmine
+<pre><code class="language-bash">archi create [...] --services=chatbot --sources redmine
 </code></pre>
 <blockquote>
 <p>To automate email replies, also enable the <code>redmine-mailer</code> service (see the Services section below).</p>
@@ -529,8 +614,8 @@ data_manager:
       input_lists:
         - class_info.list # class info links
 
-a2rchi:
-  [... a2rchi config ...]
+archi:
+  [... archi config ...]
 
 services:
   piazza:
@@ -547,7 +632,7 @@ SLACK_WEBHOOK=...
 <p>The Slack webhook secret is described above. The Piazza email and password should be those of one of the class instructors. Remember to put this information in files named following what is written above.</p>
 <h4 id="running_4">Running</h4>
 <p>To run the Piazza service, simply add the piazza flag. For example:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,piazza
+<pre><code class="language-bash">archi create [...] --services=chatbot,piazza
 </code></pre>
 <hr />
 <h3 id="redminemailbox-interface">Redmine/Mailbox Interface</h3>
@@ -576,7 +661,7 @@ SENDER_USER=...
 SENDER_PW=...
 </code></pre>
 <h4 id="running_5">Running</h4>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,redmine-mailer
+<pre><code class="language-bash">archi create [...] --services=chatbot,redmine-mailer
 </code></pre>
 <hr />
 <h3 id="mattermost-interface">Mattermost Interface</h3>
@@ -595,7 +680,7 @@ MATTERMOST_CHANNEL_ID_WRITE=...
 </code></pre>
 <h4 id="running_6">Running</h4>
 <p>To run the Mattermost service, include it when selecting services. For example:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,mattermost
+<pre><code class="language-bash">archi create [...] --services=chatbot,mattermost
 </code></pre>
 <hr />
 <h3 id="grafana-interface">Grafana Interface</h3>
@@ -615,14 +700,13 @@ GRAFANA_PG_PASSWORD=&lt;grafana_db_password&gt;
 </code></pre>
 <h4 id="running_7">Running</h4>
 <p>Deploy Grafana alongside your other services:</p>
-<pre><code class="language-bash">a2rchi create [...] --services=chatbot,grafana
+<pre><code class="language-bash">archi create [...] --services=chatbot,grafana
 </code></pre>
 <p>and you should see something like this</p>
 <pre><code>CONTAINER ID  IMAGE                                     COMMAND               CREATED        STATUS                  PORTS                             NAMES
-d27482864238  localhost/chromadb-gtesting2:2000         uvicorn chromadb....  9 minutes ago  Up 9 minutes (healthy)  0.0.0.0:8000-&gt;8000/tcp, 8000/tcp  chromadb-gtesting2
-87f1c7289d29  docker.io/library/postgres:16             postgres              9 minutes ago  Up 9 minutes (healthy)  5432/tcp                          postgres-gtesting2
+87f1c7289d29  docker.io/library/postgres:17             postgres              9 minutes ago  Up 9 minutes (healthy)  5432/tcp                          postgres-gtesting2
 40130e8e23de  docker.io/library/grafana-gtesting2:2000                        9 minutes ago  Up 9 minutes            0.0.0.0:3000-&gt;3000/tcp, 3000/tcp  grafana-gtesting2
-d6ce8a149439  localhost/chat-gtesting2:2000             python -u a2rchi/...  9 minutes ago  Up 9 minutes            0.0.0.0:7861-&gt;7861/tcp            chat-gtesting2
+d6ce8a149439  localhost/chat-gtesting2:2000             python -u archi/...  9 minutes ago  Up 9 minutes            0.0.0.0:7861-&gt;7861/tcp            chat-gtesting2
 </code></pre>
 <p>where the grafana interface is accessible at <code>your-hostname:3000</code>. To change the external port from <code>3000</code>, you can do this in the config at <code>services.grafana.external_port</code>. The default login and password are both "admin", which you will be prompted to change should you want to after first logging in. Navigate to the A2RCHI dashboard from the home page by going to the menu &gt; Dashboards &gt; A2RCHI &gt; A2RCHI Usage. Note, <code>your-hostname</code> here is the just name of the machine. Grafana uses its default configuration which is <code>localhost</code> but unlike the chat interface, there are no APIs where we template with a selected hostname, so the container networking handles this nicely.</p>
 <blockquote>
@@ -663,7 +747,7 @@ username@mit.edu,222
 <p>The required fields in the configuration file are different from the rest of the A2RCHI services. Below is an example:</p>
 <pre><code class="language-yaml">name: grading_test # REQUIRED
 
-a2rchi:
+archi:
   pipelines:
     - GradingPipeline
   pipeline_map:
@@ -695,20 +779,20 @@ data_manager:
 </code></pre>
 <ol>
 <li><code>name</code> -- The name of your configuration (required).</li>
-<li><code>a2rchi.pipelines</code> -- List of pipelines to use (e.g., <code>GradingPipeline</code>, <code>ImageProcessingPipeline</code>).</li>
-<li><code>a2rchi.pipeline_map</code> -- Mapping of pipelines to their required prompts and models.</li>
-<li><code>a2rchi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt</code> -- Path to the grading prompt file for evaluating student solutions.</li>
-<li><code>a2rchi.pipeline_map.GradingPipeline.models.required.final_grade_model</code> -- Model class for grading (e.g., <code>OllamaInterface</code>, <code>HuggingFaceOpenLLM</code>).</li>
-<li><code>a2rchi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
-<li><code>a2rchi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model</code> -- Model class for image processing (e.g., <code>OllamaInterface</code>, <code>HuggingFaceImageLLM</code>).</li>
+<li><code>archi.pipelines</code> -- List of pipelines to use (e.g., <code>GradingPipeline</code>, <code>ImageProcessingPipeline</code>).</li>
+<li><code>archi.pipeline_map</code> -- Mapping of pipelines to their required prompts and models.</li>
+<li><code>archi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt</code> -- Path to the grading prompt file for evaluating student solutions.</li>
+<li><code>archi.pipeline_map.GradingPipeline.models.required.final_grade_model</code> -- Model class for grading (e.g., <code>OllamaInterface</code>, <code>HuggingFaceOpenLLM</code>).</li>
+<li><code>archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
+<li><code>archi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model</code> -- Model class for image processing (e.g., <code>OllamaInterface</code>, <code>HuggingFaceImageLLM</code>).</li>
 <li><code>services.chat_app.trained_on</code> -- A brief description of the data or materials A2RCHI is trained on (required).</li>
 <li><code>services.grader_app.num_problems</code> -- Number of problems the grading service should expect (must match the number of rubric files).</li>
 <li><code>services.grader_app.local_rubric_dir</code> -- Directory containing the <code>solution_with_rubric_*.txt</code> files.</li>
 <li><code>services.grader_app.local_users_csv_dir</code> -- Directory containing the <code>users.csv</code> file.</li>
 </ol>
-<p>For ReAct-style agents (e.g., <code>CMSCompOpsAgent</code>), you may optionally set <code>a2rchi.pipeline_map.&lt;Agent&gt;.recursion_limit</code> (default <code>100</code>) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.</p>
+<p>For ReAct-style agents (e.g., <code>CMSCompOpsAgent</code>), you may optionally set <code>archi.pipeline_map.&lt;Agent&gt;.recursion_limit</code> (default <code>100</code>) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.</p>
 <h4 id="running_8">Running</h4>
-<pre><code class="language-bash">a2rchi create [...] --services=grader
+<pre><code class="language-bash">archi create [...] --services=grader
 </code></pre>
 <hr />
 <h2 id="models">Models</h2>
@@ -729,11 +813,23 @@ data_manager:
 <p>We support the following model classes in <code>models.py</code> for models accessed via APIs:</p>
 <ul>
 <li><code>OpenAILLM</code></li>
+<li><code>OpenRouterLLM</code></li>
 <li><code>AnthropicLLM</code></li>
 </ul>
+<h4 id="openrouter">OpenRouter</h4>
+<p>OpenRouter uses the OpenAI-compatible API. Configure it by setting <code>OpenRouterLLM</code> in your config and providing
+<code>OPENROUTER_API_KEY</code>. Optional attribution headers can be set via <code>OPENROUTER_SITE_URL</code> and <code>OPENROUTER_APP_NAME</code>.</p>
+<pre><code class="language-yaml">archi:
+  model_class_map:
+    OpenRouterLLM:
+      class: OpenRouterLLM
+      kwargs:
+        model_name: openai/gpt-4o-mini
+        temperature: 0.7
+</code></pre>
 <h3 id="ollama">Ollama</h3>
 <p>In order to use an Ollama server instance for the chatbot, it is possible to specify <code>OllamaInterface</code> for the model name. To then correctly use models on the Ollama server, in the keyword args, specify both the url of the server and the name of a model hosted on the server.</p>
-<pre><code class="language-yaml">a2rchi:
+<pre><code class="language-yaml">archi:
   model_class_map:
     OllamaInterface:
       kwargs:
@@ -742,9 +838,132 @@ data_manager:
 
 </code></pre>
 <p>In this case, the <code>gemma3</code> model is hosted on the Ollama server at <code>url-for-server</code>. You can check which models are hosted on your server by going to <code>url-for-server/models</code>.</p>
+<h3 id="bring-your-own-key-byok">Bring Your Own Key (BYOK)</h3>
+<p>A2RCHI supports Bring Your Own Key (BYOK), allowing users to provide their own API keys for LLM providers at runtime. This enables:</p>
+<ul>
+<li><strong>Cost attribution</strong>: Users pay for their own API usage</li>
+<li><strong>Provider flexibility</strong>: Switch between providers without admin intervention</li>
+<li><strong>Privacy</strong>: Use personal accounts for sensitive queries</li>
+</ul>
+<h4 id="key-hierarchy">Key Hierarchy</h4>
+<p>API keys are resolved in the following order (highest priority first):</p>
+<ol>
+<li><strong>Environment Variables</strong>: Admin-configured keys (e.g., <code>OPENAI_API_KEY</code>)</li>
+<li><strong>Docker Secrets</strong>: Keys mounted at <code>/run/secrets/</code></li>
+<li><strong>Session Storage</strong>: User-provided keys via the Settings UI</li>
+</ol>
+<p>!!! note
+    Environment variable keys always take precedence. If an admin configures a key via environment variable, users cannot override it with their own key.</p>
+<h4 id="using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</h4>
+<ol>
+<li>Open the <strong>Settings</strong> modal (gear icon)</li>
+<li>Expand the <strong>API Keys</strong> section</li>
+<li>For each provider you want to use:</li>
+<li>Enter your API key in the input field</li>
+<li>Click <strong>Save</strong> to store it in your session</li>
+<li>Select your preferred <strong>Provider</strong> and <strong>Model</strong> from the dropdowns</li>
+<li>Start chatting!</li>
+</ol>
+<p><strong>Status Indicators:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Icon</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✓ Env</td>
+<td>Key configured via environment variable (cannot be changed)</td>
+</tr>
+<tr>
+<td>✓ Session</td>
+<td>Key configured via your session</td>
+</tr>
+<tr>
+<td>○</td>
+<td>No key configured</td>
+</tr>
+</tbody>
+</table>
+<h4 id="supported-providers">Supported Providers</h4>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Environment Variable</th>
+<th>API Key Format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI</td>
+<td><code>OPENAI_API_KEY</code></td>
+<td><code>sk-...</code></td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td><code>sk-ant-...</code></td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td><code>GOOGLE_API_KEY</code></td>
+<td><code>AIza...</code></td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td><code>sk-or-...</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="security-considerations">Security Considerations</h4>
+<ul>
+<li><strong>Keys are never logged</strong> - API keys are redacted from all log output</li>
+<li><strong>Keys are never echoed</strong> - The UI only shows masked placeholders</li>
+<li><strong>Session-scoped</strong> - Keys are cleared when you log out or your session expires</li>
+<li><strong>HTTPS recommended</strong> - For production deployments, always use HTTPS to protect keys in transit</li>
+</ul>
+<h4 id="api-endpoints">API Endpoints</h4>
+<p>For programmatic access, the following endpoints are available:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/providers/keys</code></td>
+<td>GET</td>
+<td>Get status of all provider keys</td>
+</tr>
+<tr>
+<td><code>/api/providers/keys/set</code></td>
+<td>POST</td>
+<td>Set a session API key (validates before storing)</td>
+</tr>
+<tr>
+<td><code>/api/providers/keys/clear</code></td>
+<td>POST</td>
+<td>Clear a session API key</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="vector-store">Vector Store</h2>
-<p>The vector store is a database that stores document embeddings, enabling semantic and/or lexical search over your knowledge base. A2RCHI uses ChromaDB as the vector store backend to index and retrieve relevant documents based on similarity to user queries.</p>
+<p>The vector store is a database that stores document embeddings, enabling semantic and/or lexical search over your knowledge base. A2RCHI uses PostgreSQL with pgvector as the default vector store backend to index and retrieve relevant documents based on similarity to user queries.</p>
+<h3 id="backend-selection">Backend Selection</h3>
+<p>A2RCHI uses PostgreSQL with the pgvector extension as its vector store backend. This provides production-grade vector similarity search integrated with your existing PostgreSQL database.</p>
+<p>Configure vector store settings in your configuration file:</p>
+<pre><code class="language-yaml">services:
+  vectorstore:
+    backend: postgres  # PostgreSQL with pgvector (only supported backend)
+</code></pre>
 <h3 id="configuration_9">Configuration</h3>
 <p>Vector store settings are configured under the <code>data_manager</code> section:</p>
 <pre><code class="language-yaml">data_manager:
@@ -758,7 +977,7 @@ data_manager:
 </code></pre>
 <h4 id="core-settings">Core Settings</h4>
 <ul>
-<li><strong><code>collection_name</code></strong>: Name of the ChromaDB collection. Default: <code>default_collection</code></li>
+<li><strong><code>collection_name</code></strong>: Name of the vector store collection. Default: <code>default_collection</code></li>
 <li><strong><code>chunk_size</code></strong>: Maximum size of text chunks (in characters) when splitting documents. Default: <code>1000</code></li>
 <li><strong><code>chunk_overlap</code></strong>: Number of overlapping characters between consecutive chunks. Default: <code>0</code></li>
 <li><strong><code>reset_collection</code></strong>: If <code>true</code>, deletes and recreates the collection on startup. Default: <code>true</code></li>
@@ -842,19 +1061,18 @@ data_manager:
     enabled: true
 </code></pre>
 <p>When enabled, both documents and queries are processed using the Porter Stemmer algorithm to reduce words to their root forms (e.g., "running" → "run"), improving matching accuracy.</p>
-<h3 id="chromadb-backend">ChromaDB Backend</h3>
-<p>A2RCHI supports both local and remote ChromaDB instances:</p>
-<h4 id="local-persistent">Local (Persistent)</h4>
+<h3 id="postgresql-backend-default">PostgreSQL Backend (Default)</h3>
+<p>A2RCHI uses PostgreSQL with pgvector for vector storage by default. The PostgreSQL service is automatically started when you deploy with the chatbot service.</p>
 <pre><code class="language-yaml">services:
-  chromadb:
-    local_vstore_path: /path/to/vectorstore
+  postgres:
+    host: postgres
+    port: 5432
+    database: archi
+  vectorstore:
+    backend: postgres
 </code></pre>
-<h4 id="remote-http-client">Remote (HTTP Client)</h4>
-<pre><code class="language-yaml">services:
-  chromadb:
-    use_HTTP_chromadb_client: true
-    chromadb_host: localhost
-    chromadb_port: 8000
+<p>Required secrets for PostgreSQL:</p>
+<pre><code class="language-bash">PG_PASSWORD=your_secure_password
 </code></pre>
 <hr />
 <h2 id="benchmarking">Benchmarking</h2>
@@ -929,10 +1147,10 @@ data_manager:
 <p>Finally, before you run the command ensure <code>out_dir</code>, the output directory, both exists on your system and that the path is correctly specified so that results can show up inside of it.</p>
 <h3 id="running_9">Running</h3>
 <p>To run the benchmarking script simply run the following:</p>
-<pre><code class="language-bash">a2rchi evaluate -n &lt;name&gt; -e &lt;env_file&gt; -cd &lt;configs_directory&gt; &lt;optionally use  -c &lt;file1&gt;,&lt;file2&gt;, ...&gt; &lt;OPTIONS&gt;
+<pre><code class="language-bash">archi evaluate -n &lt;name&gt; -e &lt;env_file&gt; -cd &lt;configs_directory&gt; &lt;optionally use  -c &lt;file1&gt;,&lt;file2&gt;, ...&gt; &lt;OPTIONS&gt;
 </code></pre>
 <p>Example:</p>
-<pre><code class="language-bash">a2rchi evaluate -n benchmark -c examples/benchmarking/benchmark_configs/example_conf.yaml --gpu-ids all
+<pre><code class="language-bash">archi evaluate -n benchmark -c examples/benchmarking/benchmark_configs/example_conf.yaml --gpu-ids all
 </code></pre>
 <h3 id="additional-options">Additional options</h3>
 <p>You might also want to adjust the <code>timeout</code> setting, which is the upper limit on how long the Ragas evaluation takes on a single QA pair, or the <code>batch_size</code>, which determines how many QA pairs to evaluate at once, which you might want to adjust, e.g., based on hardware constraints, as Ragas doesn't pay great attention to that. The corresponding configuration options are similarly set for the benchmarking services, as follows:</p>
@@ -947,56 +1165,167 @@ data_manager:
 <hr />
 <h2 id="other">Other</h2>
 <p>Some useful additional features supported by the framework.</p>
-<h3 id="add-chromadb-document-management-api-endpoints">Add ChromaDB Document Management API Endpoints</h3>
-<h5 id="debugging-chromadb-endpoints">Debugging ChromaDB endpoints</h5>
-<p>Debugging REST API endpoints to the A2RCHI chat application for programmatic access to the ChromaDB vector database can be exposed with the following configuration change.
-To enable the ChromaDB endpoints, add the following to your config file under <code>services.chat_app</code>:</p>
-<pre><code class="language-yaml">services:
-  chat_app:
-    # ... other config options ...
-    enable_debug_chroma_endpoints: true  # Default: false
+<hr />
+<h2 id="configuration-management">Configuration Management</h2>
+<p>A2RCHI uses a three-tier configuration system that allows flexibility at different levels:</p>
+<h3 id="configuration-hierarchy">Configuration Hierarchy</h3>
+<ol>
+<li><strong>Static Configuration</strong> (deploy-time, immutable)</li>
+<li>Set during deployment from config.yaml</li>
+<li>Includes: deployment name, embedding model, available pipelines/models</li>
+<li>
+<p>Cannot be changed at runtime</p>
+</li>
+<li>
+<p><strong>Dynamic Configuration</strong> (admin-controlled)</p>
+</li>
+<li>Runtime-modifiable settings</li>
+<li>Includes: default model, temperature, retrieval parameters, active prompts</li>
+<li>
+<p>Only admins can modify via API</p>
+</li>
+<li>
+<p><strong>User Preferences</strong> (per-user overrides)</p>
+</li>
+<li>Individual users can override certain settings</li>
+<li>Includes: preferred model, temperature, prompt selections</li>
+<li>Takes precedence over dynamic config for that user</li>
+</ol>
+<h3 id="effective-configuration">Effective Configuration</h3>
+<p>When a request is made, A2RCHI resolves the effective value for each setting:</p>
+<pre><code>User Preference (if set) → Dynamic Config (admin default) → Static Default
 </code></pre>
-<h6 id="chromadb-endpoints-info">ChromaDB  Endpoints Info</h6>
-<h6 id="apilist_docs-get"># <code>/api/list_docs</code> (GET)</h6>
-<p>Lists all documents indexed in ChromaDB with pagination support.</p>
-<p><strong>Query Parameters:</strong>
-- <code>page</code>: Page number (1-based, default: 1)
-- <code>per_page</code>: Documents per page (default: 50, max: 500)
-- <code>content_length</code>: Content preview length (default: -1 for full content)</p>
-<p><strong>Response:</strong></p>
-<pre><code class="language-json">{
-  &quot;pagination&quot;: {
-    &quot;page&quot;: 1,
-    &quot;per_page&quot;: 50,
-    &quot;total_documents&quot;: 1250,
-    &quot;total_pages&quot;: 25,
-    &quot;has_next&quot;: true,
-    &quot;has_prev&quot;: false
-  },
-  &quot;documents&quot;: [...]
-}
+<p>For example, if an admin sets <code>temperature: 0.7</code> but a user prefers <code>0.5</code>, 
+that user's requests will use <code>0.5</code>.</p>
+<h3 id="admin-only-settings">Admin-Only Settings</h3>
+<p>The following settings require admin privileges to modify:</p>
+<ul>
+<li><code>active_pipeline</code> - Default pipeline</li>
+<li><code>active_model</code> - Default model</li>
+<li><code>temperature</code>, <code>max_tokens</code>, <code>top_p</code>, <code>top_k</code> - Generation parameters</li>
+<li><code>num_documents_to_retrieve</code> - Retrieval settings</li>
+<li><code>active_condense_prompt</code>, <code>active_chat_prompt</code>, <code>active_system_prompt</code> - Default prompts</li>
+<li><code>verbosity</code> - Logging level</li>
+</ul>
+<h3 id="user-overridable-settings">User-Overridable Settings</h3>
+<p>Users can personalize these settings via the preferences API:</p>
+<ul>
+<li><code>preferred_model</code> - Model selection</li>
+<li><code>preferred_temperature</code> - Generation temperature</li>
+<li><code>preferred_max_tokens</code> - Max response length</li>
+<li><code>preferred_num_documents</code> - Number of documents to retrieve</li>
+<li><code>preferred_condense_prompt</code>, <code>preferred_chat_prompt</code>, <code>preferred_system_prompt</code> - Prompt selections</li>
+<li><code>theme</code> - UI theme</li>
+</ul>
+<hr />
+<h2 id="prompt-customization">Prompt Customization</h2>
+<p>A2RCHI supports customizable prompts organized by type. Prompts are stored as files in your deployment directory for easy editing and version control.</p>
+<h3 id="prompt-location">Prompt Location</h3>
+<p>After deployment, prompts are located at:</p>
+<pre><code>~/.archi/&lt;deployment-name&gt;/data/prompts/
 </code></pre>
-<h6 id="apisearch_docs-post"># <code>/api/search_docs</code> (POST)</h6>
-<p>Performs semantic search on the document collection using vector similarity.</p>
-<p><strong>Request Body:</strong>
-- <code>query</code>: Search query string (required)
-- <code>n_results</code>: Number of results (default: 5, max: 100)
-- <code>content_length</code>: Max content length (default: -1, max: 5000)
-- <code>include_full_content</code>: Include complete document content (default: false)</p>
-<p><strong>Response:</strong></p>
+<p>Default prompt templates are provided in the repository at <code>examples/defaults/prompts/</code> for reference.</p>
+<h3 id="prompt-types">Prompt Types</h3>
+<ul>
+<li><strong>condense</strong>: Prompts for condensing conversation history</li>
+<li><strong>chat</strong>: Main response generation prompts  </li>
+<li><strong>system</strong>: System-level instructions</li>
+</ul>
+<h3 id="prompt-directory-structure">Prompt Directory Structure</h3>
+<pre><code>data/prompts/
+├── condense/
+│   ├── default.prompt
+│   └── concise.prompt
+├── chat/
+│   ├── default.prompt
+│   ├── formal.prompt
+│   └── technical.prompt
+└── system/
+    ├── default.prompt
+    └── helpful.prompt
+</code></pre>
+<h3 id="creating-custom-prompts">Creating Custom Prompts</h3>
+<ol>
+<li>Navigate to your deployment's prompt directory: <code>~/.archi/&lt;deployment-name&gt;/data/prompts/</code></li>
+<li>Create or edit a <code>.prompt</code> file in the appropriate subdirectory</li>
+<li>Use standard prompt template syntax with placeholders:</li>
+<li><code>{retriever_output}</code> - Retrieved documents</li>
+<li><code>{question}</code> - User question</li>
+<li><code>{history}</code> - Conversation history</li>
+</ol>
+<p>Example <code>data/prompts/chat/technical.prompt</code>:</p>
+<pre><code>You are a technical assistant specializing in software development.
+Use precise technical terminology and provide code examples when appropriate.
+
+Context: {context}
+
+Question: {question}
+</code></pre>
+<h3 id="activating-prompts">Activating Prompts</h3>
+<p><strong>Admin (deployment-wide default):</strong></p>
+<pre><code>PATCH /api/config/dynamic
+{&quot;active_chat_prompt&quot;: &quot;technical&quot;}
+</code></pre>
+<p><strong>User (personal preference):</strong></p>
+<pre><code>PATCH /api/users/me/preferences
+{&quot;preferred_chat_prompt&quot;: &quot;formal&quot;}
+</code></pre>
+<h3 id="reloading-prompts">Reloading Prompts</h3>
+<p>After adding or modifying prompt files, reload the cache:</p>
+<pre><code>POST /api/prompts/reload
+</code></pre>
+<p>This is admin-only and updates the in-memory prompt cache without restarting services.</p>
+<hr />
+<h2 id="admin-guide">Admin Guide</h2>
+<h3 id="becoming-an-admin">Becoming an Admin</h3>
+<p>Admin status is set in the PostgreSQL <code>users</code> table:</p>
+<pre><code class="language-sql">UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
+</code></pre>
+<h3 id="admin-responsibilities">Admin Responsibilities</h3>
+<ol>
+<li><strong>Configuration Management</strong></li>
+<li>Set deployment-wide defaults via <code>/api/config/dynamic</code></li>
+<li>
+<p>Monitor configuration changes via <code>/api/config/audit</code></p>
+</li>
+<li>
+<p><strong>Prompt Management</strong></p>
+</li>
+<li>Add/edit prompt files in <code>prompts/</code> directory</li>
+<li>
+<p>Reload prompts via API after changes</p>
+</li>
+<li>
+<p><strong>User Management</strong></p>
+</li>
+<li>Grant admin privileges as needed</li>
+<li>Review user activity and preferences</li>
+</ol>
+<h3 id="audit-logging">Audit Logging</h3>
+<p>All admin configuration changes are logged:</p>
+<pre><code>GET /api/config/audit?limit=50
+</code></pre>
+<p>Returns:</p>
 <pre><code class="language-json">{
-  &quot;query&quot;: &quot;machine learning&quot;,
-  &quot;search_params&quot;: {...},
-  &quot;documents&quot;: [
+  &quot;entries&quot;: [
     {
-      &quot;content&quot;: &quot;Document content...&quot;,
-      &quot;content_length&quot;: 1200,
-      &quot;metadata&quot;: {...},
-      &quot;similarity_score&quot;: 0.85
+      &quot;user_id&quot;: &quot;admin_user&quot;,
+      &quot;changed_at&quot;: &quot;2025-01-20T15:30:00Z&quot;,
+      &quot;config_type&quot;: &quot;dynamic&quot;,
+      &quot;field_name&quot;: &quot;temperature&quot;,
+      &quot;old_value&quot;: &quot;0.7&quot;,
+      &quot;new_value&quot;: &quot;0.8&quot;
     }
   ]
 }
 </code></pre>
+<h3 id="best-practices">Best Practices</h3>
+<ol>
+<li><strong>Test configuration changes</strong> in a staging environment first</li>
+<li><strong>Document changes</strong> - use meaningful commit messages for prompt file updates</li>
+<li><strong>Monitor audit log</strong> - review for unexpected changes</li>
+<li><strong>Backup prompts</strong> - version control your custom prompts</li>
+</ol>
 <hr />
               
             </div>
@@ -1026,7 +1355,7 @@ To enable the ChromaDB endpoints, add the following to your config file under <c
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/A2rchi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     

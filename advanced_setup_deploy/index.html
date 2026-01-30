@@ -71,6 +71,16 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#persisting-data-between-deployments">Persisting data between deployments</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#https-configuration-for-production">HTTPS Configuration for Production</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#using-a-reverse-proxy">Using a Reverse Proxy</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#session-cookie-security">Session Cookie Security</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#security-checklist">Security Checklist</a>
+    </li>
+        </ul>
+    </li>
         </ul>
     </li>
     </ul>
@@ -100,7 +110,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">Advanced Setup and Deployment</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/A2rchi/edit/master/docs/advanced_setup_deploy.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/mit-submit/archi/edit/master/docs/advanced_setup_deploy.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -173,7 +183,7 @@ The remaining steps mirror the Podman flow. NOTE: this has not yet been fully te
 
 </details>
 
-<p>Once these requirements are met, the <code>a2rchi create [...] --gpu-ids &lt;gpus&gt;</code> option will deploy A2RCHI across your GPUs.</p>
+<p>Once these requirements are met, the <code>archi create [...] --gpu-ids &lt;gpus&gt;</code> option will deploy A2RCHI across your GPUs.</p>
 <h2 id="helpful-notes-for-production-deployments">Helpful Notes for Production Deployments</h2>
 <p>You may wish to use the CLI in order to stage production deployments. This section covers some useful notes to keep in mind.</p>
 <h3 id="running-multiple-deployments-on-the-same-machine">Running multiple deployments on the same machine</h3>
@@ -186,8 +196,8 @@ The remaining steps mirror the Podman flow. NOTE: this has not yet been fully te
     external_port: 5004  # default is 5003
   grafana:
     external_port: 3001  # default is 3000
-  chromadb:
-    chromadb_external_port: 8001  # default is 8000
+  postgres:
+    port: 5432  # default is 5432
 </code></pre>
 <h3 id="persisting-data-between-deployments">Persisting data between deployments</h3>
 <p>Volumes persist between deployments, so if you deploy an instance and upload additional documents, you do not need to redo this every time you deploy. If you are editing any data, explicitly remove this information from the volume, or remove the volume itself with:</p>
@@ -196,6 +206,55 @@ The remaining steps mirror the Podman flow. NOTE: this has not yet been fully te
 <p>To see what volumes are currently present, run:</p>
 <pre><code class="language-bash">docker/podman volume ls
 </code></pre>
+<h3 id="https-configuration-for-production">HTTPS Configuration for Production</h3>
+<p>For production deployments, especially when using BYOK (Bring Your Own Key), HTTPS is strongly recommended to protect API keys in transit.</p>
+<h4 id="using-a-reverse-proxy">Using a Reverse Proxy</h4>
+<p>The recommended approach is to terminate TLS at a reverse proxy (nginx, Caddy, Traefik):</p>
+<p><strong>Example nginx configuration:</strong></p>
+<pre><code class="language-nginx">server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:7861;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection &quot;upgrade&quot;;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE streaming support
+        proxy_buffering off;
+        proxy_cache off;
+    }
+}
+</code></pre>
+<p><strong>Example Caddy configuration (automatic HTTPS):</strong></p>
+<pre><code class="language-caddyfile">your-domain.com {
+    reverse_proxy localhost:7861
+}
+</code></pre>
+<h4 id="session-cookie-security">Session Cookie Security</h4>
+<p>When running behind HTTPS, enable secure cookies by setting the environment variable:</p>
+<pre><code class="language-bash">FLASK_SESSION_COOKIE_SECURE=true
+</code></pre>
+<p>Or configure in your deployment's environment file:</p>
+<pre><code class="language-env">FLASK_SESSION_COOKIE_SECURE=true
+</code></pre>
+<p>This ensures session cookies (which may contain API keys) are only sent over encrypted connections.</p>
+<h4 id="security-checklist">Security Checklist</h4>
+<ul>
+<li>[ ] TLS termination at reverse proxy or load balancer</li>
+<li>[ ] <code>FLASK_SESSION_COOKIE_SECURE=true</code> in production</li>
+<li>[ ] Strong <code>FLASK_UPLOADER_APP_SECRET_KEY</code> configured (not auto-generated)</li>
+<li>[ ] Firewall rules limiting direct access to internal ports</li>
+<li>[ ] Regular certificate renewal (use Let's Encrypt/certbot)</li>
+</ul>
               
             </div>
           </div><footer>
@@ -224,7 +283,7 @@ The remaining steps mirror the Podman flow. NOTE: this has not yet been fully te
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/A2rchi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     

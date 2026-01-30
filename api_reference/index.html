@@ -101,13 +101,113 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#data_manager">data_manager</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#a2rchi">a2rchi</a>
+    <li class="toctree-l3"><a class="reference internal" href="#archi">archi</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#utils">utils</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#required-fields">Required Fields</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#example">Example</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#v2-api-postgresql-consolidated">V2 API (PostgreSQL-Consolidated)</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#base-url">Base URL</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#authentication">Authentication</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apiauthlogin">POST /api/auth/login</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apiauthlogout">POST /api/auth/logout</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiauthme">GET /api/auth/me</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#user-management">User Management</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiusersme">GET /api/users/me</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#patch-apiusersmepreferences">PATCH /api/users/me/preferences</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#put-apiusersmeapi-keysprovider">PUT /api/users/me/api-keys/{provider}</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#delete-apiusersmeapi-keysprovider">DELETE /api/users/me/api-keys/{provider}</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiconfigstatic">GET /api/config/static</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiconfigdynamic">GET /api/config/dynamic</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#patch-apiconfigdynamic">PATCH /api/config/dynamic</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiconfigeffective">GET /api/config/effective</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiconfigaudit">GET /api/config/audit</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#prompts">Prompts</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiprompts">GET /api/prompts</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apipromptstype">GET /api/prompts/{type}</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apipromptstypename">GET /api/prompts/{type}/{name}</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apipromptsreload">POST /api/prompts/reload</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#document-selection-3-tier">Document Selection (3-Tier)</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apidocumentsselectionconversation_idid">GET /api/documents/selection?conversation_id={id}</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#put-apidocumentsuser-defaults">PUT /api/documents/user-defaults</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#put-apidocumentsconversation-override">PUT /api/documents/conversation-override</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#delete-apidocumentsconversation-override">DELETE /api/documents/conversation-override</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#analytics">Analytics</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apianalyticsmodel-usage">GET /api/analytics/model-usage</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apianalyticsab-comparisons">GET /api/analytics/ab-comparisons</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#data-viewer">Data Viewer</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apidatadocuments">GET /api/data/documents</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apidatadocumentshashcontent">GET /api/data/documents/&lt;hash&gt;/content</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apidatadocumentshashenable">POST /api/data/documents/&lt;hash&gt;/enable</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apidatadocumentshashdisable">POST /api/data/documents/&lt;hash&gt;/disable</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apidatabulk-enable">POST /api/data/bulk-enable</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#post-apidatabulk-disable">POST /api/data/bulk-disable</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apidatastats">GET /api/data/stats</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#health-info">Health &amp; Info</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apihealth">GET /api/health</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#get-apiinfo">GET /api/info</a>
+    </li>
+        </ul>
     </li>
         </ul>
     </li>
@@ -134,7 +234,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">API Reference</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/A2rchi/edit/master/docs/api_reference.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/mit-submit/archi/edit/master/docs/api_reference.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -150,7 +250,7 @@
 <h4 id="1-create">1. <code>create</code></h4>
 <p>Create a new A2RCHI deployment.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi create --name &lt;deployment_name&gt; --config &lt;config.yaml&gt; --env-file &lt;secrets.env&gt; [OPTIONS]
+<pre><code class="language-sh">archi create --name &lt;deployment_name&gt; --config &lt;config.yaml&gt; --env-file &lt;secrets.env&gt; [OPTIONS]
 </code></pre>
 <p><strong>Options:</strong></p>
 <ul>
@@ -172,7 +272,7 @@
 <h4 id="2-delete">2. <code>delete</code></h4>
 <p>Delete an existing A2RCHI deployment.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi delete --name &lt;deployment_name&gt; [OPTIONS]
+<pre><code class="language-sh">archi delete --name &lt;deployment_name&gt; [OPTIONS]
 </code></pre>
 <p><strong>Options:</strong></p>
 <ul>
@@ -186,7 +286,7 @@
 <h4 id="3-restart">3. <code>restart</code></h4>
 <p>Restart a specific service in an existing deployment without restarting the entire stack.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi restart --name &lt;deployment_name&gt; --service &lt;service_name&gt; [OPTIONS]
+<pre><code class="language-sh">archi restart --name &lt;deployment_name&gt; --service &lt;service_name&gt; [OPTIONS]
 </code></pre>
 <p><strong>Options:</strong></p>
 <ul>
@@ -204,38 +304,38 @@
 <ul>
 <li><strong>Configuration changes</strong>: Restarting with <code>--no-build</code> will reflect changes to configuration files. If you've modified code, you must rebuild the image (omit the <code>--no-build</code> flag).</li>
 <li><strong>Updating configuration</strong>: If you provide <code>--config</code> or <code>--config-dir</code>, the command will update the deployment's configuration before restarting the service.</li>
-<li><strong>Finding services</strong>: Use <code>a2rchi list-deployments</code> to see existing deployments. If you specify an invalid service name, the restart command will display the available services for that deployment.</li>
+<li><strong>Finding services</strong>: Use <code>archi list-deployments</code> to see existing deployments. If you specify an invalid service name, the restart command will display the available services for that deployment.</li>
 </ul>
 <p><strong>Examples:</strong></p>
 <p>Quick config update without rebuilding:</p>
-<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot --no-build
+<pre><code class="language-sh">archi restart -n mybot --service chatbot --no-build
 </code></pre>
 <p>Test new agent code (requires rebuild):</p>
-<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot -c updated_config.yaml
+<pre><code class="language-sh">archi restart -n mybot --service chatbot -c updated_config.yaml
 </code></pre>
 <p>Restart with updated secrets:</p>
-<pre><code class="language-sh">a2rchi restart -n mybot --service chatbot -e new_secrets.env --no-build
+<pre><code class="language-sh">archi restart -n mybot --service chatbot -e new_secrets.env --no-build
 </code></pre>
 <p>Restart data_manager to re-scrape sources:</p>
-<pre><code class="language-sh">a2rchi restart -n mybot --service data_manager
+<pre><code class="language-sh">archi restart -n mybot --service data_manager
 </code></pre>
 <hr />
 <h4 id="4-list-services">4. <code>list-services</code></h4>
 <p>List all available A2RCHI services and data sources.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi list-services
+<pre><code class="language-sh">archi list-services
 </code></pre>
 <hr />
 <h4 id="5-list-deployments">5. <code>list-deployments</code></h4>
 <p>List all existing A2RCHI deployments.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi list-deployments
+<pre><code class="language-sh">archi list-deployments
 </code></pre>
 <hr />
 <h4 id="6-evaluate">6. <code>evaluate</code></h4>
 <p>Launch the benchmarking runtime to evaluate one or more configurations against a set of questions/answers.</p>
 <p><strong>Usage:</strong></p>
-<pre><code class="language-sh">a2rchi evaluate --name &lt;run_name&gt; --env-file &lt;secrets.env&gt; --config &lt;file.yaml&gt; [OPTIONS]
+<pre><code class="language-sh">archi evaluate --name &lt;run_name&gt; --env-file &lt;secrets.env&gt; --config &lt;file.yaml&gt; [OPTIONS]
 </code></pre>
 <p>Use <code>--config-dir</code> if you want to point to a directory of configs instead.</p>
 <p><strong>Options:</strong></p>
@@ -246,19 +346,19 @@
 <hr />
 <h3 id="examples">Examples</h3>
 <p><strong>Create a deployment:</strong></p>
-<pre><code class="language-sh">a2rchi create --name mybot --config my.yaml --env-file secrets.env --services chatbot,uploader
+<pre><code class="language-sh">archi create --name mybot --config my.yaml --env-file secrets.env --services chatbot,uploader
 </code></pre>
 <p><strong>Delete a deployment and remove images/volumes:</strong></p>
-<pre><code class="language-sh">a2rchi delete --name mybot --rmi --rmv
+<pre><code class="language-sh">archi delete --name mybot --rmi --rmv
 </code></pre>
 <p><strong>Restart a service without rebuilding:</strong></p>
-<pre><code class="language-sh">a2rchi restart --name mybot --service chatbot --no-build
+<pre><code class="language-sh">archi restart --name mybot --service chatbot --no-build
 </code></pre>
 <p><strong>List all deployments:</strong></p>
-<pre><code class="language-sh">a2rchi list-deployments
+<pre><code class="language-sh">archi list-deployments
 </code></pre>
 <p><strong>List all services:</strong></p>
-<pre><code class="language-sh">a2rchi list-services
+<pre><code class="language-sh">archi list-services
 </code></pre>
 <hr />
 <h2 id="configuration-yaml-api-reference">Configuration YAML API Reference</h2>
@@ -292,8 +392,7 @@
 <li><strong>uploader_app:</strong> Document uploader settings (<code>verify_urls</code>, ports).</li>
 <li><strong>grader_app:</strong> Grader-specific knobs (<code>num_problems</code>, rubric paths).</li>
 <li><strong>grafana:</strong> Port configuration for the monitoring dashboard.</li>
-<li><strong>chromadb:</strong> Connection details for the vector store container (<code>chromadb_host</code>, <code>chromadb_port</code>, <code>chromadb_external_port</code>).</li>
-<li><strong>postgres:</strong> Database credentials (<code>user</code>, <code>database</code>, <code>port</code>, <code>host</code>).</li>
+<li><strong>postgres:</strong> Database credentials (<code>user</code>, <code>database</code>, <code>port</code>, <code>host</code>). Also used for vector storage via pgvector.</li>
 <li><strong>piazza</strong>, <strong>mattermost</strong>, <strong>redmine_mailbox</strong>, <strong>benchmarking</strong>, ...: Service-specific options (see user guide sections above).</li>
 </ul>
 <hr />
@@ -302,6 +401,7 @@
 <ul>
 <li><strong>sources.links.input_lists:</strong> <code>.list</code> files with seed URLs.</li>
 <li><strong>sources.links.scraper:</strong> Behaviour toggles for HTTP scraping (resetting data, URL verification, warning output).</li>
+<li><strong>sources.links.selenium_scraper:</strong> Selenium configuration used for SSO scraping and optional link scraping.</li>
 <li><strong>sources.<name>.visible:</strong> Mark whether documents harvested from a source should appear in chat citations and other user-facing listings (<code>true</code> by default).</li>
 <li><strong>sources.git.enabled / sources.sso.enabled / sources.jira.enabled / sources.redmine.enabled:</strong> Toggle additional collectors when paired with <code>--sources</code>.</li>
 <li><strong>sources.jira.cutoff_date:</strong> ISO-8601 date; JIRA tickets created before this are ignored.</li>
@@ -313,8 +413,9 @@
 <li><strong>distance_metric / use_hybrid_search / bm25_weight / semantic_weight / bm25.{k1,b}:</strong> Retrieval tuning knobs.</li>
 <li><strong>utils.anonymizer</strong> (legacy) / <strong>data_manager.utils.anonymizer</strong>: Redaction settings applied when ticket collectors anonymise content.</li>
 </ul>
+<p>Source configuration is persisted to PostgreSQL <code>static_config.sources_config</code> at deployment time and used for runtime ingestion.</p>
 <hr />
-<h3 id="a2rchi"><code>a2rchi</code></h3>
+<h3 id="archi"><code>archi</code></h3>
 <p>Defines pipelines and model routing.</p>
 <ul>
 <li><strong>pipelines:</strong> List of pipeline names to load (e.g., <code>QAPipeline</code>).</li>
@@ -326,7 +427,6 @@
 <h3 id="utils"><code>utils</code></h3>
 <p>Utility configuration for supporting components (mostly legacy fallbacks):</p>
 <ul>
-<li><strong>sso:</strong> Global SSO defaults used when a source-specific override is not provided.</li>
 <li><strong>git:</strong> Legacy toggle for Git scraping.</li>
 <li><strong>jira / redmine:</strong> Compatibility settings for ticket integrations; prefer configuring these under <code>data_manager.sources</code>.</li>
 </ul>
@@ -336,7 +436,7 @@
 <ul>
 <li><code>name</code></li>
 <li><code>data_manager.sources.links.input_lists</code> (or other source-specific configuration)</li>
-<li><code>a2rchi.pipelines</code> and matching <code>a2rchi.pipeline_map</code> entries</li>
+<li><code>archi.pipelines</code> and matching <code>archi.pipeline_map</code> entries</li>
 <li>Service-specific fields (e.g., <code>services.piazza.network_id</code>, <code>services.grader_app.num_problems</code>)</li>
 </ul>
 <p>See the <a href="../user_guide/">User Guide</a> for more configuration examples and explanations.</p>
@@ -368,7 +468,7 @@ data_manager:
   chunk_overlap: 0
   num_documents_to_retrieve: 5
 
-a2rchi:
+archi:
   pipelines: [&quot;QAPipeline&quot;]
   pipeline_map:
     QAPipeline:
@@ -391,13 +491,347 @@ services:
   chat_app:
     trained_on: &quot;Course documentation&quot;
     hostname: &quot;example.mit.edu&quot;
-  chromadb:
-    chromadb_host: &quot;chromadb&quot;
+  postgres:
+    port: 5432
+    database: &quot;archi&quot;
 </code></pre>
 <hr />
 <p><strong>Tip:</strong>
 For a full template, see <code>src/cli/templates/base-config.yaml</code> in
 the repository.</p>
+<hr />
+<h2 id="v2-api-postgresql-consolidated">V2 API (PostgreSQL-Consolidated)</h2>
+<p>The V2 API provides REST endpoints for the PostgreSQL-consolidated architecture, 
+using PostgreSQL with pgvector for unified vector storage and metadata.</p>
+<h3 id="base-url">Base URL</h3>
+<p>All endpoints are prefixed with <code>/api/</code>.</p>
+<hr />
+<h3 id="authentication">Authentication</h3>
+<h4 id="post-apiauthlogin"><code>POST /api/auth/login</code></h4>
+<p>Authenticate with email and password.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;email&quot;: &quot;user@example.com&quot;,
+  &quot;password&quot;: &quot;secret123&quot;
+}
+</code></pre>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;user&quot;: {
+    &quot;id&quot;: &quot;user_abc123&quot;,
+    &quot;email&quot;: &quot;user@example.com&quot;,
+    &quot;display_name&quot;: &quot;John Doe&quot;,
+    &quot;is_admin&quot;: false
+  },
+  &quot;session_token&quot;: &quot;sess_...&quot;
+}
+</code></pre>
+<h4 id="post-apiauthlogout"><code>POST /api/auth/logout</code></h4>
+<p>End the current session.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true
+}
+</code></pre>
+<h4 id="get-apiauthme"><code>GET /api/auth/me</code></h4>
+<p>Get the current authenticated user.</p>
+<p><strong>Response (authenticated):</strong></p>
+<pre><code class="language-json">{
+  &quot;authenticated&quot;: true,
+  &quot;user&quot;: {
+    &quot;id&quot;: &quot;user_abc123&quot;,
+    &quot;email&quot;: &quot;user@example.com&quot;,
+    &quot;display_name&quot;: &quot;John Doe&quot;,
+    &quot;is_admin&quot;: false
+  }
+}
+</code></pre>
+<p><strong>Response (anonymous):</strong></p>
+<pre><code class="language-json">{
+  &quot;authenticated&quot;: false,
+  &quot;user&quot;: null
+}
+</code></pre>
+<hr />
+<h3 id="user-management">User Management</h3>
+<h4 id="get-apiusersme"><code>GET /api/users/me</code></h4>
+<p>Get or create the current user.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;user_abc123&quot;,
+  &quot;display_name&quot;: &quot;John Doe&quot;,
+  &quot;email&quot;: &quot;john@example.com&quot;,
+  &quot;auth_provider&quot;: &quot;basic&quot;,
+  &quot;theme&quot;: &quot;dark&quot;,
+  &quot;preferred_model&quot;: &quot;gpt-4o&quot;,
+  &quot;preferred_temperature&quot;: 0.7,
+  &quot;has_openrouter_key&quot;: true,
+  &quot;has_openai_key&quot;: false,
+  &quot;has_anthropic_key&quot;: false,
+  &quot;created_at&quot;: &quot;2025-01-15T10:30:00Z&quot;
+}
+</code></pre>
+<h4 id="patch-apiusersmepreferences"><code>PATCH /api/users/me/preferences</code></h4>
+<p>Update user preferences.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;theme&quot;: &quot;light&quot;,
+  &quot;preferred_model&quot;: &quot;claude-3-opus&quot;,
+  &quot;preferred_temperature&quot;: 0.5
+}
+</code></pre>
+<h4 id="put-apiusersmeapi-keysprovider"><code>PUT /api/users/me/api-keys/{provider}</code></h4>
+<p>Set BYOK API key (provider: <code>openrouter</code>, <code>openai</code>, <code>anthropic</code>).</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;api_key&quot;: &quot;sk-...&quot;
+}
+</code></pre>
+<h4 id="delete-apiusersmeapi-keysprovider"><code>DELETE /api/users/me/api-keys/{provider}</code></h4>
+<p>Delete BYOK API key.</p>
+<hr />
+<h3 id="configuration">Configuration</h3>
+<h4 id="get-apiconfigstatic"><code>GET /api/config/static</code></h4>
+<p>Get static (deploy-time) configuration.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;deployment_name&quot;: &quot;my-archi&quot;,
+  &quot;embedding_model&quot;: &quot;text-embedding-ada-002&quot;,
+  &quot;embedding_dimensions&quot;: 1536,
+  &quot;available_pipelines&quot;: [&quot;QAPipeline&quot;, &quot;AgentPipeline&quot;],
+  &quot;available_models&quot;: [&quot;gpt-4o&quot;, &quot;claude-3-opus&quot;],
+  &quot;auth_enabled&quot;: true,
+  &quot;prompts_path&quot;: &quot;/root/archi/data/prompts/&quot;
+}
+</code></pre>
+<h4 id="get-apiconfigdynamic"><code>GET /api/config/dynamic</code></h4>
+<p>Get dynamic (runtime) configuration.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;active_pipeline&quot;: &quot;QAPipeline&quot;,
+  &quot;active_model&quot;: &quot;gpt-4o&quot;,
+  &quot;temperature&quot;: 0.7,
+  &quot;max_tokens&quot;: 4096,
+  &quot;top_p&quot;: 0.9,
+  &quot;top_k&quot;: 50,
+  &quot;active_condense_prompt&quot;: &quot;default&quot;,
+  &quot;active_chat_prompt&quot;: &quot;default&quot;,
+  &quot;active_system_prompt&quot;: &quot;default&quot;,
+  &quot;num_documents_to_retrieve&quot;: 10,
+  &quot;verbosity&quot;: 3
+}
+</code></pre>
+<h4 id="patch-apiconfigdynamic"><code>PATCH /api/config/dynamic</code></h4>
+<p>Update dynamic configuration. <strong>Admin only.</strong></p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;active_model&quot;: &quot;gpt-4o&quot;,
+  &quot;temperature&quot;: 0.8,
+  &quot;num_documents_to_retrieve&quot;: 5
+}
+</code></pre>
+<p><strong>Response:</strong> <code>403 Forbidden</code> if not admin.</p>
+<h4 id="get-apiconfigeffective"><code>GET /api/config/effective</code></h4>
+<p>Get effective configuration for the current user, with user preferences applied.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;active_model&quot;: &quot;claude-3-opus&quot;,
+  &quot;temperature&quot;: 0.5,
+  &quot;max_tokens&quot;: 4096,
+  &quot;num_documents_to_retrieve&quot;: 10,
+  &quot;active_condense_prompt&quot;: &quot;concise&quot;,
+  &quot;active_chat_prompt&quot;: &quot;technical&quot;
+}
+</code></pre>
+<h4 id="get-apiconfigaudit"><code>GET /api/config/audit</code></h4>
+<p>Get configuration change audit log. <strong>Admin only.</strong></p>
+<p><strong>Query params:</strong>
+- <code>limit</code>: Max entries to return (default: 100)</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;entries&quot;: [
+    {
+      &quot;id&quot;: 1,
+      &quot;user_id&quot;: &quot;admin_user&quot;,
+      &quot;changed_at&quot;: &quot;2025-01-20T15:30:00Z&quot;,
+      &quot;config_type&quot;: &quot;dynamic&quot;,
+      &quot;field_name&quot;: &quot;temperature&quot;,
+      &quot;old_value&quot;: &quot;0.7&quot;,
+      &quot;new_value&quot;: &quot;0.8&quot;
+    }
+  ]
+}
+</code></pre>
+<hr />
+<h3 id="prompts">Prompts</h3>
+<h4 id="get-apiprompts"><code>GET /api/prompts</code></h4>
+<p>List all available prompts by type.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;condense&quot;: [&quot;default&quot;, &quot;concise&quot;],
+  &quot;chat&quot;: [&quot;default&quot;, &quot;formal&quot;, &quot;technical&quot;],
+  &quot;system&quot;: [&quot;default&quot;, &quot;helpful&quot;]
+}
+</code></pre>
+<h4 id="get-apipromptstype"><code>GET /api/prompts/{type}</code></h4>
+<p>List prompts for a specific type.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">[&quot;default&quot;, &quot;formal&quot;, &quot;technical&quot;]
+</code></pre>
+<h4 id="get-apipromptstypename"><code>GET /api/prompts/{type}/{name}</code></h4>
+<p>Get prompt content.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;type&quot;: &quot;chat&quot;,
+  &quot;name&quot;: &quot;default&quot;,
+  &quot;content&quot;: &quot;You are a helpful AI assistant...&quot;
+}
+</code></pre>
+<h4 id="post-apipromptsreload"><code>POST /api/prompts/reload</code></h4>
+<p>Reload prompt cache from disk. <strong>Admin only.</strong></p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;message&quot;: &quot;Reloaded 7 prompts&quot;
+}
+</code></pre>
+<hr />
+<h3 id="document-selection-3-tier">Document Selection (3-Tier)</h3>
+<p>The document selection system uses a 3-tier precedence:
+1. <strong>Conversation override</strong> (highest priority)
+2. <strong>User default</strong>
+3. <strong>System default</strong> (all documents enabled)</p>
+<h4 id="get-apidocumentsselectionconversation_idid"><code>GET /api/documents/selection?conversation_id={id}</code></h4>
+<p>Get enabled documents for a conversation.</p>
+<h4 id="put-apidocumentsuser-defaults"><code>PUT /api/documents/user-defaults</code></h4>
+<p>Set user's default for a document.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;document_id&quot;: 42,
+  &quot;enabled&quot;: false
+}
+</code></pre>
+<h4 id="put-apidocumentsconversation-override"><code>PUT /api/documents/conversation-override</code></h4>
+<p>Set conversation-specific override.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;conversation_id&quot;: 123,
+  &quot;document_id&quot;: 42,
+  &quot;enabled&quot;: true
+}
+</code></pre>
+<h4 id="delete-apidocumentsconversation-override"><code>DELETE /api/documents/conversation-override</code></h4>
+<p>Clear conversation override (fall back to user default).</p>
+<hr />
+<h3 id="analytics">Analytics</h3>
+<h4 id="get-apianalyticsmodel-usage"><code>GET /api/analytics/model-usage</code></h4>
+<p>Get model usage statistics.</p>
+<p><strong>Query params:</strong>
+- <code>start_date</code>: ISO date (optional)
+- <code>end_date</code>: ISO date (optional)
+- <code>service</code>: Filter by service (optional)</p>
+<h4 id="get-apianalyticsab-comparisons"><code>GET /api/analytics/ab-comparisons</code></h4>
+<p>Get A/B comparison statistics with win rates.</p>
+<p><strong>Query params:</strong>
+- <code>model_a</code>: Filter by model A (optional)
+- <code>model_b</code>: Filter by model B (optional)
+- <code>start_date</code>: ISO date (optional)
+- <code>end_date</code>: ISO date (optional)</p>
+<hr />
+<h3 id="data-viewer">Data Viewer</h3>
+<p>Browse and manage ingested documents.</p>
+<h4 id="get-apidatadocuments"><code>GET /api/data/documents</code></h4>
+<p>List all ingested documents.</p>
+<p><strong>Query params:</strong>
+- <code>limit</code>: Max documents to return (default: 100)
+- <code>offset</code>: Pagination offset (default: 0)
+- <code>search</code>: Filter by document name
+- <code>source_type</code>: Filter by source type (e.g., <code>links</code>, <code>git</code>, <code>ticket</code>)</p>
+<p>Ticketing integrations normalize to <code>source_type: ticket</code> and record the provider in <code>metadata.ticket_provider</code> (e.g., <code>jira</code>, <code>redmine</code>).</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;documents&quot;: [
+    {
+      &quot;hash&quot;: &quot;5e90ca54526f3e11&quot;,
+      &quot;file_name&quot;: &quot;readme.md&quot;,
+      &quot;source_type&quot;: &quot;links&quot;,
+      &quot;chunk_count&quot;: 5,
+      &quot;enabled&quot;: true,
+      &quot;ingested_at&quot;: &quot;2025-01-29T10:30:00Z&quot;
+    }
+  ],
+  &quot;total&quot;: 42
+}
+</code></pre>
+<h4 id="get-apidatadocumentshashcontent"><code>GET /api/data/documents/&lt;hash&gt;/content</code></h4>
+<p>Get document content and chunks.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;hash&quot;: &quot;5e90ca54526f3e11&quot;,
+  &quot;file_name&quot;: &quot;readme.md&quot;,
+  &quot;content&quot;: &quot;Full document text...&quot;,
+  &quot;chunks&quot;: [
+    {
+      &quot;id&quot;: 1,
+      &quot;content&quot;: &quot;Chunk text...&quot;,
+      &quot;metadata&quot;: {}
+    }
+  ]
+}
+</code></pre>
+<h4 id="post-apidatadocumentshashenable"><code>POST /api/data/documents/&lt;hash&gt;/enable</code></h4>
+<p>Enable a document for retrieval.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;hash&quot;: &quot;5e90ca54526f3e11&quot;,
+  &quot;enabled&quot;: true
+}
+</code></pre>
+<h4 id="post-apidatadocumentshashdisable"><code>POST /api/data/documents/&lt;hash&gt;/disable</code></h4>
+<p>Disable a document from retrieval.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;hash&quot;: &quot;5e90ca54526f3e11&quot;,
+  &quot;enabled&quot;: false
+}
+</code></pre>
+<h4 id="post-apidatabulk-enable"><code>POST /api/data/bulk-enable</code></h4>
+<p>Enable multiple documents.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;hashes&quot;: [&quot;5e90ca54526f3e11&quot;, &quot;a1b2c3d4e5f67890&quot;]
+}
+</code></pre>
+<h4 id="post-apidatabulk-disable"><code>POST /api/data/bulk-disable</code></h4>
+<p>Disable multiple documents.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;hashes&quot;: [&quot;5e90ca54526f3e11&quot;, &quot;a1b2c3d4e5f67890&quot;]
+}
+</code></pre>
+<h4 id="get-apidatastats"><code>GET /api/data/stats</code></h4>
+<p>Get document statistics.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;total_documents&quot;: 42,
+  &quot;enabled_documents&quot;: 40,
+  &quot;disabled_documents&quot;: 2,
+  &quot;total_chunks&quot;: 350,
+  &quot;by_source_type&quot;: {
+    &quot;links&quot;: 30,
+    &quot;ticket&quot;: 12
+  }
+}
+</code></pre>
+<hr />
+<h3 id="health-info">Health &amp; Info</h3>
+<h4 id="get-apihealth"><code>GET /api/health</code></h4>
+<p>Health check with database connectivity status.</p>
+<h4 id="get-apiinfo"><code>GET /api/info</code></h4>
+<p>Get API version and available features.</p>
               
             </div>
           </div><footer>
@@ -426,7 +860,7 @@ the repository.</p>
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/A2rchi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     

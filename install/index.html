@@ -92,7 +92,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">Install</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/A2rchi/edit/master/docs/install.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/mit-submit/archi/edit/master/docs/install.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -112,41 +112,41 @@
 </blockquote>
 <h2 id="installation">Installation</h2>
 <p>Clone the A2RCHI repository:</p>
-<pre><code class="language-bash">git clone https://github.com/mit-submit/A2rchi.git
+<pre><code class="language-bash">git clone https://github.com/mit-submit/archi.git
 </code></pre>
 <p>Check out the latest stable tag:</p>
-<pre><code class="language-bash">cd A2rchi
+<pre><code class="language-bash">cd archi
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 </code></pre>
 <p>Install A2RCHI (from inside the repository):</p>
 <pre><code class="language-bash">pip install -e .
 </code></pre>
 <p>This installs A2RCHI's dependencies and the CLI tool. Verify the installation with:</p>
-<pre><code class="language-bash">which a2rchi
+<pre><code class="language-bash">which archi
 </code></pre>
-<p>The command prints the path to the <code>a2rchi</code> executable.</p>
+<p>The command prints the path to the <code>archi</code> executable.</p>
 <details>
 <summary>Show Full Installation Script</summary>
 
 
 <pre><code class="language-bash"># Clone the repository
-git clone https://github.com/mit-submit/A2rchi.git
-cd A2rchi
+git clone https://github.com/mit-submit/archi.git
+cd archi
 export A2RCHI_DIR=$(pwd)
 
 # (Optional) Checkout the latest stable tag
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 
 # (Optional) Create and activate a virtual environment
-python3 -m venv .a2rchi_venv
-source .a2rchi_venv/bin/activate
+python3 -m venv .archi_venv
+source .archi_venv/bin/activate
 
 # Install dependencies
 cd &quot;$A2RCHI_DIR&quot;
 pip install -e .
 
 # Verify installation
-which a2rchi
+which archi
 </code></pre>
 
 
@@ -179,7 +179,7 @@ which a2rchi
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/A2rchi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     
