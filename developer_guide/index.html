@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Developer Guide - A2RCHI Docs</title>
+    <title>Developer Guide - Archi Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> A2RCHI Docs
+          <a href=".." class="icon icon-home"> Archi Docs
         </a>
         <div class="version">
           1.2.4
@@ -43,7 +43,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">A2RCHI</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
                 </li>
               </ul>
               <ul>
@@ -101,7 +101,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">A2RCHI Docs</a>
+          <a href="..">Archi Docs</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -119,7 +119,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="developers-guide">Developers Guide</h1>
-<p>Below is all the information developers may need to get started contributing to the A2RCHI project.</p>
+<p>Below is all the information developers may need to get started contributing to the Archi project.</p>
 <h2 id="editing-documentation">Editing Documentation</h2>
 <p>Editing documentation requires the <code>mkdocs</code> Python package:</p>
 <pre><code class="language-bash">pip install mkdocs
@@ -135,7 +135,7 @@ mkdocs serve
 <p>Always open a PR to merge documentation changes into <code>main</code>. Do not edit files directly in the <code>gh-pages</code> branch.</p>
 <h2 id="smoke-tests">Smoke Tests</h2>
 <p>If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:</p>
-<pre><code class="language-bash">export A2RCHI_DIR=~/.archi
+<pre><code class="language-bash">export Archi_DIR=~/.archi
 export DEPLOYMENT_NAME=local-smoke
 export USE_PODMAN=true
 export SMOKE_FORCE_CREATE=true
@@ -151,9 +151,9 @@ scripts/dev/run_smoke_preview.sh &quot;${DEPLOYMENT_NAME}&quot;
 <li>ReAct agent smoke: stream response and observe at least one tool call.</li>
 </ul>
 <p>The combined smoke workflow alone does not start A2rchi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):</p>
-<pre><code class="language-bash">export A2RCHI_CONFIG_PATH=~/.archi/archi-&lt;deployment-name&gt;/configs/&lt;config-name&gt;.yaml
-export A2RCHI_CONFIG_NAME=&lt;config-name&gt;
-export A2RCHI_PIPELINE_NAME=CMSCompOpsAgent
+<pre><code class="language-bash">export Archi_CONFIG_PATH=~/.archi/archi-&lt;deployment-name&gt;/configs/&lt;config-name&gt;.yaml
+export Archi_CONFIG_NAME=&lt;config-name&gt;
+export Archi_PIPELINE_NAME=CMSCompOpsAgent
 export USE_PODMAN=true
 export OLLAMA_MODEL=&lt;ollama-model-name&gt;
 export PGHOST=localhost
@@ -173,7 +173,7 @@ export METADATA_SEARCH_QUERY=&quot;ppc.mit.edu&quot;
 export VECTORSTORE_QUERY=&quot;cms&quot;
 </code></pre>
 <h2 id="postgres-usage-overview">Postgres Usage Overview</h2>
-<p>A2RCHI relies on Postgres as the durable metadata store across services. Core usage falls into two buckets:</p>
+<p>Archi relies on Postgres as the durable metadata store across services. Core usage falls into two buckets:</p>
 <ul>
 <li><strong>Ingestion catalog</strong>: the <code>resources</code> table tracks persisted files and metadata for the data manager catalog (<code>CatalogService</code>).</li>
 <li><strong>Conversation history</strong>: the <code>conversation_metadata</code> and <code>conversations</code> tables store chat/session metadata plus message history for interfaces like the chat app and ticketing integrations (e.g., Redmine mailer).</li>
@@ -189,7 +189,7 @@ export VECTORSTORE_QUERY=&quot;cms&quot;
 </ul>
 <p>When extending an interface that writes to <code>conversations</code>, make sure a matching <code>conversation_metadata</code> row exists (create or update before inserting messages) to satisfy foreign key constraints.</p>
 <h2 id="dockerhub-images">DockerHub Images</h2>
-<p>A2RCHI loads different base images hosted on Docker Hub. The Python base image is used when GPUs are not required; otherwise the PyTorch base image is used. The Dockerfiles for these base images live in <code>src/cli/templates/dockerfiles/base-X-image</code>.</p>
+<p>Archi loads different base images hosted on Docker Hub. The Python base image is used when GPUs are not required; otherwise the PyTorch base image is used. The Dockerfiles for these base images live in <code>src/cli/templates/dockerfiles/base-X-image</code>.</p>
 <p>Images are hosted at:</p>
 <ul>
 <li>Python: <a href="https://hub.docker.com/r/archi/archi-python-base">https://hub.docker.com/r/archi/archi-python-base</a></li>
@@ -213,7 +213,7 @@ cat requirements/gpu-requirementsHEADER.txt requirements/requirements-base.txt &
 <pre><code class="language-bash">podman push archi/&lt;image-name&gt;:&lt;tag&gt;
 </code></pre>
 <h2 id="data-ingestion-architecture">Data Ingestion Architecture</h2>
-<p>A2RCHI ingests content through <strong>sources</strong> which are collected by <strong>collectors</strong> (<code>data_manager/collectors</code>).
+<p>Archi ingests content through <strong>sources</strong> which are collected by <strong>collectors</strong> (<code>data_manager/collectors</code>).
 These documents are written to persistent, local files via the <code>PersistenceService</code>, which uses <code>Resource</code> objects as an abstraction for different content types, and <code>ResourceMetadata</code> for associated metadata.
 A catalog of persisted files and metadata is maintained in Postgres via
 <code>CatalogService</code> (table: <code>resources</code>).

@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Quickstart - A2RCHI Docs</title>
+    <title>Quickstart - Archi Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> A2RCHI Docs
+          <a href=".." class="icon icon-home"> Archi Docs
         </a>
         <div class="version">
           1.2.4
@@ -43,7 +43,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">A2RCHI</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
                 </li>
               </ul>
               <ul>
@@ -61,7 +61,7 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#secrets">Secrets</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#creating-an-a2rchi-deployment">Creating an A2RCHI Deployment</a>
+    <li class="toctree-l2"><a class="reference internal" href="#creating-an-archi-deployment">Creating an Archi Deployment</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#a-note-about-multiple-configurations">A note about multiple configurations</a>
     </li>
@@ -95,7 +95,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">A2RCHI Docs</a>
+          <a href="..">Archi Docs</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -113,13 +113,13 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="quickstart">Quickstart</h1>
-<p>Deploy your first instance of A2RCHI and walk through the important concepts.</p>
+<p>Deploy your first instance of Archi and walk through the important concepts.</p>
 <h2 id="sources-and-services">Sources and Services</h2>
-<p>A2RCHI can ingest data from a variety of <strong>sources</strong> and supports several <strong>services</strong>. List them with the CLI command below and decide which ones you want to use so that we can configure them.</p>
+<p>Archi can ingest data from a variety of <strong>sources</strong> and supports several <strong>services</strong>. List them with the CLI command below and decide which ones you want to use so that we can configure them.</p>
 <pre><code class="language-bash">archi list-services
 </code></pre>
 <p>Example output:</p>
-<pre><code>Available A2RCHI services:
+<pre><code>Available Archi services:
 
 Application Services:
   chatbot              Interactive chat interface for users to communicate with the AI agent
@@ -140,7 +140,7 @@ Data Sources:
 </code></pre>
 <p>See the <a href="../user_guide/">User Guide</a> for detailed information about each service and source.</p>
 <h2 id="pipelines">Pipelines</h2>
-<p>A2RCHI supports several pipelines—pre-defined sequences of operations that process user inputs and generate responses. Each service supports a subset of pipelines (see the <a href="../user_guide/">User Guide</a> for details).</p>
+<p>Archi supports several pipelines—pre-defined sequences of operations that process user inputs and generate responses. Each service supports a subset of pipelines (see the <a href="../user_guide/">User Guide</a> for details).</p>
 <p>An example pipeline is <code>QAPipeline</code>, a question-answering pipeline that takes a user's question, retrieves relevant documents from the vector store, and generates an answer using a language model.</p>
 <p>You specify which pipelines should be available in the configuration file.</p>
 <h2 id="configuration">Configuration</h2>
@@ -193,7 +193,7 @@ services:
 <details>
 <summary>Explanation of configuration parameters</summary>
 
-- `name`: Name of your A2RCHI deployment.
+- `name`: Name of your Archi deployment.
 - `data_manager`: Settings related to data ingestion and the vector store.
   - `sources.links.input_lists`: Lists of URLs to seed the deployment.
   - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
@@ -228,7 +228,7 @@ services:
 <li><code>HUGGINGFACEHUB_API_TOKEN</code>: HuggingFace access token (for private models or embeddings).</li>
 </ul>
 <p>Other services may require additional secrets; see the <a href="../user_guide/">User Guide</a> for details.</p>
-<h2 id="creating-an-a2rchi-deployment">Creating an A2RCHI Deployment</h2>
+<h2 id="creating-an-archi-deployment">Creating an Archi Deployment</h2>
 <p>Create your deployment with the CLI:</p>
 <pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
 </code></pre>
@@ -250,7 +250,7 @@ services:
 
 
 
-<pre><code>Starting A2RCHI deployment process...
+<pre><code>Starting Archi deployment process...
 [archi] Creating deployment 'my-archi' with services: chatbot
 [archi] Auto-enabling dependencies: postgres
 [archi] Configuration validated successfully
@@ -262,7 +262,7 @@ services:
 [archi] Using compose file: /path/to/my/.archi/archi-my-archi/compose.yaml
 [archi] (This might take a minute...)
 [archi] Deployment started successfully
-A2RCHI deployment 'my-archi' created successfully!
+Archi deployment 'my-archi' created successfully!
 Services running: chatbot, postgres
 [archi] Chatbot: http://localhost:7861
 </code></pre>

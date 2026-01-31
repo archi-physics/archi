@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Advanced Setup and Deployment - A2RCHI Docs</title>
+    <title>Advanced Setup and Deployment - Archi Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> A2RCHI Docs
+          <a href=".." class="icon icon-home"> Archi Docs
         </a>
         <div class="version">
           1.2.4
@@ -43,7 +43,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">A2RCHI</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
                 </li>
               </ul>
               <ul>
@@ -101,7 +101,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">A2RCHI Docs</a>
+          <a href="..">Archi Docs</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -119,7 +119,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="advanced-setup-deployment">Advanced Setup &amp; Deployment</h1>
-<p>Topics related to advanced setup and deployment of A2RCHI.</p>
+<p>Topics related to advanced setup and deployment of Archi.</p>
 <h2 id="configuring-podman">Configuring Podman</h2>
 <p>To ensure your Podman containers stay running for extended periods, you need to enable lingering. To do this, run:</p>
 <pre><code class="language-bash">loginctl enable-linger
@@ -132,7 +132,7 @@
 <p>There are a few additional system requirements for this to work:</p>
 <ol>
 <li>Make sure you have NVIDIA drivers installed.</li>
-<li>(Optional) For the containers where A2RCHI will run to access the GPUs, install the <a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html">NVIDIA container toolkit</a>.</li>
+<li>(Optional) For the containers where Archi will run to access the GPUs, install the <a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html">NVIDIA container toolkit</a>.</li>
 <li>Configure the container runtime to access the GPUs.</li>
 </ol>
 <details>
@@ -165,7 +165,7 @@ nvidia.com/gpu=all
 </code></pre>
 
 
-These listed "CDI devices" will be referenced to run A2RCHI on the GPUs, so make sure they are present. To learn more, consult the [Podman GPU documentation](https://podman-desktop.io/docs/podman/gpu).
+These listed "CDI devices" will be referenced to run Archi on the GPUs, so make sure they are present. To learn more, consult the [Podman GPU documentation](https://podman-desktop.io/docs/podman/gpu).
 
 </details>
 
@@ -183,7 +183,7 @@ The remaining steps mirror the Podman flow. NOTE: this has not yet been fully te
 
 </details>
 
-<p>Once these requirements are met, the <code>archi create [...] --gpu-ids &lt;gpus&gt;</code> option will deploy A2RCHI across your GPUs.</p>
+<p>Once these requirements are met, the <code>archi create [...] --gpu-ids &lt;gpus&gt;</code> option will deploy Archi across your GPUs.</p>
 <h2 id="helpful-notes-for-production-deployments">Helpful Notes for Production Deployments</h2>
 <p>You may wish to use the CLI in order to stage production deployments. This section covers some useful notes to keep in mind.</p>
 <h3 id="running-multiple-deployments-on-the-same-machine">Running multiple deployments on the same machine</h3>

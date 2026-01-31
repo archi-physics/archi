@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>User Guide - A2RCHI Docs</title>
+    <title>User Guide - Archi Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> A2RCHI Docs
+          <a href=".." class="icon icon-home"> Archi Docs
         </a>
         <div class="version">
           1.2.4
@@ -43,7 +43,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">A2RCHI</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
                 </li>
               </ul>
               <ul>
@@ -315,7 +315,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">A2RCHI Docs</a>
+          <a href="..">Archi Docs</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -334,14 +334,14 @@
               
                 <h1 id="user-guide">User Guide</h1>
 <h2 id="overview">Overview</h2>
-<p>A2RCHI supports various <strong>data sources</strong> as easy ways to ingest your data into the vector store databased used for document retrieval. These include:</p>
+<p>Archi supports various <strong>data sources</strong> as easy ways to ingest your data into the vector store databased used for document retrieval. These include:</p>
 <ul>
 <li><strong>Links lists (even behind SSO)</strong>: automatically scrape and ingest documents from a list of URLs</li>
 <li><strong>Git scraping</strong>: git mkdocs repositories</li>
 <li><strong>Ticketing systems</strong>: JIRA, Redmine, Piazza</li>
 <li><strong>Local documents</strong></li>
 </ul>
-<p>Additionally, A2RCHI supports various <strong>interfaces/services</strong>, which are applications that interact with the RAG system. These include:</p>
+<p>Additionally, Archi supports various <strong>interfaces/services</strong>, which are applications that interact with the RAG system. These include:</p>
 <ul>
 <li><strong>Chat interface</strong>: a web-based chat application</li>
 <li><strong>Piazza integration</strong>: read posts from Piazza and post draft responses to a Slack channel</li>
@@ -398,9 +398,9 @@ The CLI checks that host ports are free before deploying; if a port is already i
 <p>These are the different ways to ingest data into the vector store used for document retrieval.</p>
 <h3 id="web-link-lists">Web Link Lists</h3>
 <p>A web link list is a simple text file containing a list of URLs, one per line.
-A2RCHI will fetch the content from each URL and add it to the vector store, using the <code>Scraper</code> class.</p>
+Archi will fetch the content from each URL and add it to the vector store, using the <code>Scraper</code> class.</p>
 <h4 id="configuration">Configuration</h4>
-<p>You can define which lists of links A2RCHI will ingest in the configuration file as follows:</p>
+<p>You can define which lists of links Archi will ingest in the configuration file as follows:</p>
 <pre><code class="language-yaml">data_manager:
   sources:
     links:
@@ -448,7 +448,7 @@ SSO_PASSWORD=password
 <pre><code>sso-https://example.com/protected/page
 </code></pre>
 <h4 id="running">Running</h4>
-<p>Link scraping is automatically enabled in A2RCHI, you don't need to add any arguments to the <code>create</code> command unless the links are sso protected.</p>
+<p>Link scraping is automatically enabled in Archi, you don't need to add any arguments to the <code>create</code> command unless the links are sso protected.</p>
 <hr />
 <h3 id="git-scraping">Git scraping</h3>
 <p>In some cases, the RAG input may be documentations based on MKDocs git repositories.
@@ -472,7 +472,7 @@ GIT_TOKEN=your_token
 <p>Enable the git source during deployment with <code>--sources git</code>.</p>
 <hr />
 <h3 id="jira">JIRA</h3>
-<p>The JIRA integration allows A2RCHI to fetch issues and comments from specified JIRA projects and add them to the vector store, using the <code>JiraClient</code> class.</p>
+<p>The JIRA integration allows Archi to fetch issues and comments from specified JIRA projects and add them to the vector store, using the <code>JiraClient</code> class.</p>
 <h4 id="configuration_2">Configuration</h4>
 <p>Select which projects to scrape in the configuration file:</p>
 <pre><code class="language-yaml">data_manager:
@@ -511,14 +511,14 @@ Add <code>JIRA_PAT=&lt;token&gt;</code> to your <code>.env</code> file before de
 <hr />
 <h3 id="adding-documents-and-the-uploader-interface">Adding Documents and the Uploader Interface</h3>
 <h4 id="adding-documents">Adding Documents</h4>
-<p>There are two main ways to add documents to A2RCHI's vector database. They are:</p>
+<p>There are two main ways to add documents to Archi's vector database. They are:</p>
 <ul>
 <li>Manually adding files while the service is running via the uploader GUI</li>
 <li>Directly copying files into the container</li>
 </ul>
 <p>These methods are outlined below.</p>
 <h4 id="manual-uploader">Manual Uploader</h4>
-<p>In order to upload documents while A2RCHI is running via an easily accessible GUI, enable the uploader service when creating the deployment:</p>
+<p>In order to upload documents while Archi is running via an easily accessible GUI, enable the uploader service when creating the deployment:</p>
 <pre><code class="language-bash">archi create [...] --services=chatbot,uploader
 </code></pre>
 <p>The exact port may vary based on configuration (default external port is <code>5003</code>).
@@ -529,9 +529,9 @@ A quick <code>podman ps</code> or <code>docker ps</code> will show which port is
 <p>Run the bundled helper:</p>
 <pre><code>python -u src/bin/service_create_account.py
 </code></pre>
-<p>from the <code>/root/A2RCHI</code> directory inside the container. This script will guide you through creating an account; never reuse sensitive passwords here.</p>
+<p>from the <code>/root/Archi</code> directory inside the container. This script will guide you through creating an account; never reuse sensitive passwords here.</p>
 <p>Once you have created an account, visit the outgoing port of the data manager docker service and then log in.
-The GUI will then allow you to upload documents while A2RCHI is still running. Note that it may take a few minutes for all the documents to upload.</p>
+The GUI will then allow you to upload documents while Archi is still running. Note that it may take a few minutes for all the documents to upload.</p>
 <h4 id="directly-copying-files-to-the-container">Directly copying files to the container</h4>
 <p>The documents used for RAG live in the chat container at <code>/root/data/&lt;directory&gt;/&lt;files&gt;</code>. Thus, in a pinch, you can <code>docker/podman cp</code> a file at this directory level, e.g., <code>podman/docker cp myfile.pdf &lt;container name or ID&gt;:/root/data/&lt;new_dir&gt;/</code>. If you need to make a new directory in the container, you can do <code>podman exec -it &lt;container name or ID&gt; mkdir /root/data/&lt;new_dir&gt;</code>.</p>
 <h4 id="data-viewer">Data Viewer</h4>
@@ -592,15 +592,15 @@ REDMINE_PW=...
 </blockquote>
 <hr />
 <h2 id="interfacesservices">Interfaces/Services</h2>
-<p>These are the different apps that A2RCHI supports, which allow you to interact with the AI pipelines.</p>
+<p>These are the different apps that Archi supports, which allow you to interact with the AI pipelines.</p>
 <h3 id="piazza-interface">Piazza Interface</h3>
-<p>Set up A2RCHI to read posts from your Piazza forum and post draft responses to a specified Slack channel. To do this, a Piazza login (email and password) is required, plus the network ID of your Piazza channel, and lastly, a Webhook for the slack channel A2RCHI will post to. See below for a step-by-step description of this.</p>
+<p>Set up Archi to read posts from your Piazza forum and post draft responses to a specified Slack channel. To do this, a Piazza login (email and password) is required, plus the network ID of your Piazza channel, and lastly, a Webhook for the slack channel Archi will post to. See below for a step-by-step description of this.</p>
 <ol>
-<li>Go to <a href="https://api.slack.com/apps">https://api.slack.com/apps</a> and sign in to workspace where you will eventually want A2RCHI to post to (note doing this in a business workspace like the MIT one will require approval of the app/bot).</li>
+<li>Go to <a href="https://api.slack.com/apps">https://api.slack.com/apps</a> and sign in to workspace where you will eventually want Archi to post to (note doing this in a business workspace like the MIT one will require approval of the app/bot).</li>
 <li>Click 'Create New App', and then 'From scratch'. Name your app and again select the correct workspace. Then hit 'Create App'</li>
-<li>Now you have your app, and there are a few things to configure before you can launch A2RCHI:</li>
+<li>Now you have your app, and there are a few things to configure before you can launch Archi:</li>
 <li>Go to Incoming Webhooks under Features, and toggle it on.</li>
-<li>Click 'Add New Webhook', and select the channel you want A2RCHI to post to.</li>
+<li>Click 'Add New Webhook', and select the channel you want Archi to post to.</li>
 <li>Now, copy the 'Webhook URL' and paste it into the secrets file, and handle it like any other secret!</li>
 </ol>
 <h4 id="configuration_4">Configuration</h4>
@@ -636,9 +636,9 @@ SLACK_WEBHOOK=...
 </code></pre>
 <hr />
 <h3 id="redminemailbox-interface">Redmine/Mailbox Interface</h3>
-<p>A2RCHI will read all new tickets in a Redmine project, and draft a response as a comment to the ticket.
-Once the ticket is updated to the "Resolved" status by an admin, A2RCHI will send the response as an email to the user who opened the ticket.
-The admin can modify A2RCHI's response before sending it out.</p>
+<p>Archi will read all new tickets in a Redmine project, and draft a response as a comment to the ticket.
+Once the ticket is updated to the "Resolved" status by an admin, Archi will send the response as an email to the user who opened the ticket.
+The admin can modify Archi's response before sending it out.</p>
 <h4 id="configuration_5">Configuration</h4>
 <pre><code class="language-yaml">services:
   redmine_mailbox:
@@ -646,7 +646,7 @@ The admin can modify A2RCHI's response before sending it out.</p>
     project: my-project
     redmine_update_time: 10
     mailbox_update_time: 10
-    answer_tag: &quot;-- A2RCHI -- Resolving email was sent&quot;
+    answer_tag: &quot;-- Archi -- Resolving email was sent&quot;
 </code></pre>
 <h4 id="secrets_5">Secrets</h4>
 <p>Add the following secrets to your <code>.env</code> file:</p>
@@ -665,7 +665,7 @@ SENDER_PW=...
 </code></pre>
 <hr />
 <h3 id="mattermost-interface">Mattermost Interface</h3>
-<p>Set up A2RCHI to read posts from your Mattermost forum and post draft responses to a specified Mattermost channel.</p>
+<p>Set up Archi to read posts from your Mattermost forum and post draft responses to a specified Mattermost channel.</p>
 <h4 id="configuration_6">Configuration</h4>
 <pre><code class="language-yaml">services:
   mattermost:
@@ -684,9 +684,9 @@ MATTERMOST_CHANNEL_ID_WRITE=...
 </code></pre>
 <hr />
 <h3 id="grafana-interface">Grafana Interface</h3>
-<p>Monitor the performance of your A2RCHI instance with the Grafana interface. This service provides a web-based dashboard to visualize various metrics related to system performance, LLM usage, and more.</p>
+<p>Monitor the performance of your Archi instance with the Grafana interface. This service provides a web-based dashboard to visualize various metrics related to system performance, LLM usage, and more.</p>
 <blockquote>
-<p>Note, if you are deploying a version of A2RCHI you have already used (i.e., you haven't removed the images/volumes for a given <code>--name</code>), the postgres will have already been created without the Grafana user created, and it will not work, so make sure to deploy a fresh instance.</p>
+<p>Note, if you are deploying a version of Archi you have already used (i.e., you haven't removed the images/volumes for a given <code>--name</code>), the postgres will have already been created without the Grafana user created, and it will not work, so make sure to deploy a fresh instance.</p>
 </blockquote>
 <h4 id="configuration_7">Configuration</h4>
 <pre><code class="language-yaml">services:
@@ -708,7 +708,7 @@ GRAFANA_PG_PASSWORD=&lt;grafana_db_password&gt;
 40130e8e23de  docker.io/library/grafana-gtesting2:2000                        9 minutes ago  Up 9 minutes            0.0.0.0:3000-&gt;3000/tcp, 3000/tcp  grafana-gtesting2
 d6ce8a149439  localhost/chat-gtesting2:2000             python -u archi/...  9 minutes ago  Up 9 minutes            0.0.0.0:7861-&gt;7861/tcp            chat-gtesting2
 </code></pre>
-<p>where the grafana interface is accessible at <code>your-hostname:3000</code>. To change the external port from <code>3000</code>, you can do this in the config at <code>services.grafana.external_port</code>. The default login and password are both "admin", which you will be prompted to change should you want to after first logging in. Navigate to the A2RCHI dashboard from the home page by going to the menu &gt; Dashboards &gt; A2RCHI &gt; A2RCHI Usage. Note, <code>your-hostname</code> here is the just name of the machine. Grafana uses its default configuration which is <code>localhost</code> but unlike the chat interface, there are no APIs where we template with a selected hostname, so the container networking handles this nicely.</p>
+<p>where the grafana interface is accessible at <code>your-hostname:3000</code>. To change the external port from <code>3000</code>, you can do this in the config at <code>services.grafana.external_port</code>. The default login and password are both "admin", which you will be prompted to change should you want to after first logging in. Navigate to the Archi dashboard from the home page by going to the menu &gt; Dashboards &gt; Archi &gt; Archi Usage. Note, <code>your-hostname</code> here is the just name of the machine. Grafana uses its default configuration which is <code>localhost</code> but unlike the chat interface, there are no APIs where we template with a selected hostname, so the container networking handles this nicely.</p>
 <blockquote>
 <p>Pro tip: once at the web interface, for the "Recent Conversation Messages (Clean Text + Link)" panel, click the three little dots in the top right hand corner of the panel, click "Edit", and on the right, go to e.g., "Override 4" (should have Fields with name: clean text, also Override 7 for context column) and override property "Cell options &gt; Cell value inspect". This will allow you to expand the text boxes with messages longer than can fit. Make sure you click apply to keep the changes.</p>
 <p>Pro tip 2: If you want to download all of the information from any panel as a CSV, go to the same three dots and click "Inspect", and you should see the option.</p>
@@ -734,7 +734,7 @@ username@mit.edu,222
 <pre><code>Anti-Helmholtz Coils
 ---------------------------------------------------
 </code></pre>
-<p>These files should live in a directory which you will pass to the config, and A2RCHI will handle the rest.</p>
+<p>These files should live in a directory which you will pass to the config, and Archi will handle the rest.</p>
 <ul>
 <li><code>admin_password.txt</code>. This file will be passed as a secret and be the admin code to login in to the page where you can reset attempts for students.</li>
 </ul>
@@ -744,7 +744,7 @@ username@mit.edu,222
 </code></pre>
 <p>Then it behaves like any other secret.</p>
 <h4 id="configuration_8">Configuration</h4>
-<p>The required fields in the configuration file are different from the rest of the A2RCHI services. Below is an example:</p>
+<p>The required fields in the configuration file are different from the rest of the Archi services. Below is an example:</p>
 <pre><code class="language-yaml">name: grading_test # REQUIRED
 
 archi:
@@ -785,7 +785,7 @@ data_manager:
 <li><code>archi.pipeline_map.GradingPipeline.models.required.final_grade_model</code> -- Model class for grading (e.g., <code>OllamaInterface</code>, <code>HuggingFaceOpenLLM</code>).</li>
 <li><code>archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
 <li><code>archi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model</code> -- Model class for image processing (e.g., <code>OllamaInterface</code>, <code>HuggingFaceImageLLM</code>).</li>
-<li><code>services.chat_app.trained_on</code> -- A brief description of the data or materials A2RCHI is trained on (required).</li>
+<li><code>services.chat_app.trained_on</code> -- A brief description of the data or materials Archi is trained on (required).</li>
 <li><code>services.grader_app.num_problems</code> -- Number of problems the grading service should expect (must match the number of rubric files).</li>
 <li><code>services.grader_app.local_rubric_dir</code> -- Directory containing the <code>solution_with_rubric_*.txt</code> files.</li>
 <li><code>services.grader_app.local_users_csv_dir</code> -- Directory containing the <code>users.csv</code> file.</li>
@@ -839,7 +839,7 @@ data_manager:
 </code></pre>
 <p>In this case, the <code>gemma3</code> model is hosted on the Ollama server at <code>url-for-server</code>. You can check which models are hosted on your server by going to <code>url-for-server/models</code>.</p>
 <h3 id="bring-your-own-key-byok">Bring Your Own Key (BYOK)</h3>
-<p>A2RCHI supports Bring Your Own Key (BYOK), allowing users to provide their own API keys for LLM providers at runtime. This enables:</p>
+<p>Archi supports Bring Your Own Key (BYOK), allowing users to provide their own API keys for LLM providers at runtime. This enables:</p>
 <ul>
 <li><strong>Cost attribution</strong>: Users pay for their own API usage</li>
 <li><strong>Provider flexibility</strong>: Switch between providers without admin intervention</li>
@@ -956,9 +956,9 @@ data_manager:
 </table>
 <hr />
 <h2 id="vector-store">Vector Store</h2>
-<p>The vector store is a database that stores document embeddings, enabling semantic and/or lexical search over your knowledge base. A2RCHI uses PostgreSQL with pgvector as the default vector store backend to index and retrieve relevant documents based on similarity to user queries.</p>
+<p>The vector store is a database that stores document embeddings, enabling semantic and/or lexical search over your knowledge base. Archi uses PostgreSQL with pgvector as the default vector store backend to index and retrieve relevant documents based on similarity to user queries.</p>
 <h3 id="backend-selection">Backend Selection</h3>
-<p>A2RCHI uses PostgreSQL with the pgvector extension as its vector store backend. This provides production-grade vector similarity search integrated with your existing PostgreSQL database.</p>
+<p>Archi uses PostgreSQL with the pgvector extension as its vector store backend. This provides production-grade vector similarity search integrated with your existing PostgreSQL database.</p>
 <p>Configure vector store settings in your configuration file:</p>
 <pre><code class="language-yaml">services:
   vectorstore:
@@ -994,7 +994,7 @@ data_manager:
   distance_metric: cosine  # Options: cosine, l2, ip
 </code></pre>
 <h3 id="embedding-models">Embedding Models</h3>
-<p>Embeddings convert text into numerical vectors. A2RCHI supports multiple embedding providers:</p>
+<p>Embeddings convert text into numerical vectors. Archi supports multiple embedding providers:</p>
 <h4 id="openai-embeddings">OpenAI Embeddings</h4>
 <pre><code class="language-yaml">data_manager:
   embedding_name: OpenAIEmbeddings
@@ -1031,7 +1031,7 @@ data_manager:
 </ul>
 <p>Documents are automatically loaded with the appropriate parser based on file extension.</p>
 <h3 id="document-synchronization">Document Synchronization</h3>
-<p>A2RCHI automatically synchronizes your data directory with the vector store:</p>
+<p>Archi automatically synchronizes your data directory with the vector store:</p>
 <ol>
 <li><strong>Adding documents</strong>: New files in the data directory are automatically chunked, embedded, and added to the collection</li>
 <li><strong>Removing documents</strong>: Files deleted from the data directory are removed from the collection</li>
@@ -1055,14 +1055,14 @@ data_manager:
 <li><strong><code>bm25.b</code></strong>: BM25 document length normalization parameter. Default: <code>0.75</code></li>
 </ul>
 <h3 id="stemming">Stemming</h3>
-<p>By specifying the stemming option within your configuration, stemming functionality for the documents in A2RCHI will be enabled. By doing so, documents inserted into the retrieval pipeline, as well as the query that is matched with them, will be stemmed and simplified for faster and more accurate lookup.</p>
+<p>By specifying the stemming option within your configuration, stemming functionality for the documents in Archi will be enabled. By doing so, documents inserted into the retrieval pipeline, as well as the query that is matched with them, will be stemmed and simplified for faster and more accurate lookup.</p>
 <pre><code class="language-yaml">data_manager:
   stemming:
     enabled: true
 </code></pre>
 <p>When enabled, both documents and queries are processed using the Porter Stemmer algorithm to reduce words to their root forms (e.g., "running" → "run"), improving matching accuracy.</p>
 <h3 id="postgresql-backend-default">PostgreSQL Backend (Default)</h3>
-<p>A2RCHI uses PostgreSQL with pgvector for vector storage by default. The PostgreSQL service is automatically started when you deploy with the chatbot service.</p>
+<p>Archi uses PostgreSQL with pgvector for vector storage by default. The PostgreSQL service is automatically started when you deploy with the chatbot service.</p>
 <pre><code class="language-yaml">services:
   postgres:
     host: postgres
@@ -1076,7 +1076,7 @@ data_manager:
 </code></pre>
 <hr />
 <h2 id="benchmarking">Benchmarking</h2>
-<p>A2RCHI has benchmarking functionality provided by the <code>evaluate</code> CLI command. We currently support two modes:</p>
+<p>Archi has benchmarking functionality provided by the <code>evaluate</code> CLI command. We currently support two modes:</p>
 <ol>
 <li><code>SOURCES</code>: given a user question and a list of correct sources, check if the retrieved documents contain any of the correct sources.</li>
 <li><code>RAGAS</code>: use the Ragas RAG evaluator module to return numerical values judging by 4 of their provided metrics the quality of the answer: <code>answer_relevancy</code>, <code>faithfulness</code>, <code>context precision</code>, and <code>context relevancy</code>.</li>
@@ -1095,7 +1095,7 @@ data_manager:
 ]
 </code></pre>
 <p>Explanation of fields:
-- <code>question</code>: The question to be answered by the A2RCHI instance.
+- <code>question</code>: The question to be answered by the Archi instance.
 - <code>sources</code>: A list of sources (e.g., URLs, ticket IDs) that contain the answer. They are identified via the <code>sources_match_field</code>, which must be one of the metadata fields of the documents in your vector store.
 - <code>answer</code>: The expected answer to the question, used for evaluation.
 - <code>sources_match_field</code> (optional): A list of metadata fields to match the sources against (e.g., <code>url</code>, <code>ticket_id</code>). If not provided, defaults to what is in the configuration file under <code>data_manager:services:benchmarking:mode_settings:sources:default_match_field</code>.</p>
@@ -1167,7 +1167,7 @@ data_manager:
 <p>Some useful additional features supported by the framework.</p>
 <hr />
 <h2 id="configuration-management">Configuration Management</h2>
-<p>A2RCHI uses a three-tier configuration system that allows flexibility at different levels:</p>
+<p>Archi uses a three-tier configuration system that allows flexibility at different levels:</p>
 <h3 id="configuration-hierarchy">Configuration Hierarchy</h3>
 <ol>
 <li><strong>Static Configuration</strong> (deploy-time, immutable)</li>
@@ -1192,7 +1192,7 @@ data_manager:
 <li>Takes precedence over dynamic config for that user</li>
 </ol>
 <h3 id="effective-configuration">Effective Configuration</h3>
-<p>When a request is made, A2RCHI resolves the effective value for each setting:</p>
+<p>When a request is made, Archi resolves the effective value for each setting:</p>
 <pre><code>User Preference (if set) → Dynamic Config (admin default) → Static Default
 </code></pre>
 <p>For example, if an admin sets <code>temperature: 0.7</code> but a user prefers <code>0.5</code>, 
@@ -1219,7 +1219,7 @@ that user's requests will use <code>0.5</code>.</p>
 </ul>
 <hr />
 <h2 id="prompt-customization">Prompt Customization</h2>
-<p>A2RCHI supports customizable prompts organized by type. Prompts are stored as files in your deployment directory for easy editing and version control.</p>
+<p>Archi supports customizable prompts organized by type. Prompts are stored as files in your deployment directory for easy editing and version control.</p>
 <h3 id="prompt-location">Prompt Location</h3>
 <p>After deployment, prompts are located at:</p>
 <pre><code>~/.archi/&lt;deployment-name&gt;/data/prompts/

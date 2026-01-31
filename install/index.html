@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Install - A2RCHI Docs</title>
+    <title>Install - Archi Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -30,7 +30,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-          <a href=".." class="icon icon-home"> A2RCHI Docs
+          <a href=".." class="icon icon-home"> Archi Docs
         </a>
         <div class="version">
           1.2.4
@@ -43,7 +43,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">A2RCHI</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
                 </li>
               </ul>
               <ul class="current">
@@ -83,7 +83,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
       <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="..">A2RCHI Docs</a>
+          <a href="..">Archi Docs</a>
         
       </nav>
       <div class="wy-nav-content">
@@ -102,7 +102,7 @@
               
                 <h1 id="install">Install</h1>
 <h2 id="system-requirements">System Requirements</h2>
-<p>A2RCHI is deployed using a Python-based CLI onto containers. It requires:</p>
+<p>Archi is deployed using a Python-based CLI onto containers. It requires:</p>
 <ul>
 <li><code>docker</code> version 24+ or <code>podman</code> version 5.4.0+ (for containers)</li>
 <li><code>python 3.10.0+</code> (for the CLI)</li>
@@ -111,17 +111,17 @@
 <p><strong>Note:</strong> We support either running open-source models locally or connecting to existing APIs. If you plan to run open-source models on your machine's GPUs, see the <a href="../advanced_setup_deploy/">Advanced Setup &amp; Deployment</a> section.</p>
 </blockquote>
 <h2 id="installation">Installation</h2>
-<p>Clone the A2RCHI repository:</p>
+<p>Clone the Archi repository:</p>
 <pre><code class="language-bash">git clone https://github.com/mit-submit/archi.git
 </code></pre>
 <p>Check out the latest stable tag:</p>
 <pre><code class="language-bash">cd archi
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 </code></pre>
-<p>Install A2RCHI (from inside the repository):</p>
+<p>Install Archi (from inside the repository):</p>
 <pre><code class="language-bash">pip install -e .
 </code></pre>
-<p>This installs A2RCHI's dependencies and the CLI tool. Verify the installation with:</p>
+<p>This installs Archi's dependencies and the CLI tool. Verify the installation with:</p>
 <pre><code class="language-bash">which archi
 </code></pre>
 <p>The command prints the path to the <code>archi</code> executable.</p>
@@ -132,7 +132,7 @@ git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 <pre><code class="language-bash"># Clone the repository
 git clone https://github.com/mit-submit/archi.git
 cd archi
-export A2RCHI_DIR=$(pwd)
+export Archi_DIR=$(pwd)
 
 # (Optional) Checkout the latest stable tag
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
@@ -142,7 +142,7 @@ python3 -m venv .archi_venv
 source .archi_venv/bin/activate
 
 # Install dependencies
-cd &quot;$A2RCHI_DIR&quot;
+cd &quot;$Archi_DIR&quot;
 pip install -e .
 
 # Verify installation
@@ -155,7 +155,7 @@ which archi
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href=".." class="btn btn-neutral float-left" title="A2RCHI"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href=".." class="btn btn-neutral float-left" title="Archi"><span class="icon icon-circle-arrow-left"></span> Previous</a>
         <a href="../quickstart/" class="btn btn-neutral float-right" title="Quickstart">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
