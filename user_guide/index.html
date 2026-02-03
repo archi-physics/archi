@@ -1043,16 +1043,12 @@ data_manager:
   use_hybrid_search: true
   bm25_weight: 0.6
   semantic_weight: 0.4
-  bm25:
-    k1: 0.5
-    b: 0.75
 </code></pre>
 <ul>
-<li><strong><code>use_hybrid_search</code></strong>: Enable hybrid search combining BM25 and semantic similarity. Default: <code>false</code></li>
-<li><strong><code>bm25_weight</code></strong>: Weight for BM25 keyword scores. Default: <code>0.6</code></li>
-<li><strong><code>semantic_weight</code></strong>: Weight for semantic similarity scores. Default: <code>0.4</code></li>
-<li><strong><code>bm25.k1</code></strong>: BM25 term frequency saturation parameter. Default: <code>0.5</code></li>
-<li><strong><code>bm25.b</code></strong>: BM25 document length normalization parameter. Default: <code>0.75</code></li>
+<li><strong><code>use_hybrid_search</code></strong>: Enable hybrid search combining BM25 and semantic similarity. Default: <code>true</code></li>
+<li><strong><code>bm25_weight</code></strong>: Weight for BM25 keyword scores (base config default: <code>0.6</code>).</li>
+<li><strong><code>semantic_weight</code></strong>: Weight for semantic similarity scores (base config default: <code>0.4</code>).</li>
+<li><strong>BM25 tuning</strong>: Parameters like <code>k1</code> and <code>b</code> are set when the PostgreSQL BM25 index is created and are no longer configurable via this file.</li>
 </ul>
 <h3 id="stemming">Stemming</h3>
 <p>By specifying the stemming option within your configuration, stemming functionality for the documents in Archi will be enabled. By doing so, documents inserted into the retrieval pipeline, as well as the query that is matched with them, will be stemmed and simplified for faster and more accurate lookup.</p>

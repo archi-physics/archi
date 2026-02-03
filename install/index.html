@@ -114,7 +114,7 @@
 <p>Clone the Archi repository:</p>
 <pre><code class="language-bash">git clone https://github.com/mit-submit/archi.git
 </code></pre>
-<p>Check out the latest stable tag:</p>
+<p>Check out the latest stable tag (recommended for users; stay on <code>main</code> only if you're actively developing):</p>
 <pre><code class="language-bash">cd archi
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 </code></pre>
@@ -134,7 +134,8 @@ git clone https://github.com/mit-submit/archi.git
 cd archi
 export Archi_DIR=$(pwd)
 
-# (Optional) Checkout the latest stable tag
+# (Optional) Checkout the latest stable tag (recommended for users)
+# Skip this if you're developing and want the tip of main.
 git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
 
 # (Optional) Create and activate a virtual environment

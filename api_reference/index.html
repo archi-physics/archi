@@ -410,7 +410,7 @@
 <li><strong>chunk_size / chunk_overlap:</strong> Text splitter parameters.</li>
 <li><strong>reset_collection:</strong> Whether to wipe the collection before re-populating.</li>
 <li><strong>num_documents_to_retrieve:</strong> Top-k documents returned at query time.</li>
-<li><strong>distance_metric / use_hybrid_search / bm25_weight / semantic_weight / bm25.{k1,b}:</strong> Retrieval tuning knobs.</li>
+<li><strong>distance_metric / use_hybrid_search / bm25_weight / semantic_weight:</strong> Retrieval tuning knobs (BM25 <code>k1</code>/<code>b</code> are fixed when the PostgreSQL index is created).</li>
 <li><strong>utils.anonymizer</strong> (legacy) / <strong>data_manager.utils.anonymizer</strong>: Redaction settings applied when ticket collectors anonymise content.</li>
 </ul>
 <p>Source configuration is persisted to PostgreSQL <code>static_config.sources_config</code> at deployment time and used for runtime ingestion.</p>
