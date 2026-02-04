@@ -29,7 +29,6 @@ class RemoteCatalogClient:
         hostname: Optional[str] = None,
         port: int = 7871,
         external_port: Optional[int] = None,
-        api_token: Optional[str] = None,
         timeout: float = 10.0,
     ):
         host_mode_flag = self._resolve_host_mode(host_mode)
@@ -41,7 +40,6 @@ class RemoteCatalogClient:
             final_port = external_port if host_mode_flag and external_port else port
             self.base_url = f"http://{host}:{final_port}"
         self.timeout = timeout
-        self.api_token = api_token.strip() if api_token else None
 
     @classmethod
     def from_deployment_config(cls, config: Optional[Dict[str, object]]) -> "RemoteCatalogClient":
@@ -50,7 +48,6 @@ class RemoteCatalogClient:
         services_cfg = cfg.get("services", {}) if isinstance(cfg, dict) else {}
         data_manager_cfg = services_cfg.get("data_manager", {}) if isinstance(services_cfg, dict) else {}
         auth_cfg = data_manager_cfg.get("auth", {}) if isinstance(data_manager_cfg, dict) else {}
-        api_token = cls._resolve_api_token(auth_cfg.get("api_token") if isinstance(auth_cfg, dict) else None)
 
         return cls(
             base_url=data_manager_cfg.get("base_url"),
@@ -58,7 +55,6 @@ class RemoteCatalogClient:
             hostname=data_manager_cfg.get("hostname") or data_manager_cfg.get("host"),
             port=data_manager_cfg.get("port", 7871),
             external_port=data_manager_cfg.get("external_port"),
-            api_token=api_token,
         )
 
     @staticmethod
@@ -72,20 +68,6 @@ class RemoteCatalogClient:
             return str(env_host_mode).lower() in {"1", "true", "yes", "on"}
         return bool(host_mode)
 
-    @staticmethod
-    def _resolve_api_token(config_token: Optional[str]) -> Optional[str]:
-        token = (config_token or "").strip()
-        if token:
-            return token
-        secret_token = read_secret("DM_API_TOKEN")
-        if secret_token:
-            return secret_token
-        return None
-
-    def _headers(self) -> Dict[str, str]:
-        if not self.api_token:
-            return {}
-        return {"Authorization": f"Bearer {self.api_token}"}
 
     def search(
         self,
@@ -117,7 +99,6 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/search",
             params=params,
-            headers=self._headers(),
             timeout=self.timeout,
         )
         resp.raise_for_status()
@@ -128,7 +109,6 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/document/{resource_hash}",
             params={"max_chars": max_chars},
-            headers=self._headers(),
             timeout=self.timeout,
         )
         if resp.status_code == 404:
@@ -139,7 +119,6 @@ class RemoteCatalogClient:
     def schema(self) -> Dict[str, object]:
         resp = requests.get(
             f"{self.base_url}/api/catalog/schema",
-            headers=self._headers(),
             timeout=self.timeout,
         )
         resp.raise_for_status()

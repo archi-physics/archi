@@ -302,6 +302,8 @@ class ScraperManager:
             client=None, 
             use_client_for_scraping: bool = False,
     ) -> None:
+        logger.debug("Handling standard url")
+        logger.debug(url)
         try:
             for resource in self.web_scraper.crawl_iter(
                 url,
@@ -314,7 +316,7 @@ class ScraperManager:
                     resource, output_dir
                 )
         except Exception as exc:
-            logger.error(f"Failed to scrape {url}: {exc}")
+            logger.error(f"Failed to scrape {url}: {exc}",exc_info=exc)
 
     def _extract_urls_from_file(self, path: Path) -> List[str]:
         """Extract URLs from file, ignoring depth specifications for now."""

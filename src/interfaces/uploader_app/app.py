@@ -57,7 +57,6 @@ class FlaskAppWrapper:
 
         self.auth_config = (self.services_config or {}).get("data_manager", {}).get("auth", {}) or {}
         self.auth_enabled = bool(self.auth_config.get("enabled", True))
-        self.api_token = (read_secret("DM_API_TOKEN") or "").strip() or None
         self.admin_users = {
             user.strip().lower()
             for user in (self.auth_config.get("admins") or [])
@@ -123,9 +122,7 @@ class FlaskAppWrapper:
             if session.get("admin_logged_in"):
                 return handler(*args, **kwargs)
             if request.path.startswith("/api/"):
-                if self._api_token_valid():
-                    return handler(*args, **kwargs)
-                return jsonify({"error": "unauthorized", "message": "Authentication required"}), 401
+                return handler(*args, **kwargs)
             return redirect(url_for("login"))
 
         return wrapped
@@ -139,27 +136,6 @@ class FlaskAppWrapper:
         if not self.admin_users:
             return True
         return normalized in self.admin_users
-
-    def _api_token_valid(self) -> bool:
-        if not self.api_token:
-            return False
-        token = self._extract_api_token()
-        if not token:
-            return False
-        return secrets.compare_digest(token, self.api_token)
-
-    @staticmethod
-    def _extract_api_token() -> Optional[str]:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1].strip()
-            return token or None
-        token = (
-            request.headers.get("X-ARCHI-API-TOKEN")
-            or request.headers.get("X-API-Token")
-            or request.headers.get("X-API-Key")
-        )
-        return token.strip() if token else None
 
     def login(self):
         if not self.auth_enabled:

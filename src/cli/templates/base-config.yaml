@@ -9,7 +9,6 @@ global:
     {%- endfor %}
   LOGGING:
     input_output_filename: "{{ global.LOGGING.input_output_filename | default('chain_input_output.log', true) }}"
-  verbosity: {{ verbosity | default(3, true) }}
 
 services:
   benchmarking:
@@ -191,6 +190,9 @@ data_manager:
             class: {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOScraper.class | default('CERNSSOScraper', true) }}
             kwargs:
               headless:  {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOScraper.kwargs.headless | default(true, true) }}
+    ticket:
+      enabled: {{ data_manager.sources.ticket.enabled | default(true, true) }}
+      visible: {{ data_manager.sources.ticket.visible | default(true, true) }}
     git:
       enabled: {{ data_manager.sources.git.enabled | default(true, true) }}
       visible: {{ data_manager.sources.git.visible | default(true, true) }}
@@ -225,19 +227,19 @@ data_manager:
     anonymizer:
         nlp_model: {{ data_manager.utils.anonymizer.nlp_model | default('en_core_web_sm', true) }}
         excluded_words:
-          {%- for word in data_manager.utils.anonymizer.excluded_words | default([], true) %}
+          {%- for word in data_manager.utils.anonymizer.excluded_words | default(['John', 'Jane', 'Doe']) %}
           - {{ word }}
           {%- endfor %}
         greeting_patterns:
-          {%- for pattern in data_manager.utils.anonymizer.greeting_patterns | default([], true) %}
+          {%- for pattern in data_manager.utils.anonymizer.greeting_patterns | default(['^(hi|hello|hey|greetings|dear)\\b', '^\\w+,\\s*']) %}
           - {{ pattern }}
           {%- endfor %}
         signoff_patterns:
-          {%- for pattern in data_manager.utils.anonymizer.signoff_patterns | default([], true) %}
+          {%- for pattern in data_manager.utils.anonymizer.signoff_patterns | default(['\\b(regards|sincerely|best regards|cheers|thank you)\\b', '^\\s*[-~]+\\s*$']) %}
           - {{ pattern }}
           {%- endfor %}
-        email_pattern: {{ data_manager.utils.anonymizer.email_pattern | default('', true) }}
-        username_pattern: {{ data_manager.utils.anonymizer.username_pattern | default('', true) }}
+        email_pattern: '{{ data_manager.utils.anonymizer.email_pattern | default("[\\w\\.-]+@[\\w\\.-]+\\.\\w+") }}'
+        username_pattern: '{{ data_manager.utils.anonymizer.username_pattern | default("\\[~[^\\]]+\\]") }}'
 
 archi:
   pipelines: {{ archi.pipelines | default(['QAPipeline'], true) }}
@@ -376,6 +378,3 @@ archi:
         url: {{ archi.model_class_map.OllamaInterface.kwargs.url | default("http://localhost:7870", true) }}
   chain_update_time: {{ archi.chain_update_time | default(10, true) }}
   mcp_servers: {{ archi.mcp_servers | default({}, true) }}
-
-utils:
-  sso: {{ utils.sso | default({}, true) }}

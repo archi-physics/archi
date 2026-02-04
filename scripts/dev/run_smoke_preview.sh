@@ -176,16 +176,8 @@ if [[ "${ENV_FILE}" == "${DEFAULT_ENV_FILE}" ]]; then
   ENV_FILE_CREATED=1
   : > "${ENV_FILE}"
   echo "PG_PASSWORD=$(openssl rand -base64 32)" >> "${ENV_FILE}"
-  if [[ -z "${DM_API_TOKEN:-}" ]]; then
-    DM_API_TOKEN="smoke-$(openssl rand -hex 16)"
-  fi
-  echo "DM_API_TOKEN=${DM_API_TOKEN}" >> "${ENV_FILE}"
-  export DM_API_TOKEN
 else
   info "Using existing env file ${ENV_FILE}; leaving it unchanged."
-  if [[ -n "${DM_API_TOKEN:-}" ]]; then
-    export DM_API_TOKEN
-  fi
 fi
 if [[ -z "${DM_CATALOG_SEED_FILE:-}" ]]; then
   DM_CATALOG_SEED_FILE="$(pwd)/tests/smoke/seed.txt"

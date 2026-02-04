@@ -192,6 +192,7 @@ class GitScraper:
 
         resources: List[ScrapedResource] = []
         for file_path in self._iter_code_files(repo_path):
+            logger.debug(file_path)
             rel_path = file_path.relative_to(repo_path)
 
             # avoid overlap wtih _harvest_mkdocs

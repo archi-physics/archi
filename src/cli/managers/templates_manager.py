@@ -96,8 +96,9 @@ class TemplateContext:
 class TemplateManager:
     """Manages template rendering and file preparation using service registry"""
 
-    def __init__(self, jinja_env: Environment):
+    def __init__(self, jinja_env: Environment, verbosity: int):
         self.env = jinja_env
+        self.global_verbosity = verbosity
         self.registry = service_registry
         self._service_hooks: Dict[str, Callable[[TemplateContext], None]] = {
             "grafana": self._render_grafana_assets,
@@ -428,6 +429,7 @@ class TemplateManager:
         self._check_ports_available(context, port_config, allow_port_reuse=allow_port_reuse)
         template_vars.update(port_config)
         template_vars.setdefault("postgres_port", context.config_manager.config.get("services", {}).get("postgres", {}).get("port", 5432))
+        template_vars.setdefault("verbosity", self.global_verbosity)
 
         template_vars["app_version"] = get_git_version()
 

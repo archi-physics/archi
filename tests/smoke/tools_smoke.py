@@ -66,9 +66,8 @@ def _map_embedding_classes(config: Dict) -> None:
 
 def _build_catalog_client(config: Dict) -> RemoteCatalogClient:
     dm_base_url = os.getenv("DM_BASE_URL")
-    token = os.getenv("DM_API_TOKEN")
     if dm_base_url:
-        return RemoteCatalogClient(base_url=dm_base_url, api_token=token)
+        return RemoteCatalogClient(base_url=dm_base_url)
     return RemoteCatalogClient.from_deployment_config(config)
 
 

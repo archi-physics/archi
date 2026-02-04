@@ -21,6 +21,7 @@ services:
       PGDATABASE: archi-db
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
+      VERBOSITY: {{ verbosity }}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -57,6 +58,7 @@ services:
       POSTGRES_USER: archi
       POSTGRES_DB: archi-db
       PGPORT: {{ postgres_port }}
+      VERBOSITY: {{ verbosity }}
     env_file:
       - .env
     volumes:
@@ -76,7 +78,7 @@ services:
       retries: 5
   
   config-seed:
-    image: {{ chatbot_image }}:{{ chatbot_tag }}
+    image: {{ chatbot_image | default(benchmarking_image) }}:{{ chatbot_tag | default(benchmarking_tag) }}
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-chat
@@ -92,6 +94,7 @@ services:
       PGDATABASE: archi-db
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
+      VERBOSITY: {{ verbosity }}
       CONFIG_PATH: /rendered-config/config.yaml
     env_file:
       - .env
@@ -127,6 +130,7 @@ services:
       PGDATABASE: archi-db
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
+      VERBOSITY: {{ verbosity }}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -202,6 +206,7 @@ services:
       PGDATABASE: archi-db
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
+      VERBOSITY: {{ verbosity }}
     ports:
       - {{ grafana_port_host }}:3000
     volumes:
@@ -238,6 +243,7 @@ services:
       PGDATABASE: archi-db
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
+      VERBOSITY: {{ verbosity }}
     environment:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
@@ -246,6 +252,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       {% endif %}
+      VERBOSITY: {{ verbosity }}
       USERS_FILE: /root/archi/users.csv
       {% for rubric in rubrics | default([]) -%}
       {{ rubric.upper() }}_FILE: /root/archi/{{ rubric }}.txt
@@ -320,6 +327,7 @@ services:
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
+      VERBOSITY: {{ verbosity }}
     env_file:
       - .env
     secrets:
@@ -368,6 +376,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       {% endif %}
+      VERBOSITY: {{ verbosity }}
     env_file:
       - .env
     {% if gpu_ids and not use_podman -%}
@@ -436,6 +445,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       {% endif %}
+      VERBOSITY: {{ verbosity }}
     env_file:
       - .env
     secrets:
@@ -493,6 +503,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       {% endif %}
+      VERBOSITY: {{ verbosity }}
     env_file:
       - .env
     secrets:
@@ -536,7 +547,19 @@ services:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-benchmarks{{ '-gpu' if gpu_ids else '' }}
     container_name: {{ benchmarking_container_name }}
+    {% if postgres_enabled -%}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-seed:
+        condition: service_completed_successfully
+    {% endif -%}
     environment:
+      PGHOST: {{ 'localhost' if host_mode else 'postgres' }}
+      PGPORT: {{ postgres_port }}
+      PGDATABASE: archi-db
+      PGUSER: archi
+      PG_PASSWORD: ${PG_PASSWORD}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -544,6 +567,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       {% endif %}
+      VERBOSITY: {{ verbosity }}
       container_name: {{ benchmarking_container_name }}
     env_file:
       - .env

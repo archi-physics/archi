@@ -147,7 +147,7 @@ def create(name: str, config_files: list, config_dir: str, env_file: str, servic
             return
         
         # Actual deployment
-        template_manager = TemplateManager(env)
+        template_manager = TemplateManager(env,verbosity)
         base_dir.mkdir(parents=True, exist_ok=True)
         
         secrets_manager.write_secrets_to_files(base_dir, all_secrets)

@@ -76,7 +76,7 @@ def _wait_for_ingestion() -> None:
     deadline = time.time() + timeout
     while True:
         try:
-            resp = requests.get(status_url, headers=_build_dm_headers(), timeout=10)
+            resp = requests.get(status_url, timeout=10)
             if resp.status_code != 200:
                 _fail(f"Ingestion status check failed: HTTP {resp.status_code}")
             payload = resp.json()
@@ -94,13 +94,6 @@ def _wait_for_ingestion() -> None:
         time.sleep(interval)
 
 
-def _build_dm_headers() -> Dict[str, str]:
-    token = os.getenv("DM_API_TOKEN", "").strip()
-    if not token:
-        return {}
-    return {"Authorization": f"Bearer {token}"}
-
-
 def _check_data_manager_catalog() -> None:
     dm_base_url = os.getenv("DM_BASE_URL", "http://localhost:7871").rstrip("/")
     query = os.getenv("DM_CATALOG_QUERY", "file_name:seed.txt")
@@ -116,7 +109,6 @@ def _check_data_manager_catalog() -> None:
             resp = requests.get(
                 search_url,
                 params={"q": query, "limit": 1, "search_content": "false"},
-                headers=_build_dm_headers(),
                 timeout=10,
             )
             if resp.status_code != 200:
@@ -131,7 +123,6 @@ def _check_data_manager_catalog() -> None:
                 resp = requests.get(
                     search_url,
                     params={"q": filename_query, "limit": 1, "search_content": "false"},
-                    headers=_build_dm_headers(),
                     timeout=10,
                 )
                 if resp.status_code == 200 and (resp.json().get("hits") or []):
@@ -148,7 +139,6 @@ def _check_data_manager_catalog() -> None:
                     resp = requests.post(
                         f"{dm_base_url}/document_index/upload",
                         files=files,
-                        headers=_build_dm_headers(),
                         timeout=30,
                     )
                 if resp.status_code != 200:

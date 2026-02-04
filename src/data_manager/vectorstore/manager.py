@@ -173,7 +173,10 @@ class VectorStoreManager:
             }
             if files_to_add:
                 logger.info(f"Adding {len(files_to_add)} new documents")
-                self._add_to_postgres(files_to_add)
+                try:
+                    self._add_to_postgres(files_to_add)
+                except Exception as e:
+                    logger.error(f"Files could not be added",exc_info=e)
             logger.info("Vectorstore update has been completed")
 
         logger.info(f"N Collection: {store.count()}")
@@ -332,6 +335,7 @@ class VectorStoreManager:
                             json.dumps(metadata),
                         ))
 
+                    logger.debug(f"Inserting data {insert_data} {filename} document_id = {document_id}")
                     psycopg2.extras.execute_values(
                         cursor,
                         """

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Env vars used by this runner:
 # BASE_URL, DM_BASE_URL, OLLAMA_URL, OLLAMA_MODEL,
-# PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, DM_API_TOKEN,
+# PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE,
 # ARCHI_CONFIG_PATH, ARCHI_CONFIG_NAME, ARCHI_PIPELINE_NAME, USE_PODMAN
 
 NAME="${1:-}"
@@ -49,7 +49,6 @@ fi
   -e ARCHI_CONFIG_NAME="${config_name}" \
   -e ARCHI_CONFIG_PATH="/root/archi/configs/${config_name}.yaml" \
   -e DM_BASE_URL="${DM_BASE_URL}" \
-  -e DM_API_TOKEN="${DM_API_TOKEN:-}" \
   -e OLLAMA_URL="${OLLAMA_URL}" \
   -e OLLAMA_MODEL="${OLLAMA_MODEL}" \
   "${container_name}" \

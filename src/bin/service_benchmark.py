@@ -22,6 +22,7 @@ from src.archi.models import HuggingFaceOpenLLM
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
 from src.utils.generate_benchmark_report import parse_benchmark_results, format_html_output
+from src.utils.postgres_service_factory import PostgresServiceFactory
 
 CONFIG_PATH = "/root/archi/config.yaml"
 OUTPUT_PATH = "/root/archi/benchmarks"
@@ -34,6 +35,9 @@ logger = get_logger(__name__)
 os.environ['OPENAI_API_KEY'] = read_secret("OPENAI_API_KEY")
 os.environ['ANTHROPIC_API_KEY'] = read_secret("ANTHROPIC_API_KEY")
 os.environ['HUGGING_FACE_HUB_TOKEN'] = read_secret("HUGGING_FACE_HUB_TOKEN")
+
+factory = PostgresServiceFactory.from_env(password_override=os.environ.get("PG_PASSWORD"))
+PostgresServiceFactory.set_instance(factory)
 
 
 class ResultHandler:

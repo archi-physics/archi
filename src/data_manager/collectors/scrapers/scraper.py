@@ -191,8 +191,14 @@ class LinkScraper:
             session = requests.Session()
             cookies = browserclient.authenticate(normalized_start_url)
             if cookies is not None:
-                for cookie in cookies:
-                    session.cookies.set_cookie(cookie['name'], cookie['value'])
+                for cookie_args in cookies:
+                    cookie = requests.cookies.create_cookie(name=cookie_args['name'],
+                                                            value=cookie_args['value'],
+                                                            domain=cookie_args.get('domain'),
+                                                            path=cookie_args.get('path', '/'),
+                                                            expires=cookie_args.get('expires'),
+                                                            secure=cookie_args.get('secure', False))
+                    session.cookies.set_cookie(cookie)
 
         else: # pure html no browser client needed
             session = requests.Session()
