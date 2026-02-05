@@ -1,0 +1,67 @@
+# Basic configuration file for a Archi deployment
+# with a chat app interface, a QA pipeline, and
+# PostgreSQL with pgvector for document storage.
+# The LLM is a locally hosted VLLM instance on GPUs.
+#
+# This example demonstrates using local GPU resources with VLLM
+# in OpenAI-compatible mode.
+#
+# Prerequisites:
+# - VLLM server running on localhost:8000 with a model loaded
+# - GPU(s) available on the host machine
+#
+# Run with:
+# archi create --name my-archi-gpu --config examples/deployments/basic-gpu/config.yaml --services chatbot --gpu-ids=all
+
+name: my_archi_gpu
+
+services:
+  chat_app:
+    pipeline: QAPipeline
+    trained_on: "Documentation and guides"
+    port: 7868
+    external_port: 7868
+  vectorstore:
+    backend: postgres  # PostgreSQL with pgvector (only supported backend)
+  data_manager:
+    port: 7872
+    external_port: 7872
+
+data_manager:
+  sources:
+    links:
+      input_lists:
+        - examples/deployments/basic-gpu/miscellanea.list
+  embedding_name: HuggingFaceEmbeddings
+  embedding_class_map:
+    HuggingFaceEmbeddings:
+      class: HuggingFaceEmbeddings
+      kwargs:
+        model_name: sentence-transformers/all-MiniLM-L6-v2
+        model_kwargs:
+          device: cuda  # Use GPU for embeddings
+        encode_kwargs:
+          normalize_embeddings: true
+      similarity_score_reference: 10
+
+archi:
+  pipelines:
+    - QAPipeline
+  providers:
+    local:
+      enabled: true
+      base_url: http://localhost:8000/v1  # VLLM/OpenAI-compatible endpoint
+      mode: openai_compat  # Use OpenAI-compatible mode for VLLM
+      default_model: "Qwen/Qwen2.5-7B-Instruct"
+      models:
+        - "Qwen/Qwen2.5-7B-Instruct"
+  pipeline_map:
+    QAPipeline:
+      prompts:
+        required:
+          condense_prompt: examples/deployments/basic-gpu/condense.prompt
+          chat_prompt: examples/deployments/basic-gpu/qa.prompt
+      models:
+        required:
+          chat_model: local/Qwen/Qwen2.5-7B-Instruct
+          condense_model: local/Qwen/Qwen2.5-7B-Instruct
