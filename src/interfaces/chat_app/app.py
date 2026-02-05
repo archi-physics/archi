@@ -1811,7 +1811,7 @@ class FlaskAppWrapper(object):
             self.add_endpoint('/auth/user', 'get_user', self.get_user, methods=['GET'])
             self.add_endpoint('/api/permissions', 'get_permissions', self.get_permissions, methods=['GET'])
             self.add_endpoint('/api/permissions/check', 'check_permission', self.check_permission_endpoint, methods=['POST'])
-            self.add_endpoint('/api/debug/token', 'debug_token', self.require_auth(self.debug_token_info), methods=['GET'])
+
             
             if self.sso_enabled:
                 self.add_endpoint('/redirect', 'sso_callback', self.sso_callback)
@@ -2147,62 +2147,6 @@ class FlaskAppWrapper(object):
             'user_roles': roles,
             'roles_with_permission': roles_with_permission
         })
-
-    def debug_token_info(self):
-        """Debug endpoint to show what the system knows about the current user's authentication.
-        
-        This helps diagnose role assignment issues by showing:
-        - What app_name the system is looking for in JWT
-        - What roles were found (if any)
-        - How to fix missing roles in Keycloak/SSO
-        """
-        if not session.get('logged_in'):
-            return jsonify({'error': 'Not authenticated'}), 401
-        
-        from src.utils.rbac.registry import get_registry
-        registry = get_registry()
-        
-        user = session['user']
-        roles = session['roles']
-        auth_method = session['auth_method']
-        
-        # Get all configured roles
-        all_roles = list(registry._roles.keys())
-        
-        debug_info = {
-            'user': {
-                'email': user['email'],
-                'name': user['name'],
-                'username': user['username']
-            },
-            'auth_method': auth_method,
-            'current_roles': roles,
-            'sso_config': {
-                'app_name': registry.app_name,
-                'expected_jwt_path': f'resource_access["{registry.app_name}"].roles',
-                'default_role': registry.default_role
-            },
-            'available_roles': all_roles,
-            'diagnosis': []
-        }
-        
-        # Add diagnostic messages
-        if len(roles) == 1 and roles[0] == registry.default_role:
-            debug_info['diagnosis'].append(
-                f"⚠️ You only have the default role '{registry.default_role}'. "
-                f"This means your JWT token either:\n"
-                f"  1. Doesn't have resource_access['{registry.app_name}'].roles\n"
-                f"  2. Has roles that don't match any configured roles\n\n"
-                f"To fix this:\n"
-                f"  1. Go to CERN OAuth Application Manager: https://application-portal.web.cern.ch/\n"
-                f"  2. Find your application: '{registry.app_name}'\n"
-                f"  3. Assign yourself one of these roles: {', '.join(all_roles)}\n"
-                f"  4. Log out and log back in"
-            )
-        else:
-            debug_info['diagnosis'].append("✅ Roles loaded successfully from JWT token")
-        
-        return jsonify(debug_info), 200
 
     def configs(self, **configs):
         for config, value in configs:
