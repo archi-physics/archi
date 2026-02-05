@@ -455,6 +455,7 @@ body {
    User Profile Widget (Bottom of Sidebar)
    ----------------------------------------------------------------------------- */
 .user-profile-widget {
+  display: none;
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }

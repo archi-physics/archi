@@ -1913,7 +1913,7 @@ class FlaskAppWrapper(object):
         """Unified logout endpoint for all auth methods"""
         auth_method = session.get('auth_method', 'unknown')
         user_email = self._get_session_user_email() or 'unknown'
-        user_roles = self._get_session_roles()
+        user_roles = session.get('roles', [])
         
         # Clear all session data including roles
         session.pop('user', None)
@@ -1994,17 +1994,17 @@ class FlaskAppWrapper(object):
     def get_user(self):
         """API endpoint to get current user information including roles and permissions"""
         if session.get('logged_in'):
-            user = session['user']
-            roles = session['roles']
+            user = session.get('user', {})
+            roles = session.get('roles', [])
             
             # Get permission context for the frontend
             permissions = get_permission_context()
             
             return jsonify({
                 'logged_in': True,
-                'email': user['email'],
-                'name': user['name'],
-                'auth_method': session['auth_method'],
+                'email': user.get('email', ''),
+                'name': user.get('name', ''),
+                'auth_method': session.get('auth_method', 'unknown'),
                 'auth_enabled': self.auth_enabled,
                 'roles': roles,
                 'permissions': permissions
@@ -2078,9 +2078,9 @@ class FlaskAppWrapper(object):
                     return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
                 
                 # Now check permission
-                roles = session['roles']
+                roles = session.get('roles', [])
                 if not has_permission(permission, roles):
-                    user_email = session['user']['email']
+                    user_email = session.get('user', {}).get('email', 'unknown')
                     logger.warning(f"Permission denied: user {user_email} with roles {roles} lacks '{permission}'")
                     from src.utils.rbac.audit import log_permission_check
                     log_permission_check(
@@ -2114,7 +2114,7 @@ class FlaskAppWrapper(object):
         permissions = get_permission_context()
         return jsonify({
             'logged_in': True,
-            'roles': session['roles'],
+            'roles': session.get('roles', []),
             'permissions': permissions
         })
     
@@ -2134,7 +2134,7 @@ class FlaskAppWrapper(object):
             }), 400
         
         permission = data['permission']
-        roles = session['roles']
+        roles = session.get('roles', [])
         result = has_permission(permission, roles)
         
         # Get which roles would grant this permission

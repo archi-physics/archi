@@ -1800,7 +1800,7 @@ const Chat = {
       this.loadProviders(),
       this.loadPipelineDefaultModel(),
       this.loadApiKeyStatus(),
-      UI.loadUserProfile(), // Load user profile for sidebar widget
+      UI.loadUserProfile(),
     ]);
 
     // Update model label after all data is loaded (configs, providers, pipeline default)

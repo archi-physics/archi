@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Callable, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import requests
 from langchain.tools import tool
@@ -45,10 +45,15 @@ def _sanitize_url_for_error(url: str) -> str:
     try:
         parsed = urlparse(url)
         if parsed.username or parsed.password:
-            sanitized = parsed._replace(
-                netloc=f"***:***@{parsed.hostname}" + (f":{parsed.port}" if parsed.port else "")
-            )
-            return sanitized.geturl()
+            sanitized_netloc = f"***:***@{parsed.hostname}" + (f":{parsed.port}" if parsed.port else "")
+            return urlunparse((
+                parsed.scheme,
+                sanitized_netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            ))
         return url
     except Exception:
         return "***"

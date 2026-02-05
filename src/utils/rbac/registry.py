@@ -34,7 +34,7 @@ class RBACRegistry:
     - Configuration validation
     - Permission lookups with caching
     
-    Thread-safe singleton pattern - one registry per application.
+    Singleton pattern - one registry per application.
     """
     
     def __init__(self, config: Dict[str, Any], app_name: Optional[str] = None):
@@ -71,29 +71,45 @@ class RBACRegistry:
         Raises:
             RBACConfigError: If configuration is invalid
         """
-        # Check for required fields
+        # Check for required fields - fail startup if missing
         if not self._roles:
-            raise RBACConfigError("No roles defined in configuration")
+            raise RBACConfigError(
+                "No roles defined in configuration. "
+                "At least one role must be defined in auth_roles.roles"
+            )
         
+        # Check if default_role is defined, warn if not but allow fallback
         if self._default_role not in self._roles:
-            raise RBACConfigError(f"Default role '{self._default_role}' is not defined in roles")
+            logger.warning(
+                f"Default role '{self._default_role}' is not defined in roles. "
+                f"This role will be assigned to users without configured roles. "
+                f"Available roles: {list(self._roles.keys())}. "
+                f"Recommend adding '{self._default_role}' to your configuration."
+            )
+            # If 'base-user' exists, use it; otherwise use first available role
+            if 'base-user' in self._roles:
+                self._default_role = 'base-user'
+                logger.info(f"Using 'base-user' as default role")
+            else:
+                self._default_role = next(iter(self._roles))
+                logger.warning(f"Falling back to first available role: {self._default_role}")
         
-        # Check for circular inheritance
-        for role_name in self._roles:
-            visited = set()
-            self._check_circular_inheritance(role_name, visited)
-        
-        # Validate inherited roles exist
+        # Validate inherited roles exist before checking circular inheritance
         for role_name, role_config in self._roles.items():
             for parent in role_config.get('inherits', []):
                 if parent not in self._roles:
                     raise RBACConfigError(
-                        f"Role '{role_name}' inherits from undefined role '{parent}'"
+                        f"Role '{role_name}' inherits from undefined role '{parent}'. "
+                        f"Available roles: {list(self._roles.keys())}"
                     )
+        
+        # Check for circular inheritance (after validating all roles exist)
+        for role_name in self._roles:
+            self._check_circular_inheritance(role_name, set(), [])
         
         logger.debug("RBAC configuration validated successfully")
     
-    def _check_circular_inheritance(self, role_name: str, visited: Set[str], path: List[str] = None) -> None:
+    def _check_circular_inheritance(self, role_name: str, visited: Set[str], path: List[str]) -> None:
         """
         Check for circular inheritance in role definitions.
         
@@ -101,21 +117,24 @@ class RBACRegistry:
             role_name: Current role being checked
             visited: Set of roles already visited in this path
             path: Current inheritance path for error reporting
-        """
-        if path is None:
-            path = []
         
+        Raises:
+            RBACConfigError: If circular inheritance is detected
+        """
         if role_name in visited:
             cycle = ' -> '.join(path + [role_name])
             raise RBACConfigError(f"Circular inheritance detected: {cycle}")
         
+        # Add current role to the visited set and path
+        visited = visited.copy()  # Create a copy to avoid polluting other branches
         visited.add(role_name)
-        path.append(role_name)
+        path = path + [role_name]  # Create new list to avoid mutation
         
+        # Check all parent roles recursively
         role_config = self._roles.get(role_name, {})
         for parent in role_config.get('inherits', []):
             if parent in self._roles:
-                self._check_circular_inheritance(parent, visited.copy(), path.copy())
+                self._check_circular_inheritance(parent, visited, path)
     
     def _build_permission_cache(self) -> None:
         """
@@ -151,9 +170,25 @@ class RBACRegistry:
         # Resolve inherited permissions
         for parent in role_config.get('inherits', []):
             if parent in self._roles:
-                permissions.update(self._resolve_permissions(parent, visited.copy()))
+                permissions.update(self._resolve_permissions(parent, visited))
         
         return permissions
+    
+    def _get_all_defined_permissions(self) -> Set[str]:
+        """
+        Get all permissions that are defined in any role configuration.
+        
+        Used for detecting undefined permissions during permission checks.
+        
+        Returns:
+            Set of all defined permission strings
+        """
+        all_permissions = set()
+        for role_perms in self._role_permissions_cache.values():
+            all_permissions.update(role_perms)
+        # Remove wildcard from the set - it's a special marker, not a real permission
+        all_permissions.discard('*')
+        return all_permissions
     
     @property
     def app_name(self) -> str:
@@ -208,16 +243,33 @@ class RBACRegistry:
         Returns:
             True if any role grants the permission, False otherwise
         """
+        # Check if any role has wildcard or specific permission
+        has_wildcard = False
+        has_specific = False
+        
         for role in roles:
             role_perms = self._role_permissions_cache.get(role, set())
             
-            # Check for wildcard permission (admin)
+            # Check for wildcard permission (admin) - early return for efficiency
             if '*' in role_perms:
                 return True
             
             # Check for specific permission
             if permission in role_perms:
-                return True
+                has_specific = True
+        
+        # If permission was granted, return True
+        if has_specific:
+            return True
+        
+        # Deny by default - check if this is an undefined permission
+        # (fail closed security model)
+        all_defined_permissions = self._get_all_defined_permissions()
+        if permission not in all_defined_permissions and permission != '*':
+            logger.warning(
+                f"Permission check for undefined permission '{permission}' - denying access. "
+                f"Roles: {roles}. Define this permission in auth_roles config."
+            )
         
         return False
     
@@ -348,16 +400,21 @@ def load_rbac_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         full_config = get_full_config()
         auth_roles_config = full_config.get('services', {}).get('chat_app', {}).get('auth', {}).get('auth_roles')
         
-        if auth_roles_config:
+        if auth_roles_config and isinstance(auth_roles_config, dict) and auth_roles_config.get('roles'):
             logger.info("Loading RBAC configuration from main config (services.chat_app.auth.auth_roles)")
             return auth_roles_config
+        elif auth_roles_config:
+            logger.warning("auth_roles found in config but has no roles defined, falling back to defaults")
     except Exception as e:
         logger.debug(f"Could not load auth_roles from main config: {e}")
     
     # Fallback: try standalone auth_roles.yaml file
+    # Allow overriding the auth_roles.yaml location via environment variable
+    env_config_path = os.getenv('AUTH_ROLES_CONFIG_PATH')
+    
     search_paths = [
         config_path,
-        '/root/archi/configs/auth_roles.yaml',  # Runtime container path
+        env_config_path,  # Environment-provided path (e.g., container runtime)
         os.path.join(os.getcwd(), 'configs', 'auth_roles.yaml'),  # Local dev
         os.path.join(os.path.dirname(__file__), '..', '..', '..', 'configs', 'auth_roles.yaml'),
     ]
@@ -375,15 +432,15 @@ def load_rbac_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         return config
     
     # Return minimal default config if no config found
-    logger.warning("No auth_roles configuration found, using minimal defaults")
+    logger.warning("No auth_roles configuration found, granting wildcard permissions by default")
     return {
         'app_name': 'archi-app',
         'default_role': 'base-user',
         'sso': {'allow_anonymous': False},
         'roles': {
             'base-user': {
-                'description': 'Default authenticated user',
-                'permissions': ['chat:query', 'chat:history', 'chat:feedback', 'api-keys:manage']
+                'description': 'Default authenticated user (no roles configured)',
+                'permissions': ['*']
             }
         },
         'permissions': {}
