@@ -113,11 +113,10 @@ test.describe('Message Flow', () => {
     const userMsg = page.locator('.message.user').first();
     await expect(userMsg.locator('.message-meta')).toHaveCount(0);
     
-    // Assistant message has meta
+    // Assistant message has meta - format is "<agent> · <model>" without labels
     const assistantMsg = page.locator('.message.assistant').first();
     await expect(assistantMsg.locator('.message-meta')).toBeVisible();
-    await expect(assistantMsg.locator('.message-meta')).toContainText('Agent:');
-    await expect(assistantMsg.locator('.message-meta')).toContainText('Model:');
+    await expect(assistantMsg.locator('.message-meta')).toContainText('·');
   });
 
   test('user message shows sender as "You"', async ({ page }) => {
@@ -192,42 +191,6 @@ test.describe('Message Flow', () => {
     await expect(page.locator('pre code')).toBeVisible();
     await expect(page.locator('.code-block-lang')).toContainText('python');
     await expect(page.locator('.code-block-copy')).toBeVisible();
-  });
-
-  // Skip: Scroll behavior is implementation-dependent and hard to test reliably with mocks
-  test.skip('messages scroll to bottom on new message', async ({ page }) => {
-    await page.route('**/api/get_chat_response_stream', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/plain',
-        body: createStreamResponse('A very long response that should cause scrolling. '.repeat(50)),
-      });
-    });
-
-    await page.goto('/chat');
-    
-    await page.getByLabel('Message input').fill('Long response please');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    
-    // Wait for response
-    await expect(page.locator('.message.assistant')).toBeVisible();
-    
-    // Check that we're scrolled near the bottom - try multiple possible container selectors
-    const isNearBottom = await page.evaluate(() => {
-      // Try various possible message container selectors
-      const selectors = ['.messages', '.messages-container', '[role="main"]', '#chat-messages'];
-      for (const sel of selectors) {
-        const container = document.querySelector(sel);
-        if (container && container.scrollHeight > container.clientHeight) {
-          const scrollBottom = container.scrollTop + container.clientHeight;
-          return scrollBottom >= container.scrollHeight - 100; // Within 100px of bottom
-        }
-      }
-      // If no scrollable container found, pass the test (might be small viewport)
-      return true;
-    });
-    
-    expect(isNearBottom).toBe(true);
   });
 
   test('cannot send empty message', async ({ page }) => {

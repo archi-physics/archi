@@ -48,7 +48,7 @@ The shared runner performs these checks in order (ensuring the configured Ollama
 - Tool probes: catalog tools and vectorstore retriever (executed inside the chatbot container to match the agent runtime).
 - ReAct agent smoke: stream response and observe at least one tool call.
 
-The combined smoke workflow alone does not start A2rchi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):
+The combined smoke workflow alone does not start Archi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):
 
 ```bash
 export Archi_CONFIG_PATH=~/.archi/archi-<deployment-name>/configs/<config-name>.yaml

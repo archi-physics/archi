@@ -15,6 +15,7 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Set
 
 import psycopg2
 import psycopg2.extras
+from psycopg2.extras import RealDictCursor
 from langchain_core.documents import Document
 
 from src.data_manager.vectorstore.loader_utils import load_doc_from_path
@@ -397,10 +398,27 @@ class PostgresCatalogService:
         return result
 
     def get_filepath_for_hash(self, hash: str) -> Optional[Path]:
-        """Get the file path for a resource hash."""
+        """Get the file path for a resource hash.
+        
+        First checks the in-memory cache, then falls back to database query
+        to handle documents added after service startup.
+        """
         stored = self._file_index.get(hash)
         if not stored:
-            return None
+            # Fall back to database query for documents added after startup
+            with self._connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT file_path FROM documents WHERE resource_hash = %s AND NOT is_deleted",
+                        (hash,)
+                    )
+                    row = cur.fetchone()
+            if row:
+                stored = row[0]
+                # Update cache for future lookups
+                self._file_index[hash] = stored
+            else:
+                return None
         path = self._resolve_path(stored)
         return path if path.exists() else None
 
@@ -509,6 +527,16 @@ class PostgresCatalogService:
                 row = cur.fetchone()
                 total_documents = row["count"]
                 total_size_bytes = row["total_size"]
+                
+                # Total chunks
+                cur.execute("""
+                    SELECT COUNT(*) as count 
+                    FROM document_chunks dc
+                    JOIN documents d ON dc.document_id = d.id
+                    WHERE NOT d.is_deleted
+                """)
+                chunk_row = cur.fetchone()
+                total_chunks = chunk_row["count"]
 
                 # By source type
                 cur.execute("""
@@ -541,6 +569,7 @@ class PostgresCatalogService:
 
         return {
             "total_documents": total_documents,
+            "total_chunks": total_chunks,
             "enabled_documents": total_documents - disabled_count,
             "disabled_documents": disabled_count,
             "total_size_bytes": total_size_bytes,
@@ -622,6 +651,37 @@ class PostgresCatalogService:
             "offset": offset,
         }
 
+    def get_document_chunks(self, document_hash: str) -> List[Dict[str, Any]]:
+        """
+        Get all chunks for a document with their boundaries.
+        
+        Args:
+            document_hash: The document's resource_hash
+            
+        Returns:
+            List of chunk dicts with chunk_index, chunk_text, start_char, end_char
+        """
+        with self._connect() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT dc.chunk_index, dc.chunk_text, dc.start_char, dc.end_char
+                    FROM document_chunks dc
+                    JOIN documents d ON dc.document_id = d.id
+                    WHERE d.resource_hash = %s AND NOT d.is_deleted
+                    ORDER BY dc.chunk_index
+                """, (document_hash,))
+                rows = cur.fetchall()
+        
+        chunks = []
+        for row in rows:
+            chunks.append({
+                "index": row["chunk_index"],
+                "text": row["chunk_text"],
+                "start_char": row["start_char"],
+                "end_char": row["end_char"],
+            })
+        
+        return chunks
     def get_document_content(self, document_hash: str, max_size: int = 100000) -> Optional[Dict[str, Any]]:
         """Get document content for preview."""
         path = self.get_filepath_for_hash(document_hash)

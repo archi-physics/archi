@@ -43,6 +43,7 @@ def mock_pool(mock_connection):
     conn, cursor = mock_connection
     pool = MagicMock(spec=ConnectionPool)
     pool.get_connection.return_value = conn
+    pool.get_connection_direct.return_value = conn
     pool.release_connection = MagicMock()
     return pool
 
@@ -225,14 +226,20 @@ class TestConfigService:
         
         service = ConfigService(connection_pool=mock_pool)
         
+        # Reset call count after initialization
+        initial_calls = mock_pool.get_connection_direct.call_count
+        
         # First call
         config1 = service.get_static_config()
+        calls_after_first = mock_pool.get_connection_direct.call_count
+        
         # Second call should use cache
         config2 = service.get_static_config()
+        calls_after_second = mock_pool.get_connection_direct.call_count
         
         assert config1 is config2
-        # Only one DB call
-        assert mock_pool.get_connection.call_count == 1
+        # Second call should not make additional DB calls (cached)
+        assert calls_after_second == calls_after_first
     
     def test_update_dynamic_config_validation(self, mock_pool, mock_connection):
         """Test dynamic config validation."""
@@ -438,8 +445,8 @@ class TestPostgresServiceFactory:
             call_kwargs = mock_pool_class.call_args[1]
             assert call_kwargs['connection_params']['host'] == 'db.example.com'
             assert call_kwargs['connection_params']['port'] == 5433
-            assert call_kwargs['min_connections'] == 2
-            assert call_kwargs['max_connections'] == 10
+            assert call_kwargs['min_conn'] == 2
+            assert call_kwargs['max_conn'] == 10
 
 
 # =============================================================================

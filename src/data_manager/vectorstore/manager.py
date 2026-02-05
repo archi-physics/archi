@@ -315,13 +315,16 @@ class VectorStoreManager:
             with conn.cursor() as cursor:
                 import json
                 
-                for filehash, file_path in files_to_add_items:
+                total_files = len(files_to_add_items)
+                for file_idx, (filehash, file_path) in enumerate(files_to_add_items):
                     processed = processed_results.get(filehash)
                     if not processed:
                         continue
 
                     filename, chunks, metadatas = processed
+                    logger.info(f"Embedding file {file_idx+1}/{total_files}: {filename} ({len(chunks)} chunks)")
                     embeddings = self.embedding_model.embed_documents(chunks)
+                    logger.info(f"Finished embedding {filename}")
                     
                     # Get document_id from the catalog (documents table)
                     document_id = self._catalog.get_document_id(filehash)
@@ -349,6 +352,13 @@ class VectorStoreManager:
                         template="(%s, %s, %s, %s::vector, %s::jsonb)",
                     )
                     logger.debug(f"Added {len(insert_data)} chunks for {filename} (document_id={document_id})")
+                    
+                    # Update ingested_at timestamp in the documents table
+                    if document_id is not None:
+                        cursor.execute(
+                            "UPDATE documents SET ingested_at = NOW() WHERE id = %s",
+                            (document_id,)
+                        )
 
                 conn.commit()
         finally:

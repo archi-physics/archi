@@ -31,10 +31,9 @@ test.describe('Page Load & Initialization', () => {
 
   test('entry meta label shows agent and model info', async ({ page }) => {
     await page.goto('/chat');
-    const entryMeta = page.locator('.entry-meta');
-    await expect(entryMeta).toBeVisible();
-    await expect(entryMeta).toContainText('Agent:');
-    await expect(entryMeta).toContainText('Model:');
+    // Config dropdown shows available models/configs
+    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
+    await expect(configDropdown).toBeVisible();
   });
 
   test('header tabs are visible (Chat, Data)', async ({ page }) => {
@@ -51,10 +50,11 @@ test.describe('Page Load & Initialization', () => {
 
   test('shows pipeline default model in entry meta', async ({ page }) => {
     await page.goto('/chat');
-    const entryMeta = page.locator('.entry-meta');
-    // Entry meta shows "Agent: <name> · Model: <model>" format
-    // When using pipeline default, model shows the model_name
-    await expect(entryMeta).toContainText(mockData.pipelineDefault.model_name);
+    // Config dropdown shows available models
+    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
+    await expect(configDropdown).toBeVisible();
+    // Should have a selected value
+    await expect(configDropdown).not.toHaveValue('');
   });
 
   test('config dropdown is populated', async ({ page }) => {

@@ -28,14 +28,18 @@ class PersistenceService:
         """
         target_dir.mkdir(parents=True, exist_ok=True)
         file_path = resource.get_file_path(target_dir)
-        if file_path.exists() and not overwrite:
+        
+        # Check if file already exists
+        file_existed = file_path.exists()
+        
+        if file_existed and not overwrite:
             logger.debug("Skipping existing resource %s -> %s", resource.get_hash(), file_path)
-            # Still update indices/metadata as needed.
-            return file_path
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        content = resource.get_content()
-        self._write_content(file_path, content)
+        else:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            content = resource.get_content()
+            self._write_content(file_path, content)
 
+        # Always update metadata in catalog (even if file already existed)
         metadata = resource.get_metadata()
         metadata_dict = None
         if metadata is not None:

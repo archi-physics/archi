@@ -11,6 +11,7 @@ from flask import Flask, jsonify
 from src.data_manager.data_manager import DataManager
 from src.data_manager.scheduler import CronScheduler
 from src.interfaces.uploader_app.app import FlaskAppWrapper
+from src.utils.config_service import ConfigService
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
 from src.utils.postgres_service_factory import PostgresServiceFactory
@@ -80,22 +81,73 @@ def main() -> None:
 
     scheduler = CronScheduler()
     sources_cfg = config.get("data_manager", {}).get("sources", {}) or {}
+    
+    # Initialize ConfigService for database access
+    config_service: Optional[ConfigService] = None
+    try:
+        pg_config = {
+            "password": read_secret("PG_PASSWORD"),
+            **services_config["postgres"],
+        }
+        config_service = ConfigService(pg_config)
+    except Exception as e:
+        logger.warning("Could not initialize ConfigService: %s", e)
+    
+    def load_schedules_from_db() -> Dict[str, str]:
+        """Load schedules from database, merging with YAML defaults."""
+        db_schedules: Dict[str, str] = {}
+        if config_service:
+            try:
+                db_schedules = config_service.get_source_schedules()
+            except Exception as e:
+                logger.warning("Could not load schedules from database: %s", e)
+        
+        # Merge YAML and database schedules (database takes priority)
+        result: Dict[str, str] = {}
+        all_sources = set(sources_cfg.keys()) | set(db_schedules.keys())
+        for source_name in all_sources:
+            if source_name not in schedule_map:
+                continue
+            
+            # Database schedule takes priority over YAML
+            if source_name in db_schedules and db_schedules[source_name]:
+                result[source_name] = db_schedules[source_name]
+            else:
+                source_cfg = sources_cfg.get(source_name) or {}
+                schedule = source_cfg.get("schedule")
+                if schedule:
+                    result[source_name] = schedule
+        
+        return result
+    
+    def create_job_callback(source_name: str) -> Callable[[], None]:
+        """Create a callback function for a scheduled job."""
+        def callback():
+            status = load_status()
+            last_run = status.get(source_name, {}).get("last_run")
+            run_locked(source_name, lambda: schedule_map[source_name](last_run))
+        return callback
+    
+    # Set up dynamic schedule reloading
+    scheduler.set_config_loader(load_schedules_from_db, create_job_callback)
+    
+    # Load initial schedules from database
+    db_schedules = load_schedules_from_db()
+    logger.info("Loaded source schedules: %s", db_schedules)
+    
     # seed status with schedules
     initial_status = load_status()
-    for source_name, source_cfg in sources_cfg.items():
-        if source_name not in schedule_map:
-            continue
-        schedule = (source_cfg or {}).get("schedule")
+    
+    for source_name, schedule in db_schedules.items():
         if schedule:
             entry = initial_status.get(source_name, {})
             entry.setdefault("schedule", schedule)
             entry.setdefault("state", "idle")
             initial_status[source_name] = entry
-            last_run = entry.get("last_run")
             scheduler.add_job(
                 name=source_name,
                 cron=schedule,
-                callback=lambda name=source_name, last_run=last_run: run_locked(name, lambda: schedule_map[name](last_run)),
+                callback=create_job_callback(source_name),
             )
     save_status(initial_status)
 
@@ -133,6 +185,29 @@ def main() -> None:
             return jsonify(dict(ingestion_status))
 
     app.add_url_rule("/api/ingestion/status", "ingestion_status", get_ingestion_status, methods=["GET"])
+
+    def reload_schedules():
+        """Trigger a reload of all schedules from the database."""
+        try:
+            new_schedules = scheduler.reload_schedules()
+            # Update status file with new schedules
+            status = load_status()
+            for source_name, schedule in new_schedules.items():
+                if source_name in status:
+                    status[source_name]["schedule"] = schedule
+            save_status(status)
+            return jsonify({"success": True, "schedules": new_schedules, "jobs": scheduler.get_job_status()})
+        except Exception as e:
+            logger.exception("Failed to reload schedules")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    app.add_url_rule("/api/reload-schedules", "reload_schedules", reload_schedules, methods=["POST"])
+
+    def get_schedule_status():
+        """Get current schedule status for all jobs."""
+        return jsonify({"jobs": scheduler.get_job_status()})
+
+    app.add_url_rule("/api/schedules", "get_schedules", get_schedule_status, methods=["GET"])
 
     uploader.run(
         debug=data_manager_cfg["flask_debug_mode"],

@@ -564,7 +564,8 @@ const UI = {
         localStorage.setItem('currentConversationId', conversationId);
         window.location.href = `/data?conversation_id=${encodeURIComponent(conversationId)}`;
       } else {
-        alert('Please select or start a conversation first to manage its data.');
+        // Allow viewing all documents without a conversation
+        window.location.href = '/data';
       }
     });
 
@@ -1770,9 +1771,12 @@ const Chat = {
 
   formatPipelineDefaultLabel() {
     const info = this.state.pipelineDefaultModel;
-    // Just show the model name (e.g., "openai/gpt-5-nano")
+    // Show model_name if available, otherwise model_class
     if (info?.model_name) {
       return info.model_name;
+    }
+    if (info?.model_class) {
+      return info.model_class;
     }
     return 'Default model';
   },

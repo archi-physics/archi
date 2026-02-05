@@ -1178,7 +1178,7 @@ body {
   display: none;
 }
 
-.toggle-slider {
+.settings-toggle .toggle-slider {
   position: relative;
   width: 44px;
   height: 24px;
@@ -1187,7 +1187,7 @@ body {
   transition: background var(--transition-fast);
 }
 
-.toggle-slider::after {
+.settings-toggle .toggle-slider::after {
   content: '';
   position: absolute;
   top: 2px;

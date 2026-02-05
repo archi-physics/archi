@@ -99,42 +99,6 @@ test.describe('Streaming & Cancellation', () => {
     await expect(page.locator('.streaming-cursor')).toHaveCount(0);
   });
 
-  // Skip: Proper streaming cancellation is difficult to test with mocks - 
-  // the Stop button appears briefly during real streaming but mock responses fulfill too quickly
-  test.skip('partial response preserved after cancel', async ({ page }) => {
-    await page.route('**/api/get_chat_response_stream', async (route) => {
-      // Send some chunks then delay
-      const chunks = [
-        '{"type":"chunk","content":"Partial "}',
-        '{"type":"chunk","content":"response "}',
-        '{"type":"chunk","content":"here"}',
-      ].join('\n') + '\n';
-      
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/plain',
-        body: chunks,
-      });
-      
-      // Keep connection alive longer
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    });
-
-    await page.goto('/chat');
-    
-    await page.getByLabel('Message input').fill('Test');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    
-    // Wait for chunks to arrive
-    await expect(page.locator('.message.assistant .message-content')).toContainText('Partial');
-    
-    // Cancel
-    await page.getByRole('button', { name: 'Stop streaming' }).click();
-    
-    // Partial response should still be visible
-    await expect(page.locator('.message.assistant .message-content')).toContainText('response');
-  });
-
   test('input re-enabled after streaming error', async ({ page }) => {
     await page.route('**/api/get_chat_response_stream', async (route) => {
       await route.fulfill({ status: 500, body: 'Internal Server Error' });

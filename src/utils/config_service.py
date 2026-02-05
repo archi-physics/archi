@@ -89,6 +89,7 @@ class DynamicConfig:
     
     # Schedules
     ingestion_schedule: str = ""
+    source_schedules: Dict[str, str] = field(default_factory=dict)  # source_name -> cron expression
     
     # Logging
     verbosity: int = 3
@@ -509,13 +510,20 @@ class ConfigService:
         conn = self._get_connection()
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                # Ensure source_schedules column exists (migration)
+                cursor.execute("""
+                    ALTER TABLE dynamic_config 
+                    ADD COLUMN IF NOT EXISTS source_schedules JSONB NOT NULL DEFAULT '{}'::jsonb
+                """)
+                conn.commit()
+                
                 cursor.execute(
                     """
                     SELECT active_pipeline, active_model, temperature, max_tokens,
                            system_prompt, top_p, top_k, repetition_penalty,
                            active_condense_prompt, active_chat_prompt, active_system_prompt,
                            num_documents_to_retrieve, use_hybrid_search, bm25_weight, semantic_weight,
-                           ingestion_schedule, verbosity, updated_at, updated_by
+                           bm25_k1, bm25_b, ingestion_schedule, source_schedules, verbosity, updated_at, updated_by
                     FROM dynamic_config
                     WHERE id = 1
                     """
@@ -525,6 +533,12 @@ class ConfigService:
                 if row is None:
                     # Return defaults if not initialized
                     return DynamicConfig()
+                
+                # Parse source_schedules JSONB
+                source_schedules = row.get("source_schedules") or {}
+                if isinstance(source_schedules, str):
+                    import json
+                    source_schedules = json.loads(source_schedules)
                 
                 return DynamicConfig(
                     active_pipeline=row["active_pipeline"],
@@ -543,6 +557,7 @@ class ConfigService:
                     bm25_weight=float(row["bm25_weight"]),
                     semantic_weight=float(row["semantic_weight"]),
                     ingestion_schedule=row.get("ingestion_schedule", ""),
+                    source_schedules=source_schedules,
                     verbosity=row.get("verbosity", 3),
                     updated_at=str(row["updated_at"]) if row["updated_at"] else None,
                     updated_by=row["updated_by"],
@@ -690,6 +705,71 @@ class ConfigService:
         finally:
             self._release_connection(conn)
     
+    def update_source_schedule(
+        self,
+        source_name: str,
+        schedule: str,
+        *,
+        updated_by: Optional[str] = None,
+    ) -> Dict[str, str]:
+        """
+        Update the schedule for a specific data source.
+        
+        Args:
+            source_name: Name of the source (e.g., 'jira', 'git', 'links')
+            schedule: Cron expression or schedule key (e.g., '0 */6 * * *', 'hourly', 'disabled')
+            updated_by: User making the change
+            
+        Returns:
+            Updated source_schedules dict
+        """
+        import json
+        
+        # Map UI-friendly values to cron expressions
+        schedule_map = {
+            'disabled': '',
+            'hourly': '0 * * * *',
+            'every_6h': '0 */6 * * *',
+            'daily': '0 0 * * *',
+        }
+        cron_expr = schedule_map.get(schedule, schedule)
+        
+        conn = self._get_connection()
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                # Update the specific source in JSONB
+                cursor.execute(
+                    """
+                    UPDATE dynamic_config
+                    SET source_schedules = source_schedules || %s::jsonb,
+                        updated_at = NOW(),
+                        updated_by = %s
+                    WHERE id = 1
+                    RETURNING source_schedules
+                    """,
+                    (json.dumps({source_name: cron_expr}), updated_by)
+                )
+                row = cursor.fetchone()
+                conn.commit()
+                
+                if row is None:
+                    return {}
+                
+                logger.info(f"Updated schedule for {source_name} to '{cron_expr}' by {updated_by}")
+                return row.get("source_schedules", {})
+        finally:
+            self._release_connection(conn)
+    
+    def get_source_schedules(self) -> Dict[str, str]:
+        """
+        Get all source schedules.
+        
+        Returns:
+            Dict mapping source names to cron expressions
+        """
+        dynamic = self.get_dynamic_config()
+        return dynamic.source_schedules if dynamic else {}
+
     def _validate_dynamic_config(
         self,
         *,

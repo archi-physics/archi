@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM --platform=linux/amd64 docker.io/a2rchi/a2rchi-python-base:latest
+FROM docker.io/a2rchi/a2rchi-python-base:latest
 RUN mkdir -p /root/archi
 WORKDIR /root/archi
 
@@ -16,11 +16,18 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Geckodriver
-RUN wget -q "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz" \
-    && tar -xzf "geckodriver-v0.36.0-linux64.tar.gz" -C /usr/local/bin \
+# Install Geckodriver (architecture-aware)
+ARG TARGETARCH
+RUN GECKO_VERSION="v0.36.0" && \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        GECKO_ARCH="linux-aarch64"; \
+    else \
+        GECKO_ARCH="linux64"; \
+    fi && \
+    wget -q "https://github.com/mozilla/geckodriver/releases/download/${GECKO_VERSION}/geckodriver-${GECKO_VERSION}-${GECKO_ARCH}.tar.gz" \
+    && tar -xzf "geckodriver-${GECKO_VERSION}-${GECKO_ARCH}.tar.gz" -C /usr/local/bin \
     && chmod +x /usr/local/bin/geckodriver \
-    && rm "geckodriver-v0.36.0-linux64.tar.gz"
+    && rm "geckodriver-${GECKO_VERSION}-${GECKO_ARCH}.tar.gz"
 
 COPY archi_code src
 COPY configs configs

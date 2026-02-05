@@ -176,9 +176,9 @@ class CMSCompOpsAgent(BaseReActAgent):
         retrievers_cfg = self.dm_config.get("retrievers", {})
         hybrid_cfg = retrievers_cfg.get("hybrid_retriever", {})
 
-        k = hybrid_cfg["num_documents_to_retrieve"]
-        bm25_weight = hybrid_cfg["bm25_weight"]
-        semantic_weight = hybrid_cfg["semantic_weight"]
+        k = hybrid_cfg.get("num_documents_to_retrieve", 5)
+        bm25_weight = hybrid_cfg.get("bm25_weight", 0.6)
+        semantic_weight = hybrid_cfg.get("semantic_weight", 0.4)
 
         hybrid_retriever = HybridRetriever(
             vectorstore=vectorstore,

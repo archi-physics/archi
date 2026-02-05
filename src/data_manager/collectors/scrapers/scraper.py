@@ -46,7 +46,7 @@ class LinkScraper:
         # mark as visited
         self._mark_visited(current_url)
 
-        source_type = "links" if (authenticator is None) else "sso"
+        source_type = "web"  # All scraped web content uses 'web' source type
         
         resources = []
 

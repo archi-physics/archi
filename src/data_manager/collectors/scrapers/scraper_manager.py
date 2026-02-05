@@ -61,8 +61,8 @@ class ScraperManager:
         self.data_path.mkdir(parents=True, exist_ok=True)
 
         self.web_scraper = LinkScraper(
-            verify_urls=self.config.get("verify_urls", True),
-            enable_warnings=self.config.get("enable_warnings", True),
+            verify_urls=self.config.get("verify_urls", False),  # Default to False for broader compatibility
+            enable_warnings=self.config.get("enable_warnings", False),
         )
         self._git_scraper: Optional["GitScraper"] = None
           
@@ -88,17 +88,17 @@ class ScraperManager:
         self,
         persistence: PersistenceService,
         link_urls: List[str] = [],
-    ) -> None:
-        """Collect only standard link sources."""
+    ) -> int:
+        """Collect only standard link sources. Returns count of resources scraped."""
         if not self.links_enabled:
             logger.info("Links disabled, skipping link scraping")
-            return
+            return 0
         if not link_urls:
-            return
+            return 0
         websites_dir = persistence.data_path / "websites"
         if not os.path.exists(websites_dir):
             os.makedirs(websites_dir, exist_ok=True)
-        self._collect_links_from_urls(link_urls, persistence, websites_dir)
+        return self._collect_links_from_urls(link_urls, persistence, websites_dir)
 
     def collect_git(
         self,
@@ -157,7 +157,8 @@ class ScraperManager:
         urls: List[str],
         persistence: PersistenceService,
         output_dir: Path,
-    ) -> None:
+    ) -> int:
+        """Collect links from URLs and return total count of resources scraped."""
         # Initialize authenticator if selenium is enabled
         authenticator = None
         if self.selenium_enabled:
@@ -165,11 +166,12 @@ class ScraperManager:
             if authenticator_class is not None:
                 authenticator = authenticator_class(**kwargs)
 
+        total_count = 0
         try:
             for url in urls:
                 # For standard link collection, don't use selenium for scraping
                 # (SSO urls are handled separately via collect_sso)
-                self._handle_standard_url(
+                count = self._handle_standard_url(
                     url, 
                     persistence, 
                     output_dir, 
@@ -177,9 +179,11 @@ class ScraperManager:
                     client=None,
                     use_client_for_scraping=False
                 )
+                total_count += count
         finally:
             if authenticator is not None:
                 authenticator.close()  # Close the authenticator properly and free the resources
+        return total_count
 
     def _collect_sso_from_urls(
         self,
@@ -301,9 +305,9 @@ class ScraperManager:
             max_depth: int, 
             client=None, 
             use_client_for_scraping: bool = False,
-    ) -> None:
-        logger.debug("Handling standard url")
-        logger.debug(url)
+    ) -> int:
+        """Scrape a URL and persist resources. Returns count of resources scraped."""
+        count = 0
         try:
             for resource in self.web_scraper.crawl_iter(
                 url,
@@ -315,8 +319,11 @@ class ScraperManager:
                 persistence.persist_resource(
                     resource, output_dir
                 )
+                count += 1
+            logger.info(f"Scraped {count} resources from {url}")
         except Exception as exc:
-            logger.error(f"Failed to scrape {url}: {exc}",exc_info=exc)
+            logger.error(f"Failed to scrape {url}: {exc}", exc_info=exc)
+        return count
 
     def _extract_urls_from_file(self, path: Path) -> List[str]:
         """Extract URLs from file, ignoring depth specifications for now."""

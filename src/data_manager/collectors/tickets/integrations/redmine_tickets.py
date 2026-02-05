@@ -180,6 +180,7 @@ class RedmineClient:
         if exists, otherwise empty string (checked later)
         """
         answers = []
+        answer_tag = _get_answer_tag()
         for record in journals[::-1]:
             note = record.notes
             if note:

@@ -40,9 +40,13 @@ tests/ui/
 
 2. **Local deployment running**:
    ```bash
-   archi start <deployment-name>
+   # Start test database
+   cd tests/smoke && docker compose -f docker-compose.integration.yaml up -d && cd ../..
+   
+   # Start the chat app
+   ./scripts/dev/run_chat_local.sh
    ```
-   The tests expect the chat app at `http://localhost:7861`.
+   The tests expect the chat app at `http://localhost:2786` (configurable via `BASE_URL` env var).
 
 ## Running Playwright Tests
 

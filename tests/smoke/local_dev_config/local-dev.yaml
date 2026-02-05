@@ -1,0 +1,84 @@
+# Local development config for running chat app against test database
+name: local-dev
+
+global:
+  DATA_PATH: /tmp/archi-data/
+  ACCOUNTS_PATH: /tmp/archi-accounts/
+  verbosity: 2
+
+# Top-level sources config (DataManager reads this via sources_config column)
+sources:
+  jira:
+    enabled: false
+  redmine:
+    enabled: false
+
+services:
+  postgres:
+    host: localhost
+    port: 5439
+    database: archi
+    user: archi
+  chat_app:
+    host: "0.0.0.0"
+    hostname: localhost
+    port: 2786
+    external_port: 2786
+    pipeline: CMSCompOpsAgent
+    # These will be filled in by the script
+    template_folder: "/Users/jason/projects/A2rchi/src/interfaces/chat_app/templates"
+    static_folder: "/Users/jason/projects/A2rchi/src/interfaces/chat_app/static"
+    num_responses_until_feedback: 5
+    auth:
+      enabled: false
+  data_manager:
+    host: "0.0.0.0"
+    hostname: localhost
+    port: 5001
+    flask_debug_mode: true
+    template_folder: "/Users/jason/projects/A2rchi/src/interfaces/chat_app/templates"
+    static_folder: "/Users/jason/projects/A2rchi/src/interfaces/chat_app/static"
+    auth:
+      enabled: false
+
+data_manager:
+  collection_name: local_dev
+  embedding_name: all-MiniLM-L6-v2
+  embedding_dimensions: 384
+  chunk_size: 1000
+  chunk_overlap: 150
+  distance_metric: cosine
+  embedding_class_map:
+    all-MiniLM-L6-v2:
+      class: HuggingFaceEmbeddings
+      kwargs:
+        model_name: all-MiniLM-L6-v2
+      similarity_score_reference: 0.45
+  sources:
+    jira:
+      enabled: false
+    redmine:
+      enabled: false
+
+archi:
+  agent_description: "Local development test agent"
+  providers:
+    local:
+      enabled: true
+      base_url: http://localhost:11434
+      mode: ollama
+      default_model: "qwen3:4b"
+      models:
+        - "qwen3:4b"
+        - "qwen2.5-coder:3b"
+  pipelines:
+    - CMSCompOpsAgent
+  pipeline_map:
+    CMSCompOpsAgent:
+      recursion_limit: 100
+      prompts:
+        required:
+          agent_prompt: examples/deployments/basic-ollama/agent.prompt
+      models:
+        required:
+          agent_model: local/qwen3:4b

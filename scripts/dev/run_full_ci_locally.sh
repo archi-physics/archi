@@ -117,8 +117,8 @@ fi
 echo ""
 echo -e "${YELLOW}Step 4: Cleaning up previous test deployments...${NC}"
 docker rm -f chatbot-manual-1 data-manager-manual-1 postgres-manual-1 2>/dev/null || true
-docker volume rm a2rchi-data-manual-1 a2rchi-manual-1 a2rchi-pg-manual-1 2>/dev/null || true
-rm -rf a2rchi-local/a2rchi-manual-1 2>/dev/null || true
+docker volume rm archi-data-manual-1 archi-manual-1 archi-pg-manual-1 2>/dev/null || true
+rm -rf archi-local/archi-manual-1 2>/dev/null || true
 echo -e "${GREEN}✓${NC} Cleanup complete"
 
 # Step 5: Run smoke test (if not skipped)

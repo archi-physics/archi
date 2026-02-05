@@ -7,6 +7,7 @@ nav:
   - Advanced Setup and Deployment: advanced_setup_deploy.md
   - API Reference: api_reference.md
   - Developer Guide: developer_guide.md
+  - Local Dev Testing: local_dev_testing.md
 theme: readthedocs
 repo_url: https://github.com/mit-submit/archi
 repo_name: 'GitHub'
