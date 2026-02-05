@@ -141,6 +141,29 @@ def get_user_roles_from_session() -> List[str]:
     return session.get('roles', [])
 
 
+def get_role_descriptions(roles: Optional[List[str]] = None) -> str:
+    """
+    Get formatted role descriptions for the current user or provided roles.
+    
+    Requires SSO auth with auth_roles configured.
+    
+    Args:
+        roles: Optional list of roles. If not provided, uses session roles.
+    
+    Returns:
+        Formatted string like "role1 (description1), role2 (description2)"
+        or empty string if not authenticated or no roles.
+    """
+    if roles is None:
+        roles = get_user_roles_from_session()
+    
+    if not roles:
+        return ""
+    
+    registry = get_registry()
+    return registry.get_role_descriptions(roles)
+
+
 def is_admin(roles: Optional[List[str]] = None) -> bool:
     """
     Check if the current user has admin role (wildcard permissions).

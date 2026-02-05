@@ -281,6 +281,43 @@ class RBACRegistry:
         """
         return self._roles.get(role_name)
 
+    @property
+    def pass_descriptions_to_agent(self) -> bool:
+        """
+        Check if role descriptions should be passed to the agent.
+        
+        Requires SSO auth with auth_roles configured.
+        """
+        return self._config.get('pass_descriptions_to_agent', False)
+
+    def get_role_descriptions(self, roles: List[str]) -> str:
+        """
+        Get a formatted string of role descriptions for the given roles.
+        
+        Used to append role context to agent system prompts when enabled.
+        Falls back to role name if no description is configured.
+        
+        Args:
+            roles: List of role names
+            
+        Returns:
+            Formatted string like "role1 (description1), role2 (description2)"
+            or empty string if no valid roles
+        """
+        if not roles:
+            return ""
+        
+        descriptions = []
+        for role in roles:
+            role_info = self._roles.get(role)
+            if role_info:
+                desc = role_info.get('description', role)
+                descriptions.append(f"{role} ({desc})")
+            elif self.is_valid_role(role):
+                descriptions.append(role)
+        
+        return ", ".join(descriptions)
+
 
 def load_rbac_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
