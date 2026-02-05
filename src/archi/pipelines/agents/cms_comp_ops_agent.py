@@ -17,6 +17,7 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_schema_tool,
     create_retriever_tool,
     create_http_get_tool,
+    create_sandbox_tool,
     initialize_mcp_client,
     RemoteCatalogClient,
 )
@@ -95,6 +96,23 @@ class CMSCompOpsAgent(BaseReActAgent):
         )
 
         all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool, http_get_tool]
+
+        # Add sandbox tool if enabled in config
+        sandbox_tool = create_sandbox_tool(
+            config=self.config,
+            name="run_code",
+            description=(
+                "Execute code in a secure sandboxed Docker container. "
+                "Input: code (str), language ('python', 'bash', or 'sh'). "
+                "Output: stdout, stderr, exit code, and any files written to /workspace/output/. "
+                "Use this for running Python scripts, shell commands, data processing, API calls with curl, "
+                "rucio commands, or any code that needs to be executed safely. "
+                "The container is ephemeral and destroyed after execution."
+            ),
+        )
+        if sandbox_tool:
+            all_tools.append(sandbox_tool)
+            logger.info("Sandbox tool enabled for CMSCompOpsAgent")
 
         try:
             nest_asyncio.apply()

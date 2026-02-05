@@ -9,6 +9,7 @@ from .local_files import (
 from .retriever import create_retriever_tool
 from .mcp import initialize_mcp_client
 from .http_get import create_http_get_tool
+from .sandbox import create_sandbox_tool, create_sandbox_tool_with_files
 
 __all__ = [
     "check_tool_permission",
@@ -21,4 +22,6 @@ __all__ = [
     "create_retriever_tool",
     "initialize_mcp_client",
     "create_http_get_tool",
+    "create_sandbox_tool",
+    "create_sandbox_tool_with_files",
 ]

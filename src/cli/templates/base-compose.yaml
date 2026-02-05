@@ -165,6 +165,10 @@ services:
       {% if gpu_ids -%}
       - archi-models:/root/models/
       {%- endif %}
+      {% if sandbox_enabled -%}
+      # Docker socket for sandbox container execution
+      - /var/run/docker.sock:/var/run/docker.sock
+      {%- endif %}
     logging:
       options:
         max-size: 10m

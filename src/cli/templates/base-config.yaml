@@ -244,6 +244,29 @@ data_manager:
 archi:
   pipelines: {{ archi.pipelines | default(['QAPipeline'], true) }}
   agent_description: {{ archi.agent_description | default('No description provided', true) }}
+  
+  # Sandbox configuration for containerized code execution
+  sandbox:
+    enabled: {{ archi.sandbox.enabled | default(false, true) }}
+    default_image: {{ archi.sandbox.default_image | default("python:3.11-slim", true) }}
+    image_allowlist:
+      {%- for image in archi.sandbox.image_allowlist | default(["python:3.11-slim"]) %}
+      - "{{ image }}"
+      {%- endfor %}
+    timeout: {{ archi.sandbox.timeout | default(30, true) }}
+    max_timeout: {{ archi.sandbox.max_timeout | default(300, true) }}
+    resource_limits:
+      memory: {{ archi.sandbox.resource_limits.memory | default("256m", true) }}
+      cpu: {{ archi.sandbox.resource_limits.cpu | default(0.5, true) }}
+      pids_limit: {{ archi.sandbox.resource_limits.pids_limit | default(100, true) }}
+    network_enabled: {{ archi.sandbox.network_enabled | default(true, true) }}
+    output_max_chars: {{ archi.sandbox.output_max_chars | default(100000, true) }}
+    # Custom Docker registry for private images
+    registry:
+      url: {{ archi.sandbox.registry.url | default("", true) }}
+      username_env: {{ archi.sandbox.registry.username_env | default("", true) }}
+      password_env: {{ archi.sandbox.registry.password_env | default("", true) }}
+
   providers:
     openai:
       enabled: {{ archi.providers.openai.enabled | default(true, true) }}
