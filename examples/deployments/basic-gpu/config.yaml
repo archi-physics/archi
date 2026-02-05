@@ -1,4 +1,4 @@
-# Basic configuration file for a Archi deployment
+# Basic configuration file for an Archi deployment
 # with a chat app interface, a QA pipeline, and
 # PostgreSQL with pgvector for document storage.
 # The LLM is a locally hosted VLLM instance on GPUs.
