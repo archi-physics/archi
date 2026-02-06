@@ -902,24 +902,128 @@ body {
   cursor: not-allowed;
 }
 
-.agent-info-btn {
+.agent-dropdown {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
+}
+
+.agent-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-primary);
   cursor: pointer;
+  font-size: var(--text-xs);
   transition: all var(--transition-fast);
 }
 
-.agent-info-btn:hover {
-  background: var(--bg-tertiary);
+.agent-dropdown-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.agent-dropdown-label {
+  font-weight: 500;
+}
+
+.agent-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+  padding: 8px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-dropdown-menu[hidden] {
+  display: none;
+}
+
+.agent-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.agent-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--surface-alt);
+}
+
+.agent-dropdown-item.active {
+  color: var(--text-primary);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+}
+
+.agent-dropdown-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.agent-dropdown-edit {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.agent-dropdown-edit:hover {
   color: var(--text-primary);
 }
+
+.agent-dropdown-delete {
+  border: none;
+  background: transparent;
+  color: var(--error-text);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.agent-dropdown-delete:hover {
+  color: var(--error-text);
+}
+
+.agent-dropdown-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.agent-dropdown-add:hover {
+  background: var(--accent-hover);
+}
+
 
 .send-btn.stop-mode {
   background: rgba(239, 68, 68, 0.1);
@@ -2278,6 +2382,132 @@ body {
 .agent-info-list {
   margin: 0;
   padding-left: 18px;
+}
+
+.agent-info-prompt {
+  background: var(--surface-alt);
+  border-radius: 8px;
+  padding: 12px;
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  max-height: 240px;
+  overflow: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   Agent Spec Editor Modal
+   ----------------------------------------------------------------------------- */
+.agent-spec-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-spec-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.agent-spec-panel {
+  position: relative;
+  width: 92%;
+  max-width: 720px;
+  max-height: 85vh;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-spec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.agent-spec-body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-spec-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.agent-spec-editor {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 10px 12px;
+}
+
+.agent-spec-editor {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  min-height: 280px;
+  resize: vertical;
+  white-space: pre;
+}
+
+.agent-spec-status {
+  min-height: 18px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.agent-spec-status.error {
+  color: var(--error-text);
+}
+
+.agent-spec-status.success {
+  color: var(--accent);
+}
+
+.agent-spec-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.agent-spec-reset,
+.agent-spec-save {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.agent-spec-reset {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.agent-spec-save {
+  background: var(--accent);
+  color: white;
+}
+
+.agent-spec-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* -----------------------------------------------------------------------------

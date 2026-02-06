@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional
+from pathlib import Path
 from urllib.parse import urlparse
 from functools import wraps
 
@@ -26,14 +27,16 @@ from pygments.lexers import (BashLexer, CLexer, CppLexer, FortranLexer,
                              TypeScriptLexer)
 
 from src.archi.archi import archi
+from src.archi.agents import AgentSpecError, list_agent_files, load_agent_spec, select_agent_spec
+from src.archi.agents.agent_spec import load_agent_spec_from_text, slugify_agent_name
 from src.archi.providers.base import ModelInfo, ProviderConfig, ProviderType
+from src.utils.config_service import ConfigService
 from src.archi.utils.output_dataclass import PipelineOutput
 # from src.data_manager.data_manager import DataManager
 from src.data_manager.data_viewer_service import DataViewerService
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
-from src.utils.config_access import get_full_config, get_services_config, get_global_config
-from src.utils.config_access import get_full_config
+from src.utils.config_access import get_full_config, get_services_config, get_global_config, get_dynamic_config
 from src.utils.sql import (
     SQL_INSERT_CONVO, SQL_INSERT_FEEDBACK, SQL_INSERT_TIMING, SQL_QUERY_CONVO,
     SQL_CREATE_CONVERSATION, SQL_UPDATE_CONVERSATION_TIMESTAMP,
@@ -53,8 +56,9 @@ logger = get_logger(__name__)
 
 def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider_type: ProviderType) -> Optional[ProviderConfig]:
     """Helper to build ProviderConfig from loaded YAML for a provider."""
-    archi_cfg = config_payload.get("archi", {}) or {}
-    providers_cfg = archi_cfg.get("providers", {}) or {}
+    services_cfg = config_payload.get("services", {}) or {}
+    chat_cfg = services_cfg.get("chat_app", {}) or {}
+    providers_cfg = chat_cfg.get("providers", {}) or {}
     cfg = providers_cfg.get(provider_type.value, {})
     if not cfg:
         return None
@@ -175,8 +179,36 @@ class ChatWrapper:
         self.conn = None
         self.cursor = None
 
+        # initialize agent spec
+        chat_cfg = self.services_config.get("chat_app", {})
+        agents_dir = Path(chat_cfg.get("agents_dir", "/root/archi/agents"))
+        try:
+            dynamic = get_dynamic_config()
+        except Exception:
+            dynamic = None
+        agent_name = getattr(dynamic, "active_agent_name", None) if dynamic else None
+        try:
+            self.agent_spec = select_agent_spec(agents_dir, agent_name)
+        except AgentSpecError as exc:
+            logger.warning("Failed to load agent spec '%s': %s", agent_name, exc)
+            self.agent_spec = select_agent_spec(agents_dir)
+        self.current_agent_name = getattr(self.agent_spec, "name", None)
+
+        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        if not agent_class:
+            raise ValueError("services.chat_app.agent_class must be configured.")
+        default_provider = chat_cfg.get("provider")
+        default_model = chat_cfg.get("model")
+        prompt_overrides = chat_cfg.get("prompts", {})
+
         # initialize chain
-        self.archi = archi(pipeline=self.config["services"]["chat_app"]["pipeline"])
+        self.archi = archi(
+            pipeline=agent_class,
+            agent_spec=self.agent_spec,
+            default_provider=default_provider,
+            default_model=default_model,
+            prompt_overrides=prompt_overrides,
+        )
         self.number_of_queries = 0
 
         # track active config/model/pipeline state
@@ -202,35 +234,45 @@ class ChatWrapper:
             raise ValueError("Config name must be provided to update the chat configuration.")
 
         config_payload = self._get_config_payload(target_config_name)
+        chat_cfg = config_payload["services"]["chat_app"]
 
-        if self.current_config_name == target_config_name:
+        try:
+            dynamic = get_dynamic_config()
+        except Exception:
+            dynamic = None
+        desired_agent_name = getattr(dynamic, "active_agent_name", None) if dynamic else None
+        agent_changed = False
+        if desired_agent_name and desired_agent_name != self.current_agent_name:
+            try:
+                self.agent_spec = select_agent_spec(Path(chat_cfg.get("agents_dir", "/root/archi/agents")), desired_agent_name)
+                self.archi.pipeline_kwargs["agent_spec"] = self.agent_spec
+                self.current_agent_name = desired_agent_name
+                agent_changed = True
+            except AgentSpecError as exc:
+                logger.warning("Active agent '%s' not found: %s", desired_agent_name, exc)
+
+        if self.current_config_name == target_config_name and not agent_changed:
             return
 
-        pipeline_name = config_payload["services"]["chat_app"]["pipeline"]
-        
-        # Extract the model name from the config
-        model_name = self._extract_model_name(config_payload, pipeline_name)
+        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        if not agent_class:
+            raise ValueError("services.chat_app.agent_class must be configured.")
+
+        model_name = self._extract_model_name(config_payload)
         
         self.current_config_name = target_config_name
-        self.current_pipeline_used = pipeline_name
+        self.current_pipeline_used = agent_class
         self.current_model_used = model_name
-        self.archi.update(pipeline=pipeline_name, config_name=target_config_name)
+        self.archi.update(pipeline=agent_class, config_name=target_config_name)
 
-    def _extract_model_name(self, config_payload, pipeline_name):
-        """Extract the primary model name from config for a given pipeline."""
+    def _extract_model_name(self, config_payload):
+        """Extract the primary model name from config for the chat service."""
         try:
-            pipeline_map = config_payload.get("archi", {}).get("pipeline_map", {})
-            pipeline_cfg = pipeline_map.get(pipeline_name, {})
-            required_models = pipeline_cfg.get("models", {}).get("required", {})
-            
-            # Try common model keys
-            for key in ["chat_model", "agent_model", "model"]:
-                if key in required_models:
-                    return required_models[key]
-            
-            # Return first model if any exist
-            if required_models:
-                return next(iter(required_models.values()))
+            chat_cfg = config_payload.get("services", {}).get("chat_app", {})
+            provider = chat_cfg.get("provider")
+            model = chat_cfg.get("model")
+            if provider and model:
+                return f"{provider}/{model}"
         except Exception:
             pass
         return None
@@ -1461,6 +1503,19 @@ class ChatWrapper:
             )
 
             for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
+                if client_timeout and time.time() - stream_start_time > client_timeout:
+                    if trace_id:
+                        total_duration_ms = int((time.time() - stream_start_time) * 1000)
+                        self.update_agent_trace(
+                            trace_id=trace_id,
+                            events=trace_events,
+                            status='error',
+                            cancelled_by='system',
+                            cancellation_reason='Client timeout',
+                            total_duration_ms=total_duration_ms,
+                        )
+                    yield {"type": "error", "status": 408, "message": "client timeout"}
+                    return
                 last_output = output
                 
                 # Extract event_type from metadata (new structured events from BaseReActAgent)
@@ -1776,6 +1831,12 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/providers/keys/clear', 'clear_provider_api_key', self.require_auth(self.clear_provider_api_key), methods=["POST"])
         self.add_endpoint('/api/pipeline/default_model', 'get_pipeline_default_model', self.require_auth(self.get_pipeline_default_model), methods=["GET"])
         self.add_endpoint('/api/agent/info', 'get_agent_info', self.require_auth(self.get_agent_info), methods=["GET"])
+        self.add_endpoint('/api/agents/list', 'list_agents', self.require_auth(self.list_agents), methods=["GET"])
+        self.add_endpoint('/api/agents/template', 'get_agent_template', self.require_auth(self.get_agent_template), methods=["GET"])
+        self.add_endpoint('/api/agents/spec', 'get_agent_spec', self.require_auth(self.get_agent_spec), methods=["GET"])
+        self.add_endpoint('/api/agents', 'save_agent_spec', self.require_auth(self.save_agent_spec), methods=["POST"])
+        self.add_endpoint('/api/agents', 'delete_agent_spec', self.require_auth(self.delete_agent_spec), methods=["DELETE"])
+        self.add_endpoint('/api/agents/active', 'set_active_agent', self.require_auth(self.set_active_agent), methods=["POST"])
 
         # Data viewer endpoints
         logger.info("Adding data viewer API endpoints")
@@ -1984,8 +2045,11 @@ class FlaskAppWrapper(object):
         for name in config_names:
             description = ""
             try:
-                payload = get_full_config()
-                description = payload.get("archi", {}).get("agent_description", "No description provided")
+                agent_spec = getattr(self.chat, "agent_spec", None)
+                if agent_spec is not None:
+                    description = getattr(agent_spec, "name", "") or "No description provided"
+                else:
+                    description = "No description provided"
             except Exception as exc:
                 logger.warning(f"Failed to load config {name} for description: {exc}")
             options.append({"name": name, "description": description})
@@ -2059,33 +2123,301 @@ class FlaskAppWrapper(object):
             JSON with pipeline name and provider/model reference (if available).
         """
         try:
-            pipeline_name = self.config.get("services", {}).get("chat_app", {}).get("pipeline")
-            archi_config = self.config.get("archi", {})
-            pipeline_map = archi_config.get("pipeline_map", {})
-
-            pipeline_cfg = pipeline_map.get(pipeline_name, {})
-            models_cfg = pipeline_cfg.get("models", {})
-            required_models = models_cfg.get("required", {})
-
-            model_key = None
-            model_ref = None
-            if "agent_model" in required_models:
-                model_key = "agent_model"
-                model_ref = required_models["agent_model"]
-            elif "chat_model" in required_models:
-                model_key = "chat_model"
-                model_ref = required_models["chat_model"]
-            elif required_models:
-                model_key, model_ref = next(iter(required_models.items()))
-
+            chat_cfg = self.config.get("services", {}).get("chat_app", {})
+            agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+            provider = chat_cfg.get("provider")
+            model = chat_cfg.get("model")
+            model_name = f"{provider}/{model}" if provider and model else None
             return jsonify({
-                "pipeline": pipeline_name,
-                "model_key": model_key,
-                "model": model_ref,
+                "pipeline": agent_class,
+                "provider": provider,
+                "model": model,
+                "model_class": provider,
+                "model_name": model_name,
             }), 200
         except Exception as e:
             logger.error(f"Error getting pipeline default model: {e}")
             return jsonify({"error": str(e)}), 500
+
+    def _get_agents_dir(self) -> Path:
+        agents_dir = self.services_config.get("chat_app", {}).get("agents_dir") or "/root/archi/agents"
+        return Path(agents_dir)
+
+    def _get_agent_class_name(self) -> Optional[str]:
+        chat_cfg = self.services_config.get("chat_app", {})
+        return chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+
+    def _get_agent_tool_registry(self) -> List[str]:
+        agent_class = self._get_agent_class_name()
+        if not agent_class:
+            return []
+        try:
+            from src.archi import pipelines
+        except Exception as exc:
+            logger.warning("Failed to import pipelines module: %s", exc)
+            return []
+        agent_cls = getattr(pipelines, agent_class, None)
+        if not agent_cls or not hasattr(agent_cls, "get_tool_registry"):
+            return []
+        try:
+            dummy = agent_cls.__new__(agent_cls)
+            registry = agent_cls.get_tool_registry(dummy) or {}
+            return sorted([name for name in registry.keys() if isinstance(name, str)])
+        except Exception as exc:
+            logger.warning("Failed to read tool registry for %s: %s", agent_class, exc)
+            return []
+
+    def _build_agent_template(self, name: str, tools: List[str]) -> str:
+        tools_block = "\n".join(f"- {tool}" for tool in tools) if tools else "- <tool_name>"
+        tools_comment = "\n".join(f"- {tool}" for tool in tools) if tools else "- (no tools available)"
+        return (
+            f"# {name}\n\n"
+            "## Tools\n"
+            f"{tools_block}\n\n"
+            "## Prompt\n"
+            "Write your system prompt here.\n\n"
+            "<!--\n"
+            "Available tools (registry):\n"
+            f"{tools_comment}\n"
+            "-->\n"
+        )
+
+    def list_agents(self):
+        """
+        List available agent specs for the dropdown.
+        """
+        try:
+            agents_dir = self._get_agents_dir()
+            agent_files = list_agent_files(agents_dir)
+            agents = []
+            for path in agent_files:
+                try:
+                    spec = load_agent_spec(path)
+                    agents.append({"name": spec.name, "filename": path.name})
+                except AgentSpecError as exc:
+                    logger.warning("Skipping invalid agent spec %s: %s", path, exc)
+            try:
+                dynamic = get_dynamic_config()
+            except Exception:
+                dynamic = None
+            active_name = getattr(dynamic, "active_agent_name", None) if dynamic else None
+            if not active_name:
+                active_spec = getattr(self.chat, "agent_spec", None)
+                active_name = getattr(active_spec, "name", None)
+            return jsonify({
+                "agents": agents,
+                "active_name": active_name,
+            }), 200
+        except Exception as exc:
+            logger.error(f"Error listing agents: {exc}")
+            return jsonify({"error": str(exc)}), 500
+
+    def get_agent_spec(self):
+        """
+        Fetch a single agent spec by name.
+        """
+        try:
+            name = request.args.get("name")
+            if not name:
+                return jsonify({"error": "name parameter required"}), 400
+            agents_dir = self._get_agents_dir()
+            for path in list_agent_files(agents_dir):
+                try:
+                    spec = load_agent_spec(path)
+                except AgentSpecError:
+                    continue
+                if spec.name == name:
+                    return jsonify({
+                        "name": spec.name,
+                        "filename": path.name,
+                        "content": path.read_text(),
+                    }), 200
+            return jsonify({"error": f"Agent '{name}' not found"}), 404
+        except Exception as exc:
+            logger.error(f"Error fetching agent spec: {exc}")
+            return jsonify({"error": str(exc)}), 500
+
+    def get_agent_template(self):
+        """
+        Return a prefilled agent spec template and available tools.
+        """
+        try:
+            agent_name = request.args.get("name") or "New Agent"
+            tools = self._get_agent_tool_registry()
+            return jsonify({
+                "name": agent_name,
+                "tools": tools,
+                "template": self._build_agent_template(agent_name, tools),
+            }), 200
+        except Exception as exc:
+            logger.error(f"Error building agent template: {exc}")
+            return jsonify({'error': str(exc)}), 500
+
+    def set_active_agent(self):
+        """
+        Persist the active agent name in dynamic config.
+        """
+        try:
+            data = request.get_json() or {}
+            name = data.get("name")
+            client_id = data.get("client_id") or "system"
+            if not name:
+                return jsonify({"error": "name is required"}), 400
+
+            agents_dir = self._get_agents_dir()
+            exists = False
+            for path in list_agent_files(agents_dir):
+                try:
+                    spec = load_agent_spec(path)
+                except AgentSpecError:
+                    continue
+                if spec.name == name:
+                    exists = True
+                    break
+            if not exists:
+                return jsonify({"error": f"Agent '{name}' not found"}), 404
+
+            cfg = ConfigService(pg_config=self.pg_config)
+            cfg.update_dynamic_config(active_agent_name=name, updated_by=client_id)
+
+            return jsonify({
+                "success": True,
+                "active_name": name,
+            }), 200
+        except Exception as exc:
+            logger.error(f"Error setting active agent: {exc}")
+            return jsonify({"error": str(exc)}), 500
+
+    def save_agent_spec(self):
+        """
+        Create or update an agent spec by name.
+        """
+        try:
+            data = request.get_json() or {}
+            content = data.get("content")
+            mode = data.get("mode", "create")
+            existing_name = data.get("existing_name")
+            if not content or not isinstance(content, str):
+                return jsonify({'error': 'Content is required'}), 400
+
+            agents_dir = self._get_agents_dir()
+            agents_dir.mkdir(parents=True, exist_ok=True)
+
+            if mode == "edit" or existing_name:
+                if not existing_name:
+                    return jsonify({'error': 'existing_name required for edit'}), 400
+                target_path = None
+                for path in list_agent_files(agents_dir):
+                    try:
+                        spec = load_agent_spec(path)
+                    except AgentSpecError:
+                        continue
+                    if spec.name == existing_name:
+                        target_path = path
+                        break
+                if not target_path:
+                    return jsonify({'error': f"Agent '{existing_name}' not found"}), 404
+                new_spec = load_agent_spec_from_text(content)
+                for path in list_agent_files(agents_dir):
+                    if path == target_path:
+                        continue
+                    try:
+                        spec = load_agent_spec(path)
+                    except AgentSpecError:
+                        continue
+                    if spec.name == new_spec.name:
+                        return jsonify({'error': f"Agent name '{new_spec.name}' already exists"}), 409
+                target_path.write_text(content)
+                try:
+                    dynamic = get_dynamic_config()
+                except Exception:
+                    dynamic = None
+                if dynamic and dynamic.active_agent_name == existing_name and new_spec.name != existing_name:
+                    cfg = ConfigService(pg_config=self.pg_config)
+                    cfg.update_dynamic_config(active_agent_name=new_spec.name, updated_by=data.get("client_id") or "system")
+                return jsonify({
+                    'success': True,
+                    'name': new_spec.name,
+                    'filename': target_path.name,
+                    'path': str(target_path),
+                }), 200
+
+            # create mode
+            # derive name from content to build filename and enforce uniqueness
+            spec = load_agent_spec_from_text(content)
+            existing_names = []
+            for path in list_agent_files(agents_dir):
+                try:
+                    existing = load_agent_spec(path)
+                    existing_names.append(existing.name)
+                except AgentSpecError:
+                    continue
+            if spec.name in existing_names:
+                return jsonify({'error': f"Agent name '{spec.name}' already exists"}), 409
+            filename = slugify_agent_name(spec.name)
+            target_path = agents_dir / filename
+            if target_path.exists():
+                stem = Path(filename).stem
+                suffix = Path(filename).suffix
+                counter = 2
+                while True:
+                    candidate = agents_dir / f"{stem}-{counter}{suffix}"
+                    if not candidate.exists():
+                        target_path = candidate
+                        break
+                    counter += 1
+            target_path.write_text(content)
+            return jsonify({
+                'success': True,
+                'name': spec.name,
+                'filename': target_path.name,
+                'path': str(target_path),
+            }), 200
+        except AgentSpecError as exc:
+            logger.error(f"Invalid agent spec: {exc}")
+            return jsonify({'error': f'Invalid agent spec: {exc}'}), 400
+        except Exception as exc:
+            logger.error(f"Error saving agent spec: {exc}")
+            return jsonify({'error': str(exc)}), 500
+
+    def delete_agent_spec(self):
+        """
+        Delete an agent spec by name.
+        """
+        try:
+            data = request.get_json() or {}
+            name = data.get("name")
+            if not name:
+                return jsonify({"error": "name is required"}), 400
+            name = name.strip()
+            if name.lower().startswith("name:"):
+                name = name.split(":", 1)[1].strip()
+
+            agents_dir = self._get_agents_dir()
+            target_path = None
+            for path in list_agent_files(agents_dir):
+                try:
+                    spec = load_agent_spec(path)
+                except AgentSpecError:
+                    continue
+                if spec.name == name:
+                    target_path = path
+                    break
+            if not target_path:
+                return jsonify({"error": f"Agent '{name}' not found"}), 404
+
+            target_path.unlink()
+            try:
+                dynamic = get_dynamic_config()
+            except Exception:
+                dynamic = None
+            if dynamic and dynamic.active_agent_name == name:
+                cfg = ConfigService(pg_config=self.pg_config)
+                cfg.update_dynamic_config(active_agent_name=None, updated_by=data.get("client_id") or "system")
+            return jsonify({"success": True, "deleted": name}), 200
+        except Exception as exc:
+            logger.error(f"Error deleting agent spec: {exc}")
+            return jsonify({"error": str(exc)}), 500
 
     def get_agent_info(self):
         """
@@ -2105,16 +2437,21 @@ class FlaskAppWrapper(object):
             logger.error(f"Error loading config '{config_name}': {exc}")
             config_payload = self.config
 
-        pipeline_name = config_payload.get("services", {}).get("chat_app", {}).get("pipeline")
+        chat_cfg = config_payload.get("services", {}).get("chat_app", {})
+        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
         embedding_name = config_payload.get("data_manager", {}).get("embedding_name")
         sources = config_payload.get("data_manager", {}).get("sources", {})
         source_names = list(sources.keys()) if isinstance(sources, dict) else []
+        agent_spec = getattr(self.chat, "agent_spec", None)
 
         return jsonify({
             "config_name": config_name,
-            "pipeline": pipeline_name,
+            "pipeline": agent_class,
             "embedding_name": embedding_name,
             "data_sources": source_names,
+            "agent_name": getattr(agent_spec, "name", None),
+            "agent_tools": getattr(agent_spec, "tools", None),
+            "agent_prompt": getattr(agent_spec, "prompt", None),
         }), 200
 
     def get_provider_models(self):
@@ -2133,8 +2470,9 @@ class FlaskAppWrapper(object):
         
         try:
             from src.archi.providers import get_provider
-            
-            provider = get_provider(provider_type)
+
+            cfg = _build_provider_config_from_payload(self.config, ProviderType(provider_type))
+            provider = get_provider(provider_type, config=cfg) if cfg else get_provider(provider_type)
             models = provider.list_models()
             
             return jsonify({

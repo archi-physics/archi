@@ -62,7 +62,14 @@ class ImageToTextWrapper:
         self.lock = Lock()
 
         # initialize image processing chain
-        self.image_processor = archi(pipeline="ImageProcessingPipeline")
+        grader_cfg = self.services_config.get("grader_app", {})
+        image_prompts = grader_cfg.get("prompts", {}).get("image_processing", {})
+        self.image_processor = archi(
+            pipeline="ImageProcessingPipeline",
+            default_provider=grader_cfg.get("provider"),
+            default_model=grader_cfg.get("model"),
+            prompt_overrides=image_prompts,
+        )
 
     def __call__(self, images: List[str]) -> str:
         """
@@ -110,7 +117,14 @@ class GradingWrapper:
         self.lock = Lock()
 
         # initialize grading chain
-        self.grader = archi(pipeline="GradingPipeline") # more similar to chatwrapper, just need to handle the successive prompts SOMEWHERE
+        grader_cfg = self.services_config.get("grader_app", {})
+        grading_prompts = grader_cfg.get("prompts", {}).get("grading", {})
+        self.grader = archi(
+            pipeline="GradingPipeline",
+            default_provider=grader_cfg.get("provider"),
+            default_model=grader_cfg.get("model"),
+            prompt_overrides=grading_prompts,
+        )
 
 
     ##################

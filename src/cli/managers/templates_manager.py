@@ -134,6 +134,7 @@ class TemplateManager:
     def _build_workflow(self, context: TemplateContext) -> List[Callable[[TemplateContext], None]]:
         stages: List[Callable[[TemplateContext], None]] = [
             self._stage_prompts,
+            self._stage_agents,
             self._stage_configs,
             self._stage_service_artifacts,
             self._stage_postgres_init,
@@ -151,8 +152,26 @@ class TemplateManager:
     def _stage_prompts(self, context: TemplateContext) -> None:
         # Copy default prompt templates (condense/, chat/, system/ structure)
         self._copy_default_prompts(context)
-        # Collect pipeline-specific prompt mappings
-        context.prompt_mappings = self._collect_prompt_mappings(context)
+        context.prompt_mappings = {}
+
+    def _stage_agents(self, context: TemplateContext) -> None:
+        agents_dir = context.get_option("agents_dir")
+        dst_dir = context.base_dir / "data" / "agents"
+        if not agents_dir:
+            if dst_dir.exists() and any(p.suffix.lower() == ".md" for p in dst_dir.iterdir()):
+                return
+            raise ValueError("Missing required agents directory (pass --agents).")
+        src_dir = Path(agents_dir).expanduser()
+        if not src_dir.exists() or not src_dir.is_dir():
+            raise ValueError(f"Agents directory not found: {src_dir}")
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for agent_file in sorted(src_dir.iterdir()):
+            if agent_file.is_file() and agent_file.suffix.lower() == ".md":
+                shutil.copyfile(agent_file, dst_dir / agent_file.name)
+                copied += 1
+        if copied == 0:
+            raise ValueError(f"No agent markdown files found in {src_dir}")
 
     def _copy_default_prompts(self, context: TemplateContext) -> None:
         """Copy default prompt templates to deployment for PromptService."""
@@ -218,27 +237,7 @@ class TemplateManager:
 
     # prompt preparation
     def _collect_prompt_mappings(self, context: TemplateContext) -> Dict[str, Dict[str, str]]:
-        # Config-specified prompts go to data/prompts/ (same as default prompts)
-        prompts_path = context.base_dir / "data" / "prompts"
-        prompts_path.mkdir(parents=True, exist_ok=True)
-
-        configs = context.config_manager.get_configs()
-        prompt_mappings: Dict[str, Dict[str, str]] = {}
-        for config in configs:
-            name = config["name"]
-            config_path = config.get("_config_path")
-            config_dir = Path(config_path).expanduser().parent if config_path else None
-            pipeline_names = config.get("archi", {}).get("pipelines") or []
-            for pipeline_name in pipeline_names:
-                pipeline_config = config.get("archi", {}).get("pipeline_map", {}).get(pipeline_name, {})
-                prompts_config = pipeline_config.get("prompts", {})
-                prompt_mappings[name] = self._copy_pipeline_prompts(
-                    context.base_dir,
-                    prompts_config,
-                    config_dir=config_dir,
-                )
-
-        return prompt_mappings
+        return {}
 
     def _copy_pipeline_prompts(
         self,
@@ -286,29 +285,15 @@ class TemplateManager:
             name = archi_config["name"]
             updated_config = copy.deepcopy(archi_config)
 
-            prompt_mapping = context.prompt_mappings.get(name, {})
-            pipeline_names = updated_config.get("archi", {}).get("pipelines") or []
-
-            for pipeline_name in pipeline_names:
-                pipeline_config = (
-                    updated_config.get("archi", {}).get("pipeline_map", {}).get(pipeline_name, {})
-                )
-                prompts_config = pipeline_config.get("prompts", {})
-
-                for section_prompts in prompts_config.values():
-                    if not isinstance(section_prompts, dict):
-                        continue
-                    for prompt_key in list(section_prompts.keys()):
-                        if prompt_key in prompt_mapping:
-                            section_prompts[prompt_key] = prompt_mapping[prompt_key]
-                        else:
-                            logger.debug(
-                                f"Prompt key {prompt_key} not found in prepared prompts for config {name}"
-                            )
-
             if context.plan.host_mode:
                 updated_config["host_mode"] = context.plan.host_mode
                 self._apply_host_mode_port_overrides(updated_config)
+
+            services_cfg = updated_config.get("services", {})
+            for service_name in ("chat_app", "redmine_mailbox", "piazza"):
+                service_cfg = services_cfg.get(service_name)
+                if isinstance(service_cfg, dict):
+                    service_cfg["agents_dir"] = "/root/archi/agents"
 
             config_template = self.env.get_template(BASE_CONFIG_TEMPLATE)
             config_rendered = config_template.render(verbosity=context.plan.verbosity, **updated_config)

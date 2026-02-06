@@ -1,55 +1,33 @@
 name: HuggingfaceEmbedding
 
 global:
-  TRAINED_ON: "the SubMIT Cluster"  
-
+  TRAINED_ON: "the SubMIT Cluster"
 
 data_manager:
   sources:
     links:
       enabled: true
-      input_lists:  
-        - examples/benchmarking/ppc.list 
+      input_lists:
+        - examples/benchmarking/ppc.list
   embedding_name: HuggingFaceEmbeddings
 
-archi:
-  pipelines: 
-   - QAPipeline
-  providers:
-    local:
-      enabled: true
-      base_url: http://localhost:7870 # make sure this matches your ollama server URL!
-      mode: ollama
-      default_model: "gemma3"
-      models:
-        - "gemma3"
-  pipeline_map:
-    QAPipeline:
-      prompts:
-        required:
-          condense_prompt: examples/benchmarking/condense.prompt  
-          chat_prompt: examples/benchmarking/qa.prompt  
-      models:
-        required:
-          chat_model: local/gemma3
-          condense_model: local/gemma3
-
 services:
+  chat_app:
+    agent_class: QAPipeline
+    agents_dir: examples/agents
+    provider: local
+    model: gemma3
+    providers:
+      local:
+        enabled: true
+        base_url: http://localhost:7870 # make sure this matches your ollama server URL!
+        mode: ollama
+        default_model: "gemma3"
+        models:
+          - "gemma3"
+    prompts:
+      condense_prompt: examples/benchmarking/condense.prompt
+      chat_prompt: examples/benchmarking/qa.prompt
 
-  benchmarking: 
+  benchmarking:
     queries_path: examples/benchmarking/queries.json
-    out_dir: bench_out
-    modes: 
-      - "RAGAS"
-      - "SOURCES"
-    mode_settings:
-      sources_settings:
-        default_match_field: "display_name" # matadata field to check for source matching
-      ragas_settings: 
-        provider: "HuggingFace"
-        evaluation_model_settings: 
-          model_name:  "Qwen/Qwen2.5-7B-Instruct-1M"
-        embedding_model: "HuggingFace"
-        timeout: 200
-        batch_size: 5
-  # Vector storage uses PostgreSQL with pgvector (only supported backend)

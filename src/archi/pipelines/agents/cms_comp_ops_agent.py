@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Sequence
+import json
+import os
 
 from langchain_core.documents import Document
 import asyncio
@@ -39,23 +41,35 @@ class CMSCompOpsAgent(BaseReActAgent):
         self.catalog_service = RemoteCatalogClient.from_deployment_config(self.config)
         self._vector_retrievers = None
         self._vector_tool = None
+        self.enable_vector_tools = "search_vectorstore_hybrid" in self.selected_tool_names
 
         self.rebuild_static_tools()
         self.rebuild_static_middleware()
         self.refresh_agent()
 
-    def _build_static_tools(self) -> List[Callable]:
-        """Initialise static tools that are always available to the agent."""
-        file_search_tool = create_file_search_tool(
+    def get_tool_registry(self) -> Dict[str, Callable[[], Any]]:
+        return {
+            "search_local_files": self._build_file_search_tool,
+            "search_metadata_index": self._build_metadata_search_tool,
+            "list_metadata_schema": self._build_metadata_schema_tool,
+            "fetch_catalog_document": self._build_fetch_tool,
+            "search_vectorstore_hybrid": self._build_vector_tool_placeholder,
+            "mcp": self._build_mcp_tools,
+        }
+
+    def _build_file_search_tool(self) -> Callable:
+        return create_file_search_tool(
             self.catalog_service,
-            description= (
+            description=(
                 "Grep-like search over file contents. Provide a distinctive phrase or regex; optionally use regex=true, "
                 "case_sensitive=true, and context (before/after). Returns matching lines with hashes; "
                 "use fetch_catalog_document for full text."
             ),
             store_docs=self._store_documents,
         )
-        metadata_search_tool = create_metadata_search_tool(
+
+    def _build_metadata_search_tool(self) -> Callable:
+        return create_metadata_search_tool(
             self.catalog_service,
             description=(
                 "Query the files' metadata catalog (ticket IDs, source URLs, resource types, etc.). "
@@ -64,7 +78,9 @@ class CMSCompOpsAgent(BaseReActAgent):
             ),
             store_docs=self._store_documents,
         )
-        metadata_schema_tool = create_metadata_schema_tool(
+
+    def _build_metadata_schema_tool(self) -> Callable:
+        return create_metadata_schema_tool(
             self.catalog_service,
             description=(
                 "List metadata schema hints: supported keys, distinct source_type values, and suffixes. "
@@ -72,7 +88,8 @@ class CMSCompOpsAgent(BaseReActAgent):
             ),
         )
 
-        fetch_tool = create_document_fetch_tool(
+    def _build_fetch_tool(self) -> Callable:
+        return create_document_fetch_tool(
             self.catalog_service,
             description=(
                 "Fetch full document text by resource hash after a search hit. "
@@ -80,36 +97,45 @@ class CMSCompOpsAgent(BaseReActAgent):
             ),
         )
 
-        all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool]
+    def _build_vector_tool_placeholder(self) -> List[Callable]:
+        return []
 
+    def _build_mcp_tools(self) -> List[Callable]:
         try:
             nest_asyncio.apply()
+            mcp_servers = self._load_mcp_servers()
+            client, mcp_tools = asyncio.run(initialize_mcp_client(mcp_servers))
+            self.mcp_client = client
 
-            # 1. Fetch the tools (async)
-            client, mcp_tools = asyncio.run(initialize_mcp_client())
-            self.mcp_client = client  # Keep client alive
-
-            # 2. Patch tools to support synchronous execution
-            # This wrapper allows the sync agent to call the async tools
             def make_synchronous(async_tool):
                 def sync_wrapper(*args, **kwargs):
-                    # We reuse the existing client session via the closure of the original tool
                     return asyncio.run(async_tool.coroutine(*args, **kwargs))
 
-                # Assign the wrapper to the tool's 'func' attribute (standard LangChain sync entry point)
                 async_tool.func = sync_wrapper
                 return async_tool
 
-            # Apply the patch to all fetched tools
             if mcp_tools:
                 synchronous_mcp_tools = [make_synchronous(t) for t in mcp_tools]
-                all_tools.extend(synchronous_mcp_tools)
-                logger.info(f"Loaded and patched {len(synchronous_mcp_tools)} MCP tools for sync execution.")
+                logger.info("Loaded and patched %d MCP tools for sync execution.", len(synchronous_mcp_tools))
+                return synchronous_mcp_tools
+        except Exception as exc:
+            logger.error("Failed to load MCP tools: %s", exc, exc_info=True)
+        return []
 
-        except Exception as e:
-            logger.error(f"Failed to load MCP tools: {e}", exc_info=True)
-
-        return all_tools
+    @staticmethod
+    def _load_mcp_servers() -> Dict[str, Any]:
+        raw = os.environ.get("ARCHI_MCP_SERVERS") or os.environ.get("MCP_SERVERS")
+        if not raw:
+            return {}
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.warning("Invalid MCP servers JSON in ARCHI_MCP_SERVERS/MCP_SERVERS.")
+            return {}
+        if not isinstance(payload, dict):
+            logger.warning("MCP servers payload must be a JSON object.")
+            return {}
+        return payload
 
     # def _build_static_middleware(self) -> List[Callable]:
     #     """
@@ -173,6 +199,10 @@ class CMSCompOpsAgent(BaseReActAgent):
 
     def _update_vector_retrievers(self, vectorstore: Any) -> None:
         """Instantiate or refresh the vectorstore retriever tool using hybrid retrieval."""
+        if not self.enable_vector_tools:
+            self._vector_retrievers = None
+            self._vector_tools = None
+            return
         retrievers_cfg = self.dm_config.get("retrievers", {})
         hybrid_cfg = retrievers_cfg.get("hybrid_retriever", {})
 

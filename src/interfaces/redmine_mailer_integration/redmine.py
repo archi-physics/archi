@@ -8,6 +8,8 @@ import psycopg2.extras
 from redminelib import Redmine as RedmineClient
 
 from src.archi.archi import archi
+from pathlib import Path
+from src.archi.agents import AgentSpecError, select_agent_spec
 from src.data_manager.collectors.utils.catalog_postgres import PostgresCatalogService
 from src.data_manager.data_manager import DataManager
 from src.interfaces.redmine_mailer_integration.utils import sender
@@ -41,7 +43,23 @@ class RedmineAIWrapper:
         self.data_path = self.global_config["DATA_PATH"]
 
         # agent
-        self.archi = archi(pipeline=self.redmine_config.get("pipeline", "CMSCompOpsAgent"))
+        agent_class = self.redmine_config.get("agent_class") or self.redmine_config.get("pipeline", "CMSCompOpsAgent")
+        agents_dir = Path(
+            self.redmine_config.get("agents_dir")
+            or self.services_config.get("chat_app", {}).get("agents_dir", "/root/archi/agents")
+        )
+        try:
+            agent_spec = select_agent_spec(agents_dir)
+        except AgentSpecError as exc:
+            raise ValueError(f"Failed to load agent spec: {exc}") from exc
+        default_provider = self.redmine_config.get("provider")
+        default_model = self.redmine_config.get("model")
+        self.archi = archi(
+            pipeline=agent_class,
+            agent_spec=agent_spec,
+            default_provider=default_provider,
+            default_model=default_model,
+        )
 
         # postgres connection info
         self.pg_config = {

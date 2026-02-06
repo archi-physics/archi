@@ -28,12 +28,22 @@ class BaseReActAgent:
         self,
         config: Dict[str, Any],
         *args,
+        agent_spec: Optional[Any] = None,
+        default_provider: Optional[str] = None,
+        default_model: Optional[str] = None,
         **kwargs,
     ) -> None:
         self.config = config
-        self.archi_config = self.config["archi"]
-        self.dm_config = self.config["data_manager"]
-        self.pipeline_config = self.archi_config["pipeline_map"][self.__class__.__name__]
+        self.archi_config = self.config.get("archi") or {}
+        self.dm_config = self.config.get("data_manager", {})
+        pipeline_map = self.archi_config.get("pipeline_map", {}) if isinstance(self.archi_config, dict) else {}
+        self.pipeline_config = pipeline_map.get(self.__class__.__name__, {}) if isinstance(pipeline_map, dict) else {}
+        self.agent_spec = agent_spec
+        self.default_provider = default_provider
+        self.default_model = default_model
+        self.selected_tool_names: List[str] = []
+        if agent_spec is not None:
+            self.selected_tool_names = list(getattr(agent_spec, "tools", []) or [])
         self._active_memory: Optional[DocumentMemory] = None
         self._static_tools: Optional[List[Callable]] = None
         self._active_tools: List[Callable] = []
@@ -324,11 +334,17 @@ class BaseReActAgent:
             yield output
 
     def _init_llms(self) -> None:
-        """Initialise language models declared for the pipeline."""
+        """Initialise language models for the agent."""
 
-        models_config = self.pipeline_config.get("models", {})
         self.llms: Dict[str, Any] = {}
 
+        if self.default_provider and self.default_model:
+            instance = get_model(self.default_provider, self.default_model)
+            self.llms["chat_model"] = instance
+            self.agent_llm = instance
+            return
+
+        models_config = self.pipeline_config.get("models", {}) if isinstance(self.pipeline_config, dict) else {}
         all_models = dict(models_config.get("required", {}), **models_config.get("optional", {}))
         initialised_models: Dict[str, Any] = {}
 
@@ -358,9 +374,14 @@ class BaseReActAgent:
         return provider, model_id
 
     def _init_prompts(self) -> None:
-        """Initialise prompts defined in pipeline configuration."""
+        """Initialise prompts defined in pipeline configuration or agent spec."""
 
-        prompts_config = self.pipeline_config.get("prompts", {})
+        if self.agent_spec is not None:
+            self.prompts = {}
+            self.agent_prompt = getattr(self.agent_spec, "prompt", None)
+            return
+
+        prompts_config = self.pipeline_config.get("prompts", {}) if isinstance(self.pipeline_config, dict) else {}
         required = prompts_config.get("required", {})
         optional = prompts_config.get("optional", {})
         all_prompts = {**optional, **required}
@@ -384,6 +405,27 @@ class BaseReActAgent:
                 )
                 continue
             self.prompts[name] = str(prompt_template) # TODO at some point, make a validated prompt class to check these?
+
+    def get_tool_registry(self) -> Dict[str, Callable[[], Any]]:
+        """Return a mapping of tool names to callables that build tools."""
+        return {}
+
+    def _select_tools_from_registry(self, tool_names: Sequence[str]) -> List[Callable]:
+        registry = self.get_tool_registry() or {}
+        if not tool_names:
+            return []
+        tools: List[Callable] = []
+        for name in tool_names:
+            builder = registry.get(name)
+            if not builder:
+                logger.warning("Tool '%s' not found in registry for %s", name, self.__class__.__name__)
+                continue
+            built = builder()
+            if isinstance(built, (list, tuple)):
+                tools.extend(list(built))
+            else:
+                tools.append(built)
+        return tools
 
     def rebuild_static_tools(self) -> List[Callable]:
         """Recompute and cache the static tool list."""
@@ -456,8 +498,8 @@ class BaseReActAgent:
         )
 
     def _build_static_tools(self) -> List[Callable]:
-        """Build and returns static tools defined in the config."""
-        return []
+        """Build static tools from the agent's tool registry."""
+        return self._select_tools_from_registry(self.selected_tool_names)
     
     def _build_static_middleware(self) -> List[Callable]:
         """Build and returns static middleware defined in the config."""

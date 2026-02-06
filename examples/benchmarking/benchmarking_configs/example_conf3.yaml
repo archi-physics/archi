@@ -1,10 +1,10 @@
 name: HuggingfaceEmbeddingHYBRID
 
 global:
-  TRAINED_ON: "the SubMIT Cluster"  
+  TRAINED_ON: "the SubMIT Cluster"
 
 data_manager:
-  input_lists:  
+  input_lists:
     - configs/benchmarking/ppc.list
   # Vector storage uses PostgreSQL with pgvector (only supported backend)
   embedding_name: HuggingFaceEmbeddings
@@ -12,33 +12,15 @@ data_manager:
   bm25_weight: 0.6
   semantic_weight: 0.4
 
-archi:
-  pipelines: 
-   - QAPipeline
-  providers:
-    openai:
-      enabled: true
-      base_url: https://api.openai.com/v1
-      default_model: gpt-4o
-      models:
-        - gpt-4o
-        - gpt-4o-mini
-  pipeline_map:
-    QAPipeline:
-      prompts:
-        required:
-          condense_prompt: configs/prompts/condense.prompt  
-          chat_prompt: configs/prompts/submit.prompt  
-      models:
-        required:
-          chat_model: openai/gpt-4o
-          condense_model: openai/gpt-4o
-
-
 services:
-  benchmarking: 
+  chat_app:
+    agent_class: QAPipeline
+    agents_dir: examples/agents
+    provider: openai
+    model: gpt-4o
+    prompts:
+      condense_prompt: configs/prompts/condense.prompt
+      chat_prompt: configs/prompts/submit.prompt
+
+  benchmarking:
     queries_path: configs/benchmarking/queries.json
-    out_dir: bench_out
-    modes: 
-      - "RAGAS"
-      - "SOURCES"

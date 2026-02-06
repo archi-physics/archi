@@ -8,9 +8,10 @@ Provides REST API endpoints for:
 - Analytics (model usage, A/B comparison stats)
 """
 import os
+from pathlib import Path
 from datetime import datetime
 from functools import wraps
-from typing import Optional
+from typing import List, Optional
 
 from flask import Blueprint, jsonify, request, g, current_app
 
@@ -18,11 +19,77 @@ from src.utils.postgres_service_factory import PostgresServiceFactory
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
 from src.utils.config_access import get_full_config
+from src.archi.agents import AgentSpecError, load_agent_spec
 
 logger = get_logger(__name__)
 
 # Create blueprint
 api = Blueprint('api', __name__, url_prefix='/api')
+
+
+def _get_agents_dir_from_config() -> str:
+    config = get_full_config()
+    services_cfg = config.get("services", {}) if isinstance(config, dict) else {}
+    chat_cfg = services_cfg.get("chat_app", {}) if isinstance(services_cfg, dict) else {}
+    return chat_cfg.get("agents_dir") or "/root/archi/agents"
+
+
+def _get_agent_class_name_from_config() -> Optional[str]:
+    config = get_full_config()
+    services_cfg = config.get("services", {}) if isinstance(config, dict) else {}
+    chat_cfg = services_cfg.get("chat_app", {}) if isinstance(services_cfg, dict) else {}
+    return chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+
+
+def _get_agent_tool_registry(agent_class_name: Optional[str]) -> List[str]:
+    if not agent_class_name:
+        return []
+    try:
+        from src.archi import pipelines
+    except Exception as exc:
+        logger.warning("Failed to import pipelines module: %s", exc)
+        return []
+    agent_cls = getattr(pipelines, agent_class_name, None)
+    if not agent_cls or not hasattr(agent_cls, "get_tool_registry"):
+        return []
+    try:
+        dummy = agent_cls.__new__(agent_cls)
+        registry = agent_cls.get_tool_registry(dummy) or {}
+        return sorted([name for name in registry.keys() if isinstance(name, str)])
+    except Exception as exc:
+        logger.warning("Failed to read tool registry for %s: %s", agent_class_name, exc)
+        return []
+
+
+def _build_agent_template(name: str, tools: List[str]) -> str:
+    tools_block = "\n".join(f"- {tool}" for tool in tools) if tools else "- <tool_name>"
+    tools_comment = "\n".join(f"- {tool}" for tool in tools) if tools else "- (no tools available)"
+    return (
+        f"# {name}\n\n"
+        "## Tools\n"
+        f"{tools_block}\n\n"
+        "## Prompt\n"
+        "Write your system prompt here.\n\n"
+        "<!--\n"
+        "Available tools (registry):\n"
+        f"{tools_comment}\n"
+        "-->\n"
+    )
+
+
+def _sanitize_filename(filename: str) -> Optional[str]:
+    import re
+    if not isinstance(filename, str):
+        return None
+    name = filename.strip().replace("\\", "/")
+    name = name.split("/")[-1]
+    if not name:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+        return None
+    if not name.endswith(".md"):
+        name = f"{name}.md"
+    return name
 
 
 def get_services() -> PostgresServiceFactory:
@@ -744,6 +811,65 @@ def get_ab_comparison_stats():
 # =============================================================================
 # Prompts Endpoints
 # =============================================================================
+
+@api.route('/agents/template', methods=['GET'])
+def get_agent_spec_template():
+    """
+    Return a prefilled agent spec template and available tools.
+    """
+    try:
+        agent_name = request.args.get("name") or "New Agent"
+        agent_class = _get_agent_class_name_from_config()
+        tools = _get_agent_tool_registry(agent_class)
+        return jsonify({
+            "name": agent_name,
+            "agent_class": agent_class,
+            "tools": tools,
+            "template": _build_agent_template(agent_name, tools),
+        }), 200
+    except Exception as exc:
+        logger.error(f"Error building agent template: {exc}")
+        return jsonify({'error': str(exc)}), 500
+
+
+@api.route('/agents', methods=['POST'])
+@require_client_id
+def save_agent_spec():
+    """
+    Save a new agent spec markdown file.
+    """
+    try:
+        data = request.get_json() or {}
+        filename = _sanitize_filename(data.get("filename", ""))
+        content = data.get("content")
+
+        if not filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+        if not content or not isinstance(content, str):
+            return jsonify({'error': 'Content is required'}), 400
+
+        agents_dir = Path(_get_agents_dir_from_config())
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        target_path = agents_dir / filename
+
+        if target_path.exists():
+            return jsonify({'error': f'File already exists: {filename}'}), 409
+
+        target_path.write_text(content)
+        try:
+            load_agent_spec(target_path)
+        except AgentSpecError as exc:
+            target_path.unlink(missing_ok=True)
+            return jsonify({'error': f'Invalid agent spec: {exc}'}), 400
+
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'path': str(target_path),
+        }), 200
+    except Exception as exc:
+        logger.error(f"Error saving agent spec: {exc}")
+        return jsonify({'error': str(exc)}), 500
 
 @api.route('/prompts', methods=['GET'])
 def list_prompts():

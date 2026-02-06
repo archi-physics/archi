@@ -47,12 +47,18 @@ services:
 
 
   piazza:
+    agent_class: {{ services.piazza.agent_class | default("QAPipeline", true) }}
+    provider: {{ services.piazza.provider }}
+    model: {{ services.piazza.model }}
     network_id: {{ services.piazza.network_id }}
     update_time: {{ services.piazza.update_time | default(60, true) }}
   mattermost:
     update_time: {{ services.mattermost.update_time | default(60, true) }}
   redmine_mailbox:
-    pipeline: {{ services.redmine_mailbox.pipeline | default('CMSCompOpsAgent', true) }}
+    agent_class: {{ services.redmine_mailbox.agent_class | default('CMSCompOpsAgent', true) }}
+    agents_dir: "{{ services.redmine_mailbox.agents_dir | default('', true) }}"
+    provider: {{ services.redmine_mailbox.provider }}
+    model: {{ services.redmine_mailbox.model }}
     url: {{ services.redmine_mailbox.url | default('', true) }}
     project: {{ services.redmine_mailbox.project | default('', true) }}
     redmine_update_time: {{ services.redmine_mailbox.redmine_update_time | default(10, true) }}
@@ -65,7 +71,21 @@ services:
     database: {{ services.postgres.database | default('archi-db', true) }}
     host: {{ 'localhost' if host_mode else (utils.postgres.host | default('postgres', true)) }}
   chat_app:
-    pipeline: {{ services.chat_app.pipeline | default("QAPipeline", true) }}
+    agent_class: {{ services.chat_app.agent_class | default("CMSCompOpsAgent", true) }}
+    agents_dir: "{{ services.chat_app.agents_dir | default('', true) }}"
+    provider: {{ services.chat_app.provider | default("local", true) }}
+    model: {{ services.chat_app.model | default("llama3.2", true) }}
+    prompts: {{ services.chat_app.prompts | default({}, true) }}
+    providers:
+      local:
+        enabled: {{ services.chat_app.providers.local.enabled | default(true, true) }}
+        base_url: {{ services.chat_app.providers.local.base_url | default("http://localhost:11434", true) }}
+        mode: {{ services.chat_app.providers.local.mode | default("ollama", true) }}
+        default_model: {{ services.chat_app.providers.local.default_model | default("llama3.2", true) }}
+        models:
+          {%- for m in services.chat_app.providers.local.models | default(["llama3.2"]) %}
+          - {{ m }}
+          {%- endfor %}
     trained_on: {{ services.chat_app.trained_on | default("No description provided.", true) }} # leaving for now for backwards compatibility can remove later
     port: {{ services.chat_app.port | default(7861, true) }}
     external_port: {{ services.chat_app.external_port | default(7861, true) }}
@@ -99,6 +119,13 @@ services:
     static_folder: "{{ services.data_manager.static_folder | default('/root/archi/src/interfaces/chat_app/static', true) }}"
     flask_debug_mode: {{ services.data_manager.flask_debug_mode | default(false, true) }}
   grader_app:
+    provider: {{ services.grader_app.provider }}
+    model: {{ services.grader_app.model }}
+    prompts:
+      grading:
+        final_grade_prompt: "{{ services.grader_app.prompts.grading.final_grade_prompt }}"
+      image_processing:
+        image_processing_prompt: "{{ services.grader_app.prompts.image_processing.image_processing_prompt }}"
     port: {{ services.grader_app.port | default(7861, true) }}
     external_port: {{ services.grader_app.external_port | default(7862, true) }}
     host: {{ services.grader_app.host | default("0.0.0.0", true) }}
@@ -237,98 +264,3 @@ data_manager:
           {%- endfor %}
         email_pattern: '{{ data_manager.utils.anonymizer.email_pattern | default("[\\w\\.-]+@[\\w\\.-]+\\.\\w+") }}'
         username_pattern: '{{ data_manager.utils.anonymizer.username_pattern | default("\\[~[^\\]]+\\]") }}'
-
-archi:
-  pipelines: {{ archi.pipelines | default(['QAPipeline'], true) }}
-  agent_description: {{ archi.agent_description | default('No description provided', true) }}
-  providers:
-    openai:
-      enabled: {{ archi.providers.openai.enabled | default(true, true) }}
-      api_key_env: {{ archi.providers.openai.api_key_env | default("OPENAI_API_KEY", true) }}
-      base_url: {{ archi.providers.openai.base_url | default("", true) }}
-      default_model: {{ archi.providers.openai.default_model | default("gpt-4o", true) }}
-      models:
-        {%- for m in archi.providers.openai.models | default(["gpt-4o","gpt-4o-mini","gpt-3.5-turbo"]) %}
-        - {{ m }}
-        {%- endfor %}
-    anthropic:
-      enabled: {{ archi.providers.anthropic.enabled | default(false, true) }}
-      api_key_env: {{ archi.providers.anthropic.api_key_env | default("ANTHROPIC_API_KEY", true) }}
-      base_url: {{ archi.providers.anthropic.base_url | default("", true) }}
-      default_model: {{ archi.providers.anthropic.default_model | default("claude-3-opus-20240229", true) }}
-      models:
-        {%- for m in archi.providers.anthropic.models | default(["claude-3-opus-20240229","claude-3-sonnet-20240229"]) %}
-        - {{ m }}
-        {%- endfor %}
-    openrouter:
-      enabled: {{ archi.providers.openrouter.enabled | default(false, true) }}
-      api_key_env: {{ archi.providers.openrouter.api_key_env | default("OPENROUTER_API_KEY", true) }}
-      base_url: {{ archi.providers.openrouter.base_url | default("https://openrouter.ai/api/v1", true) }}
-      default_model: {{ archi.providers.openrouter.default_model | default("openai/gpt-4o-mini", true) }}
-      models:
-        {%- for m in archi.providers.openrouter.models | default(["openai/gpt-4o-mini","openai/gpt-4o"]) %}
-        - {{ m }}
-        {%- endfor %}
-    gemini:
-      enabled: {{ archi.providers.gemini.enabled | default(false, true) }}
-      api_key_env: {{ archi.providers.gemini.api_key_env | default("GEMINI_API_KEY", true) }}
-      base_url: {{ archi.providers.gemini.base_url | default("", true) }}
-      default_model: {{ archi.providers.gemini.default_model | default("gemini-1.5-pro", true) }}
-      models:
-        {%- for m in archi.providers.gemini.models | default(["gemini-1.5-pro","gemini-1.5-flash"]) %}
-        - {{ m }}
-        {%- endfor %}
-    local:
-      enabled: {{ archi.providers.local.enabled | default(true, true) }}
-      base_url: {{ archi.providers.local.base_url | default("http://localhost:11434", true) }}
-      mode: {{ archi.providers.local.mode | default("ollama", true) }}
-      default_model: {{ archi.providers.local.default_model | default("llama3.2", true) }}
-      models:
-        {%- for m in archi.providers.local.models | default(["llama3.2"]) %}
-        - {{ m }}
-        {%- endfor %}
-
-  pipeline_map:
-    QAPipeline:
-      max_tokens: {{ archi.pipeline_map.QAPipeline.max_tokens | default(10000, true) }}
-      prompts:
-        required:
-          condense_prompt: {% if archi.pipeline_map.QAPipeline.prompts.required.condense_prompt %}"{{ archi.pipeline_map.QAPipeline.prompts.required.condense_prompt }}"{% else %}null{% endif %}
-          chat_prompt: {% if archi.pipeline_map.QAPipeline.prompts.required.chat_prompt %}"{{ archi.pipeline_map.QAPipeline.prompts.required.chat_prompt }}"{% else %}null{% endif %}
-      models:
-        required:
-          condense_model: {{ archi.pipeline_map.QAPipeline.models.required.condense_model | default('openai/gpt-4o-mini', true) }}
-          chat_model: {{ archi.pipeline_map.QAPipeline.models.required.chat_model | default('openai/gpt-4o', true) }}
-    GradingPipeline:
-      max_tokens: {{ archi.pipeline_map.GradingPipeline.max_tokens | default(10000, true) }}
-      prompts:
-        required:
-          final_grade_prompt: {% if archi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt %}"{{ archi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt }}"{% else %}null{% endif %}
-        optional:
-          summary_prompt: {% if archi.pipeline_map.GradingPipeline.prompts.optional.summary_prompt %}"{{ archi.pipeline_map.GradingPipeline.prompts.optional.summary_prompt }}"{% else %}null{% endif %}
-          analysis_prompt: {% if archi.pipeline_map.GradingPipeline.prompts.optional.analysis_prompt %}"{{ archi.pipeline_map.GradingPipeline.prompts.optional.analysis_prompt }}"{% else %}null{% endif %}
-      models:
-        required:
-          final_grade_model: {{ archi.pipeline_map.GradingPipeline.models.required.final_grade_model | default('openai/gpt-4o', true) }}
-        optional:
-          summary_model: {{ archi.pipeline_map.GradingPipeline.models.optional.summary_model | default('openai/gpt-4o', true) }}
-          analysis_model: {{ archi.pipeline_map.GradingPipeline.models.optional.analysis_model | default('openai/gpt-4o', true) }}
-    ImageProcessingPipeline:
-      max_tokens: {{ archi.pipeline_map.ImageProcessingPipeline.max_tokens | default(10000, true) }}
-      prompts:
-        required:
-          image_processing_prompt: {% if archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt %}"{{ archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt }}"{% else %}null{% endif %}
-      models:
-        required:
-          image_processing_model: {{ archi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model | default('openai/gpt-4o', true) }}
-    CMSCompOpsAgent:
-      recursion_limit: {{ archi.pipeline_map.CMSCompOpsAgent.recursion_limit | default(100, true) }}
-      prompts:
-        required:
-          agent_prompt: {% if archi.pipeline_map.CMSCompOpsAgent.prompts.required.agent_prompt %}"{{ archi.pipeline_map.CMSCompOpsAgent.prompts.required.agent_prompt }}"{% else %}null{% endif %}
-      models:
-        required:
-          agent_model: {{ archi.pipeline_map.CMSCompOpsAgent.models.required.agent_model | default('openai/gpt-4o', true) }}
-
-  chain_update_time: {{ archi.chain_update_time | default(10, true) }}
-  mcp_servers: {{ archi.mcp_servers | default({}, true) }}

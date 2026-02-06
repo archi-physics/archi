@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from typing import List, Any
+from typing import List, Any, Tuple
 from src.utils.logging import get_logger
-from src.utils.config_access import get_archi_config
-
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.tools import BaseTool
 
 logger = get_logger(__name__)
 
-async def initialize_mcp_client() -> Tuple[MultiServerMCPClient, List[BaseTool]]:
+async def initialize_mcp_client(mcp_servers: dict) -> Tuple[MultiServerMCPClient, List[BaseTool]]:
     """
     Initializes the MCP client and fetches tool definitions.
     Returns:
@@ -18,8 +16,6 @@ async def initialize_mcp_client() -> Tuple[MultiServerMCPClient, List[BaseTool]]
         tools: The list of LangChain-compatible tools.
     """
 
-    archi_cfg = get_archi_config()
-    mcp_servers = archi_cfg.get("mcp_servers") or {}
     client = MultiServerMCPClient(mcp_servers)
 
     all_tools: List[BaseTool] = []

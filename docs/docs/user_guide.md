@@ -25,13 +25,11 @@ archi create [...] --services=chatbot,piazza,... --sources jira,redmine,...
 ```
 The parameters of the services and sources are configured via the configuration file. See below for more details.
 
-We support various **pipelines** which are pre-defined sequences of operations that process user inputs and generate responses.
-Each service may support a given pipeline.
+We support various **pipelines** (agent classes and classic pipelines) which are pre-defined sequences of operations that process user inputs and generate responses.
+Each service may support a given pipeline. Agent prompts and tool subsets are defined in agent markdown files, while the agent class and default model are configured per service.
 See the `Services` and `Pipelines` sections below for more details.
-For each pipeline, you can use different models, retrievers, and prompts for different steps of the pipeline.
 We support various **models** for both embeddings and LLMs, which can be run locally or accessed via APIs.
 See the `Models` section below for more details.
-Both pipelines and models are configured via the configuration file.
 
 Finally, we support various **retrievers** and **embedding techniques** for document retrieval.
 These are configured via the configuration file.
@@ -58,6 +56,21 @@ In addition to the required `--name`, `--config/--config-dir`, `--env-file`, and
 2. **`--sources` / `-src`**: Enable additional ingestion sources (`git`, `sso`, `jira`, `redmine`, ...). Provide a comma-separated list.
 3. **`--gpu-ids`**: Mount specific GPUs (`--gpu-ids all` or `--gpu-ids 0,1`). The legacy `--gpu` flag still works but maps to `all`.
 4. **`--tag`**: Override the local image tag (defaults to `2000`). Handy when building multiple configurations side-by-side.
+5. **`--agents` / `-a`**: Path to a directory of agent markdown files. At least one `*.md` file is required.
+
+### Agent specs
+
+Agent specs live in a directory you pass via `--agents`. Each `*.md` file must include:
+
+- A top-level `# Name` heading
+- A `## Tools` section with a bullet list of tool names
+- A `## Prompt` section containing the inline system prompt
+
+The service selects the first agent spec in lexicographic order.
+The `tools` list enables a subset of tools defined by the agent class.
+
+In the chat UI, use the agent dropdown in the header to switch the active agent, edit or delete existing agents, or add
+a new one with the plus button. The selection is persisted and takes effect on the next request.
 5. **`--hostmode`**: Use host networking for all services.
 6. **`--verbosity` / `-v`**: Control CLI logging level (0 = quiet, 4 = debug).
 7. **`--force`** / **`--dry-run`**: Force recreation of an existing deployment and/or show what would happen without actually deploying.
@@ -360,11 +373,11 @@ data_manager:
       input_lists:
         - class_info.list # class info links
 
-archi:
-  [... archi config ...]
-
 services:
   piazza:
+    agent_class: QAPipeline
+    provider: local
+    model: llama3.2
     network_id: <your Piazza network ID here> # REQUIRED
   chat_app:
     trained_on: "Your class materials" # REQUIRED
@@ -554,29 +567,17 @@ The required fields in the configuration file are different from the rest of the
 ```yaml
 name: grading_test # REQUIRED
 
-archi:
-  pipelines:
-    - GradingPipeline
-  pipeline_map:
-    GradingPipeline:
-      prompts:
-        required:
-          final_grade_prompt: final_grade.prompt
-      models:
-        required:
-          final_grade_model: OllamaInterface
-    ImageProcessingPipeline:
-      prompts:
-        required:
-          image_processing_prompt: image_processing.prompt
-      models:
-        required:
-          image_processing_model: OllamaInterface
-
 services:
   chat_app:
     trained_on: "rubrics, class info, etc." # REQUIRED
   grader_app:
+    provider: local
+    model: llama3.2
+    prompts:
+      grading:
+        final_grade_prompt: final_grade.prompt
+      image_processing:
+        image_processing_prompt: image_processing.prompt
     num_problems: 1 # REQUIRED
     local_rubric_dir: ~/grading/my_rubrics # REQUIRED
     local_users_csv_dir: ~/grading/logins # REQUIRED
@@ -586,18 +587,14 @@ data_manager:
 ```
 
 1. `name` -- The name of your configuration (required).
-2. `archi.pipelines` -- List of pipelines to use (e.g., `GradingPipeline`, `ImageProcessingPipeline`).
-3. `archi.pipeline_map` -- Mapping of pipelines to their required prompts and models.
-4. `archi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt` -- Path to the grading prompt file for evaluating student solutions.
-5. `archi.pipeline_map.GradingPipeline.models.required.final_grade_model` -- Model class for grading (e.g., `OllamaInterface`, `HuggingFaceOpenLLM`).
-6. `archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt` -- Path to the prompt file for image processing.
-7. `archi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model` -- Model class for image processing (e.g., `OllamaInterface`, `HuggingFaceImageLLM`).
-8. `services.chat_app.trained_on` -- A brief description of the data or materials Archi is trained on (required).
-9. `services.grader_app.num_problems` -- Number of problems the grading service should expect (must match the number of rubric files).
-10. `services.grader_app.local_rubric_dir` -- Directory containing the `solution_with_rubric_*.txt` files.
-11. `services.grader_app.local_users_csv_dir` -- Directory containing the `users.csv` file.
-
-For ReAct-style agents (e.g., `CMSCompOpsAgent`), you may optionally set `archi.pipeline_map.<Agent>.recursion_limit` (default `100`) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.
+2. `services.grader_app.provider` -- Provider for grading/image pipelines (e.g., `local`, `openai`).
+3. `services.grader_app.model` -- Default model id for grading/image pipelines.
+4. `services.grader_app.prompts.grading.final_grade_prompt` -- Path to the grading prompt file for evaluating student solutions.
+5. `services.grader_app.prompts.image_processing.image_processing_prompt` -- Path to the prompt file for image processing.
+6. `services.chat_app.trained_on` -- A brief description of the data or materials Archi is trained on (required).
+7. `services.grader_app.num_problems` -- Number of problems the grading service should expect (must match the number of rubric files).
+8. `services.grader_app.local_rubric_dir` -- Directory containing the `solution_with_rubric_*.txt` files.
+9. `services.grader_app.local_users_csv_dir` -- Directory containing the `users.csv` file.
 
 #### Running
 
@@ -633,34 +630,27 @@ We support the following model classes in `models.py` for models accessed via AP
 
 #### OpenRouter
 
-OpenRouter uses the OpenAI-compatible API. Configure it by setting `OpenRouterLLM` in your config and providing
-`OPENROUTER_API_KEY`. Optional attribution headers can be set via `OPENROUTER_SITE_URL` and `OPENROUTER_APP_NAME`.
-
-```yaml
-archi:
-  model_class_map:
-    OpenRouterLLM:
-      class: OpenRouterLLM
-      kwargs:
-        model_name: openai/gpt-4o-mini
-        temperature: 0.7
-```
+OpenRouter uses the OpenAI-compatible API. No config entry is required for API-key providers; if
+`OPENROUTER_API_KEY` is set, the provider appears in the chat UI. To make OpenRouter the default,
+set `services.chat_app.provider` and `services.chat_app.model` accordingly.
 
 ### Ollama
 
-In order to use an Ollama server instance for the chatbot, it is possible to specify `OllamaInterface` for the model name. To then correctly use models on the Ollama server, in the keyword args, specify both the url of the server and the name of a model hosted on the server.
+Configure Ollama under `services.chat_app.providers.local`, and set `services.chat_app.provider: local` with
+`services.chat_app.model` to the model id you want as the default. Example:
 
 ```yaml
-archi:
-  model_class_map:
-    OllamaInterface:
-      kwargs:
-        base_model: "gemma3" # example
-        url: "url-for-server"
-
+services:
+  chat_app:
+    provider: local
+    model: llama3.2
+    providers:
+      local:
+        base_url: http://localhost:11434
+        mode: ollama
+        models:
+          - llama3.2
 ```
-
-In this case, the `gemma3` model is hosted on the Ollama server at `url-for-server`. You can check which models are hosted on your server by going to `url-for-server/models`.
 
 ### Bring Your Own Key (BYOK)
 

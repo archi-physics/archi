@@ -160,6 +160,7 @@ services:
       - {{ chatbot_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -281,6 +282,7 @@ services:
       - {{ grader_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -341,6 +343,7 @@ services:
       - {{ data_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -399,6 +402,7 @@ services:
       - {{ data_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -459,6 +463,7 @@ services:
       - {{ data_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -516,6 +521,7 @@ services:
     volumes:
       - ./config.yaml:/root/archi/config.yaml
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -592,6 +598,7 @@ services:
       - ./queries.txt:/root/archi/QandA.txt
       - {{ benchmarking_dest }}:/root/archi/benchmarks
       - ./data/prompts:/root/archi/data/prompts:ro
+      - ./data/agents:/root/archi/agents:ro
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}

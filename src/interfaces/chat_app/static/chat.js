@@ -42,6 +42,11 @@ const CONFIG = {
     CLEAR_PROVIDER_KEY: '/api/providers/keys/clear',
     PIPELINE_DEFAULT_MODEL: '/api/pipeline/default_model',
     AGENT_INFO: '/api/agent/info',
+    AGENT_TEMPLATE: '/api/agents/template',
+    AGENT_SAVE: '/api/agents',
+    AGENTS_LIST: '/api/agents/list',
+    AGENT_SPEC: '/api/agents/spec',
+    AGENT_ACTIVE: '/api/agents/active',
   },
   STREAMING: {
     TIMEOUT: 300000, // 5 minutes
@@ -78,6 +83,11 @@ const Utils = {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  },
+
+  normalizeAgentName(name) {
+    if (!name) return name;
+    return name.replace(/^name:\s*/i, '').trim();
   },
 
   /**
@@ -323,6 +333,55 @@ const API = {
     return this.fetchJson(url);
   },
 
+  async getAgentTemplate(name = null) {
+    const url = name
+      ? `${CONFIG.ENDPOINTS.AGENT_TEMPLATE}?name=${encodeURIComponent(name)}`
+      : CONFIG.ENDPOINTS.AGENT_TEMPLATE;
+    return this.fetchJson(url);
+  },
+
+  async getAgentsList() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENTS_LIST);
+  },
+
+  async getAgentSpec(name) {
+    const url = `${CONFIG.ENDPOINTS.AGENT_SPEC}?name=${encodeURIComponent(name)}`;
+    return this.fetchJson(url);
+  },
+
+  async setActiveAgent(name) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_ACTIVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
+  async deleteAgent(name) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_SAVE, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
+  async saveAgentSpec(payload) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_SAVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
   async getProviderModels(providerType) {
     const url = `${CONFIG.ENDPOINTS.PROVIDER_MODELS}?provider=${encodeURIComponent(providerType)}`;
     return this.fetchJson(url);
@@ -478,7 +537,7 @@ const UI = {
       messagesInner: document.querySelector('.messages-inner'),
       inputField: document.querySelector('.input-field'),
       sendBtn: document.querySelector('.send-btn'),
-      modelSelectA: document.querySelector('.model-select-a'),
+      modelSelectA: null,
       modelSelectB: document.querySelector('.model-select-b'),
       settingsBtn: document.querySelector('.settings-btn'),
       dataTab: document.getElementById('data-tab'),
@@ -488,11 +547,24 @@ const UI = {
       abCheckbox: document.querySelector('.ab-checkbox'),
       abModelGroup: document.querySelector('.ab-model-group'),
       traceVerboseOptions: document.querySelector('.trace-verbose-options'),
-      agentInfoBtn: document.querySelector('.agent-info-btn'),
+      agentDropdown: document.querySelector('.agent-dropdown'),
+      agentDropdownBtn: document.querySelector('.agent-dropdown-btn'),
+      agentDropdownMenu: document.querySelector('.agent-dropdown-menu'),
+      agentDropdownLabel: document.querySelector('.agent-dropdown-label'),
+      agentDropdownList: document.querySelector('.agent-dropdown-list'),
+      agentDropdownAdd: document.querySelector('.agent-dropdown-add'),
       agentInfoModal: document.querySelector('.agent-info-modal'),
       agentInfoBackdrop: document.querySelector('.agent-info-backdrop'),
       agentInfoClose: document.querySelector('.agent-info-close'),
       agentInfoContent: document.getElementById('agent-info-content'),
+      agentSpecModal: document.querySelector('.agent-spec-modal'),
+      agentSpecBackdrop: document.querySelector('.agent-spec-backdrop'),
+      agentSpecClose: document.querySelector('.agent-spec-close'),
+      agentSpecTitle: document.getElementById('agent-spec-title'),
+      agentSpecEditor: document.getElementById('agent-spec-editor'),
+      agentSpecStatus: document.getElementById('agent-spec-status'),
+      agentSpecSave: document.querySelector('.agent-spec-save'),
+      agentSpecReset: document.querySelector('.agent-spec-reset'),
       // Provider selection elements
       providerSelect: document.getElementById('provider-select'),
       modelSelectPrimary: document.getElementById('model-select-primary'),
@@ -505,6 +577,13 @@ const UI = {
     };
 
     this.sendBtnDefaultHtml = this.elements.sendBtn?.innerHTML || '';
+
+    if (this.elements.agentDropdownMenu) {
+      this.elements.agentDropdownMenu.hidden = true;
+    }
+    if (this.elements.agentDropdownBtn) {
+      this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
 
     this.bindEvents();
     this.initTraceVerboseMode();
@@ -568,15 +647,53 @@ const UI = {
       }
     });
 
-    // Agent info modal
-    this.elements.agentInfoBtn?.addEventListener('click', () => {
-      this.openAgentInfo();
-    });
     this.elements.agentInfoBackdrop?.addEventListener('click', () => {
       this.closeAgentInfo();
     });
     this.elements.agentInfoClose?.addEventListener('click', () => {
       this.closeAgentInfo();
+    });
+    this.elements.agentDropdownBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAgentDropdown();
+    });
+    this.elements.agentDropdownAdd?.addEventListener('click', () => {
+      this.closeAgentDropdown();
+      this.openAgentSpecEditor({ mode: 'create' });
+    });
+    this.elements.agentDropdownList?.addEventListener('click', (e) => {
+      const target = e.target;
+      const row = target.closest('.agent-dropdown-item');
+      if (!row) return;
+      if (target.classList.contains('agent-dropdown-edit')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.openAgentSpecEditor({ mode: 'edit', name });
+        return;
+      }
+      if (target.classList.contains('agent-dropdown-delete')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.deleteAgent(name);
+        return;
+      }
+      if (row.dataset.agentName && !target.closest('.agent-dropdown-actions')) {
+        this.closeAgentDropdown();
+        Chat.setActiveAgent(row.dataset.agentName);
+      }
+    });
+    this.elements.agentSpecBackdrop?.addEventListener('click', () => {
+      this.closeAgentSpecEditor();
+    });
+    this.elements.agentSpecClose?.addEventListener('click', () => {
+      this.closeAgentSpecEditor();
+    });
+    this.elements.agentSpecReset?.addEventListener('click', () => {
+      this.loadAgentSpecTemplate();
+    });
+    this.elements.agentSpecSave?.addEventListener('click', () => {
+      this.saveAgentSpec();
     });
     
     // A/B toggle in settings
@@ -648,8 +765,21 @@ const UI = {
       if (e.key === 'Escape' && this.elements.settingsModal?.style.display !== 'none') {
         this.closeSettings();
       }
+      if (e.key === 'Escape' && this.elements.agentSpecModal?.style.display !== 'none') {
+        this.closeAgentSpecEditor();
+      }
+      if (e.key === 'Escape' && this.elements.agentDropdownMenu && !this.elements.agentDropdownMenu.hidden) {
+        this.closeAgentDropdown();
+      }
       if (e.key === 'Escape' && this.elements.agentInfoModal?.style.display !== 'none') {
         this.closeAgentInfo();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!this.elements.agentDropdownMenu || this.elements.agentDropdownMenu.hidden) return;
+      if (!this.elements.agentDropdown?.contains(e.target)) {
+        this.closeAgentDropdown();
       }
     });
     
@@ -722,15 +852,27 @@ const UI = {
     try {
       const configName = this.getSelectedConfig('A');
       const info = await API.getAgentInfo(configName);
-      const agentLabel = Chat.getAgentLabel();
+      const agentLabel = Utils.normalizeAgentName(info?.agent_name || Chat.getAgentLabel());
+      if (info?.agent_name && !Chat.state.activeAgentName) {
+        Chat.state.activeAgentName = Utils.normalizeAgentName(info.agent_name);
+        if (this.elements.agentDropdownLabel) {
+          this.elements.agentDropdownLabel.textContent = Utils.normalizeAgentName(info.agent_name);
+        }
+      }
       const modelLabel = Chat.getCurrentModelLabel();
       const pipelineLabel = info?.pipeline || 'Unknown';
       const embeddingLabel = info?.embedding_name || 'Not specified';
       const sources = Array.isArray(info?.data_sources) ? info.data_sources : [];
+      const tools = Array.isArray(info?.agent_tools) ? info.agent_tools : [];
+      const prompt = info?.agent_prompt || '';
 
       const sourcesHtml = sources.length
         ? `<ul class="agent-info-list">${sources.map(source => `<li>${Utils.escapeHtml(source)}</li>`).join('')}</ul>`
         : '<p>No data sources configured.</p>';
+
+      const toolsHtml = tools.length
+        ? `<ul class="agent-info-list">${tools.map(tool => `<li>${Utils.escapeHtml(tool)}</li>`).join('')}</ul>`
+        : '<p>No tools configured.</p>';
 
       this.elements.agentInfoContent.innerHTML = `
         <div class="agent-info-section">
@@ -752,11 +894,164 @@ const UI = {
         <div class="agent-info-section">
           <h4>Data sources</h4>
           ${sourcesHtml}
+        </div>
+        <div class="agent-info-section">
+          <h4>Tools</h4>
+          ${toolsHtml}
+        </div>
+        <div class="agent-info-section">
+          <h4>Prompt</h4>
+          <pre class="agent-info-prompt">${Utils.escapeHtml(prompt)}</pre>
         </div>`;
     } catch (e) {
       console.error('Failed to load agent info:', e);
       this.elements.agentInfoContent.innerHTML = `
         <p class="agent-info-loading">Unable to load agent info. Please try again.</p>`;
+    }
+  },
+
+  toggleAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    if (this.elements.agentDropdownMenu.hidden) {
+      this.openAgentDropdown();
+    } else {
+      this.closeAgentDropdown();
+    }
+  },
+
+  openAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    this.elements.agentDropdownMenu.hidden = false;
+    this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'true');
+  },
+
+  closeAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    this.elements.agentDropdownMenu.hidden = true;
+    this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'false');
+  },
+
+  renderAgentsList(agents = [], activeName = null) {
+    if (this.elements.agentDropdownLabel) {
+      this.elements.agentDropdownLabel.textContent = Utils.normalizeAgentName(activeName) || 'Agent';
+    }
+    if (!this.elements.agentDropdownList) return;
+    let activeMatched = false;
+    const rows = agents.map((agent) => {
+      const rawName = agent.name || agent.filename || 'Unknown';
+      const name = Utils.normalizeAgentName(rawName);
+      let isActive = false;
+      if (!activeMatched && activeName && Utils.normalizeAgentName(activeName) === name) {
+        isActive = true;
+        activeMatched = true;
+      }
+      return `
+        <div class="agent-dropdown-item${isActive ? ' active' : ''}" data-agent-name="${Utils.escapeHtml(name)}">
+          <span>${Utils.escapeHtml(name)}</span>
+          <div class="agent-dropdown-actions">
+            <button class="agent-dropdown-edit" type="button">Edit</button>
+            <button class="agent-dropdown-delete" type="button">Delete</button>
+          </div>
+        </div>`;
+    });
+    this.elements.agentDropdownList.innerHTML = rows.length
+      ? rows.join('')
+      : '<div class="agent-dropdown-item">No agents found</div>';
+  },
+
+  async openAgentSpecEditor({ mode = 'create', name = null } = {}) {
+    if (!this.elements.agentSpecModal) return;
+    this.elements.agentSpecModal.style.display = 'flex';
+    this.setAgentSpecStatus('');
+    this.agentSpecMode = mode;
+    this.agentSpecName = name;
+    if (this.elements.agentSpecTitle) {
+      this.elements.agentSpecTitle.textContent = mode === 'edit' ? `Edit ${name || 'Agent'}` : 'New Agent';
+    }
+    if (mode === 'edit' && name) {
+      await this.loadAgentSpecByName(name);
+    } else {
+      await this.loadAgentSpecTemplate();
+    }
+  },
+
+  closeAgentSpecEditor() {
+    if (this.elements.agentSpecModal) {
+      this.elements.agentSpecModal.style.display = 'none';
+    }
+  },
+
+  setAgentSpecStatus(message, type = '') {
+    if (!this.elements.agentSpecStatus) return;
+    this.elements.agentSpecStatus.textContent = message || '';
+    this.elements.agentSpecStatus.classList.remove('error', 'success');
+    if (type) {
+      this.elements.agentSpecStatus.classList.add(type);
+    }
+  },
+
+  async loadAgentSpecTemplate() {
+    if (!this.elements.agentSpecEditor) return;
+    this.elements.agentSpecEditor.value = 'Loading template...';
+    this.setAgentSpecStatus('');
+    try {
+      const response = await API.getAgentTemplate();
+      this.elements.agentSpecEditor.value = response?.template || '';
+    } catch (e) {
+      console.error('Failed to load agent template:', e);
+      this.elements.agentSpecEditor.value = '';
+      this.setAgentSpecStatus('Unable to load agent template.', 'error');
+    }
+  },
+
+  async loadAgentSpecByName(name) {
+    if (!this.elements.agentSpecEditor) return;
+    this.elements.agentSpecEditor.value = 'Loading agent...';
+    this.setAgentSpecStatus('');
+    try {
+      const response = await API.getAgentSpec(name);
+      this.elements.agentSpecEditor.value = response?.content || '';
+    } catch (e) {
+      console.error('Failed to load agent spec:', e);
+      this.elements.agentSpecEditor.value = '';
+      this.setAgentSpecStatus('Unable to load agent spec.', 'error');
+    }
+  },
+
+  async saveAgentSpec() {
+    const content = this.elements.agentSpecEditor?.value || '';
+    if (!content) {
+      this.setAgentSpecStatus('Agent markdown is required.', 'error');
+      return;
+    }
+    if (this.elements.agentSpecSave) {
+      this.elements.agentSpecSave.disabled = true;
+    }
+    this.setAgentSpecStatus('Saving...');
+    try {
+      const response = await API.saveAgentSpec({
+        content,
+        mode: this.agentSpecMode || 'create',
+        existing_name: this.agentSpecName || null,
+      });
+      if (this.agentSpecMode === 'edit') {
+        const savedName = Utils.normalizeAgentName(response?.name || this.agentSpecName || '');
+        if (savedName) {
+          this.agentSpecName = savedName;
+        }
+        if (Utils.normalizeAgentName(Chat.state.activeAgentName) === Utils.normalizeAgentName(savedName)) {
+          await Chat.setActiveAgent(savedName);
+        }
+      }
+      this.setAgentSpecStatus('Saved agent spec.', 'success');
+      await Chat.loadAgents();
+    } catch (e) {
+      console.error('Failed to save agent spec:', e);
+      this.setAgentSpecStatus(e.message || 'Unable to save agent spec.', 'error');
+    } finally {
+      if (this.elements.agentSpecSave) {
+        this.elements.agentSpecSave.disabled = false;
+      }
     }
   },
 
@@ -844,17 +1139,11 @@ const UI = {
   },
 
   getSelectedConfig(which = 'A') {
-    const select = this.elements.modelSelectA;
-    return select?.value ?? '';
+    return Chat.state.configs?.[0]?.name || '';
   },
 
   renderConfigs(configs) {
-    [this.elements.modelSelectA, this.elements.modelSelectB].forEach((select) => {
-      if (!select) return;
-      select.innerHTML = configs
-        .map((c) => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)}</option>`)
-        .join('');
-    });
+    // Config selector removed from UI; keep configs in state only.
   },
 
   renderProviders(providers, selectedProvider = null) {
@@ -1685,6 +1974,8 @@ const Chat = {
     selectedCustomModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_CUSTOM) || null,
     selectedProviderB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B) || null,
     selectedModelB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_B) || null,
+    agents: [],
+    activeAgentName: null,
   },
 
   async init() {
@@ -1698,6 +1989,7 @@ const Chat = {
       this.loadProviders(),
       this.loadPipelineDefaultModel(),
       this.loadApiKeyStatus(),
+      this.loadAgents(),
     ]);
 
     // Update model label after all data is loaded (configs, providers, pipeline default)
@@ -1717,6 +2009,45 @@ const Chat = {
       UI.renderConfigs(this.state.configs);
     } catch (e) {
       console.error('Failed to load configs:', e);
+    }
+  },
+
+  async loadAgents() {
+    try {
+      const data = await API.getAgentsList();
+      this.state.agents = data?.agents || [];
+      const activeName = data?.active_name || this.state.agents[0]?.name || null;
+      this.state.activeAgentName = Utils.normalizeAgentName(activeName);
+      UI.renderAgentsList(this.state.agents, this.state.activeAgentName);
+      this.updateActiveModelLabel();
+    } catch (e) {
+      console.error('Failed to load agents list:', e);
+    }
+  },
+
+  async setActiveAgent(name) {
+    if (!name) return;
+    try {
+      const response = await API.setActiveAgent(name);
+      const activeName = response?.active_name || name;
+      this.state.activeAgentName = Utils.normalizeAgentName(activeName);
+      UI.renderAgentsList(this.state.agents, this.state.activeAgentName);
+      this.updateActiveModelLabel();
+    } catch (e) {
+      console.error('Failed to set active agent:', e);
+    }
+  },
+
+  async deleteAgent(name) {
+    if (!name) return;
+    const confirmed = window.confirm(`Delete agent "${name}"? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      await API.deleteAgent(Utils.normalizeAgentName(name));
+      await this.loadAgents();
+    } catch (e) {
+      console.error('Failed to delete agent:', e);
+      alert(e.message || 'Unable to delete agent.');
     }
   },
 
@@ -1778,9 +2109,10 @@ const Chat = {
   },
 
   getAgentLabel() {
-    const selectedConfig = UI.getSelectedConfig('A');
-    if (selectedConfig) return selectedConfig;
-    return this.state.configs[0]?.name || 'Default agent';
+    if (this.state.activeAgentName) {
+      return this.state.activeAgentName;
+    }
+    return 'Default agent';
   },
 
   getCurrentModelLabel() {
@@ -2044,6 +2376,12 @@ const Chat = {
       await this.loadConversations(); // Refresh list to show active state
     } catch (e) {
       console.error('Failed to load conversation:', e);
+      this.state.conversationId = null;
+      this.state.messages = [];
+      this.state.history = [];
+      Storage.setActiveConversationId(null);
+      UI.renderMessages([]);
+      UI.showToast('Conversation not found. Starting a new chat.');
     }
   },
 
@@ -2421,6 +2759,19 @@ const Chat = {
 
     // Create abort controller for cancellation
     this.state.abortController = new AbortController();
+    let timeoutId = null;
+    let timedOut = false;
+
+    const resetTimeout = () => {
+      if (!CONFIG.STREAMING.TIMEOUT) return;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        this.state.abortController?.abort();
+      }, CONFIG.STREAMING.TIMEOUT);
+    };
 
     // Create trace container if in verbose/normal mode
     const showTrace = this.state.traceVerboseMode !== 'minimal';
@@ -2431,6 +2782,8 @@ const Chat = {
     try {
       // Get selected provider and model
       const { provider, model } = this.getSelectedProviderAndModel();
+
+      resetTimeout();
       
       for await (const event of API.streamResponse(
         this.state.history,
@@ -2440,6 +2793,7 @@ const Chat = {
         provider,
         model
       )) {
+        resetTimeout();
         // Handle trace events
         if (event.type === 'tool_start') {
           this.state.activeTrace.toolCalls.set(event.tool_call_id, {
@@ -2547,9 +2901,11 @@ const Chat = {
     } catch (e) {
       if (e.name === 'AbortError') {
         UI.updateMessage(messageId, {
-          html: streamedText 
-            ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
-            : '<p class="cancelled-notice"><em>Response cancelled</em></p>',
+          html: timedOut
+            ? '<p class="cancelled-notice"><em>Response timed out</em></p>'
+            : streamedText 
+              ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
+              : '<p class="cancelled-notice"><em>Response cancelled</em></p>',
           streaming: false,
         });
         return;
@@ -2560,6 +2916,9 @@ const Chat = {
         streaming: false,
       });
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       this.state.abortController = null;
       this.state.activeTrace = null;
     }
