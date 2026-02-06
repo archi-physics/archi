@@ -1250,6 +1250,12 @@ const UI = {
     }
 
     container.innerHTML = messages.map((msg) => this.createMessageHTML(msg)).join('');
+    
+    // Enhance sandbox artifact images/links in loaded messages
+    if (typeof SandboxArtifacts !== 'undefined') {
+      SandboxArtifacts.enhance(container);
+    }
+    
     this.scrollToBottom();
   },
 
@@ -2618,6 +2624,12 @@ const Chat = {
             html: Markdown.render(finalText),
             streaming: false,
           });
+          
+          // Enhance sandbox artifact images/links
+          if (typeof SandboxArtifacts !== 'undefined') {
+            const msgEl = document.getElementById(messageId);
+            if (msgEl) SandboxArtifacts.enhance(msgEl);
+          }
           
           if (event.conversation_id != null) {
             this.state.conversationId = event.conversation_id;

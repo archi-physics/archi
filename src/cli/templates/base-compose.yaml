@@ -117,12 +117,18 @@ services:
       args:
         APP_VERSION: {{ app_version }}
     container_name: {{ chatbot_container_name }}
-    {% if postgres_enabled -%}
+    {% if postgres_enabled or sandbox_enabled -%}
     depends_on:
+      {% if postgres_enabled -%}
       postgres:
         condition: service_healthy
       config-seed:
         condition: service_completed_successfully
+      {% endif -%}
+      {% if sandbox_enabled -%}
+      sandbox-dind:
+        condition: service_started
+      {% endif %}
     {% endif -%}
     environment:
       PGHOST: {{ 'localhost' if host_mode else 'postgres' }}
@@ -133,6 +139,10 @@ services:
       VERBOSITY: {{ verbosity }}
       # Allow overriding Ollama host via env so containers can reach host daemon
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      {% if sandbox_enabled -%}
+      # Docker host for sandbox execution (Docker-in-Docker)
+      DOCKER_HOST: tcp://{{ 'localhost' if host_mode else 'sandbox-dind' }}:2375
+      {% endif -%}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -165,10 +175,6 @@ services:
       {% if gpu_ids -%}
       - archi-models:/root/models/
       {%- endif %}
-      {% if sandbox_enabled -%}
-      # Docker socket for sandbox container execution
-      - /var/run/docker.sock:/var/run/docker.sock
-      {%- endif %}
     logging:
       options:
         max-size: 10m
@@ -190,6 +196,29 @@ services:
       {%- endfor %}
     {%- endif %}
     {%- endif %}
+  {%- endif %}
+
+  {% if sandbox_enabled -%}
+  # Docker-in-Docker service for sandbox code execution
+  sandbox-dind:
+    image: docker:27-dind
+    container_name: {{ name }}-sandbox-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""  # Disable TLS for internal communication
+    volumes:
+      - sandbox-dind-data:/var/lib/docker
+    command: ["dockerd", "--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock"]
+    logging:
+      options:
+        max-size: 10m
+    restart: always
+    {% if host_mode -%}
+    # In host mode, expose DinD on a specific port
+    ports:
+      - "127.0.0.1:2375:2375"
+    network_mode: bridge  # DinD needs bridge mode even in host deployments
+    {% endif %}
   {%- endif %}
 
   {% if grafana_enabled -%}
@@ -627,6 +656,9 @@ volumes:
   {{ volume }}:
     external: true
   {% endfor %}
+  {% if sandbox_enabled -%}
+  sandbox-dind-data:
+  {% endif %}
 
 {% if required_secrets %}
 secrets:

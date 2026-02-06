@@ -166,13 +166,16 @@ class SandboxExecutor:
             if self._docker_client is None:
                 try:
                     import docker
+                    # docker.from_env() automatically reads DOCKER_HOST env var
+                    # for Docker-in-Docker, this should be tcp://sandbox-dind:2375
+                    docker_host = os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock")
                     self._docker_client = docker.from_env()
-                    logger.debug("Docker client initialized")
+                    logger.debug(f"Docker client initialized (DOCKER_HOST={docker_host})")
                 except Exception as e:
                     logger.error(f"Failed to initialize Docker client: {e}")
                     raise RuntimeError(
                         "Docker client initialization failed. "
-                        "Ensure Docker is running and accessible."
+                        "Ensure Docker/DinD is running and accessible."
                     ) from e
             self._client_initialized = True
         return self._docker_client
@@ -226,12 +229,16 @@ class SandboxExecutor:
             # Create container
             container = self._create_container(image, limits)
             logger.info(f"Created sandbox container {container.short_id} with image {image}")
-            
-            # Inject code
-            self._inject_code(container, code, language)
-            
+
             # Start container
             container.start()
+
+            # Prepare /workspace & /workspace/output with world-writable perms
+            # (runs as root so it works for any image user)
+            self._prepare_workspace(container)
+
+            # Inject the user's code
+            self._inject_code(container, code, language)
             
             # Wait for completion with timeout
             result = self._run_with_timeout(container, timeout, language)
@@ -259,10 +266,20 @@ class SandboxExecutor:
                 self._cleanup_container(container)
     
     def _create_container(self, image: str, limits: ResourceLimits):
-        """Create an ephemeral container with resource limits."""
+        """Create an ephemeral container with resource limits.
+
+        The container is configured so that ``/workspace`` and its ``output``
+        sub-directory are world-writable (mode 0o777).  This makes the
+        executor image-agnostic: it works whether the image runs as root
+        (e.g. ``python:3.11-slim``) or as an unprivileged user (e.g.
+        ``jupyter/scipy-notebook`` which runs as UID 1000 / ``jovyan``).
+        """
         import docker
-        
-        # Build container configuration
+
+        # Build container configuration.
+        # We do NOT set ``working_dir`` here; the entrypoint script below
+        # creates /workspace with the right permissions first, then the
+        # actual code execution later uses ``workdir="/workspace"``.
         container_config = {
             "image": image,
             "command": ["sleep", "infinity"],  # Keep alive until we run code
@@ -271,19 +288,13 @@ class SandboxExecutor:
             "nano_cpus": int(limits.cpu * 1e9),  # Convert cores to nanocpus
             "pids_limit": limits.pids_limit,
             "network_mode": "bridge" if self.config.network_enabled else "none",
-            "working_dir": "/workspace",
             # Security settings
             "read_only": False,  # Need to write script and outputs
             "security_opt": ["no-new-privileges"],
-            # Create tmpfs for workspace
-            "tmpfs": {
-                "/workspace": f"size=100m,mode=1777",
-                "/workspace/output": f"size=50m,mode=1777",
-            },
             # Don't auto-remove so we can capture output
             "auto_remove": False,
         }
-        
+
         try:
             container = self.docker_client.containers.create(**container_config)
             return container
@@ -297,6 +308,28 @@ class SandboxExecutor:
             else:
                 self.docker_client.images.pull(image)
             return self.docker_client.containers.create(**container_config)
+
+    def _prepare_workspace(self, container) -> None:
+        """Create /workspace and /workspace/output with world-writable permissions.
+
+        All commands are executed as **root** so they succeed regardless of the
+        image's default user.  The directories are set to mode 0o777 so that
+        subsequent code execution (which may run as an unprivileged user) can
+        read, write, and create files freely.
+        """
+        setup_cmds = [
+            ["mkdir", "-p", "/workspace/output"],
+            ["chmod", "777", "/workspace"],
+            ["chmod", "777", "/workspace/output"],
+        ]
+        for cmd in setup_cmds:
+            exit_code, output = container.exec_run(cmd, user="root")
+            if exit_code != 0:
+                detail = (output or b"").decode("utf-8", errors="replace")
+                raise RuntimeError(
+                    f"Workspace preparation failed (cmd={cmd!r}, "
+                    f"exit_code={exit_code}): {detail}"
+                )
     
     def _get_registry_auth(self, image: str) -> Optional[Dict[str, str]]:
         """
@@ -320,21 +353,26 @@ class SandboxExecutor:
         return None
     
     def _inject_code(self, container, code: str, language: str):
-        """Write code to a script file in the container."""
+        """Write code to a script file inside the container.
+
+        The script is packaged in a tar archive and extracted to ``/workspace``.
+        Ownership is set to ``0:0`` (root) with mode ``0o755`` so that every
+        user in the container can read and execute it.
+        """
         ext = LANGUAGE_EXTENSIONS.get(language, ".py")
         script_name = f"script{ext}"
-        script_path = f"/workspace/{script_name}"
-        
-        # Create tar archive with the script
+
+        # Build a tar archive containing the script
         tar_stream = io.BytesIO()
-        with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-            # Add script file
-            script_bytes = code.encode('utf-8')
-            script_info = tarfile.TarInfo(name=script_name)
-            script_info.size = len(script_bytes)
-            script_info.mode = 0o755
-            tar.addfile(script_info, io.BytesIO(script_bytes))
-        
+        with tarfile.open(fileobj=tar_stream, mode="w") as tar:
+            script_bytes = code.encode("utf-8")
+            info = tarfile.TarInfo(name=script_name)
+            info.size = len(script_bytes)
+            info.mode = 0o755  # world-readable + executable
+            info.uid = 0
+            info.gid = 0
+            tar.addfile(info, io.BytesIO(script_bytes))
+
         tar_stream.seek(0)
         container.put_archive("/workspace", tar_stream)
         logger.debug(f"Injected {len(code)} bytes of {language} code into container")
@@ -401,55 +439,101 @@ class SandboxExecutor:
             raise
     
     def _capture_output_files(self, container) -> List[FileOutput]:
-        """Capture files from /workspace/output/ directory."""
-        files = []
-        
+        """Capture generated files from the sandbox container.
+
+        Looks in ``/workspace/output/`` first.  If that directory is empty or
+        missing, falls back to scanning ``/workspace/`` for common output files
+        (images, CSVs, etc.) that the code may have written to the working
+        directory instead.
+        """
+        files = self._extract_files_from_path(container, "/workspace/output/")
+        if files:
+            logger.info("Captured %d file(s) from /workspace/output/", len(files))
+            return files
+
+        # Fallback: scan /workspace/ root for image/data files the code may
+        # have saved outside the output directory.
+        logger.debug("/workspace/output/ empty or missing; scanning /workspace/ for output files")
+        SCAN_EXTENSIONS = {
+            ".png", ".jpg", ".jpeg", ".gif", ".svg", ".pdf",
+            ".csv", ".json", ".html", ".txt", ".xml",
+        }
+        fallback_files = self._extract_files_from_path(container, "/workspace/")
+        # Filter to only include output-like files (skip the injected script)
+        filtered: List[FileOutput] = []
+        for f in fallback_files:
+            ext = Path(f.filename).suffix.lower()
+            if ext in SCAN_EXTENSIONS:
+                filtered.append(f)
+        if filtered:
+            logger.info(
+                "Captured %d output file(s) from /workspace/ fallback: %s",
+                len(filtered),
+                [f.filename for f in filtered],
+            )
+        else:
+            logger.debug("No output files found in /workspace/ fallback either")
+        return filtered
+
+    def _extract_files_from_path(
+        self, container, path: str
+    ) -> List[FileOutput]:
+        """Extract regular files from *path* inside the container."""
+        files: List[FileOutput] = []
         try:
-            # Get archive of output directory
-            bits, stat = container.get_archive("/workspace/output/")
-            
-            # Extract files from tar
+            bits, stat = container.get_archive(path)
+
             tar_stream = io.BytesIO()
             for chunk in bits:
                 tar_stream.write(chunk)
             tar_stream.seek(0)
-            
-            with tarfile.open(fileobj=tar_stream, mode='r') as tar:
+
+            with tarfile.open(fileobj=tar_stream, mode="r") as tar:
                 for member in tar.getmembers():
                     if not member.isfile():
                         continue
-                    
-                    # Skip if too large
+
                     if member.size > self.config.output_max_file_size:
-                        logger.warning(f"Skipping large file {member.name} ({member.size} bytes)")
-                        files.append(FileOutput(
-                            filename=Path(member.name).name,
-                            mimetype=_guess_mimetype(member.name),
-                            content_base64="",
-                            size=member.size,
-                            truncated=True,
-                        ))
+                        logger.warning(
+                            "Skipping large file %s (%d bytes)", member.name, member.size
+                        )
+                        files.append(
+                            FileOutput(
+                                filename=Path(member.name).name,
+                                mimetype=_guess_mimetype(member.name),
+                                content_base64="",
+                                size=member.size,
+                                truncated=True,
+                            )
+                        )
                         continue
-                    
-                    # Extract and encode
+
                     f = tar.extractfile(member)
                     if f:
                         content = f.read()
-                        files.append(FileOutput(
-                            filename=Path(member.name).name,
-                            mimetype=_guess_mimetype(member.name),
-                            content_base64=base64.b64encode(content).decode("ascii"),
-                            size=len(content),
-                            truncated=False,
-                        ))
-            
-            logger.debug(f"Captured {len(files)} output files")
-            
+                        filename = Path(member.name).name
+                        mimetype = _guess_mimetype(member.name)
+                        logger.debug(
+                            "Extracted file %s (%s, %d bytes) from %s",
+                            filename, mimetype, len(content), path,
+                        )
+                        files.append(
+                            FileOutput(
+                                filename=filename,
+                                mimetype=mimetype,
+                                content_base64=base64.b64encode(content).decode("ascii"),
+                                size=len(content),
+                                truncated=False,
+                            )
+                        )
+
         except Exception as e:
-            # Output directory might not exist or be empty
-            if "No such container path" not in str(e) and "404" not in str(e):
-                logger.warning(f"Error capturing output files: {e}")
-        
+            err_str = str(e)
+            if "No such container path" not in err_str and "404" not in err_str:
+                logger.warning("Error capturing files from %s: %s", path, e)
+            else:
+                logger.debug("Path %s does not exist in container (expected)", path)
+
         return files
     
     def _cleanup_container(self, container):

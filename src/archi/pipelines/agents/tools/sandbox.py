@@ -7,8 +7,13 @@ tool for executing code in isolated Docker containers.
 
 from __future__ import annotations
 
+import base64
 import json
-from typing import Callable, Optional
+import os
+import re
+import threading
+from pathlib import Path
+from typing import Callable, Dict, List, Optional
 
 from langchain.tools import tool
 from pydantic import BaseModel, Field
@@ -21,6 +26,143 @@ logger = get_logger(__name__)
 
 # Default permission required to use the sandbox tool
 DEFAULT_REQUIRED_PERMISSION = "tools:sandbox"
+
+# ---------------------------------------------------------------------------
+# Per-request context for sandbox artifact persistence.
+#
+# We use a module-level dictionary keyed by trace_id instead of thread-local
+# or contextvars, because LangChain/LangGraph may execute tools in different
+# threads. The trace_id is set as an environment variable which IS inherited
+# by child threads.
+# ---------------------------------------------------------------------------
+_sandbox_contexts: Dict[str, Dict] = {}  # trace_id -> {data_path, artifacts}
+_sandbox_lock = threading.Lock()
+
+# Environment variable name for passing trace_id to tools
+_TRACE_ID_ENV = "_ARCHI_SANDBOX_TRACE_ID"
+
+# Safe filename pattern
+_SAFE_FILENAME_RE = re.compile(r"^[\w\-. ]+$")
+
+
+def set_sandbox_context(trace_id: str, data_path: str) -> None:
+    """
+    Set the sandbox context for the current request (call before streaming).
+    
+    This stores context in a module-level dict and sets an environment variable
+    so that the trace_id can be retrieved from any thread.
+    """
+    with _sandbox_lock:
+        _sandbox_contexts[trace_id] = {
+            "data_path": data_path,
+            "artifacts": [],
+        }
+    # Set env var so child threads can find the trace_id
+    os.environ[_TRACE_ID_ENV] = trace_id
+    logger.debug("Sandbox context set: trace_id=%s, data_path=%s", trace_id, data_path)
+
+
+def get_sandbox_artifacts() -> List[Dict]:
+    """Return artifact metadata collected during the current request."""
+    trace_id = os.environ.get(_TRACE_ID_ENV)
+    if not trace_id:
+        return []
+    with _sandbox_lock:
+        ctx = _sandbox_contexts.get(trace_id)
+        return ctx["artifacts"] if ctx else []
+
+
+def clear_sandbox_context() -> None:
+    """Clear sandbox context (call after consuming artifacts)."""
+    trace_id = os.environ.pop(_TRACE_ID_ENV, None)
+    if trace_id:
+        with _sandbox_lock:
+            _sandbox_contexts.pop(trace_id, None)
+        logger.debug("Sandbox context cleared: trace_id=%s", trace_id)
+
+
+def _get_sandbox_context() -> tuple:
+    """Get current trace_id, data_path, or (None, None) if not set."""
+    trace_id = os.environ.get(_TRACE_ID_ENV)
+    if not trace_id:
+        return None, None
+    with _sandbox_lock:
+        ctx = _sandbox_contexts.get(trace_id)
+        if ctx:
+            return trace_id, ctx["data_path"]
+    return None, None
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize a filename for safe storage."""
+    name = os.path.basename(filename).strip()
+    if not name or not _SAFE_FILENAME_RE.match(name):
+        # Generate a safe fallback name
+        ext = Path(filename).suffix if filename else ".bin"
+        name = f"output{ext}"
+    return name
+
+
+def _persist_sandbox_file(filename: str, mimetype: str, content_base64: str) -> Optional[Dict]:
+    """
+    Persist a sandbox-generated file directly to disk.
+    
+    Returns artifact metadata dict with url, or None if context not available.
+    """
+    trace_id, data_path = _get_sandbox_context()
+    
+    if not trace_id or not data_path:
+        logger.warning("Sandbox context not set - cannot persist file %s", filename)
+        return None
+    
+    # Validate trace_id format (UUID)
+    if not re.fullmatch(r"[0-9a-f\-]{36}", trace_id):
+        logger.error("Invalid trace_id format: %s", trace_id)
+        return None
+    
+    try:
+        # Create artifact directory
+        artifact_dir = Path(data_path) / "sandbox_artifacts" / trace_id
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Sanitize and deduplicate filename
+        safe_name = _sanitize_filename(filename)
+        dest = artifact_dir / safe_name
+        counter = 1
+        while dest.exists():
+            stem, ext = os.path.splitext(safe_name)
+            dest = artifact_dir / f"{stem}_{counter}{ext}"
+            counter += 1
+        
+        # Decode and write
+        raw = base64.b64decode(content_base64)
+        dest.write_bytes(raw)
+        
+        # Build URL
+        url = f"/api/sandbox-artifacts/{trace_id}/{dest.name}"
+        
+        artifact = {
+            "filename": dest.name,
+            "mimetype": mimetype,
+            "url": url,
+            "size": len(raw),
+        }
+        
+        # Store in module-level dict for later retrieval
+        with _sandbox_lock:
+            ctx = _sandbox_contexts.get(trace_id)
+            if ctx:
+                ctx["artifacts"].append(artifact)
+        
+        logger.info(
+            "Persisted sandbox artifact: %s (%s, %d bytes) -> %s",
+            filename, mimetype, len(raw), url,
+        )
+        return artifact
+        
+    except Exception as e:
+        logger.error("Failed to persist sandbox file %s: %s", filename, e, exc_info=True)
+        return None
 
 
 class SandboxInput(BaseModel):
@@ -69,7 +211,7 @@ def _get_user_role_overrides():
         
         # Find the first role with sandbox overrides
         for role_name in user_roles:
-            role_config = registry.get_role_config(role_name)
+            role_config = registry.get_role_info(role_name)
             if role_config:
                 overrides = get_role_sandbox_overrides(role_config)
                 if overrides:
@@ -113,12 +255,22 @@ def _format_output_for_agent(result) -> str:
     # Execution time
     parts.append(f"**Execution Time**: {result.execution_time:.2f}s")
     
-    # Stdout
+    # Stdout - filter out container paths to prevent agent from echoing them
     if result.stdout:
-        parts.append("\n**Standard Output**:")
-        parts.append("```")
-        parts.append(result.stdout)
-        parts.append("```")
+        # Remove lines containing /workspace paths
+        filtered_lines = []
+        for line in result.stdout.split('\n'):
+            if '/workspace' not in line.lower():
+                filtered_lines.append(line)
+        filtered_stdout = '\n'.join(filtered_lines).strip()
+        
+        if filtered_stdout:
+            parts.append("\n**Standard Output**:")
+            parts.append("```")
+            parts.append(filtered_stdout)
+            parts.append("```")
+        else:
+            parts.append("\n**Standard Output**: (output contained only file path info, omitted)")
     else:
         parts.append("\n**Standard Output**: (empty)")
     
@@ -133,26 +285,47 @@ def _format_output_for_agent(result) -> str:
     if result.truncated:
         parts.append("\n⚠️ Output was truncated due to size limits.")
     
-    # Generated files
+    # Generated files - keep output minimal to avoid agent echoing details
     if result.files:
-        parts.append(f"\n**Generated Files** ({len(result.files)}):")
+        logger.info("Formatting %d output file(s) for agent", len(result.files))
+        image_count = 0
+        other_count = 0
         for f in result.files:
+            logger.info(
+                "Processing file: %s, mimetype=%s, size=%d, truncated=%s, has_content=%s",
+                f.filename, f.mimetype, f.size, f.truncated, bool(f.content_base64),
+            )
             if f.truncated:
-                parts.append(f"- {f.filename} ({f.size} bytes) - TRUNCATED/SKIPPED (too large)")
+                other_count += 1  # Skip truncated files
+            elif f.content_base64:
+                # Persist file directly to disk (images and other files)
+                artifact = _persist_sandbox_file(f.filename, f.mimetype, f.content_base64)
+                if artifact:
+                    if f.mimetype.startswith("image/"):
+                        image_count += 1
+                    else:
+                        other_count += 1
+                        # Include small text files inline for agent context
+                        if f.mimetype.startswith("text/") and f.size < 5000:
+                            try:
+                                content = base64.b64decode(f.content_base64).decode("utf-8")
+                                parts.append(f"\n**Generated text file:**\n```\n{content}\n```")
+                            except Exception:
+                                pass
+                else:
+                    other_count += 1
             else:
-                # For images, we could potentially render them inline
-                # For now, just indicate they're available
-                parts.append(f"- {f.filename} ({f.mimetype}, {f.size} bytes)")
-                
-                # Include small text files inline
-                if f.mimetype.startswith("text/") and f.size < 5000:
-                    try:
-                        import base64
-                        content = base64.b64decode(f.content_base64).decode("utf-8")
-                        parts.append(f"  ```\n{content}\n  ```")
-                    except Exception:
-                        pass
-    
+                other_count += 1
+
+        # Summarize what was generated without exposing filenames
+        if image_count:
+            parts.append(
+                f"\n**Generated output:** {image_count} image(s) will be displayed to the user "
+                f"automatically below your response. Do NOT mention file paths or filenames."
+            )
+        if other_count and not image_count:
+            parts.append(f"\n**Generated output:** {other_count} file(s) saved.")
+
     return "\n".join(parts)
 
 
@@ -200,21 +373,28 @@ def create_sandbox_tool(
         - Execution time
         - Standard output (stdout)
         - Standard error (stderr)
-        - List of generated files (if any)
+        - Summary of generated files (if any)
     """
     tool_description = description or (
         "Execute code in an isolated sandbox container.\n"
         "Input: JSON with 'code' (required), 'language' (optional: python/bash/sh), "
         "'image' (optional: Docker image from allowlist).\n"
-        "Output: Execution results including stdout, stderr, exit code, and generated files.\n"
+        "Output: Execution results including stdout, stderr, and exit code.\n"
         "\n"
         "Use this tool to:\n"
-        "- Run Python scripts for data analysis\n"
-        "- Execute shell commands (curl, rucio, etc.)\n"
+        "- Run Python scripts for data analysis and plotting\n"
+        "- Execute shell commands\n"
         "- Process data and generate outputs\n"
         "\n"
-        "Generated files should be written to /workspace/output/ to be captured.\n"
-        "For plots: plt.savefig('/workspace/output/plot.png')\n"
+        "For plots, save to /workspace/output/. The directories are pre-created.\n"
+        "Example: plt.savefig('/workspace/output/plot.png')\n"
+        "\n"
+        "CRITICAL RULES FOR YOUR RESPONSE TO THE USER:\n"
+        "1. NEVER mention /workspace/, /workspace/output/, or any container paths\n"
+        "2. NEVER include filenames like 'plot.png' or 'File: xyz.png' in your response\n"
+        "3. Images are displayed AUTOMATICALLY - just describe what you plotted\n"
+        "4. Say things like 'Here is the plot' or 'The chart below shows...'\n"
+        "5. DO NOT echo the stdout if it contains paths - summarize the results instead\n"
         "\n"
         "Example input: {\"code\": \"print('Hello')\", \"language\": \"python\"}"
     )

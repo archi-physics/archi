@@ -97,22 +97,22 @@ class CMSCompOpsAgent(BaseReActAgent):
 
         all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool, http_get_tool]
 
-        # Add sandbox tool if enabled in config
+        # Add sandbox tool for code execution in isolated containers
         sandbox_tool = create_sandbox_tool(
-            config=self.config,
             name="run_code",
             description=(
                 "Execute code in a secure sandboxed Docker container. "
                 "Input: code (str), language ('python', 'bash', or 'sh'). "
                 "Output: stdout, stderr, exit code, and any files written to /workspace/output/. "
+                "The /workspace/ and /workspace/output/ directories are pre-created and writable — "
+                "do NOT call os.makedirs() for them. Do not show internal sandbox paths in the output. "
                 "Use this for running Python scripts, shell commands, data processing, API calls with curl, "
                 "rucio commands, or any code that needs to be executed safely. "
                 "The container is ephemeral and destroyed after execution."
             ),
         )
-        if sandbox_tool:
-            all_tools.append(sandbox_tool)
-            logger.info("Sandbox tool enabled for CMSCompOpsAgent")
+        all_tools.append(sandbox_tool)
+        logger.info("Sandbox tool added to CMSCompOpsAgent")
 
         try:
             nest_asyncio.apply()
