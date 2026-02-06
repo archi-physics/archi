@@ -30,3 +30,4 @@ openspec/*/tasks.md
 openspec/*/proposal.md
 node_modules/
 test-results/
+playwright-report/

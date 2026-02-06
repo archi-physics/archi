@@ -6,6 +6,7 @@ import uuid
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional
 from urllib.parse import urlparse
 from functools import wraps
@@ -39,6 +40,7 @@ from src.utils.sql import (
     SQL_CREATE_CONVERSATION, SQL_UPDATE_CONVERSATION_TIMESTAMP,
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK, SQL_DELETE_REACTION_FEEDBACK,
+    SQL_GET_REACTION_FEEDBACK,
     SQL_INSERT_AB_COMPARISON, SQL_UPDATE_AB_PREFERENCE, SQL_GET_AB_COMPARISON,
     SQL_GET_PENDING_AB_COMPARISON, SQL_DELETE_AB_COMPARISON, SQL_GET_AB_COMPARISONS_BY_CONVERSATION,
     SQL_CREATE_AGENT_TRACE, SQL_UPDATE_AGENT_TRACE, SQL_GET_AGENT_TRACE,
@@ -151,6 +153,9 @@ class ChatWrapper:
     Wrapper which holds functionality for the chatbot
     """
     def __init__(self):
+        # Threading lock for database operations
+        self.lock = Lock()
+        
         # load configs
         self.config = get_full_config()
         self.global_config = self.config["global"]
@@ -475,6 +480,22 @@ class ChatWrapper:
         self.cursor.close()
         self.conn.close()
         self.cursor, self.conn = None, None
+
+    def get_reaction_feedback(self, message_id: int):
+        """
+        Get the current reaction (like/dislike) for a message.
+        Returns 'like', 'dislike', or None.
+        """
+        if message_id is None:
+            return None
+        self.conn = psycopg2.connect(**self.pg_config)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(SQL_GET_REACTION_FEEDBACK, (message_id,))
+        row = self.cursor.fetchone()
+        self.cursor.close()
+        self.conn.close()
+        self.cursor, self.conn = None, None
+        return row[0] if row else None
 
     # =========================================================================
     # A/B Comparison Methods
@@ -1521,6 +1542,31 @@ class ChatWrapper:
                     if include_tool_steps:
                         yield trace_event
                         
+                elif event_type == "thinking_start":
+                    trace_event = {
+                        "type": "thinking_start",
+                        "step_id": output.metadata.get("step_id", ""),
+                        "timestamp": timestamp,
+                        "conversation_id": context.conversation_id,
+                    }
+                    trace_events.append(trace_event)
+                    if include_tool_steps:
+                        yield trace_event
+                        
+                elif event_type == "thinking_end":
+                    thinking_content = output.metadata.get("thinking_content", "")
+                    trace_event = {
+                        "type": "thinking_end",
+                        "step_id": output.metadata.get("step_id", ""),
+                        "duration_ms": output.metadata.get("duration_ms"),
+                        "thinking_content": thinking_content,
+                        "timestamp": timestamp,
+                        "conversation_id": context.conversation_id,
+                    }
+                    trace_events.append(trace_event)
+                    if include_tool_steps:
+                        yield trace_event
+                        
                 elif event_type == "text":
                     # Stream text content
                     content = getattr(output, "answer", "") or ""
@@ -1609,6 +1655,13 @@ class ChatWrapper:
             # Calculate total duration
             total_duration_ms = int((time.time() - stream_start_time) * 1000)
             
+            # Extract usage and model from final output metadata
+            usage = None
+            model = None
+            if last_output and last_output.metadata:
+                usage = last_output.metadata.get("usage")
+                model = last_output.metadata.get("model")
+            
             # Update trace with final state
             if trace_id:
                 user_message_id = message_ids[0] if message_ids and len(message_ids) > 1 else None
@@ -1631,6 +1684,8 @@ class ChatWrapper:
                 "trace_id": trace_id,
                 "server_response_msg_ts": timestamps["server_response_msg_ts"].timestamp(),
                 "final_response_msg_ts": datetime.now().timestamp(),
+                "usage": usage,
+                "model": model,
             }
 
         except GeneratorExit:
@@ -2602,14 +2657,21 @@ class FlaskAppWrapper(object):
         self.chat.lock.acquire()
         logger.info("Acquired lock file")
         try:
-            # Get the JSON data from the request body
             data = request.json
-
-            # Extract the HTML content and any other data you need
             message_id = data.get('message_id')
 
+            # Check current state for toggle behavior
+            current_reaction = self.chat.get_reaction_feedback(message_id)
+            
+            # Always delete existing reaction first
             self.chat.delete_reaction_feedback(message_id)
 
+            # If already liked, just remove (toggle off) - don't re-add
+            if current_reaction == 'like':
+                response = {'message': 'Reaction removed', 'state': None}
+                return jsonify(response), 200
+
+            # Otherwise, add the like
             feedback = {
                 "message_id"   : message_id,
                 "feedback"     : "like",
@@ -2621,15 +2683,13 @@ class FlaskAppWrapper(object):
             }
             self.chat.insert_feedback(feedback)
 
-            response = {'message': 'Liked'}
+            response = {'message': 'Liked', 'state': 'like'}
             return jsonify(response), 200
 
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-        # According to the Python documentation: https://docs.python.org/3/tutorial/errors.html#defining-clean-up-actions
-        # this will still execute, before the function returns in the try or except block.
         finally:
             self.chat.lock.release()
             logger.info("Released lock file")
@@ -2643,18 +2703,25 @@ class FlaskAppWrapper(object):
         self.chat.lock.acquire()
         logger.info("Acquired lock file")
         try:
-            # Get the JSON data from the request body
             data = request.json
-
-            # Extract the HTML content and any other data you need
             message_id = data.get('message_id')
             feedback_msg = data.get('feedback_msg')
             incorrect = data.get('incorrect')
             unhelpful = data.get('unhelpful')
             inappropriate = data.get('inappropriate')
 
+            # Check current state for toggle behavior
+            current_reaction = self.chat.get_reaction_feedback(message_id)
+            
+            # Always delete existing reaction first
             self.chat.delete_reaction_feedback(message_id)
 
+            # If already disliked, just remove (toggle off) - don't re-add
+            if current_reaction == 'dislike':
+                response = {'message': 'Reaction removed', 'state': None}
+                return jsonify(response), 200
+
+            # Otherwise, add the dislike
             feedback = {
                 "message_id"   : message_id,
                 "feedback"     : "dislike",
@@ -2666,15 +2733,13 @@ class FlaskAppWrapper(object):
             }
             self.chat.insert_feedback(feedback)
 
-            response = {'message': 'Disliked'}
+            response = {'message': 'Disliked', 'state': 'dislike'}
             return jsonify(response), 200
 
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-        # According to the Python documentation: https://docs.python.org/3/tutorial/errors.html#defining-clean-up-actions
-        # this will still execute, before the function returns in the try or except block.
         finally:
             self.chat.lock.release()
             logger.info("Released lock file")
@@ -2810,21 +2875,38 @@ class FlaskAppWrapper(object):
             history_rows = cursor.fetchall()
             history_rows = collapse_assistant_sequences(history_rows, sender_name=ARCHI_SENDER, sender_index=0)
 
+            # Build messages list with trace data for assistant messages
+            messages = []
+            for row in history_rows:
+                msg = {
+                    'sender': row[0],
+                    'content': row[1],
+                    'message_id': row[2],
+                    'feedback': row[3],
+                    'comment_count': row[4] if len(row) > 4 else 0,
+                }
+                
+                # For assistant messages, fetch trace data
+                if row[0] == ARCHI_SENDER and row[2]:
+                    cursor.execute(SQL_GET_TRACE_BY_MESSAGE, (row[2],))
+                    trace_row = cursor.fetchone()
+                    if trace_row:
+                        msg['trace'] = {
+                            'trace_id': trace_row[0],
+                            'events': trace_row[6],  # events JSON
+                            'status': trace_row[9],
+                            'total_tool_calls': trace_row[10],
+                            'total_duration_ms': trace_row[12],
+                        }
+                
+                messages.append(msg)
+
             conversation = {
                 'conversation_id': meta_row[0],
                 'title': meta_row[1] or "New Conversation",
                 'created_at': meta_row[2].isoformat() if meta_row[2] else None,
                 'last_message_at': meta_row[3].isoformat() if meta_row[3] else None,
-                'messages': [
-                    {
-                        'sender': row[0],
-                        'content': row[1],
-                        'message_id': row[2],
-                        'feedback': row[3],
-                        'comment_count': row[4] if len(row) > 4 else 0,
-                    }
-                    for row in history_rows
-                ]
+                'messages': messages
             }
 
             # clean up database connection state
