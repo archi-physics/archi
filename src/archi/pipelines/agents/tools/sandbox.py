@@ -41,25 +41,57 @@ _sandbox_lock = threading.Lock()
 # Environment variable name for passing trace_id to tools
 _TRACE_ID_ENV = "_ARCHI_SANDBOX_TRACE_ID"
 
+# Environment variable for conversation_id (needed for approval requests)
+_CONVERSATION_ID_ENV = "_ARCHI_SANDBOX_CONVERSATION_ID"
+
+# Environment variable for session-level approval mode override
+_APPROVAL_MODE_ENV = "_ARCHI_SANDBOX_APPROVAL_MODE"
+
 # Safe filename pattern
 _SAFE_FILENAME_RE = re.compile(r"^[\w\-. ]+$")
 
+# Type for approval request callbacks
+ApprovalRequestCallback = Callable[[Dict], None]
 
-def set_sandbox_context(trace_id: str, data_path: str) -> None:
+
+def set_sandbox_context(
+    trace_id: str,
+    data_path: str,
+    conversation_id: Optional[int] = None,
+    approval_callback: Optional[ApprovalRequestCallback] = None,
+    approval_mode_override: Optional[str] = None,
+) -> None:
     """
     Set the sandbox context for the current request (call before streaming).
     
     This stores context in a module-level dict and sets an environment variable
     so that the trace_id can be retrieved from any thread.
+    
+    Args:
+        trace_id: Unique identifier for this request.
+        data_path: Path where artifacts should be stored.
+        conversation_id: The conversation ID for approval requests.
+        approval_callback: Optional callback to notify about approval requests.
+        approval_mode_override: Optional session-level approval mode ("auto" or "manual").
     """
     with _sandbox_lock:
         _sandbox_contexts[trace_id] = {
             "data_path": data_path,
             "artifacts": [],
+            "conversation_id": conversation_id,
+            "approval_callback": approval_callback,
+            "approval_mode_override": approval_mode_override,
         }
-    # Set env var so child threads can find the trace_id
+    # Set env vars so child threads can find the trace_id and conversation_id
     os.environ[_TRACE_ID_ENV] = trace_id
-    logger.debug("Sandbox context set: trace_id=%s, data_path=%s", trace_id, data_path)
+    if conversation_id is not None:
+        os.environ[_CONVERSATION_ID_ENV] = str(conversation_id)
+    if approval_mode_override is not None:
+        os.environ[_APPROVAL_MODE_ENV] = approval_mode_override
+    logger.debug(
+        "Sandbox context set: trace_id=%s, data_path=%s, conversation_id=%s, approval_mode=%s",
+        trace_id, data_path, conversation_id, approval_mode_override
+    )
 
 
 def get_sandbox_artifacts() -> List[Dict]:
@@ -75,6 +107,8 @@ def get_sandbox_artifacts() -> List[Dict]:
 def clear_sandbox_context() -> None:
     """Clear sandbox context (call after consuming artifacts)."""
     trace_id = os.environ.pop(_TRACE_ID_ENV, None)
+    os.environ.pop(_CONVERSATION_ID_ENV, None)
+    os.environ.pop(_APPROVAL_MODE_ENV, None)
     if trace_id:
         with _sandbox_lock:
             _sandbox_contexts.pop(trace_id, None)
@@ -91,6 +125,30 @@ def _get_sandbox_context() -> tuple:
         if ctx:
             return trace_id, ctx["data_path"]
     return None, None
+
+
+def _get_full_sandbox_context() -> Dict:
+    """
+    Get the full sandbox context including conversation_id and approval_callback.
+    
+    Returns:
+        Dict with trace_id, data_path, conversation_id, approval_callback, approval_mode_override
+        or empty dict if not set.
+    """
+    trace_id = os.environ.get(_TRACE_ID_ENV)
+    if not trace_id:
+        return {}
+    with _sandbox_lock:
+        ctx = _sandbox_contexts.get(trace_id)
+        if ctx:
+            return {
+                "trace_id": trace_id,
+                "data_path": ctx.get("data_path"),
+                "conversation_id": ctx.get("conversation_id"),
+                "approval_callback": ctx.get("approval_callback"),
+                "approval_mode_override": ctx.get("approval_mode_override"),
+            }
+    return {}
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -163,6 +221,137 @@ def _persist_sandbox_file(filename: str, mimetype: str, content_base64: str) -> 
     except Exception as e:
         logger.error("Failed to persist sandbox file %s: %s", filename, e, exc_info=True)
         return None
+
+
+def _get_effective_approval_mode(config_approval_mode: "ApprovalMode") -> "ApprovalMode":
+    """
+    Get the effective approval mode, considering session-level override.
+    
+    Priority:
+    1. Session-level override (set by user per session/query)
+    2. Config-level setting (from deployment config)
+    
+    Args:
+        config_approval_mode: The approval mode from the effective config.
+        
+    Returns:
+        The approval mode to use for this execution.
+    """
+    from src.utils.sandbox.config import ApprovalMode
+    
+    ctx = _get_full_sandbox_context()
+    override = ctx.get("approval_mode_override")
+    
+    if override:
+        # Parse the override string to ApprovalMode
+        override_lower = override.lower()
+        if override_lower == "auto":
+            logger.debug("Using session-level approval_mode override: auto")
+            return ApprovalMode.AUTO
+        elif override_lower == "manual":
+            logger.debug("Using session-level approval_mode override: manual")
+            return ApprovalMode.MANUAL
+        else:
+            logger.warning(
+                "Invalid approval_mode_override '%s', falling back to config: %s",
+                override, config_approval_mode.value
+            )
+    
+    return config_approval_mode
+
+
+def _request_approval_and_wait(
+    code: str,
+    language: str,
+    image: str,
+    tool_call_id: str,
+    timeout_seconds: float = 300.0,
+) -> tuple[bool, Optional[str]]:
+    """
+    Request user approval for sandbox execution and wait for response.
+    
+    Args:
+        code: The code to execute.
+        language: Programming language.
+        image: Docker image.
+        tool_call_id: The tool call ID.
+        timeout_seconds: How long to wait for approval.
+    
+    Returns:
+        Tuple of (approved: bool, error_message: Optional[str])
+    """
+    from src.utils.sandbox.approval import (
+        ApprovalStatus,
+        create_approval_request,
+        wait_for_approval,
+    )
+    
+    ctx = _get_full_sandbox_context()
+    trace_id = ctx.get("trace_id")
+    conversation_id = ctx.get("conversation_id")
+    approval_callback = ctx.get("approval_callback")
+    
+    logger.debug(
+        "Approval context: trace_id=%s, conversation_id=%s, has_callback=%s",
+        trace_id, conversation_id, approval_callback is not None
+    )
+    
+    if not trace_id or conversation_id is None:
+        logger.warning(
+            "Cannot request approval: missing context (trace_id=%s, conversation_id=%s)",
+            trace_id, conversation_id
+        )
+        # Fall back to auto-approve if context is missing
+        return True, None
+    
+    # Create the approval request
+    request = create_approval_request(
+        trace_id=trace_id,
+        conversation_id=conversation_id,
+        code=code,
+        language=language,
+        image=image,
+        tool_call_id=tool_call_id,
+        timeout_seconds=timeout_seconds,
+    )
+    
+    # Notify via callback if available (so the streaming layer can emit an event)
+    if approval_callback:
+        try:
+            logger.info("Invoking approval callback for request: %s", request.approval_id)
+            approval_callback(request.to_dict())
+            logger.info("Approval callback completed successfully")
+        except Exception as e:
+            logger.error("Approval callback failed: %s", e, exc_info=True)
+    else:
+        logger.warning("No approval_callback available - frontend will not receive approval_request event")
+    
+    # Wait for approval
+    try:
+        resolved = wait_for_approval(
+            request.approval_id,
+            timeout=timeout_seconds,
+            poll_interval=0.5,
+        )
+        
+        if resolved.status == ApprovalStatus.APPROVED:
+            logger.info("Sandbox execution approved: %s", request.approval_id)
+            return True, None
+        elif resolved.status == ApprovalStatus.REJECTED:
+            logger.info("Sandbox execution rejected: %s", request.approval_id)
+            return False, "Execution rejected by user"
+        elif resolved.status == ApprovalStatus.EXPIRED:
+            logger.info("Sandbox approval expired: %s", request.approval_id)
+            return False, "Approval request timed out"
+        elif resolved.status == ApprovalStatus.CANCELLED:
+            logger.info("Sandbox approval cancelled: %s", request.approval_id)
+            return False, "Approval request cancelled"
+        else:
+            return False, f"Unknown approval status: {resolved.status}"
+            
+    except Exception as e:
+        logger.error("Error waiting for approval: %s", e, exc_info=True)
+        return False, f"Error waiting for approval: {e}"
 
 
 class SandboxInput(BaseModel):
@@ -410,6 +599,7 @@ def create_sandbox_tool(
             get_sandbox_config,
             resolve_effective_config,
         )
+        from src.utils.sandbox.config import ApprovalMode
         
         # Load base config
         base_config = get_sandbox_config()
@@ -431,6 +621,26 @@ def create_sandbox_tool(
                 f"Error: Image '{target_image}' is not allowed for your role.\n"
                 f"Allowed images: {allowed}"
             )
+        
+        # Check approval mode and request approval if needed
+        # Session-level override takes priority over config
+        effective_approval_mode = _get_effective_approval_mode(effective_config.approval_mode)
+        if effective_approval_mode == ApprovalMode.MANUAL:
+            # Generate a tool_call_id for tracking
+            import uuid
+            tool_call_id = str(uuid.uuid4())
+            
+            approved, error_msg = _request_approval_and_wait(
+                code=code,
+                language=language,
+                image=target_image,
+                tool_call_id=tool_call_id,
+                timeout_seconds=effective_config.timeout * 10,  # Allow longer for approval
+            )
+            
+            if not approved:
+                logger.info("Sandbox execution not approved: %s", error_msg)
+                return f"Execution cancelled: {error_msg or 'User did not approve'}"
         
         # Create executor and run
         try:
@@ -500,6 +710,7 @@ def create_sandbox_tool_with_files(
             get_sandbox_config,
             resolve_effective_config,
         )
+        from src.utils.sandbox.config import ApprovalMode
         
         base_config = get_sandbox_config()
         
@@ -515,6 +726,27 @@ def create_sandbox_tool_with_files(
                 "error": f"Image '{target_image}' is not allowed",
                 "allowed_images": effective_config.image_allowlist,
             })
+        
+        # Check approval mode and request approval if needed
+        # Session-level override takes priority over config
+        effective_approval_mode = _get_effective_approval_mode(effective_config.approval_mode)
+        if effective_approval_mode == ApprovalMode.MANUAL:
+            import uuid
+            tool_call_id = str(uuid.uuid4())
+            
+            approved, error_msg = _request_approval_and_wait(
+                code=code,
+                language=language,
+                image=target_image,
+                tool_call_id=tool_call_id,
+                timeout_seconds=effective_config.timeout * 10,
+            )
+            
+            if not approved:
+                return json.dumps({
+                    "error": f"Execution cancelled: {error_msg or 'User did not approve'}",
+                    "approval_rejected": True,
+                })
         
         try:
             executor = SandboxExecutor(config=effective_config)

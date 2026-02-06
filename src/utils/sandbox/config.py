@@ -8,11 +8,22 @@ sandbox code execution feature.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class ApprovalMode(str, Enum):
+    """Approval mode for sandbox command execution."""
+    
+    AUTO = "auto"
+    """Commands are executed automatically without user approval."""
+    
+    MANUAL = "manual"
+    """Each command requires explicit user approval before execution."""
 
 
 @dataclass
@@ -96,6 +107,9 @@ class SandboxConfig:
     enabled: bool = False
     """Whether sandbox execution is enabled for this deployment."""
     
+    approval_mode: ApprovalMode = ApprovalMode.AUTO
+    """Approval mode for sandbox commands: 'auto' or 'manual'."""
+    
     default_image: str = "python:3.11-slim"
     """Default Docker image to use when not specified."""
     
@@ -138,8 +152,19 @@ class SandboxConfig:
         registry_data = data.get("registry", {})
         registry = RegistryConfig.from_dict(registry_data)
         
+        # Parse approval_mode from string
+        approval_mode_str = data.get("approval_mode", "auto").lower()
+        try:
+            approval_mode = ApprovalMode(approval_mode_str)
+        except ValueError:
+            logger.warning(
+                f"Invalid approval_mode '{approval_mode_str}', defaulting to 'auto'"
+            )
+            approval_mode = ApprovalMode.AUTO
+        
         return cls(
             enabled=bool(data.get("enabled", False)),
+            approval_mode=approval_mode,
             default_image=data.get("default_image", "python:3.11-slim"),
             image_allowlist=data.get("image_allowlist", ["python:3.11-slim"]),
             timeout=float(data.get("timeout", 30.0)),
@@ -260,6 +285,7 @@ def resolve_effective_config(
     
     return SandboxConfig(
         enabled=base_config.enabled,
+        approval_mode=base_config.approval_mode,
         default_image=effective_default,
         image_allowlist=effective_images,
         timeout=effective_timeout,

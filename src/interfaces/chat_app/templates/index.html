@@ -294,6 +294,22 @@
                   </label>
                 </div>
               </div>
+              
+              <!-- Sandbox Approval Mode -->
+              <div class="settings-group settings-group-bordered" id="sandbox-approval-group">
+                <div class="settings-group-header">
+                  <span class="settings-label" id="sandbox-approval-label">Sandbox Code Approval</span>
+                  <label class="settings-toggle-compact">
+                    <input type="checkbox" id="sandbox-approval-toggle" aria-describedby="sandbox-approval-label">
+                    <span class="toggle-slider-compact"></span>
+                  </label>
+                </div>
+                <p class="settings-description">When enabled, you must approve each code execution before it runs in the sandbox.</p>
+                <p class="settings-note" id="sandbox-approval-status">
+                  <span class="sandbox-status-indicator"></span>
+                  <span id="sandbox-approval-mode-text">Loading...</span>
+                </p>
+              </div>
             </section>
 
             <!-- Display Section -->

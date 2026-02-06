@@ -5,6 +5,7 @@ This module provides secure, isolated code execution in ephemeral Docker contain
 """
 
 from src.utils.sandbox.config import (
+    ApprovalMode,
     RegistryConfig,
     ResourceLimits,
     RoleSandboxOverrides,
@@ -18,9 +19,23 @@ from src.utils.sandbox.executor import (
     SandboxExecutor,
     SandboxResult,
 )
+from src.utils.sandbox.approval import (
+    ApprovalRequest,
+    ApprovalStatus,
+    cancel_approvals_for_trace,
+    cleanup_old_requests,
+    create_approval_request,
+    get_approval_request,
+    get_pending_approvals_for_conversation,
+    get_pending_approvals_for_trace,
+    register_approval_callback,
+    resolve_approval,
+    wait_for_approval,
+)
 
 __all__ = [
     # Config
+    "ApprovalMode",
     "RegistryConfig",
     "ResourceLimits",
     "RoleSandboxOverrides",
@@ -32,4 +47,16 @@ __all__ = [
     "FileOutput",
     "SandboxExecutor",
     "SandboxResult",
+    # Approval
+    "ApprovalRequest",
+    "ApprovalStatus",
+    "cancel_approvals_for_trace",
+    "cleanup_old_requests",
+    "create_approval_request",
+    "get_approval_request",
+    "get_pending_approvals_for_conversation",
+    "get_pending_approvals_for_trace",
+    "register_approval_callback",
+    "resolve_approval",
+    "wait_for_approval",
 ]

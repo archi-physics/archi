@@ -1477,6 +1477,23 @@ class ChatWrapper:
                 pipeline_name=self.archi.pipeline_name if hasattr(self.archi, 'pipeline_name') else None,
             )
 
+            # Queue for events from the agent stream (including approval requests)
+            # Threading is needed because tools may block waiting for approval,
+            # but we still need to send approval_request events to the frontend.
+            import queue
+            import threading
+            event_queue = queue.Queue()
+            stream_done = threading.Event()
+            stream_exception = [None]  # Use list to allow mutation from thread
+            
+            def approval_callback(approval_request_dict):
+                """Called by sandbox tool when approval is needed."""
+                logger.info("Approval callback invoked, putting request in queue: %s", approval_request_dict.get("approval_id"))
+                event_queue.put(("approval", approval_request_dict))
+
+            # Get session-level approval mode override (if user has set one)
+            session_approval_mode = session.get("sandbox_approval_mode")
+
             # Set up sandbox context so artifacts are persisted directly to disk
             try:
                 from src.archi.pipelines.agents.tools.sandbox import (
@@ -1487,7 +1504,13 @@ class ChatWrapper:
                 from src.interfaces.chat_app.sandbox_artifacts import (
                     format_artifacts_markdown as _format_artifacts_markdown,
                 )
-                set_sandbox_context(trace_id, self.data_path)
+                set_sandbox_context(
+                    trace_id,
+                    self.data_path,
+                    conversation_id=context.conversation_id,
+                    approval_callback=approval_callback,
+                    approval_mode_override=session_approval_mode,
+                )
                 sandbox_context_set = True
                 # Store references for use outside this try block
                 get_sandbox_artifacts = _get_sandbox_artifacts
@@ -1498,7 +1521,45 @@ class ChatWrapper:
                 get_sandbox_artifacts = None
                 format_artifacts_markdown = None
 
-            for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
+            # Run agent stream in background thread so we can yield approval
+            # requests while tools are blocking waiting for user response.
+            def run_stream():
+                try:
+                    for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
+                        event_queue.put(("output", output))
+                except Exception as e:
+                    stream_exception[0] = e
+                finally:
+                    stream_done.set()
+            
+            stream_thread = threading.Thread(target=run_stream, daemon=True)
+            stream_thread.start()
+            
+            # Consume events from queue, yielding to SSE stream
+            while not stream_done.is_set() or not event_queue.empty():
+                try:
+                    event_type_tag, event_data = event_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                
+                # Handle approval requests immediately
+                if event_type_tag == "approval":
+                    logger.info("Yielding approval_request event to SSE stream: %s", event_data.get("approval_id"))
+                    yield {
+                        "type": "approval_request",
+                        "approval_id": event_data.get("approval_id"),
+                        "code": event_data.get("code"),
+                        "language": event_data.get("language"),
+                        "image": event_data.get("image"),
+                        "tool_call_id": event_data.get("tool_call_id"),
+                        "timeout_seconds": event_data.get("timeout_seconds", 300),
+                        "conversation_id": context.conversation_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                    continue
+                
+                # Handle agent output
+                output = event_data
                 last_output = output
                 
                 # Extract event_type from metadata (new structured events from BaseReActAgent)
@@ -1611,6 +1672,10 @@ class ChatWrapper:
                                 }
 
             timestamps["chain_finished_ts"] = datetime.now()
+            
+            # Check if stream thread raised an exception
+            if stream_exception[0] is not None:
+                raise stream_exception[0]
 
             if last_output is None:
                 if trace_id:
@@ -1707,6 +1772,12 @@ class ChatWrapper:
                     cancelled_by='user',
                     cancellation_reason='Stream cancelled by client',
                 )
+                # Cancel any pending sandbox approvals for this trace
+                try:
+                    from src.utils.sandbox.approval import cancel_approvals_for_trace
+                    cancel_approvals_for_trace(trace_id)
+                except Exception as e:
+                    logger.debug("Could not cancel sandbox approvals: %s", e)
             raise
         except ConversationAccessError as exc:
             logger.warning("Unauthorized conversation access attempt: %s", exc)
@@ -1840,6 +1911,45 @@ class FlaskAppWrapper(object):
             'serve_sandbox_artifact',
             self.require_auth(self.serve_sandbox_artifact),
             methods=["GET"],
+        )
+
+        # Sandbox approval endpoints
+        logger.info("Adding sandbox approval API endpoints")
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>',
+            'sandbox_get_approval',
+            self.require_auth(self.sandbox_get_approval),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>/approve',
+            'sandbox_approve',
+            self.require_auth(self.sandbox_approve),
+            methods=["POST"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>/reject',
+            'sandbox_reject',
+            self.require_auth(self.sandbox_reject),
+            methods=["POST"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approvals/pending',
+            'sandbox_pending_approvals',
+            self.require_auth(self.sandbox_pending_approvals),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/config',
+            'sandbox_get_config',
+            self.require_auth(self.sandbox_get_config),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval-mode',
+            'sandbox_set_approval_mode',
+            self.require_auth(self.sandbox_set_approval_mode),
+            methods=["POST", "GET"],
         )
 
         # Provider endpoints
@@ -2090,6 +2200,13 @@ class FlaskAppWrapper(object):
             if not self.auth_enabled:
                 # If auth is not enabled, allow access
                 return f(*args, **kwargs)
+            
+            # Debug logging for sandbox approval endpoints
+            if 'sandbox' in request.path:
+                logger.info(f"[SANDBOX AUTH DEBUG] Path: {request.path}, Method: {request.method}")
+                logger.info(f"[SANDBOX AUTH DEBUG] session.logged_in: {session.get('logged_in')}")
+                logger.info(f"[SANDBOX AUTH DEBUG] session keys: {list(session.keys())}")
+                logger.info(f"[SANDBOX AUTH DEBUG] cookies: {list(request.cookies.keys())}")
             
             if not session.get('logged_in'):
                 # Check if SSO is enabled and anonymous access is blocked
@@ -3422,6 +3539,197 @@ class FlaskAppWrapper(object):
         # Fallback for 2-tuple error returns
         body, status = result
         return jsonify(body), status
+
+    # =========================================================================
+    # Sandbox Approval Endpoints
+    # =========================================================================
+
+    def sandbox_get_approval(self, approval_id: str):
+        """
+        Get details of a sandbox approval request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with approval request details.
+        """
+        from src.utils.sandbox.approval import get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        return jsonify(request_obj.to_dict())
+
+    def sandbox_approve(self, approval_id: str):
+        """
+        Approve a sandbox execution request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with updated approval status.
+        """
+        from src.utils.sandbox.approval import resolve_approval, get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        # Get username from session user info
+        user_info = session.get('user', {})
+        username = user_info.get('username') or user_info.get('email', 'unknown')
+        updated = resolve_approval(approval_id, approved=True, resolved_by=username)
+
+        if not updated:
+            return jsonify({"error": "Failed to update approval"}), 500
+
+        logger.info(
+            "Sandbox execution approved: approval_id=%s by user=%s",
+            approval_id, username
+        )
+
+        return jsonify(updated.to_dict())
+
+    def sandbox_reject(self, approval_id: str):
+        """
+        Reject a sandbox execution request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with updated approval status.
+        """
+        from src.utils.sandbox.approval import resolve_approval, get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        # Get username from session user info
+        user_info = session.get('user', {})
+        username = user_info.get('username') or user_info.get('email', 'unknown')
+        updated = resolve_approval(approval_id, approved=False, resolved_by=username)
+
+        if not updated:
+            return jsonify({"error": "Failed to update approval"}), 500
+
+        logger.info(
+            "Sandbox execution rejected: approval_id=%s by user=%s",
+            approval_id, username
+        )
+
+        return jsonify(updated.to_dict())
+
+    def sandbox_pending_approvals(self):
+        """
+        Get all pending sandbox approval requests for the current conversation.
+
+        Query params:
+        - conversation_id: Optional. Filter by conversation ID.
+
+        Returns:
+            JSON with list of pending approval requests.
+        """
+        from src.utils.sandbox.approval import (
+            get_pending_approvals_for_conversation,
+        )
+
+        conversation_id = request.args.get('conversation_id', type=int)
+
+        if conversation_id:
+            pending = get_pending_approvals_for_conversation(conversation_id)
+        else:
+            # Return empty if no conversation specified
+            pending = []
+
+        return jsonify({
+            "pending": [req.to_dict() for req in pending],
+            "count": len(pending),
+        })
+
+    def sandbox_get_config(self):
+        """
+        Get the current sandbox configuration (approval mode, enabled status).
+
+        Returns:
+            JSON with sandbox configuration.
+        """
+        from src.utils.sandbox.config import get_sandbox_config
+
+        config = get_sandbox_config()
+
+        return jsonify({
+            "enabled": config.enabled,
+            "approval_mode": config.approval_mode.value,
+            "timeout": config.timeout,
+            "default_image": config.default_image,
+            "allowed_images": config.image_allowlist,
+        })
+
+    def sandbox_set_approval_mode(self):
+        """
+        Get or set the session-level sandbox approval mode.
+        
+        GET: Returns the current session approval mode preference.
+        POST: Sets the session approval mode preference.
+        
+        Request body (POST):
+            {
+                "mode": "auto" | "manual"
+            }
+            
+        Returns:
+            JSON with the current/updated approval mode preference.
+        """
+        from src.utils.sandbox.config import get_sandbox_config
+        
+        # Session key for storing user's approval mode preference
+        SESSION_KEY = "sandbox_approval_mode"
+        
+        if request.method == "GET":
+            # Get current session preference (or fallback to config default)
+            session_mode = session.get(SESSION_KEY)
+            config = get_sandbox_config()
+            
+            return jsonify({
+                "session_mode": session_mode,  # None means using deployment default
+                "effective_mode": session_mode or config.approval_mode.value,
+                "default_mode": config.approval_mode.value,
+            })
+        
+        # POST - set the approval mode
+        data = request.get_json() or {}
+        mode = data.get("mode", "").lower()
+        
+        if mode not in ("auto", "manual", "default"):
+            return jsonify({
+                "error": "Invalid mode. Must be 'auto', 'manual', or 'default'."
+            }), 400
+        
+        if mode == "default":
+            # Clear session override, use deployment config default
+            session.pop(SESSION_KEY, None)
+            config = get_sandbox_config()
+            return jsonify({
+                "session_mode": None,
+                "effective_mode": config.approval_mode.value,
+                "message": "Using deployment default approval mode",
+            })
+        
+        # Set session preference
+        session[SESSION_KEY] = mode
+        
+        logger.info("User set sandbox approval mode to: %s", mode)
+        
+        return jsonify({
+            "session_mode": mode,
+            "effective_mode": mode,
+            "message": f"Approval mode set to '{mode}' for this session",
+        })
 
     # =========================================================================
     # Data Viewer Endpoints
