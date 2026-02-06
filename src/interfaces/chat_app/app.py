@@ -1425,6 +1425,11 @@ class ChatWrapper:
         trace_events: List[Dict[str, Any]] = []
         tool_call_count = 0
         stream_start_time = time.time()
+        # Sandbox artifact handling (set if import succeeds)
+        sandbox_context_set = False
+        get_sandbox_artifacts = None
+        format_artifacts_markdown = None
+        clear_sandbox_context = None
 
         try:
             context, error_code = self._prepare_chat_context(
@@ -1471,6 +1476,27 @@ class ChatWrapper:
                 config_id=None,  # Legacy field, no longer used
                 pipeline_name=self.archi.pipeline_name if hasattr(self.archi, 'pipeline_name') else None,
             )
+
+            # Set up sandbox context so artifacts are persisted directly to disk
+            try:
+                from src.archi.pipelines.agents.tools.sandbox import (
+                    set_sandbox_context,
+                    get_sandbox_artifacts as _get_sandbox_artifacts,
+                    clear_sandbox_context as _clear_sandbox_context,
+                )
+                from src.interfaces.chat_app.sandbox_artifacts import (
+                    format_artifacts_markdown as _format_artifacts_markdown,
+                )
+                set_sandbox_context(trace_id, self.data_path)
+                sandbox_context_set = True
+                # Store references for use outside this try block
+                get_sandbox_artifacts = _get_sandbox_artifacts
+                format_artifacts_markdown = _format_artifacts_markdown
+                clear_sandbox_context = _clear_sandbox_context
+            except Exception as e:
+                logger.debug("Could not set sandbox context: %s", e)
+                get_sandbox_artifacts = None
+                format_artifacts_markdown = None
 
             for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
                 last_output = output
@@ -1633,6 +1659,29 @@ class ChatWrapper:
                     total_duration_ms=total_duration_ms,
                 )
 
+            # Retrieve sandbox-generated artifact metadata and append
+            # markdown links.  The frontend fetches files from the
+            # /api/sandbox-artifacts/<trace_id>/<filename> route.
+            # Files are already persisted to disk by the sandbox tool itself.
+            if sandbox_context_set and get_sandbox_artifacts is not None:
+                try:
+                    artifacts = get_sandbox_artifacts()
+                    logger.info(
+                        "Sandbox artifacts check: found %d artifact(s), trace_id=%s",
+                        len(artifacts) if artifacts else 0,
+                        trace_id,
+                    )
+                    if artifacts and format_artifacts_markdown is not None:
+                        markdown_suffix = format_artifacts_markdown(artifacts)
+                        logger.info(
+                            "Appending %d artifact(s) as markdown: %s",
+                            len(artifacts),
+                            [a['filename'] for a in artifacts],
+                        )
+                        output += markdown_suffix
+                except Exception as e:
+                    logger.warning("Failed to retrieve sandbox artifacts: %s", e, exc_info=True)
+
             yield {
                 "type": "final",
                 "response": output,
@@ -1682,6 +1731,12 @@ class ChatWrapper:
                 )
             yield {"type": "error", "status": 500, "message": "server error; see chat logs for message"}
         finally:
+            # Clean up sandbox context if it was set
+            if sandbox_context_set and clear_sandbox_context is not None:
+                try:
+                    clear_sandbox_context()
+                except Exception:
+                    pass
             if self.cursor is not None:
                 self.cursor.close()
             if self.conn is not None:
@@ -1778,6 +1833,14 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/trace/<trace_id>', 'get_trace', self.require_auth(self.get_trace), methods=["GET"])
         self.add_endpoint('/api/trace/message/<int:message_id>', 'get_trace_by_message', self.require_auth(self.get_trace_by_message), methods=["GET"])
         self.add_endpoint('/api/cancel_stream', 'cancel_stream', self.require_auth(self.cancel_stream), methods=["POST"])
+
+        # Sandbox artifact serving
+        self.add_endpoint(
+            '/api/sandbox-artifacts/<trace_id>/<filename>',
+            'serve_sandbox_artifact',
+            self.require_auth(self.serve_sandbox_artifact),
+            methods=["GET"],
+        )
 
         # Provider endpoints
         logger.info("Adding provider API endpoints")
@@ -3332,6 +3395,33 @@ class FlaskAppWrapper(object):
         except Exception as e:
             logger.error(f"Error cancelling stream for conversation {conversation_id}: {str(e)}")
             return jsonify({'error': str(e)}), 500
+
+    # =========================================================================
+    # Sandbox Artifact Endpoints
+    # =========================================================================
+
+    def serve_sandbox_artifact(self, trace_id: str, filename: str):
+        """
+        Serve a sandbox-generated artifact file.
+
+        URL params:
+        - trace_id:  UUID of the agent trace that produced the file.
+        - filename:  Name of the file within that trace's artifact dir.
+
+        Files are stored under ``<DATA_PATH>/sandbox_artifacts/<trace_id>/``.
+        """
+        from src.interfaces.chat_app.sandbox_artifacts import serve_artifact
+
+        result = serve_artifact(self.data_path, trace_id, filename)
+        if isinstance(result, tuple) and len(result) == 3:
+            body, status, headers = result
+            if isinstance(body, (bytes, bytearray)):
+                return Response(body, status=status, headers=headers)
+            # JSON error dict
+            return jsonify(body), status
+        # Fallback for 2-tuple error returns
+        body, status = result
+        return jsonify(body), status
 
     # =========================================================================
     # Data Viewer Endpoints
