@@ -16,6 +16,7 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_search_tool,
     create_metadata_schema_tool,
     create_retriever_tool,
+    create_http_get_tool,
     initialize_mcp_client,
     RemoteCatalogClient,
 )
@@ -80,7 +81,20 @@ class CMSCompOpsAgent(BaseReActAgent):
             ),
         )
 
-        all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool]
+        http_get_tool = create_http_get_tool(
+            name="fetch_url",
+            description=(
+                "Fetch live content from a URL via HTTP GET request. "
+                "Input: A valid HTTP or HTTPS URL. "
+                "Output: The response body text or an error message. "
+                "Use this to retrieve real-time data from web endpoints, APIs, documentation, or status pages. "
+                "Examples: checking endpoint status, fetching API data, retrieving documentation."
+            ),
+            timeout=15.0,
+            max_response_chars=600000,
+        )
+
+        all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool, http_get_tool]
 
         try:
             nest_asyncio.apply()

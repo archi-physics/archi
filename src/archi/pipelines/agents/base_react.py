@@ -18,6 +18,38 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _get_role_context() -> str:
+    """
+    Get role context string for the current user if enabled.
+    
+    Requires SSO auth with auth_roles configured and pass_descriptions_to_agent: true.
+    Returns empty string if conditions not met or user not authenticated.
+    """
+    try:
+        from flask import session, has_request_context
+        if not has_request_context():
+            return ""
+        if not session.get('logged_in'):
+            return ""
+        
+        from src.utils.rbac.registry import get_registry
+        registry = get_registry()
+        
+        if not registry.pass_descriptions_to_agent:
+            return ""
+        
+        roles = session.get('roles', [])
+        if not roles:
+            return ""
+        
+        descriptions = registry.get_role_descriptions(roles)
+        if descriptions:
+            return f"\n\nUser roles: {descriptions}."
+        return ""
+    except Exception as e:
+        logger.debug(f"Could not get role context: {e}")
+        return ""
+
 class BaseReActAgent:
     """
     BaseReActAgent provides a foundational structure for building pipeline classes that
@@ -443,8 +475,20 @@ class BaseReActAgent:
             self._active_middleware = list(middleware)
         return self.agent
 
+    def _build_system_prompt(self) -> str:
+        """
+        Build the full system prompt, appending role context if enabled.
+        
+        Role context is appended when SSO auth with auth_roles is configured
+        and pass_descriptions_to_agent is set to true.
+        """
+        base_prompt = self.agent_prompt or ""
+        role_context = _get_role_context()
+        return base_prompt + role_context
+
     def _create_agent(self, tools: Sequence[Callable], middleware: Sequence[Callable]) -> CompiledStateGraph:
         """Create the LangGraph agent with the specified LLM, tools, and system prompt."""
+        system_prompt = self._build_system_prompt()
         logger.debug("Creating agent %s with:", self.__class__.__name__)
         logger.debug("%d tools", len(tools))
         logger.debug("%d middleware components", len(middleware))
@@ -452,7 +496,7 @@ class BaseReActAgent:
             model=self.agent_llm,
             tools=tools,
             middleware=middleware,
-            system_prompt=self.agent_prompt,
+            system_prompt=system_prompt,
         )
 
     def _build_static_tools(self) -> List[Callable]:

@@ -14,6 +14,7 @@ from langchain_core.retrievers import BaseRetriever
 
 from src.utils.logging import get_logger
 from src.utils.env import read_secret
+from src.archi.pipelines.agents.tools.base import require_tool_permission
 
 logger = get_logger(__name__)
 
@@ -203,8 +204,20 @@ def create_file_search_tool(
     max_results: int = 3,
     window: int = 240,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
+    required_permission: Optional[str] = None,
 ) -> Callable[[str], str]:
-    """Create a LangChain tool that performs keyword search in catalogued files."""
+    """Create a LangChain tool that performs keyword search in catalogued files.
+    
+    Args:
+        catalog: The RemoteCatalogClient instance.
+        name: The name of the tool.
+        description: Human-readable description of the tool.
+        max_results: Maximum number of results to return.
+        window: Context window size for snippets.
+        store_docs: Optional callback to store retrieved documents.
+        required_permission: Optional RBAC permission required to use this tool.
+            If None, no permission check is performed (allow all).
+    """
 
     _default_description = (
         "Grep-like search over local document contents only (not filenames/paths).\n"
@@ -219,6 +232,7 @@ def create_file_search_tool(
     )
 
     @tool(name, description=tool_description)
+    @require_tool_permission(required_permission)
     def _search_local_files(
         query: str,
         regex: bool = False,
@@ -291,8 +305,19 @@ def create_metadata_search_tool(
     description: Optional[str] = None,
     max_results: int = 5,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
+    required_permission: Optional[str] = None,
 ) -> Callable[[str], str]:
-    """Create a LangChain tool to search resource metadata catalogues."""
+    """Create a LangChain tool to search resource metadata catalogues.
+    
+    Args:
+        catalog: The RemoteCatalogClient instance.
+        name: The name of the tool.
+        description: Human-readable description of the tool.
+        max_results: Maximum number of results to return.
+        store_docs: Optional callback to store retrieved documents.
+        required_permission: Optional RBAC permission required to use this tool.
+            If None, no permission check is performed (allow all).
+    """
 
     tool_description = (
         description
@@ -309,6 +334,7 @@ def create_metadata_search_tool(
     )
 
     @tool(name, description=tool_description)
+    @require_tool_permission(required_permission)
     def _search_metadata(query: str) -> str:
         if not query.strip():
             return "Please provide a non-empty search query."
@@ -354,8 +380,17 @@ def create_metadata_schema_tool(
     *,
     name: str = "list_metadata_schema",
     description: Optional[str] = None,
+    required_permission: Optional[str] = None,
 ) -> Callable[[], str]:
-    """Create a tool that returns supported metadata keys and distinct values."""
+    """Create a tool that returns supported metadata keys and distinct values.
+    
+    Args:
+        catalog: The RemoteCatalogClient instance.
+        name: The name of the tool.
+        description: Human-readable description of the tool.
+        required_permission: Optional RBAC permission required to use this tool.
+            If None, no permission check is performed (allow all).
+    """
 
     tool_description = (
         description
@@ -366,6 +401,7 @@ def create_metadata_schema_tool(
     )
 
     @tool(name, description=tool_description)
+    @require_tool_permission(required_permission)
     def _schema_tool() -> str:
         try:
             payload = catalog.schema()
@@ -390,8 +426,18 @@ def create_document_fetch_tool(
     name: str = "fetch_catalog_document",
     description: Optional[str] = None,
     default_max_chars: int = 4000,
+    required_permission: Optional[str] = None,
 ) -> Callable[..., str]:
-    """Create a LangChain tool to fetch a full document by resource hash."""
+    """Create a LangChain tool to fetch a full document by resource hash.
+    
+    Args:
+        catalog: The RemoteCatalogClient instance.
+        name: The name of the tool.
+        description: Human-readable description of the tool.
+        default_max_chars: Default maximum characters to return.
+        required_permission: Optional RBAC permission required to use this tool.
+            If None, no permission check is performed (allow all).
+    """
 
     tool_description = (
         description
@@ -404,6 +450,7 @@ def create_document_fetch_tool(
     )
 
     @tool(name, description=tool_description)
+    @require_tool_permission(required_permission)
     def _fetch_document(resource_hash: str, max_chars: int = default_max_chars) -> str:
         if not resource_hash.strip():
             return "Please provide a non-empty resource hash."

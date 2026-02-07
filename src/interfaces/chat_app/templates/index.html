@@ -41,6 +41,43 @@
         </button>
       </div>
       <div class="conversation-list"></div>
+      
+      <!-- User Profile Widget (bottom of sidebar) -->
+      <div class="user-profile-widget" id="user-profile-widget">
+        <div class="user-profile-content">
+          <div class="user-avatar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-info">
+            <div class="user-name" id="user-display-name">Loading...</div>
+            <div class="user-email" id="user-email">...</div>
+          </div>
+          <button class="user-roles-toggle" id="user-roles-toggle" title="View roles" aria-label="View roles">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="user-roles-panel" id="user-roles-panel">
+          <div class="user-roles-header">Your Roles</div>
+          <div class="user-roles-list" id="user-roles-list">
+            <!-- Roles will be populated by JavaScript -->
+          </div>
+          <div class="user-roles-footer">
+            <button class="user-logout-btn" id="user-logout-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Header -->
