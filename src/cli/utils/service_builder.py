@@ -71,6 +71,7 @@ class DeploymentPlan:
             "mattermost": ServiceState(),
             "redmine-mailer": ServiceState(),
             "benchmarking": ServiceState(),
+            "vllm-server": ServiceState(),
         }
 
         self.use_redmine: bool = False
