@@ -129,7 +129,7 @@ services:
       {% if vllm_server_enabled -%}
       vllm-server:
         condition: service_healthy
-      {% endif -%}
+      {% endif %}
     {% endif -%}
     environment:
       PGHOST: {{ 'localhost' if host_mode else 'postgres' }}
