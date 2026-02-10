@@ -426,6 +426,11 @@ class TemplateManager:
         if context.plan.get_service("grader").enabled:
             template_vars["rubrics"] = self._get_grader_rubrics(context.config_manager)
 
+        # Pass vLLM model name from provider config to compose template
+        vllm_cfg = context.config_manager.config.get("archi", {}).get("providers", {}).get("vllm", {})
+        if vllm_cfg.get("default_model"):
+            template_vars["vllm_model"] = vllm_cfg["default_model"]
+
         compose_template = self.env.get_template(BASE_COMPOSE_TEMPLATE)
         compose_rendered = compose_template.render(**template_vars)
 

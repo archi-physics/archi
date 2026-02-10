@@ -144,9 +144,11 @@ class ServiceBuilder:
     def get_available_services() -> Dict[str, str]:
         available_services = service_registry.get_application_services()
         integration_services = service_registry.get_integration_services()
+        compute_services = service_registry.get_services_by_category('compute')
         return {
             **{name: svc.description for name, svc in available_services.items()},
             **{name: svc.description for name, svc in integration_services.items()},
+            **{name: svc.description for name, svc in compute_services.items()},
         }
 
     @staticmethod
