@@ -41,8 +41,22 @@ COPY weblists weblists
 RUN pip install --upgrade pip && pip install .
 
 # Optional: Oracle database support for agent tools
+# Installs python-oracledb + Oracle Instant Client (thick mode for NNE support)
 ARG INSTALL_ORACLE=false
-RUN if [ "$INSTALL_ORACLE" = "true" ] ; then pip install oracledb>=2.0.0 ; fi
+RUN if [ "$INSTALL_ORACLE" = "true" ] ; then \
+        pip install oracledb>=2.0.0 && \
+        apt-get update && (apt-get install -y --no-install-recommends libaio1 unzip || apt-get install -y --no-install-recommends libaio1t64 unzip) && \
+        mkdir -p /opt/oracle && \
+        wget -q https://download.oracle.com/otn_software/linux/instantclient/2350000/instantclient-basiclite-linux.x64-23.5.0.24.07.zip \
+            -O /tmp/instantclient.zip && \
+        unzip -q /tmp/instantclient.zip -d /opt/oracle && \
+        rm /tmp/instantclient.zip && \
+        ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 2>/dev/null || true && \
+        echo /opt/oracle/instantclient_23_5 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+        ldconfig && \
+        apt-get clean && rm -rf /var/lib/apt/lists/* ; \
+    fi
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_23_5:${LD_LIBRARY_PATH}
 
 RUN chmod g+rx /root; chmod -R g+w /root/archi/src/interfaces
 

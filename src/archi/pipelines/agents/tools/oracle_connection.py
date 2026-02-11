@@ -1,11 +1,13 @@
 """OracleConnectionManager - manages connections to multiple Oracle databases.
 
 Provides lazy connection pooling, config parsing, and password resolution
-for the Oracle agent tools. Uses python-oracledb in thin mode.
+for the Oracle agent tools. Uses python-oracledb in thick mode when Oracle
+Instant Client is available (required for NNE), falling back to thin mode.
 """
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Dict, Generator, List, Optional
@@ -17,11 +19,12 @@ logger = get_logger(__name__)
 
 # Lazy import: only attempt when Oracle databases are configured
 _oracledb = None
+_thick_mode_attempted = False
 
 
 def _get_oracledb():
-    """Lazily import oracledb with a clear error if missing."""
-    global _oracledb
+    """Lazily import oracledb and initialize thick mode if available."""
+    global _oracledb, _thick_mode_attempted
     if _oracledb is None:
         try:
             import oracledb
@@ -31,6 +34,22 @@ def _get_oracledb():
                 "python-oracledb is required for Oracle database tools. "
                 "Install it with: pip install oracledb>=2.0.0"
             )
+
+    if not _thick_mode_attempted:
+        _thick_mode_attempted = True
+        try:
+            lib_dir = os.environ.get("ORACLE_CLIENT_LIB")
+            _oracledb.init_oracle_client(lib_dir=lib_dir)
+            logger.info("Oracle thick mode enabled (NNE supported)")
+        except _oracledb.ProgrammingError:
+            # Already initialized — OK
+            pass
+        except Exception as e:
+            logger.warning(
+                "Could not enable Oracle thick mode (NNE may not work): %s. "
+                "Falling back to thin mode.", e
+            )
+
     return _oracledb
 
 
@@ -57,7 +76,7 @@ class OracleConnectionManager:
     by its config name (e.g., "orders_prod", "inventory").
 
     Example:
-        >>> mgr = OracleConnectionManager.from_config(archi_config)
+        >>> mgr = OracleConnectionManager.from_config(oracle_databases)
         >>> with mgr.get_connection("orders_prod") as conn:
         ...     cursor = conn.cursor()
         ...     cursor.execute("SELECT 1 FROM DUAL")
@@ -69,21 +88,22 @@ class OracleConnectionManager:
         self._pools: Dict[str, Any] = {}
 
     @classmethod
-    def from_config(cls, archi_config: Dict[str, Any]) -> Optional["OracleConnectionManager"]:
-        """Parse oracle_databases from archi config section.
+    def from_config(cls, oracle_databases: Dict[str, Any]) -> Optional["OracleConnectionManager"]:
+        """Parse oracle database entries into an OracleConnectionManager.
 
         Args:
-            archi_config: The 'archi' section of config.yaml
+            oracle_databases: Mapping of database names to their config dicts,
+                e.g. ``{"tier0_prod": {"dsn": "...", "user": "...", ...}}``.
+                Typically sourced from ``services.chat_app.tools.oracle_databases``.
 
         Returns:
-            OracleConnectionManager if databases are configured, None otherwise.
+            OracleConnectionManager if valid databases are found, None otherwise.
         """
-        oracle_dbs = archi_config.get("oracle_databases")
-        if not oracle_dbs:
+        if not oracle_databases:
             return None
 
         db_configs: Dict[str, OracleDBConfig] = {}
-        for db_name, db_cfg in oracle_dbs.items():
+        for db_name, db_cfg in oracle_databases.items():
             if not isinstance(db_cfg, dict):
                 logger.warning("Skipping invalid oracle_databases entry: %s", db_name)
                 continue

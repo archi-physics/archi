@@ -85,8 +85,8 @@ class CMSCompOpsAgent(BaseReActAgent):
     def _init_oracle(self) -> None:
         """Initialize the Oracle connection manager if databases are configured."""
         try:
-            archi_cfg = self.config.get("archi", {})
-            manager = OracleConnectionManager.from_config(archi_cfg)
+            oracle_dbs = self._chat_app_config.get("tools", {}).get("oracle_databases", {})
+            manager = OracleConnectionManager.from_config(oracle_dbs)
             if manager is not None and manager.has_databases():
                 self._oracle_manager = manager
                 db_names = [d["name"] for d in manager.list_databases()]

@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-data-manager
+      {% if host_mode %}
+      network: host
+      {% endif %}
       args:
         APP_VERSION: {{ app_version }}
     container_name: {{ data_manager_container_name }}
@@ -51,6 +54,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-postgres
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ postgres_container_name }}
     command: ["postgres", "-p", "{{ postgres_port }}"]
     environment:
@@ -83,6 +89,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-chat
+      {% if host_mode %}
+      network: host
+      {% endif %}
       args:
         APP_VERSION: {{ app_version }}
     container_name: {{ name }}-config-seed
@@ -115,8 +124,14 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-chat{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
       args:
         APP_VERSION: {{ app_version }}
+        {% if install_oracle %}
+        INSTALL_ORACLE: "true"
+        {% endif %}
     container_name: {{ chatbot_container_name }}
     {% if postgres_enabled -%}
     depends_on:
@@ -196,6 +211,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-grafana
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ grafana_container_name }}
     {% if postgres_enabled -%}
     depends_on:
@@ -234,6 +252,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-grader{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
     {% if postgres_enabled -%}
     depends_on:
       postgres:
@@ -320,6 +341,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-piazza
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ piazza_container_name }}
     {% if postgres_enabled -%}
     depends_on:
@@ -365,6 +389,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-mattermost{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
       args:
         TAG: {{ mattermost_tag }}
     {% if postgres_enabled -%}
@@ -436,6 +463,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-redmine{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ redmine_mailer_container_name }}-redmine
     {% if postgres_enabled -%}
     depends_on:
@@ -495,6 +525,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-mailbox{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ redmine_mailer_container_name }}-mailer
     {% if postgres_enabled -%}
     depends_on:
@@ -555,6 +588,9 @@ services:
     build:
       context: .
       dockerfile: archi_code/cli/templates/dockerfiles/Dockerfile-benchmarks{{ '-gpu' if gpu_ids else '' }}
+      {% if host_mode %}
+      network: host
+      {% endif %}
     container_name: {{ benchmarking_container_name }}
     {% if postgres_enabled -%}
     depends_on:

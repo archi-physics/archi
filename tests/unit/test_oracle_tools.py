@@ -266,65 +266,58 @@ class TestOracleConnectionManager:
     """Test OracleConnectionManager config parsing and management."""
 
     def test_from_config_with_valid_databases(self):
-        config = {
-            "oracle_databases": {
-                "test_db": {
-                    "dsn": "localhost:1521/testservice",
-                    "user": "testuser",
-                    "password_secret": "TEST_PASSWORD",
-                    "description": "Test database",
-                    "allowed_schemas": ["SCHEMA_A"],
-                    "max_rows": 200,
-                    "query_timeout_seconds": 60,
-                }
+        oracle_databases = {
+            "test_db": {
+                "dsn": "localhost:1521/testservice",
+                "user": "testuser",
+                "password_secret": "TEST_PASSWORD",
+                "description": "Test database",
+                "allowed_schemas": ["SCHEMA_A"],
+                "max_rows": 200,
+                "query_timeout_seconds": 60,
             }
         }
-        mgr = OracleConnectionManager.from_config(config)
+        mgr = OracleConnectionManager.from_config(oracle_databases)
         assert mgr is not None
         assert mgr.has_databases()
 
     def test_from_config_returns_none_when_empty(self):
         assert OracleConnectionManager.from_config({}) is None
-        assert OracleConnectionManager.from_config({"oracle_databases": {}}) is None
 
     def test_from_config_skips_invalid_entries(self):
-        config = {
-            "oracle_databases": {
-                "valid_db": {
-                    "dsn": "host:1521/svc",
-                    "user": "user",
-                    "password_secret": "SECRET",
-                },
-                "bad_db": {
-                    "dsn": "host:1521/svc",
-                    # missing user and password_secret
-                },
-                "not_a_dict": "garbage",
-            }
+        oracle_databases = {
+            "valid_db": {
+                "dsn": "host:1521/svc",
+                "user": "user",
+                "password_secret": "SECRET",
+            },
+            "bad_db": {
+                "dsn": "host:1521/svc",
+                # missing user and password_secret
+            },
+            "not_a_dict": "garbage",
         }
-        mgr = OracleConnectionManager.from_config(config)
+        mgr = OracleConnectionManager.from_config(oracle_databases)
         assert mgr is not None
         dbs = mgr.list_databases()
         assert len(dbs) == 1
         assert dbs[0]["name"] == "valid_db"
 
     def test_list_databases(self):
-        config = {
-            "oracle_databases": {
-                "db_a": {
-                    "dsn": "h:1521/s",
-                    "user": "u",
-                    "password_secret": "P",
-                    "description": "Database A",
-                },
-                "db_b": {
-                    "dsn": "h:1521/s",
-                    "user": "u",
-                    "password_secret": "P",
-                },
-            }
+        oracle_databases = {
+            "db_a": {
+                "dsn": "h:1521/s",
+                "user": "u",
+                "password_secret": "P",
+                "description": "Database A",
+            },
+            "db_b": {
+                "dsn": "h:1521/s",
+                "user": "u",
+                "password_secret": "P",
+            },
         }
-        mgr = OracleConnectionManager.from_config(config)
+        mgr = OracleConnectionManager.from_config(oracle_databases)
         dbs = mgr.list_databases()
         assert len(dbs) == 2
         names = {d["name"] for d in dbs}
@@ -335,30 +328,26 @@ class TestOracleConnectionManager:
         assert "description" not in db_b
 
     def test_get_db_config_unknown_raises(self):
-        config = {
-            "oracle_databases": {
-                "real_db": {
-                    "dsn": "h:1521/s",
-                    "user": "u",
-                    "password_secret": "P",
-                }
+        oracle_databases = {
+            "real_db": {
+                "dsn": "h:1521/s",
+                "user": "u",
+                "password_secret": "P",
             }
         }
-        mgr = OracleConnectionManager.from_config(config)
+        mgr = OracleConnectionManager.from_config(oracle_databases)
         with pytest.raises(ValueError, match="Unknown Oracle database"):
             mgr.get_db_config("nonexistent")
 
     def test_config_defaults(self):
-        config = {
-            "oracle_databases": {
-                "db": {
-                    "dsn": "h:1521/s",
-                    "user": "u",
-                    "password_secret": "P",
-                }
+        oracle_databases = {
+            "db": {
+                "dsn": "h:1521/s",
+                "user": "u",
+                "password_secret": "P",
             }
         }
-        mgr = OracleConnectionManager.from_config(config)
+        mgr = OracleConnectionManager.from_config(oracle_databases)
         cfg = mgr.get_db_config("db")
         assert cfg.max_rows == 100
         assert cfg.query_timeout_seconds == 30

@@ -27,6 +27,32 @@ services:
     trained_on: "My data"
     port: 7868
     external_port: 7868
+    # Optional: Oracle database connections for agent SQL querying.
+    # Uncomment and configure to enable the query_oracle_db and
+    # describe_oracle_schema tools. Requires INSTALL_ORACLE=true at
+    # Docker build time (or `pip install oracledb>=2.0.0`).
+    #
+    # tools:
+    #   oracle_databases:
+    #     tier0_prod:
+    #       dsn: "myhost.cern.ch:1521/myservice"
+    #       user: "readonly_user"
+    #       password_secret: "ORACLE_TIER0_PASSWORD"   # env var or Docker secret
+    #       description: "Tier-0 production database"
+    #       allowed_schemas:
+    #         - "CMS_WMBS"
+    #         - "CMS_T0AST"
+    #       max_rows: 200
+    #       query_timeout_seconds: 30
+    #       pool_min: 1
+    #       pool_max: 5
+    #     inventory:
+    #       dsn: "another-host.cern.ch:1521/invservice"
+    #       user: "inv_reader"
+    #       password_secret: "ORACLE_INV_PASSWORD"
+    #       description: "Hardware inventory database"
+    #       allowed_schemas:
+    #         - "HW_INV"
   vectorstore:
     backend: postgres # PostgreSQL with pgvector (only supported backend)
 
@@ -48,31 +74,6 @@ archi:
       default_model: "qwen3:32b" # make sure this matches a model you have downloaded locally with ollama
       models:
         - "qwen3:32b"
-  # Optional: Oracle database connections for agent SQL querying.
-  # Uncomment and configure to enable the query_oracle_db and
-  # describe_oracle_schema tools. Requires INSTALL_ORACLE=true at
-  # Docker build time (or `pip install oracledb>=2.0.0`).
-  #
-  # oracle_databases:
-  #   tier0_prod:
-  #     dsn: "myhost.cern.ch:1521/myservice"
-  #     user: "readonly_user"
-  #     password_secret: "ORACLE_TIER0_PASSWORD"   # env var or Docker secret
-  #     description: "Tier-0 production database"
-  #     allowed_schemas:
-  #       - "CMS_WMBS"
-  #       - "CMS_T0AST"
-  #     max_rows: 200
-  #     query_timeout_seconds: 30
-  #     pool_min: 1
-  #     pool_max: 5
-  #   inventory:
-  #     dsn: "another-host.cern.ch:1521/invservice"
-  #     user: "inv_reader"
-  #     password_secret: "ORACLE_INV_PASSWORD"
-  #     description: "Hardware inventory database"
-  #     allowed_schemas:
-  #       - "HW_INV"
 
   pipeline_map:
     CMSCompOpsAgent:
