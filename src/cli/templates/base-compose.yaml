@@ -577,7 +577,7 @@ services:
         if [ "$$SHM_SIZE" -lt 1048576 ] 2>/dev/null; then
           echo "WARNING: /dev/shm is $$(( $$SHM_SIZE / 1024 ))MB — less than 1GB. Use ipc: host or increase shm_size for stable multi-GPU inference."
         fi
-        exec python3 -m vllm.entrypoints.openai.api_server --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}"
+        exec python3 -m vllm.entrypoints.openai.api_server --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}" --enable-auto-tool-choice --tool-call-parser "{{ vllm_tool_parser | default('hermes') }}"
     ipc: host
     {% if host_mode -%}
     network_mode: host

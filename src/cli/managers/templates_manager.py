@@ -430,6 +430,8 @@ class TemplateManager:
         vllm_cfg = context.config_manager.config.get("archi", {}).get("providers", {}).get("vllm", {})
         if vllm_cfg.get("default_model"):
             template_vars["vllm_model"] = vllm_cfg["default_model"]
+        if vllm_cfg.get("tool_call_parser"):
+            template_vars["vllm_tool_parser"] = vllm_cfg["tool_call_parser"]
 
         compose_template = self.env.get_template(BASE_COMPOSE_TEMPLATE)
         compose_rendered = compose_template.render(**template_vars)
