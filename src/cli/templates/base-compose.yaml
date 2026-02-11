@@ -562,6 +562,10 @@ services:
   vllm-server:
     image: vllm/vllm-openai:latest
     container_name: vllm-server-{{ name }}
+    {% if not host_mode -%}
+    ports:
+      - "8000:8000"
+    {% endif -%}
     environment:
       NCCL_P2P_DISABLE: "1"
       NVIDIA_VISIBLE_DEVICES: all
@@ -575,7 +579,9 @@ services:
         fi
         exec python -m vllm.entrypoints.openai.api_server --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}"
     ipc: host
+    {% if host_mode -%}
     network_mode: host
+    {% endif -%}
     ulimits:
       memlock:
         soft: -1
