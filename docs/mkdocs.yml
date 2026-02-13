@@ -4,12 +4,18 @@ nav:
   - Install: install.md
   - Quickstart: quickstart.md
   - User Guide: user_guide.md
+<<<<<<< HEAD
   - Data Sources: data_sources.md
   - Services: services.md
   - Models & Providers: models_providers.md
   - Agents & Tools: agents_tools.md
   - Configuration: configuration.md
   - CLI Reference: cli_reference.md
+=======
+  - Advanced Setup and Deployment: advanced_setup_deploy.md
+  - vLLM Provider: vllm.md
+  - Adding Providers: adding_providers.md
+>>>>>>> 9b860a3f (docs: add vllm provider documentation)
   - API Reference: api_reference.md
   - Benchmarking: benchmarking.md
   - Advanced Setup: advanced_setup_deploy.md
