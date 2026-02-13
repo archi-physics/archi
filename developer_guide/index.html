@@ -73,6 +73,20 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#smoke-tests">Smoke Tests</a>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#ci-cd-architecture">CI / CD Architecture</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pr-preview-pr-previewyml">PR Preview (pr-preview.yml)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#release-test-and-build-tagyml">Release (test-and-build-tag.yml)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#publish-base-images-publish-base-imagesyml">Publish Base Images (publish-base-images.yml)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#docker-layer-caching">Docker Layer Caching</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#local-development">Local Development</a>
+    </li>
+        </ul>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#postgres-usage-overview">Postgres Usage Overview</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#dockerhub-images">DockerHub Images</a>
@@ -137,9 +151,9 @@ mkdocs serve
 <p>If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:</p>
 <pre><code class="language-bash">export Archi_DIR=~/.archi
 export DEPLOYMENT_NAME=local-smoke
-export USE_PODMAN=true
+export USE_PODMAN=false
 export SMOKE_FORCE_CREATE=true
-export SMOKE_OLLAMA_MODEL=gpt-oss:latest
+export SMOKE_OLLAMA_MODEL=qwen3:4b
 scripts/dev/run_smoke_preview.sh &quot;${DEPLOYMENT_NAME}&quot;
 </code></pre>
 <p>The shared runner performs these checks in order (ensuring the configured Ollama model is available via <code>ollama pull</code> before running the checks):</p>
@@ -154,7 +168,7 @@ scripts/dev/run_smoke_preview.sh &quot;${DEPLOYMENT_NAME}&quot;
 <pre><code class="language-bash">export Archi_CONFIG_PATH=~/.archi/archi-&lt;deployment-name&gt;/configs/&lt;config-name&gt;.yaml
 export Archi_CONFIG_NAME=&lt;config-name&gt;
 export Archi_PIPELINE_NAME=CMSCompOpsAgent
-export USE_PODMAN=true
+export USE_PODMAN=false
 export OLLAMA_MODEL=&lt;ollama-model-name&gt;
 export PGHOST=localhost
 export PGPORT=&lt;postgres-port&gt;
@@ -172,6 +186,56 @@ export FILE_SEARCH_QUERY=&quot;first linux server installation&quot;
 export METADATA_SEARCH_QUERY=&quot;ppc.mit.edu&quot;
 export VECTORSTORE_QUERY=&quot;cms&quot;
 </code></pre>
+<h2 id="ci-cd-architecture">CI / CD Architecture</h2>
+<p>All CI workflows run on GitHub-hosted <code>ubuntu-latest</code> runners with Docker (not Podman).</p>
+<h3 id="pr-preview-pr-previewyml">PR Preview (<code>pr-preview.yml</code>)</h3>
+<p>Every pull request triggers four parallel/sequential jobs:</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Runner</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>lint</strong></td>
+<td><code>ubuntu-latest</code></td>
+<td><code>black --check .</code> and <code>isort --check .</code></td>
+</tr>
+<tr>
+<td><strong>unit-tests</strong></td>
+<td><code>ubuntu-latest</code></td>
+<td><code>pytest tests/unit/ -v --tb=short</code></td>
+</tr>
+<tr>
+<td><strong>build-base-images</strong></td>
+<td><code>ubuntu-latest</code></td>
+<td>Detects changes to base image inputs; builds if needed</td>
+</tr>
+<tr>
+<td><strong>preview</strong></td>
+<td><code>ubuntu-latest</code></td>
+<td>Smoke deployment + Playwright UI tests</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>preview</code> job:</p>
+<ol>
+<li>Installs Ollama and pulls <code>qwen3:4b</code> (~2.6GB).</li>
+<li>Builds and deploys the app via <code>archi create</code> with Docker.</li>
+<li>Runs integration smoke tests (<code>combined_smoke.sh</code>).</li>
+<li>Runs Playwright UI tests against <code>http://localhost:2786</code>.</li>
+</ol>
+<h3 id="release-test-and-build-tagyml">Release (<code>test-and-build-tag.yml</code>)</h3>
+<p>Manually dispatched; builds Docker base images, pushes to DockerHub, runs smoke tests, then tags and releases.</p>
+<h3 id="publish-base-images-publish-base-imagesyml">Publish Base Images (<code>publish-base-images.yml</code>)</h3>
+<p>Triggered on push to <code>main</code>; rebuilds and pushes base images when requirements or Dockerfiles change.</p>
+<h3 id="docker-layer-caching">Docker Layer Caching</h3>
+<p>All workflows that build Docker images use <code>docker/setup-buildx-action</code> with <code>actions/cache</code> for layer caching, reducing rebuild times on cache hits.</p>
+<h3 id="local-development">Local Development</h3>
+<p>For local smoke testing, Docker is the default container runtime (<code>USE_PODMAN=false</code>). To use Podman locally, set <code>USE_PODMAN=true</code> and use the <code>--podman</code> flag with <code>archi</code> CLI commands.</p>
 <h2 id="postgres-usage-overview">Postgres Usage Overview</h2>
 <p>Archi relies on Postgres as the durable metadata store across services. Core usage falls into two buckets:</p>
 <ul>
