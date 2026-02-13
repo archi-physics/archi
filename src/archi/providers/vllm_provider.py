@@ -1,4 +1,9 @@
-"""vLLM provider implementation for OpenAI-compatible vLLM servers."""
+"""vLLM provider -- thin client for OpenAI-compatible vLLM servers.
+
+Wraps a locally hosted vLLM instance whose ``/v1`` API is wire-compatible
+with OpenAI.  No real API key is required; the placeholder ``"not-needed"``
+is sent instead.
+"""
 
 import json
 import os
@@ -46,6 +51,16 @@ class VLLMProvider(BaseProvider):
         return f"http://{url}"
 
     def __init__(self, config: Optional[ProviderConfig] = None):
+        """Initialize the vLLM provider.
+
+        Resolves the server URL in priority order: ``VLLM_BASE_URL`` env
+        var > ``config.base_url`` > ``DEFAULT_VLLM_BASE_URL``.  Bare
+        ``host:port`` URLs are normalised with an ``http://`` scheme.
+
+        Args:
+            config: Optional provider configuration.  When *None*, a
+                default config targeting ``localhost:8000`` is created.
+        """
         env_base_url = self._normalize_base_url(os.environ.get("VLLM_BASE_URL"))
 
         if config is None:
@@ -65,7 +80,16 @@ class VLLMProvider(BaseProvider):
         super().__init__(config)
 
     def get_chat_model(self, model_name: str, **kwargs) -> BaseChatModel:
-        """Get a ChatOpenAI instance pointing at the vLLM server."""
+        """Create a ChatOpenAI instance pointed at the vLLM server.
+
+        Args:
+            model_name: HuggingFace model ID served by vLLM
+                (e.g. ``"Qwen/Qwen3-8B"``).
+            **kwargs: Extra arguments forwarded to ChatOpenAI.
+
+        Returns:
+            A ChatOpenAI instance configured for the vLLM endpoint.
+        """
         from langchain_openai import ChatOpenAI
 
         model_kwargs = {
@@ -80,7 +104,15 @@ class VLLMProvider(BaseProvider):
         return ChatOpenAI(**model_kwargs)
 
     def list_models(self) -> List[ModelInfo]:
-        """Query the vLLM server's /v1/models endpoint for available models."""
+        """Return available models, querying the server first.
+
+        Falls back to statically configured models if the server is
+        unreachable.
+
+        Returns:
+            A list of :class:`ModelInfo` discovered from the server or
+            from config, or an empty list if neither yields results.
+        """
         fetched = self._fetch_vllm_models()
         if fetched:
             return fetched
@@ -89,7 +121,12 @@ class VLLMProvider(BaseProvider):
         return []
 
     def _fetch_vllm_models(self) -> List[ModelInfo]:
-        """Fetch models from the vLLM /v1/models endpoint."""
+        """Fetch models from the vLLM ``/v1/models`` endpoint.
+
+        Returns:
+            A list of :class:`ModelInfo`, or an empty list if the
+            server is unreachable or returns an unexpected payload.
+        """
         try:
             url = f"{self.config.base_url}/models"
             req = urllib.request.Request(url, method="GET")
@@ -118,7 +155,13 @@ class VLLMProvider(BaseProvider):
         return []
 
     def validate_connection(self) -> bool:
-        """Check if the vLLM server is reachable by hitting /v1/models."""
+        """Check whether the vLLM server is reachable.
+
+        Sends a GET to ``/v1/models`` with a short timeout.
+
+        Returns:
+            True if the server responds with HTTP 200, False otherwise.
+        """
         try:
             url = f"{self.config.base_url}/models"
             req = urllib.request.Request(url, method="GET")
