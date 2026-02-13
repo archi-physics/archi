@@ -150,7 +150,7 @@ scripts/dev/run_smoke_preview.sh &quot;${DEPLOYMENT_NAME}&quot;
 <li>Tool probes: catalog tools and vectorstore retriever (executed inside the chatbot container to match the agent runtime).</li>
 <li>ReAct agent smoke: stream response and observe at least one tool call.</li>
 </ul>
-<p>The combined smoke workflow alone does not start A2rchi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):</p>
+<p>The combined smoke workflow alone does not start Archi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):</p>
 <pre><code class="language-bash">export Archi_CONFIG_PATH=~/.archi/archi-&lt;deployment-name&gt;/configs/&lt;config-name&gt;.yaml
 export Archi_CONFIG_NAME=&lt;config-name&gt;
 export Archi_PIPELINE_NAME=CMSCompOpsAgent
