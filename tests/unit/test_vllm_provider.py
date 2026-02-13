@@ -41,9 +41,23 @@ class TestVLLMProviderInit(unittest.TestCase):
         assert provider.config.base_url == "http://env-host:8000/v1"
 
     def test_api_key_defaults_to_not_needed(self):
-        config = ProviderConfig(provider_type=ProviderType.VLLM)
-        provider = VLLMProvider(config)
+        # When no config provided, api_key is set to "not-needed"
+        provider = VLLMProvider()
         assert provider._api_key == "not-needed"
+
+    def test_api_key_not_mutated_on_passed_config(self):
+        # When config is provided without api_key, __init__ should not mutate it
+        config = ProviderConfig(provider_type=ProviderType.VLLM)
+        VLLMProvider(config)
+        assert config.api_key is None
+
+    def test_normalizes_base_url_without_scheme(self):
+        config = ProviderConfig(
+            provider_type=ProviderType.VLLM,
+            base_url="gpu-node:8000/v1",
+        )
+        provider = VLLMProvider(config)
+        assert provider.config.base_url == "http://gpu-node:8000/v1"
 
     def test_base_url_defaults_when_config_has_none(self):
         config = ProviderConfig(provider_type=ProviderType.VLLM, base_url=None)
