@@ -623,6 +623,21 @@ To use a local model, specify one of the local model classes in `models.py`:
 - `HuggingFaceImageLLM`
 - `VLLM`
 
+### vLLM
+
+For high-throughput GPU inference with tool-calling support, Archi can deploy a [vLLM](https://docs.vllm.ai/) server as a sidecar container. Reference models with the `vllm/` prefix in your config:
+
+```yaml
+archi:
+  pipeline_map:
+    CMSCompOpsAgent:
+      models:
+        required:
+          agent_model: vllm/Qwen/Qwen3-8B
+```
+
+Deploy with `--services chatbot,vllm-server --gpu-ids all`. See the [vLLM Provider](vllm.md) page for full configuration, architecture details, and troubleshooting.
+
 ### Models via APIs
 
 We support the following model classes in `models.py` for models accessed via APIs:
