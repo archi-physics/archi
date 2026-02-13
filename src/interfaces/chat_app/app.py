@@ -79,18 +79,6 @@ def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider
     extra = {}
     if provider_type == ProviderType.LOCAL and cfg.get("mode"):
         extra["local_mode"] = cfg.get("mode")
-    if provider_type == ProviderType.VLLM and not cfg.get("api_key"):
-        # vLLM servers typically don't require an API key
-        return ProviderConfig(
-            provider_type=provider_type,
-            enabled=cfg.get("enabled", True),
-            base_url=cfg.get("base_url"),
-            api_key="not-needed",
-            models=models,
-            default_model=cfg.get("default_model"),
-            extra_kwargs=extra,
-        )
-
     return ProviderConfig(
         provider_type=provider_type,
         enabled=cfg.get("enabled", True),

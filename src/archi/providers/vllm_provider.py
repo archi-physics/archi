@@ -36,8 +36,17 @@ class VLLMProvider(BaseProvider):
     provider_type = ProviderType.VLLM
     display_name = "vLLM"
 
+    @staticmethod
+    def _normalize_base_url(url: Optional[str]) -> Optional[str]:
+        """Ensure the base URL has a scheme so urllib requests succeed."""
+        if not url:
+            return url
+        if url.startswith(("http://", "https://")):
+            return url
+        return f"http://{url}"
+
     def __init__(self, config: Optional[ProviderConfig] = None):
-        env_base_url = os.environ.get("VLLM_BASE_URL")
+        env_base_url = self._normalize_base_url(os.environ.get("VLLM_BASE_URL"))
 
         if config is None:
             config = ProviderConfig(
@@ -51,8 +60,7 @@ class VLLMProvider(BaseProvider):
                 config.base_url = env_base_url
             elif not config.base_url:
                 config.base_url = DEFAULT_VLLM_BASE_URL
-            if not config.api_key:
-                config.api_key = "not-needed"
+            config.base_url = self._normalize_base_url(config.base_url)
 
         super().__init__(config)
 
