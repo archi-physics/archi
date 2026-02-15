@@ -63,6 +63,8 @@
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#optional-command-line-options">Optional command line options</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#agent-specs">Agent specs</a>
+    </li>
         </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#data-sources">Data Sources</a>
@@ -355,13 +357,11 @@
 <pre><code class="language-bash">archi create [...] --services=chatbot,piazza,... --sources jira,redmine,...
 </code></pre>
 <p>The parameters of the services and sources are configured via the configuration file. See below for more details.</p>
-<p>We support various <strong>pipelines</strong> which are pre-defined sequences of operations that process user inputs and generate responses.
-Each service may support a given pipeline.
+<p>We support various <strong>pipelines</strong> (agent classes and classic pipelines) which are pre-defined sequences of operations that process user inputs and generate responses.
+Each service may support a given pipeline. Agent prompts and tool subsets are defined in agent markdown files, while the agent class and default model are configured per service.
 See the <code>Services</code> and <code>Pipelines</code> sections below for more details.
-For each pipeline, you can use different models, retrievers, and prompts for different steps of the pipeline.
 We support various <strong>models</strong> for both embeddings and LLMs, which can be run locally or accessed via APIs.
-See the <code>Models</code> section below for more details.
-Both pipelines and models are configured via the configuration file.</p>
+See the <code>Models</code> section below for more details.</p>
 <p>Finally, we support various <strong>retrievers</strong> and <strong>embedding techniques</strong> for document retrieval.
 These are configured via the configuration file.
 See the <code>Vector Store</code> section below for more details.</p>
@@ -383,10 +383,21 @@ See the <code>Vector Store</code> section below for more details.</p>
 <li><strong><code>--sources</code> / <code>-src</code></strong>: Enable additional ingestion sources (<code>git</code>, <code>sso</code>, <code>jira</code>, <code>redmine</code>, ...). Provide a comma-separated list.</li>
 <li><strong><code>--gpu-ids</code></strong>: Mount specific GPUs (<code>--gpu-ids all</code> or <code>--gpu-ids 0,1</code>). The legacy <code>--gpu</code> flag still works but maps to <code>all</code>.</li>
 <li><strong><code>--tag</code></strong>: Override the local image tag (defaults to <code>2000</code>). Handy when building multiple configurations side-by-side.</li>
-<li><strong><code>--hostmode</code></strong>: Use host networking for all services.</li>
-<li><strong><code>--verbosity</code> / <code>-v</code></strong>: Control CLI logging level (0 = quiet, 4 = debug).</li>
-<li><strong><code>--force</code></strong> / <strong><code>--dry-run</code></strong>: Force recreation of an existing deployment and/or show what would happen without actually deploying.</li>
+<li><strong>Agent specs</strong>: Set <code>services.chat_app.agents_dir</code> to a directory of agent markdown files. At least one <code>*.md</code> file is required.</li>
 </ol>
+<h3 id="agent-specs">Agent specs</h3>
+<p>Agent specs live in the directory specified by <code>services.chat_app.agents_dir</code>. Each <code>*.md</code> file must include:</p>
+<ul>
+<li>YAML frontmatter with <code>name</code> and <code>tools</code></li>
+<li>The prompt in the Markdown body (everything after the frontmatter)</li>
+</ul>
+<p>The service selects the first agent spec in lexicographic order.
+The <code>tools</code> list enables a subset of tools defined by the agent class.</p>
+<p>In the chat UI, use the agent dropdown in the header to switch the active agent, edit or delete existing agents, or add
+a new one with the plus button. The selection is persisted and takes effect on the next request.
+5. <strong><code>--hostmode</code></strong>: Use host networking for all services.
+6. <strong><code>--verbosity</code> / <code>-v</code></strong>: Control CLI logging level (0 = quiet, 4 = debug).
+7. <strong><code>--force</code></strong> / <strong><code>--dry-run</code></strong>: Force recreation of an existing deployment and/or show what would happen without actually deploying.</p>
 <p>You can inspect the available services and sources, together with descriptions, using <code>archi list-services</code>.
 The CLI checks that host ports are free before deploying; if a port is already in use, adjust <code>services.*.external_port</code> (or <code>services.*.port</code> in <code>--hostmode</code>) and retry.</p>
 <blockquote>
@@ -614,11 +625,11 @@ data_manager:
       input_lists:
         - class_info.list # class info links
 
-archi:
-  [... archi config ...]
-
 services:
   piazza:
+    agent_class: QAPipeline
+    provider: local
+    model: llama3.2
     network_id: &lt;your Piazza network ID here&gt; # REQUIRED
   chat_app:
     trained_on: &quot;Your class materials&quot; # REQUIRED
@@ -747,29 +758,17 @@ username@mit.edu,222
 <p>The required fields in the configuration file are different from the rest of the Archi services. Below is an example:</p>
 <pre><code class="language-yaml">name: grading_test # REQUIRED
 
-archi:
-  pipelines:
-    - GradingPipeline
-  pipeline_map:
-    GradingPipeline:
-      prompts:
-        required:
-          final_grade_prompt: final_grade.prompt
-      models:
-        required:
-          final_grade_model: OllamaInterface
-    ImageProcessingPipeline:
-      prompts:
-        required:
-          image_processing_prompt: image_processing.prompt
-      models:
-        required:
-          image_processing_model: OllamaInterface
-
 services:
   chat_app:
     trained_on: &quot;rubrics, class info, etc.&quot; # REQUIRED
   grader_app:
+    provider: local
+    model: llama3.2
+    prompts:
+      grading:
+        final_grade_prompt: final_grade.prompt
+      image_processing:
+        image_processing_prompt: image_processing.prompt
     num_problems: 1 # REQUIRED
     local_rubric_dir: ~/grading/my_rubrics # REQUIRED
     local_users_csv_dir: ~/grading/logins # REQUIRED
@@ -779,18 +778,15 @@ data_manager:
 </code></pre>
 <ol>
 <li><code>name</code> -- The name of your configuration (required).</li>
-<li><code>archi.pipelines</code> -- List of pipelines to use (e.g., <code>GradingPipeline</code>, <code>ImageProcessingPipeline</code>).</li>
-<li><code>archi.pipeline_map</code> -- Mapping of pipelines to their required prompts and models.</li>
-<li><code>archi.pipeline_map.GradingPipeline.prompts.required.final_grade_prompt</code> -- Path to the grading prompt file for evaluating student solutions.</li>
-<li><code>archi.pipeline_map.GradingPipeline.models.required.final_grade_model</code> -- Model class for grading (e.g., <code>OllamaInterface</code>, <code>HuggingFaceOpenLLM</code>).</li>
-<li><code>archi.pipeline_map.ImageProcessingPipeline.prompts.required.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
-<li><code>archi.pipeline_map.ImageProcessingPipeline.models.required.image_processing_model</code> -- Model class for image processing (e.g., <code>OllamaInterface</code>, <code>HuggingFaceImageLLM</code>).</li>
+<li><code>services.grader_app.provider</code> -- Provider for grading/image pipelines (e.g., <code>local</code>, <code>openai</code>).</li>
+<li><code>services.grader_app.model</code> -- Default model id for grading/image pipelines.</li>
+<li><code>services.grader_app.prompts.grading.final_grade_prompt</code> -- Path to the grading prompt file for evaluating student solutions.</li>
+<li><code>services.grader_app.prompts.image_processing.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
 <li><code>services.chat_app.trained_on</code> -- A brief description of the data or materials Archi is trained on (required).</li>
 <li><code>services.grader_app.num_problems</code> -- Number of problems the grading service should expect (must match the number of rubric files).</li>
 <li><code>services.grader_app.local_rubric_dir</code> -- Directory containing the <code>solution_with_rubric_*.txt</code> files.</li>
 <li><code>services.grader_app.local_users_csv_dir</code> -- Directory containing the <code>users.csv</code> file.</li>
 </ol>
-<p>For ReAct-style agents (e.g., <code>CMSCompOpsAgent</code>), you may optionally set <code>archi.pipeline_map.&lt;Agent&gt;.recursion_limit</code> (default <code>100</code>) to control the LangGraph recursion cap; when the limit is hit, the agent returns a final wrap-up response using the collected context.</p>
 <h4 id="running_8">Running</h4>
 <pre><code class="language-bash">archi create [...] --services=grader
 </code></pre>
@@ -817,27 +813,23 @@ data_manager:
 <li><code>AnthropicLLM</code></li>
 </ul>
 <h4 id="openrouter">OpenRouter</h4>
-<p>OpenRouter uses the OpenAI-compatible API. Configure it by setting <code>OpenRouterLLM</code> in your config and providing
-<code>OPENROUTER_API_KEY</code>. Optional attribution headers can be set via <code>OPENROUTER_SITE_URL</code> and <code>OPENROUTER_APP_NAME</code>.</p>
-<pre><code class="language-yaml">archi:
-  model_class_map:
-    OpenRouterLLM:
-      class: OpenRouterLLM
-      kwargs:
-        model_name: openai/gpt-4o-mini
-        temperature: 0.7
-</code></pre>
+<p>OpenRouter uses the OpenAI-compatible API. No config entry is required for API-key providers; if
+<code>OPENROUTER_API_KEY</code> is set, the provider appears in the chat UI. To make OpenRouter the default,
+set <code>services.chat_app.default_provider</code> and <code>services.chat_app.default_model</code> accordingly.</p>
 <h3 id="ollama">Ollama</h3>
-<p>In order to use an Ollama server instance for the chatbot, it is possible to specify <code>OllamaInterface</code> for the model name. To then correctly use models on the Ollama server, in the keyword args, specify both the url of the server and the name of a model hosted on the server.</p>
-<pre><code class="language-yaml">archi:
-  model_class_map:
-    OllamaInterface:
-      kwargs:
-        base_model: &quot;gemma3&quot; # example
-        url: &quot;url-for-server&quot;
-
+<p>Configure Ollama under <code>services.chat_app.providers.local</code>, and set <code>services.chat_app.default_provider: local</code> with
+<code>services.chat_app.default_model</code> to the model id you want as the default. Example:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    provider: local
+    model: llama3.2
+    providers:
+      local:
+        base_url: http://localhost:11434
+        mode: ollama
+        models:
+          - llama3.2
 </code></pre>
-<p>In this case, the <code>gemma3</code> model is hosted on the Ollama server at <code>url-for-server</code>. You can check which models are hosted on your server by going to <code>url-for-server/models</code>.</p>
 <h3 id="bring-your-own-key-byok">Bring Your Own Key (BYOK)</h3>
 <p>Archi supports Bring Your Own Key (BYOK), allowing users to provide their own API keys for LLM providers at runtime. This enables:</p>
 <ul>

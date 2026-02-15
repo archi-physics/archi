@@ -468,27 +468,12 @@ data_manager:
   chunk_overlap: 0
   num_documents_to_retrieve: 5
 
-archi:
-  pipelines: [&quot;QAPipeline&quot;]
-  pipeline_map:
-    QAPipeline:
-      max_tokens: 10000
-      prompts:
-        required:
-          condense_prompt: &quot;examples/deployments/basic-gpu/condense.prompt&quot;
-          chat_prompt: &quot;examples/deployments/basic-gpu/qa.prompt&quot;
-      models:
-        required:
-          condense_model: &quot;OpenAIGPT4&quot;
-          chat_model: &quot;OpenAIGPT4&quot;
-  model_class_map:
-    OpenAIGPT4:
-      class: OpenAIGPT4
-      kwargs:
-        model_name: gpt-4
-
 services:
   chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    provider: local
+    model: llama3.2
     trained_on: &quot;Course documentation&quot;
     hostname: &quot;example.mit.edu&quot;
   postgres:

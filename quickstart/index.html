@@ -140,16 +140,31 @@ Data Sources:
 </code></pre>
 <p>See the <a href="../user_guide/">User Guide</a> for detailed information about each service and source.</p>
 <h2 id="pipelines">Pipelines</h2>
-<p>Archi supports several pipelines—pre-defined sequences of operations that process user inputs and generate responses. Each service supports a subset of pipelines (see the <a href="../user_guide/">User Guide</a> for details).</p>
-<p>An example pipeline is <code>QAPipeline</code>, a question-answering pipeline that takes a user's question, retrieves relevant documents from the vector store, and generates an answer using a language model.</p>
-<p>You specify which pipelines should be available in the configuration file.</p>
+<p>Archi supports several pipelines (agent classes and classic pipelines). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.</p>
 <h2 id="configuration">Configuration</h2>
-<p>Once you have chosen the services, sources, and pipelines you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under <code>examples/deployments/</code>, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.</p>
+<p>Once you have chosen the services, sources, and agent class you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under <code>examples/deployments/</code>, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.</p>
 <blockquote>
 <p><strong>Important:</strong> The configuration file follows the format of <code>src/cli/templates/base-config.yaml</code>. Any fields not specified in your configuration will be populated with the defaults from this template.</p>
 </blockquote>
-<p>Example configuration (<code>examples/deployments/basic-gpu/config.yaml</code>) for the <code>chatbot</code> service using <code>QAPipeline</code> with a local VLLM model:</p>
+<p>Example configuration for the <code>chatbot</code> service using a local Ollama model and agent specs from <code>services.chat_app.agents_dir</code>:</p>
 <pre><code class="language-yaml">name: my_archi
+
+services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: llama3.2
+    providers:
+      local:
+        base_url: http://localhost:11434
+        mode: ollama
+        models:
+          - llama3.2
+    trained_on: &quot;My data&quot;
+    hostname: &quot;&lt;your-hostname&gt;&quot;
+  vectorstore:
+    backend: postgres  # Uses PostgreSQL with pgvector (default)
 
 data_manager:
   sources:
@@ -159,37 +174,8 @@ data_manager:
         - examples/deployments/basic-gpu/miscellanea.list
   embedding_name: HuggingFaceEmbeddings
   chunk_size: 1000
-
-archi:
-  pipelines:
-    - QAPipeline
-  pipeline_map:
-    QAPipeline:
-      prompts:
-        required:
-          condense_prompt: examples/deployments/basic-gpu/condense.prompt
-          chat_prompt: examples/deployments/basic-gpu/qa.prompt
-      models:
-        required:
-          chat_model: VLLM
-          condense_model: VLLM
-  model_class_map:
-    VLLM:
-      kwargs:
-        base_model: 'Qwen/Qwen2.5-7B-Instruct-1M'
-        quantization: True
-        max_model_len: 32768
-        tensor_parallel_size: 2
-        repetition_penalty: 1.0
-        gpu_memory_utilization: 0.5
-
-services:
-  chat_app:
-    trained_on: &quot;My data&quot;
-    hostname: &quot;&lt;your-hostname&gt;&quot;
-  vectorstore:
-    backend: postgres  # Uses PostgreSQL with pgvector (default)
 </code></pre>
+<p>Agent specs are Markdown files (see <code>examples/agents/</code>) with YAML frontmatter for <code>name</code> and <code>tools</code>, and the prompt in the Markdown body.</p>
 <details>
 <summary>Explanation of configuration parameters</summary>
 
@@ -199,11 +185,11 @@ services:
   - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
   - `embedding_name`: Embedding model used for vectorization.
   - `chunk_size`: Controls how documents are split prior to embedding.
-- `archi`: Core pipeline settings.
-  - `pipelines`: Pipelines to use (e.g., `QAPipeline`).
-  - `pipeline_map`: Configuration for each pipeline, including prompts and models.
-  - `model_class_map`: Mapping of model names to their classes and parameters.
 - `services`: Settings for individual services/interfaces.
+  - `chat_app.agent_class`: Agent class to run (pipeline class name).
+  - `chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
+  - `chat_app.default_provider`/`chat_app.default_model`: Default provider/model for chat when no UI override is set.
+  - `chat_app.providers.local`: Ollama/local provider configuration.
   - `chat_app`: Chat interface configuration, including hostname and descriptive metadata.
   - `vectorstore.backend`: Vector store backend (`postgres` with pgvector).
 
@@ -230,7 +216,7 @@ services:
 <p>Other services may require additional secrets; see the <a href="../user_guide/">User Guide</a> for details.</p>
 <h2 id="creating-an-archi-deployment">Creating an Archi Deployment</h2>
 <p>Create your deployment with the CLI:</p>
-<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
 </code></pre>
 <p>This command specifies:</p>
 <ul>
@@ -239,13 +225,14 @@ services:
 <li><code>--podman</code>: Use Podman for container management (<code>docker</code> is the default).</li>
 <li><code>--env-file</code>: Path to the secrets file.</li>
 <li><code>--services</code>: Services to deploy (only the <code>chatbot</code> service in this example but others can be included separated by commas).</li>
+<li>Agent specs are loaded from <code>services.chat_app.agents_dir</code> in the config.</li>
 </ul>
 <p>Note that this command will create a deployment using only the link sources specified in the <code>data_manager.sources.links.input_lists</code> by default, if other sources (such as git-based documentation or pages under sso) want to be included they must be included using the <code>--sources</code> flag and in the configuration file.</p>
 <details>
 <summary>Example output</summary>
 
 
-<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-gpu/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
 </code></pre>
 
 
