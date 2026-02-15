@@ -121,7 +121,7 @@ If you are not using open-source models, supply the relevant API credentials:
 - `ANTHROPIC_API_KEY`: Anthropic API key.
 - `HUGGINGFACEHUB_API_TOKEN`: HuggingFace access token (for private models or embeddings).
 
-Other services may require additional secrets; see the [User Guide](user_guide.md) for details.
+Other services may require additional secrets; see the [Secrets Management](secrets.md) guide for a complete reference.
 
 ## Creating an Archi Deployment
 
