@@ -51,7 +51,7 @@ Archi's provider system consists of several Python files and classes:
 
 #### 1. **base.py** - The Foundation
 
-[src/archi/providers/base.py](../../src/archi/providers/base.py) contains the abstract base classes and data structures:
+`src/archi/providers/base.py` contains the abstract base classes and data structures:
 
 **ProviderType Enum**
 ```python
@@ -127,7 +127,7 @@ The `@abstractmethod` decorator marks methods that **must** be implemented by su
 
 #### 2. **__init__.py** - The Registry
 
-[src/archi/providers/__init__.py](../../src/archi/providers/__init__.py) manages provider registration and access:
+`src/archi/providers/__init__.py` manages provider registration and access:
 
 **The Registry Pattern**
 ```python
@@ -156,7 +156,7 @@ This is a "factory function"—it creates and returns provider objects. Instead 
 
 #### 3. **Individual Provider Files**
 
-Each provider (e.g., [openai_provider.py](../../src/archi/providers/openai_provider.py)) implements the `BaseProvider` interface for a specific service.
+Each provider (e.g., `openai_provider.py`) implements the `BaseProvider` interface for a specific service.
 
 ### Architecture Diagram
 
@@ -264,7 +264,7 @@ Let's implement a fictional provider called "AcmeAI" step by step.
 
 ### Step 1: Update the ProviderType Enum
 
-**File**: [src/archi/providers/base.py](../../src/archi/providers/base.py)
+**File**: `src/archi/providers/base.py`
 
 **Find this code:**
 ```python
@@ -557,7 +557,7 @@ This is the most important method—it creates a configured LangChain model:
 
 ### Step 3: Register the Provider
 
-**File**: [src/archi/providers/__init__.py](../../src/archi/providers/__init__.py)
+**File**: `src/archi/providers/__init__.py`
 
 **Find the `_ensure_providers_registered()` function:**
 
@@ -1576,7 +1576,7 @@ print(response.__dict__)
 If you're stuck:
 
 1. **Check existing providers:**
-   - Look at [openai_provider.py](../../src/archi/providers/openai_provider.py) for reference
+   - Look at `openai_provider.py` for reference
    - Compare your implementation to working examples
 
 2. **Enable debug logging:**

@@ -6,6 +6,7 @@ nav:
   - Secrets: secrets.md
   - User Guide: user_guide.md
   - Advanced Setup and Deployment: advanced_setup_deploy.md
+  - Adding Providers: adding_providers.md
   - API Reference: api_reference.md
   - Developer Guide: developer_guide.md
 theme: readthedocs
