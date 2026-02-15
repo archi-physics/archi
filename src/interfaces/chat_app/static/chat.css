@@ -916,24 +916,227 @@ body {
   cursor: not-allowed;
 }
 
-.agent-info-btn {
+.agent-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.agent-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  transition: all var(--transition-fast);
+  max-width: 180px;
+}
+
+.agent-dropdown-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.agent-dropdown-label {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: 0;
+  min-width: 220px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+  padding: 8px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-dropdown-menu[hidden] {
+  display: none;
+}
+
+.agent-dropdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.agent-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.agent-dropdown-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-alt);
+}
+
+.agent-dropdown-item.active {
+  color: var(--text-primary);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+}
+
+.agent-dropdown-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-dropdown-check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.agent-dropdown-check-spacer {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.agent-dropdown-actions {
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.agent-dropdown-item:hover .agent-dropdown-actions {
+  opacity: 1;
+}
+
+.agent-dropdown-edit,
+.agent-dropdown-delete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
   border: none;
-  border-radius: 6px;
   background: transparent;
-  color: var(--text-tertiary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  padding: 3px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
-.agent-info-btn:hover {
-  background: var(--bg-tertiary);
+.agent-dropdown-edit:hover {
   color: var(--text-primary);
+  background: var(--surface);
 }
+
+.agent-dropdown-delete:hover {
+  color: var(--error-text);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.agent-dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 2px 0;
+}
+
+.agent-dropdown-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.agent-dropdown-add:hover {
+  background: var(--accent-hover);
+}
+
+/* Delete inline confirmation */
+.agent-dropdown-item-confirming {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agent-dropdown-confirm-text {
+  font-size: var(--text-xs);
+  color: var(--error-text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.agent-dropdown-confirm-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.agent-dropdown-confirm-yes {
+  border: none;
+  background: var(--error-text);
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.agent-dropdown-confirm-yes:hover {
+  opacity: 0.85;
+}
+
+.agent-dropdown-confirm-no {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.agent-dropdown-confirm-no:hover {
+  background: var(--surface-alt);
+}
+
 
 .send-btn.stop-mode {
   background: rgba(239, 68, 68, 0.1);
@@ -2838,6 +3041,291 @@ body {
 .agent-info-list {
   margin: 0;
   padding-left: 18px;
+}
+
+.agent-info-prompt {
+  background: var(--surface-alt);
+  border-radius: 8px;
+  padding: 12px;
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  max-height: 240px;
+  overflow: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   Agent Spec Editor Modal
+   ----------------------------------------------------------------------------- */
+.agent-spec-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-spec-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.agent-spec-panel {
+  position: relative;
+  width: 92%;
+  max-width: 860px;
+  max-height: 85vh;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-spec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.agent-spec-body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-spec-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.agent-spec-editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-spec-tools-pane {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.agent-spec-tools-header {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-spec-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-spec-tool {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.agent-spec-tool:hover {
+  border-color: var(--text-tertiary);
+}
+
+.agent-spec-tool-checkbox {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.agent-spec-tool-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-spec-tool-name {
+  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.agent-spec-tool-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .agent-spec-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -- Structured form fields ------------------------------------------------ */
+
+.agent-spec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-spec-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-spec-name-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.agent-spec-name-input:focus {
+  border-color: var(--accent);
+}
+
+.agent-spec-prompt-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  min-height: 280px;
+  resize: vertical;
+  white-space: pre-wrap;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.agent-spec-prompt-input:focus {
+  border-color: var(--accent);
+}
+
+.field-error {
+  border-color: var(--error-text) !important;
+}
+
+/* Hidden raw editor (serialisation target) */
+.agent-spec-editor {
+  display: none;
+}
+
+/* -- Resize handle --------------------------------------------------------- */
+
+.agent-spec-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  z-index: 5;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    var(--text-tertiary) 40%,
+    var(--text-tertiary) 45%,
+    transparent 45%,
+    transparent 55%,
+    var(--text-tertiary) 55%,
+    var(--text-tertiary) 60%,
+    transparent 60%,
+    transparent 70%,
+    var(--text-tertiary) 70%,
+    var(--text-tertiary) 75%,
+    transparent 75%
+  );
+  opacity: 0.5;
+  border-radius: 0 0 16px 0;
+  transition: opacity 0.15s ease;
+}
+
+.agent-spec-resize-handle:hover {
+  opacity: 0.9;
+}
+
+.agent-spec-status {
+  min-height: 18px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.agent-spec-status.error {
+  color: var(--error-text);
+}
+
+.agent-spec-status.success {
+  color: var(--accent);
+}
+
+.agent-spec-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.agent-spec-reset,
+.agent-spec-save {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.agent-spec-reset {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.agent-spec-save {
+  background: var(--accent);
+  color: white;
+}
+
+.agent-spec-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* -----------------------------------------------------------------------------

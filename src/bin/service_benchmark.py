@@ -18,6 +18,7 @@ from ragas.metrics import (answer_relevancy, context_precision, context_recall,
                            faithfulness)
 
 from src.archi.archi import archi
+from src.archi.pipelines.agents.agent_spec import AgentSpecError, select_agent_spec
 from src.archi.providers import get_model
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
@@ -46,16 +47,21 @@ class ResultHandler:
 
     @staticmethod
     def map_prompts(config: Dict[str, Any]):
-        pipe = config.get('archi', {}).get('pipelines')[0]
-
-        prompts = config.get('archi',{}).get('pipeline_map').get(pipe).get('prompts')
-
-        for _, prompts in prompts.items():
-            for prompt_name, file_path in prompts.items():
-                path  = Path(file_path)
+        prompts = config.get("services", {}).get("benchmarking", {}).get("prompts")
+        if not isinstance(prompts, dict):
+            return
+        for _, section in prompts.items():
+            if not isinstance(section, dict):
+                continue
+            for prompt_name, file_path in section.items():
+                if not file_path:
+                    continue
+                path = Path(file_path)
+                if not path.exists():
+                    continue
                 with open(path, "r") as f:
                     prompt_str = f.read()
-                prompts[prompt_name] = prompt_str
+                section[prompt_name] = prompt_str
 
 
     @staticmethod
@@ -166,9 +172,27 @@ class Benchmarker:
 
         # for now it only uses one pipeline (the first one) but maybe later we make this work for mulitple
         logger.info(f"loaded new configuration: {self.current_config}")
-        pipeline = config.get('archi').get('pipelines')[0]
-
-        self.chain = archi(pipeline) 
+        pipeline = (
+            config.get("services", {}).get("benchmarking", {}).get("agent_class")
+            or config.get("services", {}).get("chat_app", {}).get("agent_class")
+            or config.get("services", {}).get("chat_app", {}).get("pipeline")
+            or "CMSCompOpsAgent"
+        )
+        chat_cfg = config.get("services", {}).get("chat_app", {}) if isinstance(config, dict) else {}
+        agent_spec = None
+        agents_dir = chat_cfg.get("agents_dir")
+        if agents_dir:
+            try:
+                agent_spec = select_agent_spec(Path(agents_dir))
+            except AgentSpecError as exc:
+                logger.warning("Failed to load agent spec: %s", exc)
+        self.chain = archi(
+            pipeline,
+            agent_spec=agent_spec,
+            default_provider=chat_cfg.get("default_provider"),
+            default_model=chat_cfg.get("default_model"),
+            prompt_overrides=chat_cfg.get("prompts", {}),
+        )
 
 
     def get_ragas_llm_evaluator(self):

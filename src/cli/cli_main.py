@@ -56,7 +56,7 @@ def cli():
 @click.option('--verbosity', '-v', type=int, default=3, help="Logging verbosity level (0-4)")
 @click.option('--force', '-f', is_flag=True, help="Force deployment creation, overwriting existing deployment")
 @click.option('--dry', '--dry-run', is_flag=True, help="Validate configuration and show what would be created without actually deploying")
-def create(name: str, config_files: list, config_dir: str, env_file: str, services: list, sources: list, 
+def create(name: str, config_files: list, config_dir: str, env_file: str, services: list, sources: list,
            force: bool, dry: bool, verbosity: int, **other_flags):
     """Create an ARCHI deployment with selected services and data sources."""
 
@@ -155,7 +155,12 @@ def create(name: str, config_files: list, config_dir: str, env_file: str, servic
         volume_manager = VolumeManager(compose_config.use_podman)
         volume_manager.create_required_volumes(compose_config, config_manager.config)
 
-        template_manager.prepare_deployment_files(compose_config, config_manager, secrets_manager, **other_flags)
+        template_manager.prepare_deployment_files(
+            compose_config,
+            config_manager,
+            secrets_manager,
+            **other_flags,
+        )
 
         # Host-side seeding removed; container config-seed handles schema + ingestion before services start.
         
@@ -475,7 +480,7 @@ def list_deployments():
 @click.option('--force', '-f', is_flag=True, help="Force deployment creation, overwriting existing deployment")
 @click.option('--tag', '-t', type=str, default="2000", help="Image tag for built containers")
 @click.option('--verbosity', '-v', type=int, default=3, help="Logging verbosity level (0-4)")
-def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_mode: bool, sources: list, 
+def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_mode: bool, sources: list,
              force: bool, verbosity: int, **other_flags):
     """Create an ARCHI deployment with selected services and data sources."""
     if not (bool(config_file) ^ bool(config_dir)): 
@@ -560,7 +565,12 @@ def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_m
         volume_manager = VolumeManager(compose_config.use_podman)
         volume_manager.create_required_volumes(compose_config, config_manager.config)
         
-        template_manager.prepare_deployment_files(compose_config, config_manager, secrets_manager, **other_flags)
+        template_manager.prepare_deployment_files(
+            compose_config,
+            config_manager,
+            secrets_manager,
+            **other_flags,
+        )
 
         deployment_manager = DeploymentManager(compose_config.use_podman)
         deployment_manager.start_deployment(base_dir)

@@ -1,26 +1,37 @@
 # Basic configuration file for a Archi deployment
-# with a chat app interface, a QA pipeline, and
-# PostgreSQL with pgvector for document storage.
+# with a chat app interface and PostgreSQL with pgvector for document storage.
 # The LLM is used through an existing Ollama server.
 #
 # run with:
-# archi create --name my-archi-ollama --config examples/deployments/basic-ollama/config.yaml --services chatbot --hostmode
+# archi create --name my-archi-ollama --config examples/deployments/basic-ollama/config.yaml --services chatbot --hostmode 
 
 name: my_archi
 
 services:
   chat_app:
-    pipeline: CMSCompOpsAgent
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: qwen3:32b
+    providers:
+      local:
+        enabled: true
+        base_url: http://localhost:7870 # make sure this matches your ollama server URL!
+        mode: ollama
+        default_model: "qwen3:32b" # make sure this matches a model you have downloaded locally with ollama
+        models:
+          - "gpt-oss:120b"
+          - "qwen3:32b"
     trained_on: "My data"
     port: 7866
     external_port: 7866
   vectorstore:
-    backend: postgres  # PostgreSQL with pgvector (only supported backend)
+    backend: postgres # PostgreSQL with pgvector (only supported backend)
   data_manager:
     port: 7889
     external_port: 7889
     auth:
-      enabled: false  # set to true and provide DM_API_TOKEN in .env for production
+      enabled: false # set to true and provide DM_API_TOKEN in .env for production
 
 data_manager:
   sources:
@@ -37,24 +48,3 @@ data_manager:
       projects:
         - emails-to-ticket
   embedding_name: HuggingFaceEmbeddings
-
-archi:
-  pipelines:
-    - CMSCompOpsAgent
-  providers:
-    local:
-      enabled: true
-      base_url: http://localhost:7870 # make sure this matches your ollama server URL!
-      mode: ollama
-      default_model: "qwen3:32b" # make sure this matches a model you have downloaded locally with ollama
-      models:
-        - "gpt-oss:120b"
-        - "qwen3:32b"
-  pipeline_map:
-    CMSCompOpsAgent:
-      prompts:
-        required:
-          agent_prompt: examples/deployments/basic-ollama/agent.prompt
-      models:
-        required:
-          agent_model: local/qwen3:32b

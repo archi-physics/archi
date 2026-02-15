@@ -18,9 +18,7 @@ Each section has a procedure and expected outcomes.
 - [ ] Header with "Chat" title
 - [ ] Header tabs: "Chat" (active), "Data"
 - [ ] Message input textbox
-- [ ] Config dropdown (model-select-a)
 - [ ] Settings button
-- [ ] Agent info button
 - [ ] Send button
 - [ ] Entry meta label showing agent and model
 
@@ -41,29 +39,19 @@ Each section has a procedure and expected outcomes.
 
 ---
 
-## 3. Agent Info Modal
+## 3. Settings → Models
 
 **Procedure:**
 ```
-1. mcp_io_github_chr_click(uid for "Agent info" button)
+1. mcp_io_github_chr_click(uid for "Settings" button)
 2. mcp_io_github_chr_take_snapshot()
 ```
 
 **Expected:**
-- [ ] Modal appears with "Agent Info" heading
-- [ ] Shows "Active agent" section with config name
-- [ ] Shows "Model" section with current model
-- [ ] Shows "Pipeline" section
-- [ ] Shows "Embedding" section
-- [ ] Shows "Data sources" section with list
-- [ ] Close button visible
-
-**Close Test:**
-```
-1. mcp_io_github_chr_click(uid for close button)
-2. mcp_io_github_chr_take_snapshot()
-```
-- [ ] Modal disappears
+- [ ] Settings modal appears
+- [ ] Models tab is visible
+- [ ] Provider dropdown is visible
+- [ ] Model dropdown is visible (enabled after provider selection)
 
 ---
 
@@ -304,7 +292,7 @@ Each section has a procedure and expected outcomes.
 ```
 
 **Repeat Tab and check:**
-- [ ] Focus moves through: input → config → settings → agent info → send
+- [ ] Focus moves through: input → settings → send
 - [ ] Focus is visible on each element
 - [ ] No elements are skipped
 

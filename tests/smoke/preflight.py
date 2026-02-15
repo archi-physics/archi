@@ -181,14 +181,22 @@ def _check_config_ollama(config_path: str, pipeline_name: str, ollama_model: str
     except Exception as exc:
         _fail(f"Failed to read config at {config_path}: {exc}")
 
-    pipeline_cfg = ((config.get("archi") or {}).get("pipeline_map") or {}).get(pipeline_name) or {}
-    required_models = (pipeline_cfg.get("models") or {}).get("required") or {}
-    agent_model = required_models.get("agent_model")
-    if agent_model != f"local/{ollama_model}":
-        _fail(f"Pipeline {pipeline_name} agent_model is '{agent_model}', expected 'local/{ollama_model}'")
+    chat_cfg = (config.get("services") or {}).get("chat_app") or {}
+    agent_class = chat_cfg.get("agent_class")
+    if pipeline_name and agent_class and agent_class != pipeline_name:
+        _fail(f"chat_app.agent_class is '{agent_class}', expected '{pipeline_name}'")
 
-    providers = (config.get("archi") or {}).get("providers") or {}
-    local_cfg = providers.get("local") or {}
+    default_provider = chat_cfg.get("default_provider")
+    default_model = chat_cfg.get("default_model")
+    if default_provider != "local":
+        _fail(f"chat_app.default_provider is '{default_provider}', expected 'local'")
+    if default_model and default_model != ollama_model:
+        _fail(f"chat_app.default_model is '{default_model}', expected '{ollama_model}'")
+
+    local_cfg = (chat_cfg.get("providers") or {}).get("local") or {}
+    local_default = local_cfg.get("default_model")
+    if local_default and local_default != ollama_model:
+        _fail(f"Local provider default_model '{local_default}' does not match OLLAMA_MODEL '{ollama_model}'")
     models = local_cfg.get("models") or []
     if models and models[0] != ollama_model:
         _fail(f"Local provider model '{models[0]}' does not match OLLAMA_MODEL '{ollama_model}'")

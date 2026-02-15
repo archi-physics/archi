@@ -214,6 +214,7 @@ jobs:
             ARCHI_COMPOSE_UP_FLAGS=--build --force-recreate
             SMOKE_OLLAMA_MODEL=qwen3:4b
             SMOKE_OLLAMA_URL=http://localhost:11434
+            SMOKE_OLLAMA_HOST=http://localhost:11434
             SMOKE_CLEANUP=false
           use-podman: "false"
 

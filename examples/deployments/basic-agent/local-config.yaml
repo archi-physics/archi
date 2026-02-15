@@ -4,7 +4,7 @@
 # Run with:
 # export ARCHI_DIR=/tmp/archi-test
 # echo "PG_PASSWORD=testpassword123" > /tmp/test-env
-# archi create --name cms-agent --config examples/deployments/basic-agent/local-config.yaml --services chatbot --env-file /tmp/test-env
+# archi create --name cms-agent --config examples/deployments/basic-agent/local-config.yaml --services chatbot --env-file /tmp/test-env 
 
 name: cms_agent_local
 
@@ -12,12 +12,23 @@ services:
   postgres:
     port: 5432
   chat_app:
-    pipeline: CMSCompOpsAgent
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: qwen3:4b
+    providers:
+      local:
+        enabled: true
+        base_url: http://host.docker.internal:11434 # Docker's way to reach localhost
+        mode: ollama
+        default_model: "qwen3:4b"
+        models:
+          - "qwen3:4b"
     trained_on: "CMS Computing Documentation"
     port: 7868
     external_port: 7868
   vectorstore:
-    backend: postgres  # PostgreSQL with pgvector
+    backend: postgres # PostgreSQL with pgvector
   data_manager:
     port: 4242
     external_port: 4242
@@ -38,23 +49,3 @@ data_manager:
         encode_kwargs:
           normalize_embeddings: true
       similarity_score_reference: 10
-
-archi:
-  pipelines:
-    - CMSCompOpsAgent
-  providers:
-    local:
-      enabled: true
-      base_url: http://host.docker.internal:11434  # Docker's way to reach localhost
-      mode: ollama
-      default_model: "qwen3:4b"
-      models:
-        - "qwen3:4b"
-  pipeline_map:
-    CMSCompOpsAgent:
-      prompts:
-        required:
-          agent_prompt: examples/deployments/basic-agent/agent.prompt
-      models:
-        required:
-          agent_model: local/qwen3:4b

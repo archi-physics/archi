@@ -11,7 +11,7 @@ from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-STATIC_FIELDS = ['global','services']
+STATIC_FIELDS = ['global', 'services']
 
 class ConfigurationManager:
     """Manages archi configuration loading and validation"""
@@ -42,6 +42,9 @@ class ConfigurationManager:
         if not config:
             raise ValueError("Configuration file is empty or invalid")
 
+        if "archi" in config:
+            raise ValueError("The 'archi' section is no longer supported in config.yaml.")
+
         # Track origin for relative-path resolution (e.g., prompts).
         config["_config_path"] = str(config_filepath)
 
@@ -70,11 +73,10 @@ class ConfigurationManager:
         """Get required configuration fields based on enabled services"""
         if not services:
             return []  # No validation needed if no services selected
-            
+
         # Base fields always required
         requirements = [
             'name', 
-            'archi.pipelines'
         ]
 
         # Services that have additional required fields
@@ -95,25 +97,20 @@ class ConfigurationManager:
 
         services = default_config['services']
         service_fields = {}
+        optional_keys = {"agents_dir"}
 
         for service_name, service_configs in services.items():
-            blank_configs = [key for key,value in service_configs.items() if (value is None) or (value=='')]
+            blank_configs = [
+                key for key, value in service_configs.items()
+                if ((value is None) or (value == '')) and key not in optional_keys
+            ]
             service_fields[service_name] = [f'services.{service_name}.{key}' for key in blank_configs]
 
         return service_fields
     
     def _get_active_pipeline_requirements(self,config) -> List[str]:
-        """Get required prompt and/or model fields for the active pipeline"""
-        pipeline_names = config.get('archi', {}).get('pipelines', "")
-        pipeline_requirements = []
-        for pipeline_name in pipeline_names:
-            required_prompts = config.get('archi', {}).get('pipeline_map', {}).get(pipeline_name, {}).get('prompts', {}).get('required', {})
-            required_models = config.get('archi', {}).get('pipeline_map', {}).get(pipeline_name, {}).get('models', {}).get('required', {})
-        
-            pipeline_requirements.extend([f'archi.pipeline_map.{pipeline_name}.prompts.required.{prompt_name}' for prompt_name in required_prompts.keys()])
-            pipeline_requirements.extend([f'archi.pipeline_map.{pipeline_name}.models.required.{model_name}' for model_name in required_models.keys()])
-        
-        return pipeline_requirements
+        """Legacy pipeline requirements (archi section removed)."""
+        return []
     
     def _validate_config(self, required_fields: List[str], config) -> None:
         """Validate that all required fields are present in config"""
@@ -135,10 +132,43 @@ class ConfigurationManager:
             pipeline_requirements = self._get_active_pipeline_requirements(config)
             required_fields = static_requirements + pipeline_requirements
             self._validate_config(required_fields, config)
+            self._validate_chat_app_config(config, services)
             self._validate_source_fields(config, sources)
 
         self._collect_embedding_metadata()
         self._collect_input_lists()
+
+    def _validate_chat_app_config(self, config: Dict[str, Any], services: List[str]) -> None:
+        if not services or "chatbot" not in services:
+            return
+        services_cfg = config.get("services", {}) or {}
+        chat_cfg = services_cfg.get("chat_app", {}) or {}
+
+        if "provider" in chat_cfg or "model" in chat_cfg:
+            raise ValueError(
+                "Legacy keys detected: 'services.chat_app.provider'/'services.chat_app.model'. "
+                "Use 'services.chat_app.default_provider' and 'services.chat_app.default_model' instead."
+            )
+        if "agent_dir" in chat_cfg and "agents_dir" not in chat_cfg:
+            raise ValueError("Missing required field: 'services.chat_app.agents_dir' (did you mean 'agent_dir'?)")
+
+        required = [
+            ("agent_class", "services.chat_app.agent_class"),
+            ("agents_dir", "services.chat_app.agents_dir"),
+            ("default_provider", "services.chat_app.default_provider"),
+            ("default_model", "services.chat_app.default_model"),
+        ]
+        for key, path in required:
+            value = chat_cfg.get(key)
+            if not value:
+                raise ValueError(f"Missing required field: '{path}' in the configuration")
+
+        agents_dir = Path(str(chat_cfg.get("agents_dir"))).expanduser()
+        if agents_dir.exists():
+            if not agents_dir.is_dir():
+                raise ValueError(f"agents_dir must be a directory: '{agents_dir}'")
+            if not list(agents_dir.glob("*.md")):
+                raise ValueError(f"agents_dir must contain at least one .md file: '{agents_dir}'")
 
     def _validate_source_fields(self, config: Dict[str, Any], sources: List[str]) -> None:
         if not sources:
@@ -236,36 +266,16 @@ class ConfigurationManager:
         return self.configs
     
     def get_pipeline_configs(self) -> Dict[str, Any]:
-        """Get the active pipeline configuration"""
-        pipeline_configs = []
-        for config in self.configs:
-            pipeline_names = config.get("archi", {}).get("pipelines")
-            for pipeline_name in pipeline_names:
-                pipeline_map = config.get("archi", {}).get("pipeline_map", {})
-                pipeline_configs.append(pipeline_map.get(pipeline_name, {}))
-
-        if len(pipeline_configs)==0:
-            return [{}]
-
-        return pipeline_configs
+        """Legacy pipeline configuration accessor (archi section removed)."""
+        return [{}]
     
     def get_models_configs(self) -> Dict[str, Any]:
-        """Get models configuration from active pipeline"""
-        pipeline_configs = self.get_pipeline_configs()
-        model_configs = []
-        for pipeline_config in pipeline_configs:
-            model_configs.append(pipeline_config.get("models", {}))
-
-        return model_configs
+        """Legacy models configuration accessor (archi section removed)."""
+        return []
     
     def get_prompts_config(self) -> Dict[str, Any]:
-        """Get prompts configuration from active pipeline"""
-        pipeline_configs = self.get_pipeline_configs()
-        prompt_configs = []
-        for pipeline_config in pipeline_configs:
-            prompt_configs.append(pipeline_config.get("prompts", {}))
-
-        return prompt_configs
+        """Legacy prompts configuration accessor (archi section removed)."""
+        return []
     
     def get_interface_config(self, interface_name: str) -> Dict[str, Any]:
         """Get configuration for a specific interface"""
@@ -278,13 +288,4 @@ class ConfigurationManager:
         return self.input_list
     
     def _get_all_models(self, config): 
-        pipelines = config.get('archi', {}).get('pipelines', [])
-
-        file_models = [config.get('archi', {}).get(pipeline, {}).get('models', {}) for pipeline in pipelines]
-
-        unique_models_used = reduce(lambda acc,b:
-                acc | set(b.get('required', {}).values()) | set(b.get('optional', {}).values()),
-               file_models, 
-               set())
-
-        return unique_models_used
+        return set()
