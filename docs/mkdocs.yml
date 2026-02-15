@@ -3,12 +3,13 @@ nav:
   - Archi: index.md
   - Install: install.md
   - Quickstart: quickstart.md
+  - Secrets: secrets.md
   - User Guide: user_guide.md
   - Advanced Setup and Deployment: advanced_setup_deploy.md
   - API Reference: api_reference.md
   - Developer Guide: developer_guide.md
 theme: readthedocs
-repo_url: https://github.com/mit-submit/archi
+repo_url: https://github.com/archi-physics/archi
 repo_name: 'GitHub'
 extra:
   version: 1.2.4
