@@ -40,6 +40,10 @@ COPY pyproject.toml pyproject.toml
 COPY weblists weblists
 RUN pip install --upgrade pip && pip install .
 
+# Optional: Oracle database support for agent tools
+ARG INSTALL_ORACLE=false
+RUN if [ "$INSTALL_ORACLE" = "true" ] ; then pip install oracledb>=2.0.0 ; fi
+
 RUN chmod g+rx /root; chmod -R g+w /root/archi/src/interfaces
 
 ARG APP_VERSION=unknown
