@@ -31,10 +31,7 @@
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
           <a href=".." class="icon icon-home"> Archi Docs
-        </a>
-        <div class="version">
-          1.2.4
-        </div><div role="search">
+        </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
   </form>
@@ -43,7 +40,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
                 </li>
               </ul>
               <ul>
@@ -61,13 +58,13 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#secrets">Secrets</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#creating-an-archi-deployment">Creating an Archi Deployment</a>
+    <li class="toctree-l2"><a class="reference internal" href="#creating-an-archi-deployment-with-ollama">Creating an Archi Deployment with Ollama</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#a-note-about-multiple-configurations">A note about multiple configurations</a>
-    </li>
     <li class="toctree-l3"><a class="reference internal" href="#verifying-a-deployment">Verifying a deployment</a>
     </li>
         </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a>
     </li>
     </ul>
                 </li>
@@ -77,7 +74,27 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup and Deployment</a>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
                 </li>
               </ul>
               <ul>
@@ -85,7 +102,19 @@
                 </li>
               </ul>
               <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
                 </li>
               </ul>
       </div>
@@ -104,7 +133,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">Quickstart</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/archi/edit/master/docs/quickstart.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/quickstart.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -140,7 +169,21 @@ Data Sources:
 </code></pre>
 <p>See the <a href="../user_guide/">User Guide</a> for detailed information about each service and source.</p>
 <h2 id="pipelines">Pipelines</h2>
-<p>Archi supports several pipelines (agent classes and classic pipelines). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.</p>
+<p>Archi supports several pipelines (agentic and not). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.</p>
+<p>Example agent spec file (<code>examples/agents/default.md</code>):</p>
+<pre><code class="language-markdown">---
+name: CMS CompOps Default
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+---
+
+You are a CMS CompOps assistant.
+Use tools to gather evidence before answering, and keep responses concise.
+</code></pre>
 <h2 id="configuration">Configuration</h2>
 <p>Once you have chosen the services, sources, and agent class you want to use, create a configuration file that specifies their settings. You can start from one of the example configuration files under <code>examples/deployments/</code>, or create your own from scratch. This file sets parameters; the selected services and sources are determined at deployment time.</p>
 <blockquote>
@@ -176,22 +219,25 @@ data_manager:
   chunk_size: 1000
 </code></pre>
 <p>Agent specs are Markdown files (see <code>examples/agents/</code>) with YAML frontmatter for <code>name</code> and <code>tools</code>, and the prompt in the Markdown body.</p>
-<details>
+<blockquote>
+<p><strong>Using OpenAI, Anthropic, Gemini, OpenRouter, or a non-Ollama local server?</strong> This quickstart uses Ollama for the first deployment path. For provider-specific startup snippets (including required secrets and config), see <a href="../models_providers/#quick-start-by-provider">Models &amp; Providers</a>.</p>
+</blockquote>
+<details markdown="1">
 <summary>Explanation of configuration parameters</summary>
 
 - `name`: Name of your Archi deployment.
 - `data_manager`: Settings related to data ingestion and the vector store.
-  - `sources.links.input_lists`: Lists of URLs to seed the deployment.
-  - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
-  - `embedding_name`: Embedding model used for vectorization.
-  - `chunk_size`: Controls how documents are split prior to embedding.
+- `data_manager.sources.links.input_lists`: Lists of URLs to seed the deployment.
+- `data_manager.sources.<source>.visible`: Controls whether content from a given source is surfaced to end users (defaults to `true`).
+- `data_manager.embedding_name`: Embedding model used for vectorization.
+- `data_manager.chunk_size`: Controls how documents are split prior to embedding.
 - `services`: Settings for individual services/interfaces.
-  - `chat_app.agent_class`: Agent class to run (pipeline class name).
-  - `chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
-  - `chat_app.default_provider`/`chat_app.default_model`: Default provider/model for chat when no UI override is set.
-  - `chat_app.providers.local`: Ollama/local provider configuration.
-  - `chat_app`: Chat interface configuration, including hostname and descriptive metadata.
-  - `vectorstore.backend`: Vector store backend (`postgres` with pgvector).
+- `services.chat_app.agent_class`: Agent class to run (pipeline class name).
+- `services.chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
+- `services.chat_app.default_provider` and `services.chat_app.default_model`: Default provider/model for chat when no UI override is set.
+- `services.chat_app.providers.local`: Ollama/local provider configuration.
+- `services.chat_app`: Chat interface configuration, including hostname and descriptive metadata.
+- `services.vectorstore.backend`: Vector store backend (`postgres` with pgvector).
 
 </details>
 
@@ -207,32 +253,58 @@ data_manager:
 <p>If you are not using open-source models, supply the relevant API credentials:</p>
 <ul>
 <li><code>OPENAI_API_KEY</code>: OpenAI API key.</li>
-<li><code>OPENROUTER_API_KEY</code>: OpenRouter API key (for <code>OpenRouterLLM</code>).</li>
+<li><code>OPENROUTER_API_KEY</code>: OpenRouter API key.</li>
 <li><code>OPENROUTER_SITE_URL</code>: Optional site URL for OpenRouter attribution.</li>
 <li><code>OPENROUTER_APP_NAME</code>: Optional app name for OpenRouter attribution.</li>
 <li><code>ANTHROPIC_API_KEY</code>: Anthropic API key.</li>
+<li><code>GOOGLE_API_KEY</code>: Google Gemini API key.</li>
 <li><code>HUGGINGFACEHUB_API_TOKEN</code>: HuggingFace access token (for private models or embeddings).</li>
 </ul>
 <p>Other services may require additional secrets; see the <a href="../user_guide/">User Guide</a> for details.</p>
-<h2 id="creating-an-archi-deployment">Creating an Archi Deployment</h2>
-<p>Create your deployment with the CLI:</p>
-<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<h2 id="creating-an-archi-deployment-with-ollama">Creating an Archi Deployment with Ollama</h2>
+<p>Create your deployment with the CLI. A deployment with a local Ollama model (make sure you specify in the <code>config.yaml</code> the URL of your Ollama instance):</p>
+<pre><code class="language-bash">archi create --name my-archi \
+  --config examples/deployments/basic-ollama/config.yaml \
+  --podman \
+  --env-file .secrets.env \
+  --services chatbot
 </code></pre>
-<p>This command specifies:</p>
-<ul>
-<li><code>--name</code>: Deployment name.</li>
-<li><code>--config</code>: Path to the configuration file.</li>
-<li><code>--podman</code>: Use Podman for container management (<code>docker</code> is the default).</li>
-<li><code>--env-file</code>: Path to the secrets file.</li>
-<li><code>--services</code>: Services to deploy (only the <code>chatbot</code> service in this example but others can be included separated by commas).</li>
-<li>Agent specs are loaded from <code>services.chat_app.agents_dir</code> in the config.</li>
-</ul>
-<p>Note that this command will create a deployment using only the link sources specified in the <code>data_manager.sources.links.input_lists</code> by default, if other sources (such as git-based documentation or pages under sso) want to be included they must be included using the <code>--sources</code> flag and in the configuration file.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code> / <code>-n</code></td>
+<td>Deployment name</td>
+</tr>
+<tr>
+<td><code>--config</code> / <code>-c</code></td>
+<td>Path to configuration file</td>
+</tr>
+<tr>
+<td><code>--env-file</code> / <code>-e</code></td>
+<td>Path to the secrets <code>.env</code> file</td>
+</tr>
+<tr>
+<td><code>--services</code> / <code>-s</code></td>
+<td>Comma-separated services to deploy</td>
+</tr>
+<tr>
+<td><code>--podman</code></td>
+<td>Use Podman instead of Docker</td>
+</tr>
+</tbody>
+</table>
+<p>Agent specs are loaded from <code>services.chat_app.agents_dir</code> in the config.</p>
 <details>
 <summary>Example output</summary>
 
 
-<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+<pre><code class="language-bash">archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot
 </code></pre>
 
 
@@ -261,16 +333,35 @@ Services running: chatbot, postgres
 <blockquote>
 <p><strong>Tip:</strong> Having issues? Run the command with <code>-v 4</code> to enable DEBUG-level logging.</p>
 </blockquote>
-<h3 id="a-note-about-multiple-configurations">A note about multiple configurations</h3>
-<p>When multiple configuration files are passed, their <code>services</code> sections must remain consistent, otherwise the deployment fails. The current use cases for multiple configurations include swapping pipelines/prompts dynamically via the chat app and maintaining separate benchmarking configurations.</p>
 <h3 id="verifying-a-deployment">Verifying a deployment</h3>
-<p>List running deployments with:</p>
+<p>Run these checks after <code>archi create</code>:</p>
+<p><strong>Step 1: Confirm deployment registration</strong></p>
 <pre><code class="language-bash">archi list-deployments
 </code></pre>
-<p>You should see output similar to:</p>
-<pre><code class="language-text">Existing deployments:
+<p>You should see your deployment name (for example <code>my-archi</code>).</p>
+<p><strong>Step 2: Confirm services are running with your container runtime</strong></p>
+<pre><code class="language-bash">podman ps
+# or: docker ps
 </code></pre>
-<p>(Additional details will follow for each deployment.)</p>
+<p>You should see containers for at least <code>chatbot</code> and <code>postgres</code>.</p>
+<p><strong>Step 3: Open the chat app URL printed by the CLI (default <code>http://localhost:7861</code>) and verify the UI loads.</strong></p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<p>Once your deployment is running:</p>
+<ul>
+<li><strong>Chat UI</strong>: Open <code>http://localhost:7861</code> in your browser to start chatting.</li>
+<li><strong>Data Viewer</strong>: Navigate to the <code>/data</code> page in the chat UI to browse ingested documents.</li>
+<li><strong>Upload Documents</strong>: If you deployed the <code>uploader</code> service, access the upload interface at its configured port.</li>
+</ul>
+<p>From here, explore the rest of the documentation:</p>
+<ul>
+<li><a href="../user_guide/">User Guide</a> — overview of all capabilities</li>
+<li><a href="../agents_tools/">Agents &amp; Tools</a> — customize agent behavior and prompts</li>
+<li><a href="../models_providers/">Models &amp; Providers</a> — switch to cloud LLMs (OpenAI, Anthropic, Gemini)</li>
+<li><a href="../configuration/">Configuration Reference</a> — full YAML config schema</li>
+<li><a href="../cli_reference/">CLI Reference</a> — all CLI commands and options</li>
+<li><a href="../troubleshooting/">Troubleshooting</a> — common issues and fixes</li>
+</ul>
               
             </div>
           </div><footer>
@@ -299,7 +390,7 @@ Services running: chatbot, postgres
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Troubleshooting - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Troubleshooting";
+        var mkdocs_page_input_path = "troubleshooting.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Troubleshooting</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#port-conflicts">Port Conflicts</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#gpu-cuda-errors">GPU / CUDA Errors</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#container-debugging">Container Debugging</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-manager-not-ingesting">Data Manager Not Ingesting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#chat-returns-empty-or-generic-responses">Chat Returns Empty or Generic Responses</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#authentication-issues">Authentication Issues</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#docker-build-failures">Docker Build Failures</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#multiple-deployments">Multiple Deployments</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#getting-help">Getting Help</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Troubleshooting</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/troubleshooting.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="troubleshooting">Troubleshooting</h1>
+<p>Common issues and their resolutions when running Archi.</p>
+<hr />
+<h2 id="port-conflicts">Port Conflicts</h2>
+<p><strong>Symptom</strong>: Container fails to start with "port already in use" or "address already allocated."</p>
+<p><strong>Fix</strong>: Change the conflicting port in your <code>config.yaml</code>:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    port: 7862        # default: 7861
+  postgres:
+    port: 5433         # default: 5432
+  data_manager:
+    port: 7872         # default: 7871
+</code></pre>
+<p>Check what's using a port:</p>
+<pre><code class="language-bash">lsof -i :7861
+# or
+ss -tlnp | grep 7861
+</code></pre>
+<hr />
+<h2 id="gpu-cuda-errors">GPU / CUDA Errors</h2>
+<p><strong>Symptom</strong>: <code>RuntimeError: CUDA out of memory</code> or model fails to load on GPU.</p>
+<p><strong>Fixes</strong>:</p>
+<ol>
+<li>
+<p>Use <code>--gpu-ids</code> to restrict which GPUs are used:
+   <code>bash
+   archi create -n myapp -c config.yaml --gpu-ids 0</code></p>
+</li>
+<li>
+<p>Switch to a smaller model or use CPU-only mode (omit <code>--gpu-ids</code>).</p>
+</li>
+<li>
+<p>Check GPU memory:
+   <code>bash
+   nvidia-smi</code></p>
+</li>
+</ol>
+<hr />
+<h2 id="container-debugging">Container Debugging</h2>
+<p>View logs for a specific service:</p>
+<pre><code class="language-bash">docker logs archi-&lt;deployment&gt;-&lt;service&gt;
+# Example:
+docker logs archi-myapp-chat
+docker logs archi-myapp-data-manager
+</code></pre>
+<p>Enter a running container:</p>
+<pre><code class="language-bash">docker exec -it archi-myapp-chat /bin/bash
+</code></pre>
+<p>Check all containers for a deployment:</p>
+<pre><code class="language-bash">docker ps --filter &quot;name=archi-myapp&quot;
+</code></pre>
+<hr />
+<h2 id="data-manager-not-ingesting">Data Manager Not Ingesting</h2>
+<p><strong>Symptom</strong>: Data sources aren't being indexed or the data viewer shows no documents.</p>
+<p><strong>Checks</strong>:</p>
+<ol>
+<li>
+<p>Verify the data manager container is running:
+   <code>bash
+   docker ps --filter "name=data-manager"</code></p>
+</li>
+<li>
+<p>Check data manager logs:
+   <code>bash
+   docker logs archi-myapp-data-manager</code></p>
+</li>
+<li>
+<p>Verify your data source configuration is correct in <code>config.yaml</code> under <code>data_manager.sources</code>.</p>
+</li>
+<li>
+<p>Check the ingestion status endpoint:
+   <code>bash
+   curl http://localhost:7871/api/ingestion/status</code></p>
+</li>
+</ol>
+<hr />
+<h2 id="chat-returns-empty-or-generic-responses">Chat Returns Empty or Generic Responses</h2>
+<p><strong>Possible causes</strong>:</p>
+<ol>
+<li><strong>No data ingested</strong>: Check the data viewer to verify documents exist.</li>
+<li><strong>Wrong provider config</strong>: Verify your API key is set and the provider/model names are correct.</li>
+<li><strong>Retrieval issues</strong>: Check <code>data_manager.retrievers.hybrid_retriever</code> settings — <code>num_documents_to_retrieve</code> may be too low, or <code>bm25_weight</code>/<code>semantic_weight</code> may need tuning.</li>
+</ol>
+<p>Enable verbose logging by checking container logs:</p>
+<pre><code class="language-bash">docker logs -f archi-myapp-chat
+</code></pre>
+<hr />
+<h2 id="authentication-issues">Authentication Issues</h2>
+<p><strong>Symptom</strong>: Login fails or "unauthorized" errors.</p>
+<p><strong>Checks</strong>:</p>
+<ol>
+<li>Ensure <code>FLASK_UPLOADER_APP_SECRET_KEY</code> is set in your <code>.secrets.env</code> for stable session behavior.</li>
+<li>Verify postgres is running and accessible.</li>
+<li>Check that auth tables were initialized — the chat service creates them on first startup.</li>
+</ol>
+<hr />
+<h2 id="docker-build-failures">Docker Build Failures</h2>
+<p><strong>Symptom</strong>: <code>archi create</code> fails during image build.</p>
+<p><strong>Fixes</strong>:</p>
+<ol>
+<li>
+<p>Ensure Docker is running and accessible:
+   <code>bash
+   docker info</code></p>
+</li>
+<li>
+<p>Check disk space — Docker builds can require significant space:
+   <code>bash
+   docker system df
+   docker system prune  # clean up unused images/containers</code></p>
+</li>
+<li>
+<p>For network issues during build, check your Docker daemon's DNS and proxy settings.</p>
+</li>
+</ol>
+<hr />
+<h2 id="multiple-deployments">Multiple Deployments</h2>
+<p>You can run multiple Archi deployments simultaneously as long as ports don't conflict. Each deployment is isolated under <code>~/.archi/archi-&lt;name&gt;/</code>.</p>
+<p>List all deployments:</p>
+<pre><code class="language-bash">archi list-deployments
+</code></pre>
+<p>Check services for a specific deployment:</p>
+<pre><code class="language-bash">archi list-services
+</code></pre>
+<hr />
+<h2 id="getting-help">Getting Help</h2>
+<ul>
+<li><strong>GitHub Issues</strong>: <a href="https://github.com/archi-physics/archi/issues">archi-physics/archi</a></li>
+<li><strong>Verbose Logging</strong>: Check container logs with <code>docker logs -f &lt;container-name&gt;</code></li>
+<li><strong>Configuration Reference</strong>: See the <a href="../configuration/">Configuration</a> page for all available settings</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../developer_guide/" class="btn btn-neutral float-left" title="Developer Guide"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../developer_guide/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

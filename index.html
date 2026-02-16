@@ -12,7 +12,7 @@
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Archi";
+        var mkdocs_page_name = "Home";
         var mkdocs_page_input_path = "index.md";
         var mkdocs_page_url = null;
       </script>
@@ -31,10 +31,7 @@
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
           <a href="." class="icon icon-home"> Archi Docs
-        </a>
-        <div class="version">
-          1.2.4
-        </div><div role="search">
+        </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
   </form>
@@ -43,15 +40,19 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
-                <li class="toctree-l1 current"><a class="reference internal current" href="#">Archi</a>
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Home</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#start-here">Start Here</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#about">About</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#educational-support">Educational Support</a>
-    </li>
     <li class="toctree-l3"><a class="reference internal" href="#research-resource-support">Research Resource Support</a>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#educational-support">Educational Support</a>
+    </li>
         </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a>
     </li>
     </ul>
                 </li>
@@ -69,7 +70,27 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="advanced_setup_deploy/">Advanced Setup and Deployment</a>
+                <li class="toctree-l1"><a class="reference internal" href="data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="cli_reference/">CLI Reference</a>
                 </li>
               </ul>
               <ul>
@@ -77,7 +98,19 @@
                 </li>
               </ul>
               <ul>
+                <li class="toctree-l1"><a class="reference internal" href="benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="troubleshooting/">Troubleshooting</a>
                 </li>
               </ul>
       </div>
@@ -94,9 +127,9 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">Archi</li>
+      <li class="breadcrumb-item active">Home</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/archi/edit/master/docs/index.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/index.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -108,17 +141,92 @@
 <p>Archi (AI Augmented Research Chat Intelligence) is a retrieval-augmented generation (RAG) framework designed to be a low-barrier, open-source, private, and customizable AI solution for research and educational support.</p>
 <p>Archi makes it easy to deploy AI assistants with a suite of tools that connect to</p>
 <ul>
-<li>communication platforms such as Piazza, Slack, Discourse, Mattermost, and email, and</li>
-<li>knowledge bases such as web links, files, JIRA tickets, and documentation.</li>
+<li>knowledge bases such as web links, files, JIRA tickets, and documentation</li>
+<li>communication platforms such as Piazza, Slack, Mattermost, and email</li>
 </ul>
-<p>It is modular and extensible, allowing users to add connectors and customise pipeline behaviour for a wide range of tasks—from answering simple questions to delivering detailed explanations.</p>
+<p>It is modular and extensible, allowing users to add connectors and customize pipeline behavior for a wide range of tasks—from answering simple questions to delivering detailed explanations.</p>
+<h2 id="start-here">Start Here</h2>
+<p>If you are new to Archi, follow this path:</p>
+<ol>
+<li><a href="install/">Install</a></li>
+<li><a href="quickstart/">Quickstart</a></li>
+<li><a href="user_guide/">User Guide</a></li>
+</ol>
 <h2 id="about">About</h2>
-<p>Archi is an end-to-end framework developed by Prof. Paus (MIT Physics), Prof. Kraska (MIT EECS), and their students. It has already been successfully deployed as a user chatbot and technical assistant at SubMIT (the MIT Physics Department's private cluster) and as an educational assistant for several MIT courses, including 8.01 and 8.511.</p>
+<p>Archi is developed by Prof. Paus (MIT Physics), Prof. Kraska (MIT EECS), and their students. It has already been successfully deployed as a user chatbot and technical assistant at SubMIT (the MIT Physics Department's computing cluster) and as an educational assistant for several MIT courses, including 8.01 and 8.511.</p>
 <p>What sets Archi apart is that it is fully open source, configurable across foundational models and LLM libraries, and designed for private deployment. Under the hood, Archi is a highly configurable RAG system tailored for educational and scientific support. Given its success, the scope now spans additional MIT classes, CERN, Harvard, and internal deployments such as CSAIL's support staff.</p>
+<h3 id="research-resource-support">Research Resource Support</h3>
+<p>Archi serves technical support teams and end users. At SubMIT, it functions both as a user-facing chatbot and as a ticket assistant. Integration with Redmine enables Archi to prepare draft responses to support tickets that staff can review before sending. In both roles, Archi accesses the corpus of tickets and documentation, citing relevant sources in its answers.</p>
 <h3 id="educational-support">Educational Support</h3>
 <p>Archi assists TAs, lecturers, and support staff—or students directly—by preparing answers based on curated class resources. In MIT course deployments, Archi leverages Piazza posts, documentation, and other class-specific materials. The Piazza integration can draft answers for staff to review or send, while the system continuously learns from revisions and new posts, improving over time.</p>
-<h3 id="research-resource-support">Research Resource Support</h3>
-<p>Archi also serves technical support teams and end users. At SubMIT, it functions both as a user-facing chatbot and as a ticket assistant. Integration with Redmine enables Archi to prepare draft responses to support tickets that staff can review before sending. In both roles, Archi accesses the corpus of tickets and documentation, citing relevant sources in its answers.</p>
+<hr />
+<h2 id="documentation">Documentation</h2>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="install/">Install</a></td>
+<td>System requirements and installation</td>
+</tr>
+<tr>
+<td><a href="quickstart/">Quickstart</a></td>
+<td>Deploy your first instance in minutes</td>
+</tr>
+<tr>
+<td><a href="user_guide/">User Guide</a></td>
+<td>Overview of all capabilities</td>
+</tr>
+<tr>
+<td><a href="data_sources/">Data Sources</a></td>
+<td>Configure web links, git, JIRA, Redmine, and more</td>
+</tr>
+<tr>
+<td><a href="services/">Services</a></td>
+<td>Chat, uploader, data manager, Piazza, Mattermost, and other interfaces</td>
+</tr>
+<tr>
+<td><a href="models_providers/">Models &amp; Providers</a></td>
+<td>LLM providers (OpenAI, Anthropic, Gemini, OpenRouter, Local), embeddings, BYOK</td>
+</tr>
+<tr>
+<td><a href="agents_tools/">Agents &amp; Tools</a></td>
+<td>Agent specs, tools, MCP integration, pipelines</td>
+</tr>
+<tr>
+<td><a href="configuration/">Configuration</a></td>
+<td>Full YAML config schema reference</td>
+</tr>
+<tr>
+<td><a href="cli_reference/">CLI Reference</a></td>
+<td>All CLI commands and options</td>
+</tr>
+<tr>
+<td><a href="api_reference/">API Reference</a></td>
+<td>REST API endpoints</td>
+</tr>
+<tr>
+<td><a href="benchmarking/">Benchmarking</a></td>
+<td>Evaluate retrieval and response quality</td>
+</tr>
+<tr>
+<td><a href="developer_guide/">Developer Guide</a></td>
+<td>Architecture, contributing, extending the stack</td>
+</tr>
+<tr>
+<td><a href="advanced_setup_deploy/">Advanced Setup</a></td>
+<td>GPU setup, multi-node, production deployment</td>
+</tr>
+<tr>
+<td><a href="troubleshooting/">Troubleshooting</a></td>
+<td>Common issues and fixes</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
@@ -146,7 +254,7 @@
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     
@@ -171,5 +279,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-02-16 13:47:00.326576+00:00
+Build Date UTC : 2026-02-16 14:55:58.938531+00:00
 -->

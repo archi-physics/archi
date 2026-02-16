@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Services - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Services";
+        var mkdocs_page_input_path = "services.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Services</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#chat-interface">Chat Interface</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#key-features">Key Features</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#document-upload">Document Upload</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-manager">Data Manager</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#features">Features</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#api-endpoints">API Endpoints</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_1">Configuration</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#piazza-interface">Piazza Interface</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#setup">Setup</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_2">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets">Secrets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running_1">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#redmine-mailbox-interface">Redmine / Mailbox Interface</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_3">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_1">Secrets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running_2">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#mattermost-interface">Mattermost Interface</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_4">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_2">Secrets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running_3">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#grafana-monitoring">Grafana Monitoring</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_5">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_3">Secrets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running_4">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#grader-interface">Grader Interface</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#requirements">Requirements</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_6">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_4">Secrets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running_5">Running</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Services</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/services.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="services">Services</h1>
+<p>Archi supports several <strong>services</strong> — containerized applications that interact with the AI pipelines. Services are enabled at deploy time with the <code>--services</code> flag.</p>
+<pre><code class="language-bash">archi create [...] --services chatbot,uploader,grafana
+</code></pre>
+<p>List all available services with:</p>
+<pre><code class="language-bash">archi list-services
+</code></pre>
+<hr />
+<h2 id="chat-interface">Chat Interface</h2>
+<p>The primary user-facing service. Provides a web-based chat application for interacting with Archi's AI agents.</p>
+<p><strong>Default port:</strong> <code>7861</code></p>
+<h3 id="key-features">Key Features</h3>
+<ul>
+<li>Streaming responses with tool-call visualization</li>
+<li>Agent selector dropdown for switching between agents</li>
+<li>Built-in <a href="../data_sources/#data-viewer">Data Viewer</a> at <code>/data</code></li>
+<li>Settings panel for model/provider selection</li>
+<li><a href="../models_providers/#bring-your-own-key-byok">BYOK</a> support</li>
+<li>Conversation history</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: llama3.2
+    trained_on: &quot;Course documentation&quot;
+    hostname: &quot;example.mit.edu&quot;
+    port: 7861
+    external_port: 7861
+</code></pre>
+<h3 id="running">Running</h3>
+<pre><code class="language-bash">archi create [...] --services chatbot
+</code></pre>
+<hr />
+<h2 id="document-upload">Document Upload</h2>
+<p>Document upload is exposed in the chat UI and backed by the <strong>Data Manager</strong> service. Documents can be uploaded via the web interface or by copying files directly into the data directory.</p>
+<p>See <a href="../data_sources/#adding-documents-manually">Data Sources — Adding Documents Manually</a> for setup instructions.</p>
+<hr />
+<h2 id="data-manager">Data Manager</h2>
+<p>A background service that handles data ingestion, vectorstore management, and scheduled re-scraping. It is automatically started with most deployments.</p>
+<p><strong>Default port:</strong> <code>7871</code></p>
+<h3 id="features">Features</h3>
+<ul>
+<li>Orchestrates all data collectors (links, git, JIRA, Redmine)</li>
+<li>Manages the vectorstore (chunking, embedding, indexing)</li>
+<li>Provides a scheduling system for periodic re-ingestion</li>
+<li>Exposes API endpoints for ingestion status and schedule management</li>
+</ul>
+<h3 id="api-endpoints">API Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/ingestion/status</code></td>
+<td>GET</td>
+<td>Current ingestion progress</td>
+</tr>
+<tr>
+<td><code>/api/reload-schedules</code></td>
+<td>POST</td>
+<td>Trigger schedule reload from database</td>
+</tr>
+<tr>
+<td><code>/api/schedules</code></td>
+<td>GET</td>
+<td>Current schedule status</td>
+</tr>
+</tbody>
+</table>
+<h3 id="configuration_1">Configuration</h3>
+<pre><code class="language-yaml">services:
+  data_manager:
+    port: 7871
+    external_port: 7871
+</code></pre>
+<hr />
+<h2 id="piazza-interface">Piazza Interface</h2>
+<p>Reads posts from a Piazza forum and posts draft responses to a specified Slack channel.</p>
+<h3 id="setup">Setup</h3>
+<ol>
+<li>Go to <a href="https://api.slack.com/apps">Slack Apps</a> and sign in to your workspace.</li>
+<li>Click <strong>Create New App</strong> → <strong>From scratch</strong>. Name the app and select the workspace.</li>
+<li>Go to <strong>Incoming Webhooks</strong> under Features and toggle it on.</li>
+<li>Click <strong>Add New Webhook</strong> and select the target channel.</li>
+<li>Copy the <strong>Webhook URL</strong> to your secrets file.</li>
+</ol>
+<h3 id="configuration_2">Configuration</h3>
+<p>Get the Piazza network ID from the class homepage URL (e.g., <code>https://piazza.com/class/m0g3v0ahsqm2lg</code> → <code>m0g3v0ahsqm2lg</code>).</p>
+<pre><code class="language-yaml">services:
+  piazza:
+    agent_class: QAPipeline
+    provider: local
+    model: llama3.2
+    network_id: &lt;your Piazza network ID&gt;
+  chat_app:
+    trained_on: &quot;Your class materials&quot;
+</code></pre>
+<h3 id="secrets">Secrets</h3>
+<pre><code class="language-bash">PIAZZA_EMAIL=...
+PIAZZA_PASSWORD=...
+SLACK_WEBHOOK=...
+</code></pre>
+<h3 id="running_1">Running</h3>
+<pre><code class="language-bash">archi create [...] --services chatbot,piazza
+</code></pre>
+<hr />
+<h2 id="redmine-mailbox-interface">Redmine / Mailbox Interface</h2>
+<p>Reads new tickets in a Redmine project, drafts a response as a comment, and sends it as an email when the ticket is marked "Resolved" by an admin.</p>
+<h3 id="configuration_3">Configuration</h3>
+<pre><code class="language-yaml">services:
+  redmine_mailbox:
+    url: https://redmine.example.com
+    project: my-project
+    redmine_update_time: 10
+    mailbox_update_time: 10
+    answer_tag: &quot;-- Archi -- Resolving email was sent&quot;
+</code></pre>
+<h3 id="secrets_1">Secrets</h3>
+<pre><code class="language-bash">IMAP_USER=...
+IMAP_PW=...
+REDMINE_USER=...
+REDMINE_PW=...
+SENDER_SERVER=...
+SENDER_PORT=587
+SENDER_REPLYTO=...
+SENDER_USER=...
+SENDER_PW=...
+</code></pre>
+<h3 id="running_2">Running</h3>
+<pre><code class="language-bash">archi create [...] --services chatbot,redmine-mailer
+</code></pre>
+<hr />
+<h2 id="mattermost-interface">Mattermost Interface</h2>
+<p>Reads posts from a Mattermost forum and posts draft responses to a specified channel.</p>
+<h3 id="configuration_4">Configuration</h3>
+<pre><code class="language-yaml">services:
+  mattermost:
+    update_time: 60
+</code></pre>
+<h3 id="secrets_2">Secrets</h3>
+<pre><code class="language-bash">MATTERMOST_WEBHOOK=...
+MATTERMOST_PAK=...
+MATTERMOST_CHANNEL_ID_READ=...
+MATTERMOST_CHANNEL_ID_WRITE=...
+</code></pre>
+<h3 id="running_3">Running</h3>
+<pre><code class="language-bash">archi create [...] --services chatbot,mattermost
+</code></pre>
+<hr />
+<h2 id="grafana-monitoring">Grafana Monitoring</h2>
+<p>Monitor system performance and LLM usage with a pre-configured Grafana dashboard.</p>
+<p><strong>Default port:</strong> <code>3000</code></p>
+<blockquote>
+<p><strong>Note:</strong> If redeploying with an existing name (without removing volumes), the PostgreSQL Grafana user may not have been created. Deploy a fresh instance to avoid issues.</p>
+</blockquote>
+<h3 id="configuration_5">Configuration</h3>
+<pre><code class="language-yaml">services:
+  grafana:
+    external_port: 3000
+</code></pre>
+<h3 id="secrets_3">Secrets</h3>
+<pre><code class="language-bash">PG_PASSWORD=&lt;your_database_password&gt;
+GRAFANA_PG_PASSWORD=&lt;grafana_db_password&gt;
+</code></pre>
+<h3 id="running_4">Running</h3>
+<pre><code class="language-bash">archi create [...] --services chatbot,grafana
+</code></pre>
+<p>After deployment, access Grafana at <code>your-hostname:3000</code>. The default login is <code>admin</code>/<code>admin</code> — you'll be prompted to change the password on first login. Navigate to <strong>Menu → Dashboards → Archi → Archi Usage</strong> for the main dashboard.</p>
+<blockquote>
+<p><strong>Tip:</strong> For the "Recent Conversation Messages" panel, click the three dots → <strong>Edit</strong> → find "Override 4" → enable <strong>Cell value inspect</strong> to expand long text entries. Click <strong>Apply</strong> to save.</p>
+</blockquote>
+<hr />
+<h2 id="grader-interface">Grader Interface</h2>
+<p>An automated grading service for handwritten assignments with a web interface.</p>
+<blockquote>
+<p><strong>Note:</strong> This service is experimental and not yet fully generalized.</p>
+</blockquote>
+<h3 id="requirements">Requirements</h3>
+<p>The following files are needed:</p>
+<ul>
+<li><strong><code>users.csv</code></strong>: Two columns — <code>MIT email</code> and <code>Unique code</code></li>
+<li><strong><code>solution_with_rubric_*.txt</code></strong>: One file per problem, named with the problem number. Begins with the problem name and a line of dashes.</li>
+<li><strong><code>admin_password.txt</code></strong>: Admin code for resetting student attempts (passed as a secret).</li>
+</ul>
+<h3 id="configuration_6">Configuration</h3>
+<pre><code class="language-yaml">services:
+  grader_app:
+    provider: local
+    model: llama3.2
+    prompts:
+      grading:
+        final_grade_prompt: final_grade.prompt
+      image_processing:
+        image_processing_prompt: image_processing.prompt
+    num_problems: 1
+    local_rubric_dir: ~/grading/my_rubrics
+    local_users_csv_dir: ~/grading/logins
+  chat_app:
+    trained_on: &quot;rubrics, class info, etc.&quot;
+</code></pre>
+<h3 id="secrets_4">Secrets</h3>
+<pre><code class="language-bash">ADMIN_PASSWORD=your_password
+</code></pre>
+<h3 id="running_5">Running</h3>
+<pre><code class="language-bash">archi create [...] --services grader
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../data_sources/" class="btn btn-neutral float-left" title="Data Sources"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../models_providers/" class="btn btn-neutral float-right" title="Models & Providers">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../data_sources/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../models_providers/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

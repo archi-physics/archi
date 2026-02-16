@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Data Sources - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Data Sources";
+        var mkdocs_page_input_path = "data_sources.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Data Sources</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#web-link-lists">Web Link Lists</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#customizing-the-scraper">Customizing the Scraper</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#sso-protected-links">SSO-Protected Links</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#running">Running</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#git-scraping">Git Scraping</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_1">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets">Secrets</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#jira">JIRA</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_2">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#anonymization">Anonymization</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_1">Secrets</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#redmine">Redmine</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration_3">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#secrets_2">Secrets</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#adding-documents-manually">Adding Documents Manually</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#document-upload-via-chat-ui">Document Upload (via Chat UI)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#directly-copying-files">Directly Copying Files</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-viewer">Data Viewer</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#features">Features</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#document-states">Document States</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#source-configuration-notes">Source Configuration Notes</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Data Sources</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/data_sources.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="data-sources">Data Sources</h1>
+<p>Archi ingests content from a variety of <strong>data sources</strong> into the PostgreSQL-backed vector store used for document retrieval. Sources are configured in <code>data_manager.sources</code> in your YAML configuration.</p>
+<blockquote>
+<p><strong>Note:</strong> The <code>links</code> source is always enabled by default — you do not need to pass it explicitly.</p>
+</blockquote>
+<hr />
+<h2 id="web-link-lists">Web Link Lists</h2>
+<p>A web link list is a simple text file containing one URL per line. Archi fetches the content from each URL and adds it to the vector store using the <code>Scraper</code> class.</p>
+<h3 id="configuration">Configuration</h3>
+<p>Define which link lists to ingest in your configuration file:</p>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    links:
+      input_lists:
+        - miscellanea.list
+        - additional_urls.list
+</code></pre>
+<p>Each <code>.list</code> file contains one URL per line:</p>
+<pre><code>https://example.com/page1
+https://example.com/page2
+</code></pre>
+<h3 id="customizing-the-scraper">Customizing the Scraper</h3>
+<p>You can tune HTTP scraping behaviour:</p>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    links:
+      scraper:
+        reset_data: true
+        verify_urls: false
+        enable_warnings: false
+</code></pre>
+<h3 id="sso-protected-links">SSO-Protected Links</h3>
+<p>If some links are behind a Single Sign-On (SSO) system, enable the SSO source and configure the Selenium-based collector:</p>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    sso:
+      enabled: true
+    links:
+      selenium_scraper:
+        enabled: true
+        selenium_class: CERNSSOScraper
+        selenium_class_map:
+          CERNSSOScraper:
+            kwargs:
+              headless: true
+              max_depth: 2
+</code></pre>
+<p>With <code>sso.enabled: true</code>, prefix protected URLs with <code>sso-</code>:</p>
+<pre><code>sso-https://example.com/protected/page
+</code></pre>
+<p><strong>Secrets:</strong></p>
+<pre><code class="language-bash">SSO_USERNAME=username
+SSO_PASSWORD=password
+</code></pre>
+<h3 id="running">Running</h3>
+<p>Link scraping is controlled by your config (<code>data_manager.sources.links.enabled</code>).</p>
+<hr />
+<h2 id="git-scraping">Git Scraping</h2>
+<p>Ingest content from MkDocs-based git repositories using the <code>GitScraper</code> class, which extracts Markdown content directly instead of scraping rendered HTML.</p>
+<h3 id="configuration_1">Configuration</h3>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    git:
+      enabled: true
+</code></pre>
+<p>In your link lists, prefix repository URLs with <code>git-</code>:</p>
+<pre><code>git-https://github.com/example/mkdocs/documentation.git
+</code></pre>
+<h3 id="secrets">Secrets</h3>
+<pre><code class="language-bash">GIT_USERNAME=your_username
+GIT_TOKEN=your_token
+</code></pre>
+<p>Once enabled in config, deploy normally with <code>archi create --config &lt;config.yaml&gt; --services &lt;...&gt;</code>.</p>
+<hr />
+<h2 id="jira">JIRA</h2>
+<p>Fetch issues and comments from specified JIRA projects using the <code>JiraClient</code> class.</p>
+<h3 id="configuration_2">Configuration</h3>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    jira:
+      url: https://jira.example.com
+      projects:
+        - PROJECT_KEY
+      anonymize_data: true
+      cutoff_date: &quot;2023-01-01&quot;
+</code></pre>
+<p>The optional <code>cutoff_date</code> skips tickets created before the specified ISO-8601 date.</p>
+<h3 id="anonymization">Anonymization</h3>
+<p>Customize data anonymization to remove personal information:</p>
+<pre><code class="language-yaml">data_manager:
+  utils:
+    anonymizer:
+      nlp_model: en_core_web_sm
+      excluded_words:
+        - Example
+      greeting_patterns:
+        - '^(hi|hello|hey|greetings|dear)\b'
+      signoff_patterns:
+        - '\b(regards|sincerely|best regards|cheers|thank you)\b'
+      email_pattern: '[\w\.-]+@[\w\.-]+\.\w+'
+      username_pattern: '\[~[^\]]+\]'
+</code></pre>
+<h3 id="secrets_1">Secrets</h3>
+<pre><code class="language-bash">JIRA_PAT=&lt;your_jira_personal_access_token&gt;
+</code></pre>
+<p>Once enabled in config, deploy normally with <code>archi create --config &lt;config.yaml&gt; --services &lt;...&gt;</code>.</p>
+<hr />
+<h2 id="redmine">Redmine</h2>
+<p>Ingest solved tickets (question/answer pairs) from Redmine into the vector store.</p>
+<h3 id="configuration_3">Configuration</h3>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    redmine:
+      url: https://redmine.example.com
+      project: my-project
+      anonymize_data: true
+</code></pre>
+<h3 id="secrets_2">Secrets</h3>
+<pre><code class="language-bash">REDMINE_USER=...
+REDMINE_PW=...
+</code></pre>
+<p>Once enabled in config, deploy normally with <code>archi create --config &lt;config.yaml&gt; --services &lt;...&gt;</code>.</p>
+<blockquote>
+<p>To automate email replies to resolved tickets, also enable the <code>redmine-mailer</code> service. See <a href="../services/">Services</a>.</p>
+</blockquote>
+<hr />
+<h2 id="adding-documents-manually">Adding Documents Manually</h2>
+<h3 id="document-upload-via-chat-ui">Document Upload (via Chat UI)</h3>
+<p>The chatbot service includes a built-in document upload interface. When logged in to the chat UI, navigate to <code>/upload</code> to upload documents through your browser.</p>
+<p><strong>First-time setup — create an admin account:</strong></p>
+<pre><code class="language-bash">docker exec -it &lt;CONTAINER-ID&gt; bash
+python -u src/bin/service_create_account.py
+</code></pre>
+<p>Run the script from the <code>/root/archi</code> directory inside the container. After creating an account, visit the chat UI to log in and upload documents.</p>
+<h3 id="directly-copying-files">Directly Copying Files</h3>
+<p>Documents used for RAG live in the container at <code>/root/data/&lt;directory&gt;/</code>. You can copy files directly:</p>
+<pre><code class="language-bash">docker cp myfile.pdf &lt;container-id&gt;:/root/data/my_docs/
+</code></pre>
+<p>To create a new directory inside the container:</p>
+<pre><code class="language-bash">docker exec -it &lt;container-id&gt; mkdir /root/data/my_docs
+</code></pre>
+<hr />
+<h2 id="data-viewer">Data Viewer</h2>
+<p>The chat interface includes a built-in <strong>Data Viewer</strong> for browsing and managing ingested documents. Access it at <code>/data</code> on your chat app (e.g., <code>http://localhost:7861/data</code>).</p>
+<h3 id="features">Features</h3>
+<ul>
+<li><strong>Browse documents</strong>: View all ingested documents with metadata (source, file type, chunk count)</li>
+<li><strong>Search and filter</strong>: Filter documents by name or source type</li>
+<li><strong>View content</strong>: Click a document to see its full content and individual chunks</li>
+<li><strong>Enable/disable documents</strong>: Toggle whether specific documents are included in RAG retrieval</li>
+<li><strong>Bulk operations</strong>: Enable or disable multiple documents at once</li>
+</ul>
+<h3 id="document-states">Document States</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enabled</td>
+<td>Document chunks are included in retrieval (default)</td>
+</tr>
+<tr>
+<td>Disabled</td>
+<td>Document is excluded from retrieval but remains in the database</td>
+</tr>
+</tbody>
+</table>
+<p>Disabling documents is useful for temporarily excluding outdated content, testing retrieval with specific document subsets, or hiding sensitive documents from certain users.</p>
+<hr />
+<h2 id="source-configuration-notes">Source Configuration Notes</h2>
+<ul>
+<li>Source configuration is persisted to PostgreSQL (<code>static_config.sources_config</code>) at deployment time and used at runtime.</li>
+<li>The <code>visible</code> flag on a source (<code>sources.&lt;name&gt;.visible</code>) controls whether content from that source appears in chat citations and user-facing listings. It defaults to <code>true</code>.</li>
+<li>All sources can be listed with <code>archi list-services</code>.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../user_guide/" class="btn btn-neutral float-left" title="User Guide"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../services/" class="btn btn-neutral float-right" title="Services">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../user_guide/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../services/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

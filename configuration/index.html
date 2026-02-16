@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Configuration - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Configuration";
+        var mkdocs_page_input_path = "configuration.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Configuration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#top-level-fields">Top-Level Fields</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#name">name</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#global">global</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#services">services</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#serviceschat_app">services.chat_app</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#provider-configuration">Provider Configuration</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#servicespostgres">services.postgres</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#servicesvectorstore">services.vectorstore</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#servicesdata_manager">services.data_manager</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#servicesgrafana">services.grafana</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#servicesgrader_app">services.grader_app</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#other-services">Other Services</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data_manager">data_manager</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#core-settings">Core Settings</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#retrieval-settings">Retrieval Settings</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#sources">Sources</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#embedding-configuration">Embedding Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#anonymizer">Anonymizer</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agent-configuration-model">Agent Configuration Model</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#complete-example">Complete Example</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Configuration</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/configuration.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="configuration-reference">Configuration Reference</h1>
+<p>Archi deployments are configured via YAML files passed to the CLI with <code>--config</code>. Any fields not specified are populated from the base template at <code>src/cli/templates/base-config.yaml</code>.</p>
+<blockquote>
+<p><strong>Tip:</strong> Start from one of the example configs in <code>examples/deployments/</code> and customize from there.</p>
+</blockquote>
+<hr />
+<h2 id="top-level-fields">Top-Level Fields</h2>
+<h3 id="name"><code>name</code></h3>
+<p><strong>Type:</strong> string (required)</p>
+<p>Name of your deployment. Used for container naming and directory structure.</p>
+<pre><code class="language-yaml">name: my_deployment
+</code></pre>
+<hr />
+<h2 id="global"><code>global</code></h2>
+<p>Global settings shared across all services.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATA_PATH</code></td>
+<td>string</td>
+<td><code>/root/data/</code></td>
+<td>Path for persisted data inside containers</td>
+</tr>
+<tr>
+<td><code>ACCOUNTS_PATH</code></td>
+<td>string</td>
+<td><code>/root/.accounts/</code></td>
+<td>Path for uploader/grader account data</td>
+</tr>
+<tr>
+<td><code>ACCEPTED_FILES</code></td>
+<td>list</td>
+<td>See below</td>
+<td>File extensions allowed for manual uploads</td>
+</tr>
+<tr>
+<td><code>LOGGING.input_output_filename</code></td>
+<td>string</td>
+<td><code>chain_input_output.log</code></td>
+<td>Pipeline I/O log filename</td>
+</tr>
+<tr>
+<td><code>verbosity</code></td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Default logging level for services (0-4)</td>
+</tr>
+</tbody>
+</table>
+<p>Default accepted files: <code>.pdf</code>, <code>.md</code>, <code>.txt</code>, <code>.docx</code>, <code>.html</code>, <code>.htm</code>, <code>.json</code>, <code>.yaml</code>, <code>.yml</code>, <code>.py</code>, <code>.js</code>, <code>.ts</code>, <code>.jsx</code>, <code>.tsx</code>, <code>.java</code>, <code>.go</code>, <code>.rs</code>, <code>.c</code>, <code>.cpp</code>, <code>.h</code>, <code>.sh</code></p>
+<hr />
+<h2 id="services"><code>services</code></h2>
+<p>Configuration for containerized services. Each service has its own subsection.</p>
+<h3 id="serviceschat_app"><code>services.chat_app</code></h3>
+<p>The main chat interface.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_class</code></td>
+<td>string</td>
+<td><code>CMSCompOpsAgent</code></td>
+<td>Pipeline class to run</td>
+</tr>
+<tr>
+<td><code>agents_dir</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to agent markdown files</td>
+</tr>
+<tr>
+<td><code>default_provider</code></td>
+<td>string</td>
+<td><code>local</code></td>
+<td>Default LLM provider</td>
+</tr>
+<tr>
+<td><code>default_model</code></td>
+<td>string</td>
+<td><code>llama3.2</code></td>
+<td>Default model</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>dict</td>
+<td><code>{}</code></td>
+<td>Agent-class-specific tool settings (for example <code>tools.monit.url</code>)</td>
+</tr>
+<tr>
+<td><code>trained_on</code></td>
+<td>string</td>
+<td>—</td>
+<td>Description shown in the chat UI</td>
+</tr>
+<tr>
+<td><code>hostname</code></td>
+<td>string</td>
+<td><code>localhost</code></td>
+<td>Public hostname for the chat interface</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>7861</code></td>
+<td>Internal container port</td>
+</tr>
+<tr>
+<td><code>external_port</code></td>
+<td>int</td>
+<td><code>7861</code></td>
+<td>Host-mapped port</td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td>string</td>
+<td><code>0.0.0.0</code></td>
+<td>Network binding</td>
+</tr>
+<tr>
+<td><code>num_responses_until_feedback</code></td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Responses before prompting for feedback</td>
+</tr>
+<tr>
+<td><code>auth.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Enable authentication</td>
+</tr>
+</tbody>
+</table>
+<h4 id="provider-configuration">Provider Configuration</h4>
+<pre><code class="language-yaml">services:
+  chat_app:
+    providers:
+      local:
+        enabled: true
+        base_url: http://localhost:11434
+        mode: ollama              # or openai_compat
+        default_model: llama3.2
+        models:
+          - llama3.2
+      gemini:
+        enabled: true
+</code></pre>
+<h3 id="servicespostgres"><code>services.postgres</code></h3>
+<p>PostgreSQL database settings.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>host</code></td>
+<td>string</td>
+<td><code>postgres</code></td>
+<td>Database hostname</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>5432</code></td>
+<td>Database port</td>
+</tr>
+<tr>
+<td><code>user</code></td>
+<td>string</td>
+<td><code>archi</code></td>
+<td>Database user</td>
+</tr>
+<tr>
+<td><code>database</code></td>
+<td>string</td>
+<td><code>archi-db</code></td>
+<td>Database name</td>
+</tr>
+</tbody>
+</table>
+<h3 id="servicesvectorstore"><code>services.vectorstore</code></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>backend</code></td>
+<td>string</td>
+<td><code>postgres</code></td>
+<td>Vector store backend (only <code>postgres</code> supported)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="servicesdata_manager"><code>services.data_manager</code></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>7871</code></td>
+<td>Internal port</td>
+</tr>
+<tr>
+<td><code>external_port</code></td>
+<td>int</td>
+<td><code>7871</code></td>
+<td>Host-mapped port</td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td>string</td>
+<td><code>0.0.0.0</code></td>
+<td>Network binding</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Enable data manager service</td>
+</tr>
+</tbody>
+</table>
+<h3 id="servicesgrafana"><code>services.grafana</code></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>3000</code></td>
+<td>Grafana port</td>
+</tr>
+<tr>
+<td><code>external_port</code></td>
+<td>int</td>
+<td><code>3000</code></td>
+<td>Host-mapped port</td>
+</tr>
+</tbody>
+</table>
+<h3 id="servicesgrader_app"><code>services.grader_app</code></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>7861</code></td>
+<td>Internal port</td>
+</tr>
+<tr>
+<td><code>external_port</code></td>
+<td>int</td>
+<td><code>7862</code></td>
+<td>Host-mapped port</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>string</td>
+<td>—</td>
+<td>Provider for grading pipelines</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>string</td>
+<td>—</td>
+<td>Model for grading pipelines</td>
+</tr>
+<tr>
+<td><code>num_problems</code></td>
+<td>int</td>
+<td>—</td>
+<td>Number of problems (must match rubric files)</td>
+</tr>
+<tr>
+<td><code>local_rubric_dir</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to rubric files</td>
+</tr>
+<tr>
+<td><code>local_users_csv_dir</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to users CSV</td>
+</tr>
+</tbody>
+</table>
+<h3 id="other-services">Other Services</h3>
+<ul>
+<li><strong><code>services.piazza</code></strong>: Requires <code>network_id</code>, <code>agent_class</code>, <code>provider</code>, <code>model</code></li>
+<li><strong><code>services.mattermost</code></strong>: Requires <code>update_time</code></li>
+<li><strong><code>services.redmine_mailbox</code></strong>: Requires <code>url</code>, <code>project</code>, <code>redmine_update_time</code>, <code>mailbox_update_time</code></li>
+<li><strong><code>services.benchmarking</code></strong>: See <a href="../benchmarking/">Benchmarking</a></li>
+</ul>
+<hr />
+<h2 id="data_manager"><code>data_manager</code></h2>
+<p>Controls data ingestion, vectorstore behaviour, and retrieval settings.</p>
+<h3 id="core-settings">Core Settings</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>collection_name</code></td>
+<td>string</td>
+<td><code>default_collection</code></td>
+<td>Vector store collection name</td>
+</tr>
+<tr>
+<td><code>embedding_name</code></td>
+<td>string</td>
+<td><code>OpenAIEmbeddings</code></td>
+<td>Embedding backend</td>
+</tr>
+<tr>
+<td><code>chunk_size</code></td>
+<td>int</td>
+<td><code>1000</code></td>
+<td>Max characters per text chunk</td>
+</tr>
+<tr>
+<td><code>chunk_overlap</code></td>
+<td>int</td>
+<td><code>0</code></td>
+<td>Overlapping characters between chunks</td>
+</tr>
+<tr>
+<td><code>parallel_workers</code></td>
+<td>int</td>
+<td><code>32</code></td>
+<td>Parallel ingestion workers</td>
+</tr>
+<tr>
+<td><code>reset_collection</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Wipe collection on startup</td>
+</tr>
+<tr>
+<td><code>distance_metric</code></td>
+<td>string</td>
+<td><code>cosine</code></td>
+<td>Similarity metric: <code>cosine</code>, <code>l2</code>, <code>ip</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="retrieval-settings">Retrieval Settings</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>retrievers.hybrid_retriever.num_documents_to_retrieve</code></td>
+<td>int</td>
+<td><code>5</code></td>
+<td>Top-k documents per query</td>
+</tr>
+<tr>
+<td><code>retrievers.hybrid_retriever.bm25_weight</code></td>
+<td>float</td>
+<td><code>0.6</code></td>
+<td>BM25 keyword score weight</td>
+</tr>
+<tr>
+<td><code>retrievers.hybrid_retriever.semantic_weight</code></td>
+<td>float</td>
+<td><code>0.4</code></td>
+<td>Semantic similarity weight</td>
+</tr>
+<tr>
+<td><code>stemming.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Enable Porter Stemmer for improved matching</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> <code>use_hybrid_search</code> is a dynamic runtime setting (managed via the configuration API), not a YAML config key.</p>
+</blockquote>
+<h3 id="sources">Sources</h3>
+<pre><code class="language-yaml">data_manager:
+  sources:
+    links:
+      input_lists:
+        - miscellanea.list
+      scraper:
+        reset_data: true
+        verify_urls: false
+        enable_warnings: false
+      selenium_scraper:
+        enabled: false
+    git:
+      enabled: false
+    sso:
+      enabled: false
+    jira:
+      url: https://jira.example.com
+      projects: []
+      anonymize_data: true
+      cutoff_date: null
+    redmine:
+      url: https://redmine.example.com
+      project: null
+      anonymize_data: true
+</code></pre>
+<p>The <code>visible</code> flag on any source (<code>sources.&lt;name&gt;.visible</code>) controls whether content appears in chat citations (default: <code>true</code>).</p>
+<h3 id="embedding-configuration">Embedding Configuration</h3>
+<pre><code class="language-yaml">data_manager:
+  embedding_name: OpenAIEmbeddings
+  embedding_class_map:
+    OpenAIEmbeddings:
+      class: OpenAIEmbeddings
+      kwargs:
+        model: text-embedding-3-small
+      similarity_score_reference: 10
+</code></pre>
+<p>See <a href="../models_providers/#embedding-models">Models &amp; Providers</a> for all embedding options.</p>
+<h3 id="anonymizer">Anonymizer</h3>
+<pre><code class="language-yaml">data_manager:
+  utils:
+    anonymizer:
+      nlp_model: en_core_web_sm
+      excluded_words: []
+      greeting_patterns: []
+      signoff_patterns: []
+      email_pattern: '[\w\.-]+@[\w\.-]+\.\w+'
+      username_pattern: '\[~[^\]]+\]'
+</code></pre>
+<hr />
+<h2 id="agent-configuration-model">Agent Configuration Model</h2>
+<p>Archi no longer uses a top-level <code>archi:</code> block in standard deployment YAML.</p>
+<p>Agent behavior is defined by:</p>
+<ul>
+<li><code>services.chat_app.agent_class</code>: which pipeline class runs (for example <code>CMSCompOpsAgent</code>)</li>
+<li><code>services.chat_app.agents_dir</code>: where agent spec markdown files live</li>
+<li>agent specs (<code>*.md</code>): selected tool subset (<code>tools</code>) and system prompt body</li>
+<li><code>services.chat_app.tools</code>: optional agent-class-specific tool settings</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    tools:
+      monit:
+        url: https://monit-grafana.cern.ch
+</code></pre>
+<p>See <a href="../agents_tools/">Agents &amp; Tools</a> for agent spec format and tool selection.</p>
+<hr />
+<h2 id="complete-example">Complete Example</h2>
+<pre><code class="language-yaml">name: my_deployment
+
+global:
+  DATA_PATH: &quot;/root/data/&quot;
+  ACCEPTED_FILES: [&quot;.txt&quot;, &quot;.pdf&quot;, &quot;.md&quot;]
+  verbosity: 3
+
+services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: llama3.2
+    trained_on: &quot;Course documentation&quot;
+    hostname: &quot;example.mit.edu&quot;
+    external_port: 7861
+    providers:
+      local:
+        enabled: true
+        base_url: http://localhost:11434
+        mode: ollama
+        models:
+          - llama3.2
+  postgres:
+    port: 5432
+    database: archi-db
+  vectorstore:
+    backend: postgres
+
+data_manager:
+  sources:
+    links:
+      input_lists:
+        - examples/deployments/basic-gpu/miscellanea.list
+      scraper:
+        reset_data: true
+        verify_urls: false
+  embedding_name: OpenAIEmbeddings
+  chunk_size: 1000
+  chunk_overlap: 0
+</code></pre>
+<blockquote>
+<p><strong>Tip:</strong> For the full base template with all defaults, see <code>src/cli/templates/base-config.yaml</code> in the repository.</p>
+</blockquote>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../agents_tools/" class="btn btn-neutral float-left" title="Agents & Tools"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../cli_reference/" class="btn btn-neutral float-right" title="CLI Reference">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../agents_tools/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../cli_reference/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

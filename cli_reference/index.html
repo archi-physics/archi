@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>CLI Reference - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "CLI Reference";
+        var mkdocs_page_input_path = "cli_reference.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">CLI Reference</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#commands">Commands</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-create">archi create</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-delete">archi delete</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-restart">archi restart</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-list-services">archi list-services</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-list-deployments">archi list-deployments</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-evaluate">archi evaluate</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#environment-variables">Environment Variables</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#port-conflicts">Port Conflicts</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#gpu-issues">GPU Issues</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#verbose-logging">Verbose Logging</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#multiple-deployments">Multiple Deployments</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">CLI Reference</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/cli_reference.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="cli-reference">CLI Reference</h1>
+<p>The Archi CLI provides commands to create, manage, and monitor deployments.</p>
+<h2 id="installation">Installation</h2>
+<p>The CLI is installed automatically with <code>pip install -e .</code> from the repository root. Verify with:</p>
+<pre><code class="language-bash">which archi
+</code></pre>
+<hr />
+<h2 id="commands">Commands</h2>
+<h3 id="archi-create"><code>archi create</code></h3>
+<p>Create a new Archi deployment.</p>
+<pre><code class="language-bash">archi create --name &lt;name&gt; --config &lt;config.yaml&gt; --env-file &lt;secrets.env&gt; --services &lt;services&gt; [OPTIONS]
+</code></pre>
+<p><strong>Required options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code>, <code>-n</code></td>
+<td>Name of the deployment</td>
+</tr>
+<tr>
+<td><code>--config</code>, <code>-c</code></td>
+<td>Path to YAML configuration file (repeatable for multiple files)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommended options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--env-file</code>, <code>-e</code></td>
+<td>Path to the secrets <code>.env</code> file</td>
+</tr>
+<tr>
+<td><code>--services</code>, <code>-s</code></td>
+<td>Comma-separated list of services to enable (e.g., <code>chatbot,uploader</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Optional flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config-dir</code>, <code>-cd</code></td>
+<td>Directory containing configuration files</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--podman</code>, <code>-p</code></td>
+<td>Use Podman instead of Docker</td>
+<td>Docker</td>
+</tr>
+<tr>
+<td><code>--gpu-ids</code></td>
+<td>GPU configuration: <code>all</code> or comma-separated IDs (e.g., <code>0,1</code>)</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--tag</code>, <code>-t</code></td>
+<td>Image tag for built containers</td>
+<td><code>2000</code></td>
+</tr>
+<tr>
+<td><code>--hostmode</code></td>
+<td>Use host network mode for all services</td>
+<td>Off</td>
+</tr>
+<tr>
+<td><code>--verbosity</code>, <code>-v</code></td>
+<td>Logging verbosity level (0=quiet, 4=debug)</td>
+<td><code>3</code></td>
+</tr>
+<tr>
+<td><code>--force</code>, <code>-f</code></td>
+<td>Overwrite existing deployment if it exists</td>
+<td>Off</td>
+</tr>
+<tr>
+<td><code>--dry</code>, <code>--dry-run</code></td>
+<td>Validate and show what would be created without deploying</td>
+<td>Off</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-bash"># Basic deployment with Ollama
+archi create -n my-archi -c config.yaml -e .secrets.env \
+  --services chatbot --podman
+
+# Full deployment with GPU and multiple services
+archi create -n prod-archi -c config.yaml -e .secrets.env \
+  --services chatbot,uploader,grafana \
+  --gpu-ids all
+
+# Dry run to validate configuration
+archi create -n test -c config.yaml -e .secrets.env \
+  --services chatbot --dry-run
+</code></pre>
+<p><strong>Notes:</strong></p>
+<ul>
+<li>The CLI checks that host ports are free before deploying. If a port is in use, adjust <code>services.*.external_port</code> in your config.</li>
+<li>The first deployment builds container images from scratch (may take several minutes). Subsequent deployments reuse images.</li>
+<li>Use <code>-v 4</code> for debug-level logging when troubleshooting.</li>
+</ul>
+<hr />
+<h3 id="archi-delete"><code>archi delete</code></h3>
+<p>Delete an existing deployment.</p>
+<pre><code class="language-bash">archi delete --name &lt;name&gt; [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code>, <code>-n</code></td>
+<td>Name of the deployment to delete</td>
+</tr>
+<tr>
+<td><code>--rmi</code></td>
+<td>Also remove container images</td>
+</tr>
+<tr>
+<td><code>--rmv</code></td>
+<td>Also remove volumes</td>
+</tr>
+<tr>
+<td><code>--keep-files</code></td>
+<td>Keep deployment files on disk</td>
+</tr>
+<tr>
+<td><code>--list</code></td>
+<td>List all deployments</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-bash"># Delete deployment and clean up everything
+archi delete -n my-archi --rmi --rmv
+
+# Delete but keep data volumes
+archi delete -n my-archi --rmi
+</code></pre>
+<hr />
+<h3 id="archi-restart"><code>archi restart</code></h3>
+<p>Restart a specific service in an existing deployment without restarting the entire stack.</p>
+<pre><code class="language-bash">archi restart --name &lt;name&gt; --service &lt;service&gt; [OPTIONS]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--name</code>, <code>-n</code></td>
+<td>Name of the existing deployment</td>
+<td>Required</td>
+</tr>
+<tr>
+<td><code>--service</code>, <code>-s</code></td>
+<td>Service to restart</td>
+<td><code>chatbot</code></td>
+</tr>
+<tr>
+<td><code>--config</code>, <code>-c</code></td>
+<td>Updated configuration file(s)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--config-dir</code>, <code>-cd</code></td>
+<td>Directory containing configuration files</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--env-file</code>, <code>-e</code></td>
+<td>Updated secrets file</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--no-build</code></td>
+<td>Restart without rebuilding the container image</td>
+<td>Off</td>
+</tr>
+<tr>
+<td><code>--with-deps</code></td>
+<td>Also restart dependent services</td>
+<td>Off</td>
+</tr>
+<tr>
+<td><code>--podman</code>, <code>-p</code></td>
+<td>Use Podman instead of Docker</td>
+<td>Docker</td>
+</tr>
+<tr>
+<td><code>--verbosity</code>, <code>-v</code></td>
+<td>Logging verbosity (0-4)</td>
+<td><code>3</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-bash"># Quick config update (no rebuild needed)
+archi restart -n my-archi --service chatbot --no-build
+
+# Rebuild after code changes
+archi restart -n my-archi --service chatbot -c updated_config.yaml
+
+# Re-scrape data sources
+archi restart -n my-archi --service data_manager
+
+# Restart with updated secrets
+archi restart -n my-archi --service chatbot -e new_secrets.env --no-build
+</code></pre>
+<hr />
+<h3 id="archi-list-services"><code>archi list-services</code></h3>
+<p>List all available services and data sources with descriptions.</p>
+<pre><code class="language-bash">archi list-services
+</code></pre>
+<hr />
+<h3 id="archi-list-deployments"><code>archi list-deployments</code></h3>
+<p>List all existing deployments.</p>
+<pre><code class="language-bash">archi list-deployments
+</code></pre>
+<hr />
+<h3 id="archi-evaluate"><code>archi evaluate</code></h3>
+<p>Launch the benchmarking runtime to evaluate configurations against a set of questions and answers.</p>
+<pre><code class="language-bash">archi evaluate --name &lt;name&gt; --env-file &lt;secrets.env&gt; --config &lt;config.yaml&gt; [OPTIONS]
+</code></pre>
+<p>Supports the same flags as <code>create</code> (<code>--podman</code>, <code>--gpu-ids</code>, <code>--tag</code>, <code>--hostmode</code>, <code>--verbosity</code>, <code>--force</code>). Configuration files should define the <code>services.benchmarking</code> section.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-bash">archi evaluate -n benchmark \
+  -c examples/benchmarking/benchmark_configs/example_conf.yaml \
+  -e .secrets.env --gpu-ids all
+</code></pre>
+<p>See <a href="../benchmarking/">Benchmarking</a> for full details on query format and evaluation modes.</p>
+<hr />
+<h2 id="environment-variables">Environment Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ARCHI_DIR</code></td>
+<td>Override the deployment directory (default: <code>~/.archi</code>)</td>
+</tr>
+<tr>
+<td><code>OLLAMA_HOST</code></td>
+<td>Ollama server address (default: <code>http://localhost:11434</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="port-conflicts">Port Conflicts</h3>
+<p>If a port is already in use, the CLI will report an error. Adjust <code>services.*.external_port</code> in your config:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    external_port: 7862  # default: 7861
+  grafana:
+    external_port: 3001  # default: 3000
+</code></pre>
+<h3 id="gpu-issues">GPU Issues</h3>
+<p>GPU access requires NVIDIA drivers and the NVIDIA Container Toolkit.</p>
+<p><strong>Podman:</strong></p>
+<pre><code class="language-bash">sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+nvidia-ctk cdi list
+</code></pre>
+<p><strong>Docker:</strong></p>
+<pre><code class="language-bash">sudo nvidia-ctk runtime configure --runtime=docker
+</code></pre>
+<h3 id="verbose-logging">Verbose Logging</h3>
+<p>Add <code>-v 4</code> to any command for debug-level output:</p>
+<pre><code class="language-bash">archi create [...] -v 4
+</code></pre>
+<h3 id="multiple-deployments">Multiple Deployments</h3>
+<p>Multiple deployments can run on the same machine. Container networks are separate, but be careful with external port assignments. See <a href="../advanced_setup_deploy/#running-multiple-deployments-on-the-same-machine">Advanced Setup</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../configuration/" class="btn btn-neutral float-left" title="Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../api_reference/" class="btn btn-neutral float-right" title="API Reference">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../configuration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../api_reference/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

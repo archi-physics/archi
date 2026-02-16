@@ -31,10 +31,7 @@
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
           <a href=".." class="icon icon-home"> Archi Docs
-        </a>
-        <div class="version">
-          1.2.4
-        </div><div role="search">
+        </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
   </form>
@@ -43,7 +40,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
                 </li>
               </ul>
               <ul>
@@ -58,240 +55,28 @@
                 <li class="toctree-l1 current"><a class="reference internal current" href="#">User Guide</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#agent-tools-search-retrieval">Agent tools (search + retrieval)</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#optional-command-line-options">Optional command line options</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#agent-specs">Agent specs</a>
-    </li>
-        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#data-sources">Data Sources</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#web-link-lists">Web Link Lists</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets">Secrets</a>
+    <li class="toctree-l2"><a class="reference internal" href="#services">Services</a>
     </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running">Running</a>
+    <li class="toctree-l2"><a class="reference internal" href="#agents-tools">Agents &amp; Tools</a>
     </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#git-scraping">Git scraping</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_1">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_1">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_1">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#jira">JIRA</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_2">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_2">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_2">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#adding-documents-and-the-uploader-interface">Adding Documents and the Uploader Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#adding-documents">Adding Documents</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#manual-uploader">Manual Uploader</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#directly-copying-files-to-the-container">Directly copying files to the container</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#data-viewer">Data Viewer</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#redmine">Redmine</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_3">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_3">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_3">Running</a>
-    </li>
-        </ul>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#interfacesservices">Interfaces/Services</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#piazza-interface">Piazza Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_4">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_4">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_4">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#redminemailbox-interface">Redmine/Mailbox Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_5">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_5">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_5">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#mattermost-interface">Mattermost Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_6">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_6">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_6">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#grafana-interface">Grafana Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_7">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_7">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_7">Running</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#grader-interface">Grader Interface</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#requirements">Requirements</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#secrets_8">Secrets</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#configuration_8">Configuration</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#running_8">Running</a>
-    </li>
-        </ul>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#models">Models</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#local-models">Local Models</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#models-via-apis">Models via APIs</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#openrouter">OpenRouter</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#ollama">Ollama</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#bring-your-own-key-byok">Bring Your Own Key (BYOK)</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#key-hierarchy">Key Hierarchy</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#supported-providers">Supported Providers</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#security-considerations">Security Considerations</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#api-endpoints">API Endpoints</a>
-    </li>
-        </ul>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#vector-store">Vector Store</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#backend-selection">Backend Selection</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#configuration_9">Configuration</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#core-settings">Core Settings</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#distance-metrics">Distance Metrics</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#embedding-models">Embedding Models</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#openai-embeddings">OpenAI Embeddings</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#huggingface-embeddings">HuggingFace Embeddings</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#supported-document-formats">Supported Document Formats</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#document-synchronization">Document Synchronization</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#hybrid-search">Hybrid Search</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#stemming">Stemming</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#postgresql-backend-default">PostgreSQL Backend (Default)</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#benchmarking">Benchmarking</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#preparing-the-queries-file">Preparing the queries file</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#configuration_10">Configuration</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#running_9">Running</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#additional-options">Additional options</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#results">Results</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#other">Other</a>
+    <li class="toctree-l2"><a class="reference internal" href="#models-providers">Models &amp; Providers</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#configuration-management">Configuration Management</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#configuration-hierarchy">Configuration Hierarchy</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#effective-configuration">Effective Configuration</a>
+    <li class="toctree-l2"><a class="reference internal" href="#secrets">Secrets</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#admin-only-settings">Admin-Only Settings</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#user-overridable-settings">User-Overridable Settings</a>
-    </li>
-        </ul>
-    </li>
-    <li class="toctree-l2"><a class="reference internal" href="#prompt-customization">Prompt Customization</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#prompt-location">Prompt Location</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#prompt-types">Prompt Types</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#prompt-directory-structure">Prompt Directory Structure</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#creating-custom-prompts">Creating Custom Prompts</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#activating-prompts">Activating Prompts</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#reloading-prompts">Reloading Prompts</a>
-    </li>
-        </ul>
+    <li class="toctree-l2"><a class="reference internal" href="#benchmarking">Benchmarking</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#admin-guide">Admin Guide</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#becoming-an-admin">Becoming an Admin</a>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#admin-responsibilities">Admin Responsibilities</a>
+    <li class="toctree-l3"><a class="reference internal" href="#admin-capabilities">Admin Capabilities</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#audit-logging">Audit Logging</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#best-practices">Best Practices</a>
     </li>
         </ul>
     </li>
@@ -299,7 +84,27 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup and Deployment</a>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
                 </li>
               </ul>
               <ul>
@@ -307,7 +112,19 @@
                 </li>
               </ul>
               <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
                 </li>
               </ul>
       </div>
@@ -326,7 +143,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">User Guide</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/archi/edit/master/docs/user_guide.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/user_guide.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -335,992 +152,217 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="user-guide">User Guide</h1>
+<p>This guide covers the core concepts and features of Archi. Each topic has its own dedicated page for detailed reference.</p>
 <h2 id="overview">Overview</h2>
-<p>Archi supports various <strong>data sources</strong> as easy ways to ingest your data into the vector store databased used for document retrieval. These include:</p>
+<p>Archi is a retrieval-based assistant framework with four core parts:</p>
 <ul>
-<li><strong>Links lists (even behind SSO)</strong>: automatically scrape and ingest documents from a list of URLs</li>
-<li><strong>Git scraping</strong>: git mkdocs repositories</li>
-<li><strong>Ticketing systems</strong>: JIRA, Redmine, Piazza</li>
+<li><strong>Data sources</strong>: Where knowledge comes from (links, git repos, JIRA/Redmine, uploaded files)</li>
+<li><strong>Vector store + retrievers</strong>: Where ingested content is indexed and searched semantically/lexically</li>
+<li><strong>Agents + tools</strong>: The reasoning layer that decides what to do and can call tools (search, fetch, MCP, etc.)</li>
+<li><strong>Services</strong>: The apps users interact with (<code>chatbot</code>, <code>data_manager</code>, integrations, dashboards)</li>
+</ul>
+<p>Why both a vector store and tools?</p>
+<ul>
+<li>The <strong>vector store</strong> is best for relevance-based retrieval across the indexed knowledge base.</li>
+<li><strong>Tools</strong> let the agent do targeted operations (metadata lookup, full-document fetch, external system calls) that pure embedding search cannot do reliably.</li>
+</ul>
+<p>Services are enabled at deployment via flags to <code>archi create</code>:</p>
+<pre><code class="language-bash">archi create [...] --services chatbot
+</code></pre>
+<p>Pipelines (agent classes) define runtime behavior. Agent specs define prompt + enabled tool subset. Models, embeddings, and retriever settings are configured in YAML.</p>
+<h2 id="data-sources">Data Sources</h2>
+<p>Data sources define what gets ingested into Archi's knowledge base for retrieval.
+Archi supports several data ingestion methods:</p>
+<ul>
+<li><strong>Web link lists</strong> (including SSO-protected pages)</li>
+<li><strong>Git scraping</strong> for MkDocs-based repositories</li>
+<li><strong>JIRA</strong> and <strong>Redmine</strong> ticketing systems</li>
+<li><strong>Manual document upload</strong> via the Uploader service or direct file copy</li>
 <li><strong>Local documents</strong></li>
 </ul>
-<p>Additionally, Archi supports various <strong>interfaces/services</strong>, which are applications that interact with the RAG system. These include:</p>
-<ul>
-<li><strong>Chat interface</strong>: a web-based chat application</li>
-<li><strong>Piazza integration</strong>: read posts from Piazza and post draft responses to a Slack channel</li>
-<li><strong>Cleo/Redmine integration</strong>: read emails and create tickets in Redmine</li>
-<li><strong>Mattermost integration</strong>: read posts from Mattermost and post draft responses to a Mattermost channel</li>
-<li><strong>Grafana monitoring dashboard</strong>: monitor system and LLM performance metrics</li>
-<li><strong>Document uploader</strong>: web interface for uploading and managing documents</li>
-<li><strong>Grader</strong>: automated grading service for assignments with web interface</li>
-</ul>
-<p>Both data sources and interfaces/services are enabled via flags to the <code>archi create</code> command,</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot,piazza,... --sources jira,redmine,...
-</code></pre>
-<p>The parameters of the services and sources are configured via the configuration file. See below for more details.</p>
-<p>We support various <strong>pipelines</strong> (agent classes and classic pipelines) which are pre-defined sequences of operations that process user inputs and generate responses.
-Each service may support a given pipeline. Agent prompts and tool subsets are defined in agent markdown files, while the agent class and default model are configured per service.
-See the <code>Services</code> and <code>Pipelines</code> sections below for more details.
-We support various <strong>models</strong> for both embeddings and LLMs, which can be run locally or accessed via APIs.
-See the <code>Models</code> section below for more details.</p>
-<p>Finally, we support various <strong>retrievers</strong> and <strong>embedding techniques</strong> for document retrieval.
-These are configured via the configuration file.
-See the <code>Vector Store</code> section below for more details.</p>
-<h3 id="agent-tools-search-retrieval">Agent tools (search + retrieval)</h3>
-<p>The chat agent can use a few built-in tools to locate evidence. These are internal capabilities of the chat service:</p>
-<ul>
-<li><strong>Metadata search</strong>: find files by name/path/source metadata. Use free-text for partial matches, or exact filters with <code>key:value</code>.
-  Example: <code>mz_dilepton.py</code> or <code>relative_path:full/path/to/mz_dilepton.py</code>.</li>
-<li><strong>Content search (grep)</strong>: line-level search inside file contents; supports regex and context lines.
-  Example: <code>timeout error</code> with <code>before=2</code> and <code>after=2</code>.</li>
-<li><strong>Document fetch</strong>: pull full text for a specific file by hash (truncated with <code>max_chars</code>).</li>
-<li><strong>Vectorstore search</strong>: semantic retrieval of relevant passages when you don't know exact keywords.</li>
-</ul>
-<p>These tools are meant to be used together: search first, then fetch only the most relevant documents.</p>
-<h3 id="optional-command-line-options">Optional command line options</h3>
-<p>In addition to the required <code>--name</code>, <code>--config/--config-dir</code>, <code>--env-file</code>, and <code>--services</code> arguments, the <code>archi create</code> command accepts several useful flags:</p>
-<ol>
-<li><strong><code>--podman</code></strong>: Run the deployment with Podman instead of Docker.</li>
-<li><strong><code>--sources</code> / <code>-src</code></strong>: Enable additional ingestion sources (<code>git</code>, <code>sso</code>, <code>jira</code>, <code>redmine</code>, ...). Provide a comma-separated list.</li>
-<li><strong><code>--gpu-ids</code></strong>: Mount specific GPUs (<code>--gpu-ids all</code> or <code>--gpu-ids 0,1</code>). The legacy <code>--gpu</code> flag still works but maps to <code>all</code>.</li>
-<li><strong><code>--tag</code></strong>: Override the local image tag (defaults to <code>2000</code>). Handy when building multiple configurations side-by-side.</li>
-<li><strong>Agent specs</strong>: Set <code>services.chat_app.agents_dir</code> to a directory of agent markdown files. At least one <code>*.md</code> file is required.</li>
-</ol>
-<h3 id="agent-specs">Agent specs</h3>
-<p>Agent specs live in the directory specified by <code>services.chat_app.agents_dir</code>. Each <code>*.md</code> file must include:</p>
-<ul>
-<li>YAML frontmatter with <code>name</code> and <code>tools</code></li>
-<li>The prompt in the Markdown body (everything after the frontmatter)</li>
-</ul>
-<p>The service selects the first agent spec in lexicographic order.
-The <code>tools</code> list enables a subset of tools defined by the agent class.</p>
-<p>In the chat UI, use the agent dropdown in the header to switch the active agent, edit or delete existing agents, or add
-a new one with the plus button. The selection is persisted and takes effect on the next request.
-5. <strong><code>--hostmode</code></strong>: Use host networking for all services.
-6. <strong><code>--verbosity</code> / <code>-v</code></strong>: Control CLI logging level (0 = quiet, 4 = debug).
-7. <strong><code>--force</code></strong> / <strong><code>--dry-run</code></strong>: Force recreation of an existing deployment and/or show what would happen without actually deploying.</p>
-<p>You can inspect the available services and sources, together with descriptions, using <code>archi list-services</code>.
-The CLI checks that host ports are free before deploying; if a port is already in use, adjust <code>services.*.external_port</code> (or <code>services.*.port</code> in <code>--hostmode</code>) and retry.</p>
-<blockquote>
-<p><strong>GPU helpers</strong></p>
-<p>GPU access requires the NVIDIA drivers plus the NVIDIA Container Toolkit. After installing the toolkit, generate CDI entries (for Podman) with <code>sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml</code> and confirm with <code>nvidia-ctk cdi list</code>. Docker users should run <code>sudo nvidia-ctk runtime configure --runtime=docker</code>.</p>
-</blockquote>
+<p>Sources are configured under <code>data_manager.sources</code> in your config file.</p>
+<p><strong><a href="../data_sources/">Read more →</a></strong></p>
 <hr />
-<h2 id="data-sources">Data Sources</h2>
-<p>These are the different ways to ingest data into the vector store used for document retrieval.</p>
-<h3 id="web-link-lists">Web Link Lists</h3>
-<p>A web link list is a simple text file containing a list of URLs, one per line.
-Archi will fetch the content from each URL and add it to the vector store, using the <code>Scraper</code> class.</p>
-<h4 id="configuration">Configuration</h4>
-<p>You can define which lists of links Archi will ingest in the configuration file as follows:</p>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    links:
-      input_lists:  # REQUIRED
-        - miscellanea.list  # list of websites with relevant info
-        - [...other lists...]
-</code></pre>
-<p>Each list should be a simple text file containing one URL per line, e.g.,</p>
-<pre><code>https://example.com/page1
-https://example.com/page2
-[...]
-</code></pre>
-<p>In the case that some of the links are behind a Single Sign-On (SSO) system, enable the SSO source in your configuration and specify the collector class:</p>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    sso:
-      enabled: true
-    links:
-      selenium_scraper:
-        enabled: true
-        selenium_class: CERNSSOScraper  # or whichever class is appropriate
-        selenium_class_map:
-          CERNSSOScraper:
-            kwargs:
-              headless: true
-              max_depth: 2
-</code></pre>
-<p>Then, run <code>archi create ... --sources sso</code> to activate the SSO collector.</p>
-<p>Note: source configuration is persisted to PostgreSQL <code>static_config</code> at deployment time and used at runtime.</p>
-<p>You can customise the HTTP scraper behaviour (for example, to avoid SSL verification warnings):</p>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    links:
-      scraper:
-        reset_data: true
-        verify_urls: false
-        enable_warnings: false
-</code></pre>
-<h4 id="secrets">Secrets</h4>
-<p>If you are using SSO, depending on the class, you may need to provide your login credentials in a secrets file as follows:</p>
-<pre><code class="language-bash">SSO_USERNAME=username
-SSO_PASSWORD=password
-</code></pre>
-<p>Then, make sure that the links you provide in the <code>.list</code> file(s) start with <code>sso-</code>, e.g.,</p>
-<pre><code>sso-https://example.com/protected/page
-</code></pre>
-<h4 id="running">Running</h4>
-<p>Link scraping is automatically enabled in Archi, you don't need to add any arguments to the <code>create</code> command unless the links are sso protected.</p>
-<hr />
-<h3 id="git-scraping">Git scraping</h3>
-<p>In some cases, the RAG input may be documentations based on MKDocs git repositories.
-Instead of scraping these sites as regular HTML sites you can obtain the relevant content using the <code>GitScraper</code> class.</p>
-<h4 id="configuration_1">Configuration</h4>
-<p>To configure it, enable the git source in the configuration file:</p>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    git:
-      enabled: true
-</code></pre>
-<p>In the input lists, make sure to prepend <code>git-</code> to the URL of the <strong>repositories</strong> you are interested in scraping.</p>
-<pre><code>git-https://github.com/example/mkdocs/documentation.git
-</code></pre>
-<h4 id="secrets_1">Secrets</h4>
-<p>You will need to provide a git username and token in the secrets file,</p>
-<pre><code class="language-bash">GIT_USERNAME=your_username
-GIT_TOKEN=your_token
-</code></pre>
-<h4 id="running_1">Running</h4>
-<p>Enable the git source during deployment with <code>--sources git</code>.</p>
-<hr />
-<h3 id="jira">JIRA</h3>
-<p>The JIRA integration allows Archi to fetch issues and comments from specified JIRA projects and add them to the vector store, using the <code>JiraClient</code> class.</p>
-<h4 id="configuration_2">Configuration</h4>
-<p>Select which projects to scrape in the configuration file:</p>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    jira:
-      url: https://jira.example.com
-      projects:
-        - PROJECT_KEY
-      anonymize_data: true
-      cutoff_date: &quot;2023-01-01&quot;
-</code></pre>
-<p>You can further customise anonymisation via the global anonymiser settings.</p>
-<pre><code class="language-yaml">data_manager:
-  utils:
-    anonymizer:
-      nlp_model: en_core_web_sm
-      excluded_words:
-        - Example
-      greeting_patterns:
-        - '^(hi|hello|hey|greetings|dear)\b'
-      signoff_patterns:
-        - '\b(regards|sincerely|best regards|cheers|thank you)\b'
-      email_pattern: '[\w\.-]+@[\w\.-]+\.\w+'
-      username_pattern: '\[~[^\]]+\]'
-</code></pre>
-<p>The anonymizer will remove names, emails, usernames, greetings, signoffs, and any other words you specify from the fetched data.
-This is useful if you want to avoid having personal information in the vector store.
-The optional <code>cutoff_date</code> can be used to skip tickets created before a specified ISO-8601 date.</p>
-<h4 id="secrets_2">Secrets</h4>
-<p>A personal access token (PAT) is required to authenticate and authorize with JIRA.
-Add <code>JIRA_PAT=&lt;token&gt;</code> to your <code>.env</code> file before deploying with <code>--sources jira</code>.</p>
-<h4 id="running_2">Running</h4>
-<p>Enable the source at deploy time with:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot --sources jira
-</code></pre>
-<hr />
-<h3 id="adding-documents-and-the-uploader-interface">Adding Documents and the Uploader Interface</h3>
-<h4 id="adding-documents">Adding Documents</h4>
-<p>There are two main ways to add documents to Archi's vector database. They are:</p>
-<ul>
-<li>Manually adding files while the service is running via the uploader GUI</li>
-<li>Directly copying files into the container</li>
-</ul>
-<p>These methods are outlined below.</p>
-<h4 id="manual-uploader">Manual Uploader</h4>
-<p>In order to upload documents while Archi is running via an easily accessible GUI, enable the uploader service when creating the deployment:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot,uploader
-</code></pre>
-<p>The exact port may vary based on configuration (default external port is <code>5003</code>).
-A quick <code>podman ps</code> or <code>docker ps</code> will show which port is exposed.</p>
-<p>In order to access the manager, you must first create an admin account. Grab the container ID with <code>podman ps</code>/<code>docker ps</code> and then enter the container:</p>
-<pre><code>docker exec -it &lt;CONTAINER-ID&gt; bash
-</code></pre>
-<p>Run the bundled helper:</p>
-<pre><code>python -u src/bin/service_create_account.py
-</code></pre>
-<p>from the <code>/root/Archi</code> directory inside the container. This script will guide you through creating an account; never reuse sensitive passwords here.</p>
-<p>Once you have created an account, visit the outgoing port of the data manager docker service and then log in.
-The GUI will then allow you to upload documents while Archi is still running. Note that it may take a few minutes for all the documents to upload.</p>
-<h4 id="directly-copying-files-to-the-container">Directly copying files to the container</h4>
-<p>The documents used for RAG live in the chat container at <code>/root/data/&lt;directory&gt;/&lt;files&gt;</code>. Thus, in a pinch, you can <code>docker/podman cp</code> a file at this directory level, e.g., <code>podman/docker cp myfile.pdf &lt;container name or ID&gt;:/root/data/&lt;new_dir&gt;/</code>. If you need to make a new directory in the container, you can do <code>podman exec -it &lt;container name or ID&gt; mkdir /root/data/&lt;new_dir&gt;</code>.</p>
-<h4 id="data-viewer">Data Viewer</h4>
-<p>The chat interface includes a built-in Data Viewer for browsing and managing ingested documents. Access it at <code>/data</code> on your chat app (e.g., <code>http://localhost:7861/data</code>).</p>
-<p><strong>Features:</strong></p>
-<ul>
-<li><strong>Browse documents</strong>: View all ingested documents with metadata (source, file type, chunk count)</li>
-<li><strong>Search and filter</strong>: Filter documents by name or source type</li>
-<li><strong>View content</strong>: Click on a document to see its full content and individual chunks</li>
-<li><strong>Enable/disable documents</strong>: Toggle whether specific documents are included in RAG retrieval</li>
-<li><strong>Bulk operations</strong>: Enable or disable multiple documents at once</li>
-</ul>
-<p><strong>Document States:</strong></p>
+<h2 id="services">Services</h2>
+<p>Archi provides these deployable services:</p>
 <table>
 <thead>
 <tr>
-<th>State</th>
+<th>Service</th>
 <th>Description</th>
+<th>Default Port</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Enabled</td>
-<td>Document chunks are included in retrieval (default)</td>
+<td><code>chatbot</code></td>
+<td>Web-based chat interface</td>
+<td>7861</td>
 </tr>
 <tr>
-<td>Disabled</td>
-<td>Document is excluded from retrieval but remains in the database</td>
+<td><code>data_manager</code></td>
+<td>Data ingestion and vectorstore management</td>
+<td>7871</td>
+</tr>
+<tr>
+<td><code>piazza</code></td>
+<td>Piazza forum integration with Slack</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>redmine-mailer</code></td>
+<td>Redmine ticket responses via email</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>mattermost</code></td>
+<td>Mattermost channel integration</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>grafana</code></td>
+<td>Monitoring dashboard</td>
+<td>3000</td>
+</tr>
+<tr>
+<td><code>grader</code></td>
+<td>Automated grading service</td>
+<td>7862</td>
 </tr>
 </tbody>
 </table>
-<p>Disabling documents is useful for:
-- Temporarily excluding outdated content
-- Testing retrieval with specific document subsets
-- Hiding sensitive documents from certain users</p>
+<p><strong><a href="../services/">Read more →</a></strong></p>
 <hr />
-<h3 id="redmine">Redmine</h3>
-<p>Use the Redmine source to ingest solved tickets (question/answer pairs) into the vector store.</p>
-<h4 id="configuration_3">Configuration</h4>
-<pre><code class="language-yaml">data_manager:
-  sources:
-    redmine:
-      url: https://redmine.example.com
-      project: my-project
-      anonymize_data: true
-</code></pre>
-<h4 id="secrets_3">Secrets</h4>
-<p>Add the following to your <code>.env</code> file:</p>
-<pre><code class="language-bash">REDMINE_USER=...
-REDMINE_PW=...
-</code></pre>
-<h4 id="running_3">Running</h4>
-<p>Enable the source at deploy time with:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot --sources redmine
-</code></pre>
-<blockquote>
-<p>To automate email replies, also enable the <code>redmine-mailer</code> service (see the Services section below).</p>
-</blockquote>
+<h2 id="agents-tools">Agents &amp; Tools</h2>
+<p>Agents are defined by <strong>agent specs</strong> — Markdown files with YAML frontmatter specifying name, tools, and system prompt. The agent specs directory is configured via <code>services.chat_app.agents_dir</code>.</p>
+<p><strong><a href="../agents_tools/">Read more →</a></strong></p>
 <hr />
-<h2 id="interfacesservices">Interfaces/Services</h2>
-<p>These are the different apps that Archi supports, which allow you to interact with the AI pipelines.</p>
-<h3 id="piazza-interface">Piazza Interface</h3>
-<p>Set up Archi to read posts from your Piazza forum and post draft responses to a specified Slack channel. To do this, a Piazza login (email and password) is required, plus the network ID of your Piazza channel, and lastly, a Webhook for the slack channel Archi will post to. See below for a step-by-step description of this.</p>
-<ol>
-<li>Go to <a href="https://api.slack.com/apps">https://api.slack.com/apps</a> and sign in to workspace where you will eventually want Archi to post to (note doing this in a business workspace like the MIT one will require approval of the app/bot).</li>
-<li>Click 'Create New App', and then 'From scratch'. Name your app and again select the correct workspace. Then hit 'Create App'</li>
-<li>Now you have your app, and there are a few things to configure before you can launch Archi:</li>
-<li>Go to Incoming Webhooks under Features, and toggle it on.</li>
-<li>Click 'Add New Webhook', and select the channel you want Archi to post to.</li>
-<li>Now, copy the 'Webhook URL' and paste it into the secrets file, and handle it like any other secret!</li>
-</ol>
-<h4 id="configuration_4">Configuration</h4>
-<p>Beyond standard required configuration fields, the network ID of the Piazza channel is required (see below for an example config). You can get the network ID by simply navigating to the class homepage, and grabbing the sequence that follows 'https://piazza.com/class/'. For example, the 8.01 Fall 2024 homepage is: 'https://piazza.com/class/m0g3v0ahsqm2lg'. The network ID is thus 'm0g3v0ahsqm2lg'.</p>
-<p>Example minimal config for the Piazza interface:</p>
-<pre><code class="language-yaml">name: bare_minimum_configuration #REQUIRED
-
-data_manager:
-  sources:
-    links:
-      input_lists:
-        - class_info.list # class info links
-
-services:
-  piazza:
-    agent_class: QAPipeline
-    provider: local
-    model: llama3.2
-    network_id: &lt;your Piazza network ID here&gt; # REQUIRED
-  chat_app:
-    trained_on: &quot;Your class materials&quot; # REQUIRED
-</code></pre>
-<h4 id="secrets_4">Secrets</h4>
-<p>The necessary secrets for deploying the Piazza service are the following:</p>
-<pre><code class="language-bash">PIAZZA_EMAIL=...
-PIAZZA_PASSWORD=...
-SLACK_WEBHOOK=...
-</code></pre>
-<p>The Slack webhook secret is described above. The Piazza email and password should be those of one of the class instructors. Remember to put this information in files named following what is written above.</p>
-<h4 id="running_4">Running</h4>
-<p>To run the Piazza service, simply add the piazza flag. For example:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot,piazza
-</code></pre>
-<hr />
-<h3 id="redminemailbox-interface">Redmine/Mailbox Interface</h3>
-<p>Archi will read all new tickets in a Redmine project, and draft a response as a comment to the ticket.
-Once the ticket is updated to the "Resolved" status by an admin, Archi will send the response as an email to the user who opened the ticket.
-The admin can modify Archi's response before sending it out.</p>
-<h4 id="configuration_5">Configuration</h4>
-<pre><code class="language-yaml">services:
-  redmine_mailbox:
-    url: https://redmine.example.com
-    project: my-project
-    redmine_update_time: 10
-    mailbox_update_time: 10
-    answer_tag: &quot;-- Archi -- Resolving email was sent&quot;
-</code></pre>
-<h4 id="secrets_5">Secrets</h4>
-<p>Add the following secrets to your <code>.env</code> file:</p>
-<pre><code class="language-bash">IMAP_USER=...
-IMAP_PW=...
-REDMINE_USER=...
-REDMINE_PW=...
-SENDER_SERVER=...
-SENDER_PORT=587
-SENDER_REPLYTO=...
-SENDER_USER=...
-SENDER_PW=...
-</code></pre>
-<h4 id="running_5">Running</h4>
-<pre><code class="language-bash">archi create [...] --services=chatbot,redmine-mailer
-</code></pre>
-<hr />
-<h3 id="mattermost-interface">Mattermost Interface</h3>
-<p>Set up Archi to read posts from your Mattermost forum and post draft responses to a specified Mattermost channel.</p>
-<h4 id="configuration_6">Configuration</h4>
-<pre><code class="language-yaml">services:
-  mattermost:
-    update_time: 60
-</code></pre>
-<h4 id="secrets_6">Secrets</h4>
-<p>You need to specify a webhook, access token, and channel identifiers:</p>
-<pre><code class="language-bash">MATTERMOST_WEBHOOK=...
-MATTERMOST_PAK=...
-MATTERMOST_CHANNEL_ID_READ=...
-MATTERMOST_CHANNEL_ID_WRITE=...
-</code></pre>
-<h4 id="running_6">Running</h4>
-<p>To run the Mattermost service, include it when selecting services. For example:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot,mattermost
-</code></pre>
-<hr />
-<h3 id="grafana-interface">Grafana Interface</h3>
-<p>Monitor the performance of your Archi instance with the Grafana interface. This service provides a web-based dashboard to visualize various metrics related to system performance, LLM usage, and more.</p>
-<blockquote>
-<p>Note, if you are deploying a version of Archi you have already used (i.e., you haven't removed the images/volumes for a given <code>--name</code>), the postgres will have already been created without the Grafana user created, and it will not work, so make sure to deploy a fresh instance.</p>
-</blockquote>
-<h4 id="configuration_7">Configuration</h4>
-<pre><code class="language-yaml">services:
-  grafana:
-    external_port: 3000
-</code></pre>
-<h4 id="secrets_7">Secrets</h4>
-<p>Grafana shares the Postgres database with other services, so you need both the database password and a Grafana-specific password:</p>
-<pre><code class="language-bash">PG_PASSWORD=&lt;your_database_password&gt;
-GRAFANA_PG_PASSWORD=&lt;grafana_db_password&gt;
-</code></pre>
-<h4 id="running_7">Running</h4>
-<p>Deploy Grafana alongside your other services:</p>
-<pre><code class="language-bash">archi create [...] --services=chatbot,grafana
-</code></pre>
-<p>and you should see something like this</p>
-<pre><code>CONTAINER ID  IMAGE                                     COMMAND               CREATED        STATUS                  PORTS                             NAMES
-87f1c7289d29  docker.io/library/postgres:17             postgres              9 minutes ago  Up 9 minutes (healthy)  5432/tcp                          postgres-gtesting2
-40130e8e23de  docker.io/library/grafana-gtesting2:2000                        9 minutes ago  Up 9 minutes            0.0.0.0:3000-&gt;3000/tcp, 3000/tcp  grafana-gtesting2
-d6ce8a149439  localhost/chat-gtesting2:2000             python -u archi/...  9 minutes ago  Up 9 minutes            0.0.0.0:7861-&gt;7861/tcp            chat-gtesting2
-</code></pre>
-<p>where the grafana interface is accessible at <code>your-hostname:3000</code>. To change the external port from <code>3000</code>, you can do this in the config at <code>services.grafana.external_port</code>. The default login and password are both "admin", which you will be prompted to change should you want to after first logging in. Navigate to the Archi dashboard from the home page by going to the menu &gt; Dashboards &gt; Archi &gt; Archi Usage. Note, <code>your-hostname</code> here is the just name of the machine. Grafana uses its default configuration which is <code>localhost</code> but unlike the chat interface, there are no APIs where we template with a selected hostname, so the container networking handles this nicely.</p>
-<blockquote>
-<p>Pro tip: once at the web interface, for the "Recent Conversation Messages (Clean Text + Link)" panel, click the three little dots in the top right hand corner of the panel, click "Edit", and on the right, go to e.g., "Override 4" (should have Fields with name: clean text, also Override 7 for context column) and override property "Cell options &gt; Cell value inspect". This will allow you to expand the text boxes with messages longer than can fit. Make sure you click apply to keep the changes.</p>
-<p>Pro tip 2: If you want to download all of the information from any panel as a CSV, go to the same three dots and click "Inspect", and you should see the option.</p>
-</blockquote>
-<hr />
-<h3 id="grader-interface">Grader Interface</h3>
-<p>Interface to launch a website which for a provided solution and rubric (and a couple of other things detailed below), will grade scanned images of a handwritten solution for the specified problem(s).</p>
-<blockquote>
-<p>Nota bene: this is not yet fully generalized and "service" ready, but instead for testing grading pipelines and a base off of which to build a potential grading app.</p>
-</blockquote>
-<h4 id="requirements">Requirements</h4>
-<p>To launch the service the following files are required:</p>
-<ul>
-<li><code>users.csv</code>. This file is .csv file that contains two columns: "MIT email" and "Unique code", e.g.:</li>
-</ul>
-<pre><code>MIT email,Unique code
-username@mit.edu,222
-</code></pre>
-<p>For now, the system requires the emails to be in the MIT domain, namely, contain "@mit.edu". TODO: make this an argument that is passed (e.g., school/email domain)</p>
-<ul>
-<li><code>solution_with_rubric_*.txt</code>. These are .txt files that contain the problem solution followed by the rubric. The naming of the files should follow exactly, where the <code>*</code> is the problem number. There should be one of these files for every problem you want the app to be able to grade. The top of the file should be the problem name with a line of dashes ("-") below, e.g.:</li>
-</ul>
-<pre><code>Anti-Helmholtz Coils
----------------------------------------------------
-</code></pre>
-<p>These files should live in a directory which you will pass to the config, and Archi will handle the rest.</p>
-<ul>
-<li><code>admin_password.txt</code>. This file will be passed as a secret and be the admin code to login in to the page where you can reset attempts for students.</li>
-</ul>
-<h4 id="secrets_8">Secrets</h4>
-<p>The only grading specific secret is the admin password, which like shown above, should be put in the following file</p>
-<pre><code class="language-bash">ADMIN_PASSWORD=your_password
-</code></pre>
-<p>Then it behaves like any other secret.</p>
-<h4 id="configuration_8">Configuration</h4>
-<p>The required fields in the configuration file are different from the rest of the Archi services. Below is an example:</p>
-<pre><code class="language-yaml">name: grading_test # REQUIRED
-
-services:
-  chat_app:
-    trained_on: &quot;rubrics, class info, etc.&quot; # REQUIRED
-  grader_app:
-    provider: local
-    model: llama3.2
-    prompts:
-      grading:
-        final_grade_prompt: final_grade.prompt
-      image_processing:
-        image_processing_prompt: image_processing.prompt
-    num_problems: 1 # REQUIRED
-    local_rubric_dir: ~/grading/my_rubrics # REQUIRED
-    local_users_csv_dir: ~/grading/logins # REQUIRED
-
-data_manager:
-  [...]
-</code></pre>
-<ol>
-<li><code>name</code> -- The name of your configuration (required).</li>
-<li><code>services.grader_app.provider</code> -- Provider for grading/image pipelines (e.g., <code>local</code>, <code>openai</code>).</li>
-<li><code>services.grader_app.model</code> -- Default model id for grading/image pipelines.</li>
-<li><code>services.grader_app.prompts.grading.final_grade_prompt</code> -- Path to the grading prompt file for evaluating student solutions.</li>
-<li><code>services.grader_app.prompts.image_processing.image_processing_prompt</code> -- Path to the prompt file for image processing.</li>
-<li><code>services.chat_app.trained_on</code> -- A brief description of the data or materials Archi is trained on (required).</li>
-<li><code>services.grader_app.num_problems</code> -- Number of problems the grading service should expect (must match the number of rubric files).</li>
-<li><code>services.grader_app.local_rubric_dir</code> -- Directory containing the <code>solution_with_rubric_*.txt</code> files.</li>
-<li><code>services.grader_app.local_users_csv_dir</code> -- Directory containing the <code>users.csv</code> file.</li>
-</ol>
-<h4 id="running_8">Running</h4>
-<pre><code class="language-bash">archi create [...] --services=grader
-</code></pre>
-<hr />
-<h2 id="models">Models</h2>
-<p>Models are either:</p>
-<ol>
-<li>Hosted locally, either via VLLM or HuggingFace transformers.</li>
-<li>Accessed via an API, e.g., OpenAI, Anthropic, etc.</li>
-<li>Accessed via an Ollama server instance.</li>
-</ol>
-<h3 id="local-models">Local Models</h3>
-<p>To use a local model, specify one of the local model classes in <code>models.py</code>:</p>
-<ul>
-<li><code>HuggingFaceOpenLLM</code></li>
-<li><code>HuggingFaceImageLLM</code></li>
-<li><code>VLLM</code></li>
-</ul>
-<h3 id="models-via-apis">Models via APIs</h3>
-<p>We support the following model classes in <code>models.py</code> for models accessed via APIs:</p>
-<ul>
-<li><code>OpenAILLM</code></li>
-<li><code>OpenRouterLLM</code></li>
-<li><code>AnthropicLLM</code></li>
-</ul>
-<h4 id="openrouter">OpenRouter</h4>
-<p>OpenRouter uses the OpenAI-compatible API. No config entry is required for API-key providers; if
-<code>OPENROUTER_API_KEY</code> is set, the provider appears in the chat UI. To make OpenRouter the default,
-set <code>services.chat_app.default_provider</code> and <code>services.chat_app.default_model</code> accordingly.</p>
-<h3 id="ollama">Ollama</h3>
-<p>Configure Ollama under <code>services.chat_app.providers.local</code>, and set <code>services.chat_app.default_provider: local</code> with
-<code>services.chat_app.default_model</code> to the model id you want as the default. Example:</p>
-<pre><code class="language-yaml">services:
-  chat_app:
-    provider: local
-    model: llama3.2
-    providers:
-      local:
-        base_url: http://localhost:11434
-        mode: ollama
-        models:
-          - llama3.2
-</code></pre>
-<h3 id="bring-your-own-key-byok">Bring Your Own Key (BYOK)</h3>
-<p>Archi supports Bring Your Own Key (BYOK), allowing users to provide their own API keys for LLM providers at runtime. This enables:</p>
-<ul>
-<li><strong>Cost attribution</strong>: Users pay for their own API usage</li>
-<li><strong>Provider flexibility</strong>: Switch between providers without admin intervention</li>
-<li><strong>Privacy</strong>: Use personal accounts for sensitive queries</li>
-</ul>
-<h4 id="key-hierarchy">Key Hierarchy</h4>
-<p>API keys are resolved in the following order (highest priority first):</p>
-<ol>
-<li><strong>Environment Variables</strong>: Admin-configured keys (e.g., <code>OPENAI_API_KEY</code>)</li>
-<li><strong>Docker Secrets</strong>: Keys mounted at <code>/run/secrets/</code></li>
-<li><strong>Session Storage</strong>: User-provided keys via the Settings UI</li>
-</ol>
-<p>!!! note
-    Environment variable keys always take precedence. If an admin configures a key via environment variable, users cannot override it with their own key.</p>
-<h4 id="using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</h4>
-<ol>
-<li>Open the <strong>Settings</strong> modal (gear icon)</li>
-<li>Expand the <strong>API Keys</strong> section</li>
-<li>For each provider you want to use:</li>
-<li>Enter your API key in the input field</li>
-<li>Click <strong>Save</strong> to store it in your session</li>
-<li>Select your preferred <strong>Provider</strong> and <strong>Model</strong> from the dropdowns</li>
-<li>Start chatting!</li>
-</ol>
-<p><strong>Status Indicators:</strong></p>
-<table>
-<thead>
-<tr>
-<th>Icon</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>✓ Env</td>
-<td>Key configured via environment variable (cannot be changed)</td>
-</tr>
-<tr>
-<td>✓ Session</td>
-<td>Key configured via your session</td>
-</tr>
-<tr>
-<td>○</td>
-<td>No key configured</td>
-</tr>
-</tbody>
-</table>
-<h4 id="supported-providers">Supported Providers</h4>
+<h2 id="models-providers">Models &amp; Providers</h2>
+<p>Archi supports five LLM provider types:</p>
 <table>
 <thead>
 <tr>
 <th>Provider</th>
-<th>Environment Variable</th>
-<th>API Key Format</th>
+<th>Models</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>OpenAI</td>
-<td><code>OPENAI_API_KEY</code></td>
-<td><code>sk-...</code></td>
+<td>GPT-4o, GPT-4, etc.</td>
 </tr>
 <tr>
 <td>Anthropic</td>
-<td><code>ANTHROPIC_API_KEY</code></td>
-<td><code>sk-ant-...</code></td>
+<td>Claude 4, Claude 3.5 Sonnet, etc.</td>
 </tr>
 <tr>
 <td>Google Gemini</td>
-<td><code>GOOGLE_API_KEY</code></td>
-<td><code>AIza...</code></td>
+<td>Gemini 2.0 Flash, Gemini 1.5 Pro, etc.</td>
 </tr>
 <tr>
 <td>OpenRouter</td>
-<td><code>OPENROUTER_API_KEY</code></td>
-<td><code>sk-or-...</code></td>
+<td>Access to 100+ models via a unified API</td>
+</tr>
+<tr>
+<td>Local (Ollama/vLLM)</td>
+<td>Any open-source model</td>
 </tr>
 </tbody>
 </table>
-<h4 id="security-considerations">Security Considerations</h4>
-<ul>
-<li><strong>Keys are never logged</strong> - API keys are redacted from all log output</li>
-<li><strong>Keys are never echoed</strong> - The UI only shows masked placeholders</li>
-<li><strong>Session-scoped</strong> - Keys are cleared when you log out or your session expires</li>
-<li><strong>HTTPS recommended</strong> - For production deployments, always use HTTPS to protect keys in transit</li>
-</ul>
-<h4 id="api-endpoints">API Endpoints</h4>
-<p>For programmatic access, the following endpoints are available:</p>
+<p>Users can also provide their own API keys at runtime via <strong>Bring Your Own Key (BYOK)</strong>.</p>
+<p><strong><a href="../models_providers/">Read more →</a></strong></p>
+<hr />
+<h2 id="configuration-management">Configuration Management</h2>
+<p>Archi uses a three-tier configuration system:</p>
+<ol>
+<li><strong>Static Configuration</strong> (deploy-time, immutable): deployment name, embedding model, available pipelines</li>
+<li><strong>Dynamic Configuration</strong> (admin-controlled, runtime-modifiable): default model, temperature, retrieval parameters</li>
+<li><strong>User Preferences</strong> (per-user overrides): preferred model, temperature, prompt selections</li>
+</ol>
+<p>Settings are resolved as: User Preference → Dynamic Config → Static Default.</p>
+<p>See the <a href="../configuration/">Configuration Reference</a> for the full YAML schema and the <a href="../api_reference/">API Reference</a> for the configuration API.</p>
+<hr />
+<h2 id="secrets">Secrets</h2>
+<p>Secrets are stored in a <code>.env</code> file passed via <code>--env-file</code>. Required secrets depend on your deployment:</p>
 <table>
 <thead>
 <tr>
-<th>Endpoint</th>
-<th>Method</th>
-<th>Description</th>
+<th>Secret</th>
+<th>Required For</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>/api/providers/keys</code></td>
-<td>GET</td>
-<td>Get status of all provider keys</td>
+<td><code>PG_PASSWORD</code></td>
+<td>All deployments</td>
 </tr>
 <tr>
-<td><code>/api/providers/keys/set</code></td>
-<td>POST</td>
-<td>Set a session API key (validates before storing)</td>
+<td><code>OPENAI_API_KEY</code></td>
+<td>OpenAI provider</td>
 </tr>
 <tr>
-<td><code>/api/providers/keys/clear</code></td>
-<td>POST</td>
-<td>Clear a session API key</td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td>Anthropic provider</td>
+</tr>
+<tr>
+<td><code>GOOGLE_API_KEY</code></td>
+<td>Google Gemini provider</td>
+</tr>
+<tr>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td>OpenRouter provider</td>
+</tr>
+<tr>
+<td><code>HUGGINGFACEHUB_API_TOKEN</code></td>
+<td>Private HuggingFace models</td>
+</tr>
+<tr>
+<td><code>GIT_USERNAME</code> / <code>GIT_TOKEN</code></td>
+<td>Git source</td>
+</tr>
+<tr>
+<td><code>JIRA_PAT</code></td>
+<td>JIRA source</td>
+</tr>
+<tr>
+<td><code>REDMINE_USER</code> / <code>REDMINE_PW</code></td>
+<td>Redmine source</td>
 </tr>
 </tbody>
 </table>
-<hr />
-<h2 id="vector-store">Vector Store</h2>
-<p>The vector store is a database that stores document embeddings, enabling semantic and/or lexical search over your knowledge base. Archi uses PostgreSQL with pgvector as the default vector store backend to index and retrieve relevant documents based on similarity to user queries.</p>
-<h3 id="backend-selection">Backend Selection</h3>
-<p>Archi uses PostgreSQL with the pgvector extension as its vector store backend. This provides production-grade vector similarity search integrated with your existing PostgreSQL database.</p>
-<p>Configure vector store settings in your configuration file:</p>
-<pre><code class="language-yaml">services:
-  vectorstore:
-    backend: postgres  # PostgreSQL with pgvector (only supported backend)
-</code></pre>
-<h3 id="configuration_9">Configuration</h3>
-<p>Vector store settings are configured under the <code>data_manager</code> section:</p>
-<pre><code class="language-yaml">data_manager:
-  collection_name: default_collection
-  embedding_name: OpenAIEmbeddings
-  chunk_size: 1000
-  chunk_overlap: 0
-  reset_collection: true
-  num_documents_to_retrieve: 5
-  distance_metric: cosine
-</code></pre>
-<h4 id="core-settings">Core Settings</h4>
-<ul>
-<li><strong><code>collection_name</code></strong>: Name of the vector store collection. Default: <code>default_collection</code></li>
-<li><strong><code>chunk_size</code></strong>: Maximum size of text chunks (in characters) when splitting documents. Default: <code>1000</code></li>
-<li><strong><code>chunk_overlap</code></strong>: Number of overlapping characters between consecutive chunks. Default: <code>0</code></li>
-<li><strong><code>reset_collection</code></strong>: If <code>true</code>, deletes and recreates the collection on startup. Default: <code>true</code></li>
-<li><strong><code>num_documents_to_retrieve</code></strong>: Number of relevant document chunks to retrieve for each query. Default: <code>5</code></li>
-</ul>
-<h4 id="distance-metrics">Distance Metrics</h4>
-<p>The <code>distance_metric</code> determines how similarity is calculated between embeddings:</p>
-<ul>
-<li><strong><code>cosine</code></strong>: Cosine similarity (default) - measures the angle between vectors</li>
-<li><strong><code>l2</code></strong>: Euclidean distance - measures straight-line distance</li>
-<li><strong><code>ip</code></strong>: Inner product - measures dot product similarity</li>
-</ul>
-<pre><code class="language-yaml">data_manager:
-  distance_metric: cosine  # Options: cosine, l2, ip
-</code></pre>
-<h3 id="embedding-models">Embedding Models</h3>
-<p>Embeddings convert text into numerical vectors. Archi supports multiple embedding providers:</p>
-<h4 id="openai-embeddings">OpenAI Embeddings</h4>
-<pre><code class="language-yaml">data_manager:
-  embedding_name: OpenAIEmbeddings
-  embedding_class_map:
-    OpenAIEmbeddings:
-      class: OpenAIEmbeddings
-      kwargs:
-        model: text-embedding-3-small
-      similarity_score_reference: 10
-</code></pre>
-<h4 id="huggingface-embeddings">HuggingFace Embeddings</h4>
-<pre><code class="language-yaml">data_manager:
-  embedding_name: HuggingFaceEmbeddings
-  embedding_class_map:
-    HuggingFaceEmbeddings:
-      class: HuggingFaceEmbeddings
-      kwargs:
-        model_name: sentence-transformers/all-MiniLM-L6-v2
-        model_kwargs:
-          device: cpu
-        encode_kwargs:
-          normalize_embeddings: true
-      similarity_score_reference: 10
-      query_embedding_instructions: null
-</code></pre>
-<h3 id="supported-document-formats">Supported Document Formats</h3>
-<p>The vector store can process the following file types:</p>
-<ul>
-<li><strong>Text files</strong>: <code>.txt</code>, <code>.C</code></li>
-<li><strong>Markdown</strong>: <code>.md</code></li>
-<li><strong>Python</strong>: <code>.py</code></li>
-<li><strong>HTML</strong>: <code>.html</code></li>
-<li><strong>PDF</strong>: <code>.pdf</code></li>
-</ul>
-<p>Documents are automatically loaded with the appropriate parser based on file extension.</p>
-<h3 id="document-synchronization">Document Synchronization</h3>
-<p>Archi automatically synchronizes your data directory with the vector store:</p>
-<ol>
-<li><strong>Adding documents</strong>: New files in the data directory are automatically chunked, embedded, and added to the collection</li>
-<li><strong>Removing documents</strong>: Files deleted from the data directory are removed from the collection</li>
-<li><strong>Source tracking</strong>: Each ingested artifact is recorded in the Postgres catalog (<code>resources</code> table) with its resource hash and relative file path</li>
-</ol>
-<h3 id="hybrid-search">Hybrid Search</h3>
-<p>Combine semantic search with keyword-based BM25 search for improved retrieval:</p>
-<pre><code class="language-yaml">data_manager:
-  use_hybrid_search: true
-  bm25_weight: 0.6
-  semantic_weight: 0.4
-</code></pre>
-<ul>
-<li><strong><code>use_hybrid_search</code></strong>: Enable hybrid search combining BM25 and semantic similarity. Default: <code>true</code></li>
-<li><strong><code>bm25_weight</code></strong>: Weight for BM25 keyword scores (base config default: <code>0.6</code>).</li>
-<li><strong><code>semantic_weight</code></strong>: Weight for semantic similarity scores (base config default: <code>0.4</code>).</li>
-<li><strong>BM25 tuning</strong>: Parameters like <code>k1</code> and <code>b</code> are set when the PostgreSQL BM25 index is created and are no longer configurable via this file.</li>
-</ul>
-<h3 id="stemming">Stemming</h3>
-<p>By specifying the stemming option within your configuration, stemming functionality for the documents in Archi will be enabled. By doing so, documents inserted into the retrieval pipeline, as well as the query that is matched with them, will be stemmed and simplified for faster and more accurate lookup.</p>
-<pre><code class="language-yaml">data_manager:
-  stemming:
-    enabled: true
-</code></pre>
-<p>When enabled, both documents and queries are processed using the Porter Stemmer algorithm to reduce words to their root forms (e.g., "running" → "run"), improving matching accuracy.</p>
-<h3 id="postgresql-backend-default">PostgreSQL Backend (Default)</h3>
-<p>Archi uses PostgreSQL with pgvector for vector storage by default. The PostgreSQL service is automatically started when you deploy with the chatbot service.</p>
-<pre><code class="language-yaml">services:
-  postgres:
-    host: postgres
-    port: 5432
-    database: archi
-  vectorstore:
-    backend: postgres
-</code></pre>
-<p>Required secrets for PostgreSQL:</p>
-<pre><code class="language-bash">PG_PASSWORD=your_secure_password
-</code></pre>
+<p>See <a href="../data_sources/">Data Sources</a> and <a href="../services/">Services</a> for service-specific secrets.</p>
 <hr />
 <h2 id="benchmarking">Benchmarking</h2>
-<p>Archi has benchmarking functionality provided by the <code>evaluate</code> CLI command. We currently support two modes:</p>
-<ol>
-<li><code>SOURCES</code>: given a user question and a list of correct sources, check if the retrieved documents contain any of the correct sources.</li>
-<li><code>RAGAS</code>: use the Ragas RAG evaluator module to return numerical values judging by 4 of their provided metrics the quality of the answer: <code>answer_relevancy</code>, <code>faithfulness</code>, <code>context precision</code>, and <code>context relevancy</code>.</li>
-</ol>
-<h3 id="preparing-the-queries-file">Preparing the queries file</h3>
-<p>Provide your list of questions, answers, and relevant sources in JSON format as follows:</p>
-<pre><code class="language-json">[
-  {
-    &quot;question&quot;: &quot;&quot;,
-    &quot;sources&quot;: [...],
-    &quot;answer&quot;: &quot;&quot;
-    // (optional)
-    &quot;sources_match_field&quot;: [...]
-  },
-  ...
-]
-</code></pre>
-<p>Explanation of fields:
-- <code>question</code>: The question to be answered by the Archi instance.
-- <code>sources</code>: A list of sources (e.g., URLs, ticket IDs) that contain the answer. They are identified via the <code>sources_match_field</code>, which must be one of the metadata fields of the documents in your vector store.
-- <code>answer</code>: The expected answer to the question, used for evaluation.
-- <code>sources_match_field</code> (optional): A list of metadata fields to match the sources against (e.g., <code>url</code>, <code>ticket_id</code>). If not provided, defaults to what is in the configuration file under <code>data_manager:services:benchmarking:mode_settings:sources:default_match_field</code>.</p>
-<p>Example: (see also <code>examples/benchmarking/queries.json</code>)</p>
-<pre><code class="language-json">[
-  {
-    &quot;question&quot;: &quot;Does Jorian Benke work with the PPC and what topic will she work on?&quot;,
-    &quot;sources&quot;: [&quot;https://ppc.mit.edu/blog/2025/07/14/welcome-our-first-ever-in-house-masters-student/&quot;, &quot;CMSPROD-42&quot;],
-    &quot;answer&quot;: &quot;Yes, Jorian works with the PPC and her topic is the study of Lorentz invariance.&quot;,
-    &quot;source_match_field&quot;: [&quot;url&quot;, &quot;ticket_id&quot;]
-  },
-  ...
-]
-</code></pre>
-<p>N.B.: one could also provide the <code>url</code> for the JIRA ticket: it is just a choice that you must make, and detail in <code>source_match_field</code>. i.e., the following will evaluate equivalently as the above example:</p>
-<pre><code class="language-json">[
-  {
-    &quot;question&quot;: &quot;Does Jorian Benke work with the PPC and what topic will she work on?&quot;,
-    &quot;sources&quot;: [&quot;https://ppc.mit.edu/blog/2025/07/14/welcome-our-first-ever-in-house-masters-student/&quot;, &quot;https://its.cern.ch/jira/browse/CMSPROD-42&quot;],
-    &quot;answer&quot;: &quot;Yes, Jorian works with the PPC and her topic is the study of Lorentz invariance.&quot;,
-    &quot;source_match_field&quot;: [&quot;url&quot;, &quot;url&quot;]
-  },
-  ...
-]
-</code></pre>
-<h3 id="configuration_10">Configuration</h3>
-<p>You can evaluate one or more configurations by specifying the <code>evaluate</code> command with the <code>-cd</code> flag pointing to the directory containing your configuration file(s). You can also specify individual files with the <code>-c</code> flag. This can be useful if you're interested in comparing different hyperparameter settings.</p>
-<p>We support two modes, which you can specify in the configuration file under <code>services:benchmarking:modes</code>. You can choose either or both of <code>RAGAS</code> and <code>SOURCES</code>.</p>
-<p>The RAGAS mode will use the Ragas RAG evaluator module to return numerical values judging by 4 of their provided metrics: <code>answer_relevancy</code>, <code>faithfulness</code>, <code>context precision</code>, and <code>context relevancy</code>. More information about these metrics can be found on the <a href="https://docs.ragas.io/en/stable/concepts/metrics/">Ragas website</a>. </p>
-<p>The SOURCES mode will check if the retrieved documents contain any of the correct sources. The matching is done by comparing a given metadata field for any source. The default is <code>file_name</code>, as per the configuration file (<code>data_manager:services:benchmarking:mode_settings:sources:default_match_field</code>). You can override this on a per-query basis by specifying the <code>sources_match_field</code> field in the queries file, as described above.</p>
-<p>The configuration file should look like the following:</p>
-<pre><code class="language-yaml">services:
-  benchmarking:
-    queries_path: examples/benchmarking/queries.json
-    out_dir: bench_out
-    modes:
-      - &quot;RAGAS&quot;
-      - &quot;SOURCES&quot;
-    mode_settings:
-      sources:
-        default_match_field: [&quot;file_name&quot;] # default field to match sources against, can be overridden in the queries file
-      ragas_settings:
-        provider: &lt;provider name&gt; # can be one of OpenAI, HuggingFace, Ollama, and Anthropic
-        evaluation_model_settings:
-          model_name: &lt;model name&gt; # ensure this lines up with the langchain API name for your chosen model and provider
-          base_url: &lt;url&gt; # address to your running Ollama server should you have chosen the Ollama provider
-        embedding_model: &lt;embedding provider&gt; # OpenAI or HuggingFace
-</code></pre>
-<p>Finally, before you run the command ensure <code>out_dir</code>, the output directory, both exists on your system and that the path is correctly specified so that results can show up inside of it.</p>
-<h3 id="running_9">Running</h3>
-<p>To run the benchmarking script simply run the following:</p>
-<pre><code class="language-bash">archi evaluate -n &lt;name&gt; -e &lt;env_file&gt; -cd &lt;configs_directory&gt; &lt;optionally use  -c &lt;file1&gt;,&lt;file2&gt;, ...&gt; &lt;OPTIONS&gt;
-</code></pre>
-<p>Example:</p>
-<pre><code class="language-bash">archi evaluate -n benchmark -c examples/benchmarking/benchmark_configs/example_conf.yaml --gpu-ids all
-</code></pre>
-<h3 id="additional-options">Additional options</h3>
-<p>You might also want to adjust the <code>timeout</code> setting, which is the upper limit on how long the Ragas evaluation takes on a single QA pair, or the <code>batch_size</code>, which determines how many QA pairs to evaluate at once, which you might want to adjust, e.g., based on hardware constraints, as Ragas doesn't pay great attention to that. The corresponding configuration options are similarly set for the benchmarking services, as follows:</p>
-<pre><code class="language-yaml">services:
-  benchmarking:
-    timeout: &lt;time in seconds&gt; # default is 180
-    batch_size: &lt;desired batch size&gt; # no default setting, set by Ragas...
-</code></pre>
-<h3 id="results">Results</h3>
-<p>The output of the benchmarking will be saved in the <code>out_dir</code> specified in the configuration file. The results will be saved in a timestamped subdirectory, e.g., <code>bench_out/2042-10-01_12-00-00/</code>.</p>
-<p>To later examine your data, check out <code>scripts/benchmarking/</code>, which contains some plotting functions and an ipynotebook with some basic usage examples. This is useful to play around with the results of the benchmarking, we will soon also have instead dedicated scripts to produce the plots of interest.</p>
-<hr />
-<h2 id="other">Other</h2>
-<p>Some useful additional features supported by the framework.</p>
-<hr />
-<h2 id="configuration-management">Configuration Management</h2>
-<p>Archi uses a three-tier configuration system that allows flexibility at different levels:</p>
-<h3 id="configuration-hierarchy">Configuration Hierarchy</h3>
-<ol>
-<li><strong>Static Configuration</strong> (deploy-time, immutable)</li>
-<li>Set during deployment from config.yaml</li>
-<li>Includes: deployment name, embedding model, available pipelines/models</li>
-<li>
-<p>Cannot be changed at runtime</p>
-</li>
-<li>
-<p><strong>Dynamic Configuration</strong> (admin-controlled)</p>
-</li>
-<li>Runtime-modifiable settings</li>
-<li>Includes: default model, temperature, retrieval parameters, active prompts</li>
-<li>
-<p>Only admins can modify via API</p>
-</li>
-<li>
-<p><strong>User Preferences</strong> (per-user overrides)</p>
-</li>
-<li>Individual users can override certain settings</li>
-<li>Includes: preferred model, temperature, prompt selections</li>
-<li>Takes precedence over dynamic config for that user</li>
-</ol>
-<h3 id="effective-configuration">Effective Configuration</h3>
-<p>When a request is made, Archi resolves the effective value for each setting:</p>
-<pre><code>User Preference (if set) → Dynamic Config (admin default) → Static Default
-</code></pre>
-<p>For example, if an admin sets <code>temperature: 0.7</code> but a user prefers <code>0.5</code>, 
-that user's requests will use <code>0.5</code>.</p>
-<h3 id="admin-only-settings">Admin-Only Settings</h3>
-<p>The following settings require admin privileges to modify:</p>
+<p>Archi has benchmarking functionality via the <code>archi evaluate</code> CLI command:</p>
 <ul>
-<li><code>active_pipeline</code> - Default pipeline</li>
-<li><code>active_model</code> - Default model</li>
-<li><code>temperature</code>, <code>max_tokens</code>, <code>top_p</code>, <code>top_k</code> - Generation parameters</li>
-<li><code>num_documents_to_retrieve</code> - Retrieval settings</li>
-<li><code>active_condense_prompt</code>, <code>active_chat_prompt</code>, <code>active_system_prompt</code> - Default prompts</li>
-<li><code>verbosity</code> - Logging level</li>
+<li><strong>SOURCES mode</strong>: Checks if retrieved documents contain the correct sources</li>
+<li><strong>RAGAS mode</strong>: Uses the Ragas evaluator for answer relevancy, faithfulness, context precision, and context relevancy</li>
 </ul>
-<h3 id="user-overridable-settings">User-Overridable Settings</h3>
-<p>Users can personalize these settings via the preferences API:</p>
-<ul>
-<li><code>preferred_model</code> - Model selection</li>
-<li><code>preferred_temperature</code> - Generation temperature</li>
-<li><code>preferred_max_tokens</code> - Max response length</li>
-<li><code>preferred_num_documents</code> - Number of documents to retrieve</li>
-<li><code>preferred_condense_prompt</code>, <code>preferred_chat_prompt</code>, <code>preferred_system_prompt</code> - Prompt selections</li>
-<li><code>theme</code> - UI theme</li>
-</ul>
-<hr />
-<h2 id="prompt-customization">Prompt Customization</h2>
-<p>Archi supports customizable prompts organized by type. Prompts are stored as files in your deployment directory for easy editing and version control.</p>
-<h3 id="prompt-location">Prompt Location</h3>
-<p>After deployment, prompts are located at:</p>
-<pre><code>~/.archi/&lt;deployment-name&gt;/data/prompts/
-</code></pre>
-<p>Default prompt templates are provided in the repository at <code>examples/defaults/prompts/</code> for reference.</p>
-<h3 id="prompt-types">Prompt Types</h3>
-<ul>
-<li><strong>condense</strong>: Prompts for condensing conversation history</li>
-<li><strong>chat</strong>: Main response generation prompts  </li>
-<li><strong>system</strong>: System-level instructions</li>
-</ul>
-<h3 id="prompt-directory-structure">Prompt Directory Structure</h3>
-<pre><code>data/prompts/
-├── condense/
-│   ├── default.prompt
-│   └── concise.prompt
-├── chat/
-│   ├── default.prompt
-│   ├── formal.prompt
-│   └── technical.prompt
-└── system/
-    ├── default.prompt
-    └── helpful.prompt
-</code></pre>
-<h3 id="creating-custom-prompts">Creating Custom Prompts</h3>
-<ol>
-<li>Navigate to your deployment's prompt directory: <code>~/.archi/&lt;deployment-name&gt;/data/prompts/</code></li>
-<li>Create or edit a <code>.prompt</code> file in the appropriate subdirectory</li>
-<li>Use standard prompt template syntax with placeholders:</li>
-<li><code>{retriever_output}</code> - Retrieved documents</li>
-<li><code>{question}</code> - User question</li>
-<li><code>{history}</code> - Conversation history</li>
-</ol>
-<p>Example <code>data/prompts/chat/technical.prompt</code>:</p>
-<pre><code>You are a technical assistant specializing in software development.
-Use precise technical terminology and provide code examples when appropriate.
-
-Context: {context}
-
-Question: {question}
-</code></pre>
-<h3 id="activating-prompts">Activating Prompts</h3>
-<p><strong>Admin (deployment-wide default):</strong></p>
-<pre><code>PATCH /api/config/dynamic
-{&quot;active_chat_prompt&quot;: &quot;technical&quot;}
-</code></pre>
-<p><strong>User (personal preference):</strong></p>
-<pre><code>PATCH /api/users/me/preferences
-{&quot;preferred_chat_prompt&quot;: &quot;formal&quot;}
-</code></pre>
-<h3 id="reloading-prompts">Reloading Prompts</h3>
-<p>After adding or modifying prompt files, reload the cache:</p>
-<pre><code>POST /api/prompts/reload
-</code></pre>
-<p>This is admin-only and updates the in-memory prompt cache without restarting services.</p>
+<p><strong><a href="../benchmarking/">Read more →</a></strong></p>
 <hr />
 <h2 id="admin-guide">Admin Guide</h2>
 <h3 id="becoming-an-admin">Becoming an Admin</h3>
-<p>Admin status is set in the PostgreSQL <code>users</code> table:</p>
+<p>Set admin status in PostgreSQL:</p>
 <pre><code class="language-sql">UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
 </code></pre>
-<h3 id="admin-responsibilities">Admin Responsibilities</h3>
-<ol>
-<li><strong>Configuration Management</strong></li>
-<li>Set deployment-wide defaults via <code>/api/config/dynamic</code></li>
-<li>
-<p>Monitor configuration changes via <code>/api/config/audit</code></p>
-</li>
-<li>
-<p><strong>Prompt Management</strong></p>
-</li>
-<li>Add/edit prompt files in <code>prompts/</code> directory</li>
-<li>
-<p>Reload prompts via API after changes</p>
-</li>
-<li>
-<p><strong>User Management</strong></p>
-</li>
-<li>Grant admin privileges as needed</li>
-<li>Review user activity and preferences</li>
-</ol>
+<h3 id="admin-capabilities">Admin Capabilities</h3>
+<ul>
+<li>Set deployment-wide defaults via the dynamic configuration API</li>
+<li>Manage prompts (add, edit, reload via API)</li>
+<li>View the configuration audit log</li>
+<li>Grant admin privileges to other users</li>
+</ul>
 <h3 id="audit-logging">Audit Logging</h3>
-<p>All admin configuration changes are logged:</p>
+<p>All admin configuration changes are logged and queryable:</p>
 <pre><code>GET /api/config/audit?limit=50
 </code></pre>
-<p>Returns:</p>
-<pre><code class="language-json">{
-  &quot;entries&quot;: [
-    {
-      &quot;user_id&quot;: &quot;admin_user&quot;,
-      &quot;changed_at&quot;: &quot;2025-01-20T15:30:00Z&quot;,
-      &quot;config_type&quot;: &quot;dynamic&quot;,
-      &quot;field_name&quot;: &quot;temperature&quot;,
-      &quot;old_value&quot;: &quot;0.7&quot;,
-      &quot;new_value&quot;: &quot;0.8&quot;
-    }
-  ]
-}
-</code></pre>
-<h3 id="best-practices">Best Practices</h3>
-<ol>
-<li><strong>Test configuration changes</strong> in a staging environment first</li>
-<li><strong>Document changes</strong> - use meaningful commit messages for prompt file updates</li>
-<li><strong>Monitor audit log</strong> - review for unexpected changes</li>
-<li><strong>Backup prompts</strong> - version control your custom prompts</li>
-</ol>
-<hr />
+<p>See the <a href="../api_reference/#configuration">API Reference</a> for full endpoint documentation.</p>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href="../quickstart/" class="btn btn-neutral float-left" title="Quickstart"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../advanced_setup_deploy/" class="btn btn-neutral float-right" title="Advanced Setup and Deployment">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../data_sources/" class="btn btn-neutral float-right" title="Data Sources">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -1343,14 +385,14 @@ Question: {question}
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     
       <span><a href="../quickstart/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../advanced_setup_deploy/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../data_sources/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

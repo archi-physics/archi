@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Models & Providers - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Models \u0026 Providers";
+        var mkdocs_page_input_path = "models_providers.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Models & Providers</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#provider-architecture">Provider Architecture</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#key-concepts">Key Concepts</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuring-providers">Configuring Providers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#quick-start-by-provider">Quick Start by Provider</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#openai">OpenAI</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#anthropic">Anthropic</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#google-gemini">Google Gemini</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#openrouter">OpenRouter</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#local-models-ollama">Local Models (Ollama)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#local-openai-compatible-server-vllm-lm-studio-etc">Local OpenAI-compatible server (vLLM, LM Studio, etc.)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#embedding-models">Embedding Models</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#openai-embeddings">OpenAI Embeddings</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#huggingface-embeddings">HuggingFace Embeddings</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bring-your-own-key-byok">Bring Your Own Key (BYOK)</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#key-hierarchy">Key Hierarchy</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#byok-api-endpoints">BYOK API Endpoints</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#security-considerations">Security Considerations</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Models & Providers</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/models_providers.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="models-providers">Models &amp; Providers</h1>
+<p>Archi uses a <strong>provider-based architecture</strong> for LLM access. Each provider wraps a specific LLM service and exposes a unified interface for model listing, connection validation, and chat model creation.</p>
+<h2 id="provider-architecture">Provider Architecture</h2>
+<p>All providers extend the <code>BaseProvider</code> abstract class and are registered in a global provider registry. The system supports five provider types:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Type</th>
+<th>API Key Env Var</th>
+<th>Default Model</th>
+<th>LangChain Backend</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI</td>
+<td><code>openai</code></td>
+<td><code>OPENAI_API_KEY</code></td>
+<td><code>gpt-4o</code></td>
+<td><code>ChatOpenAI</code></td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td><code>anthropic</code></td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td><code>claude-sonnet-4-20250514</code></td>
+<td><code>ChatAnthropic</code></td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td><code>gemini</code></td>
+<td><code>GOOGLE_API_KEY</code></td>
+<td><code>gemini-2.0-flash</code></td>
+<td><code>ChatGoogleGenerativeAI</code></td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td><code>openrouter</code></td>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td><code>anthropic/claude-3.5-sonnet</code></td>
+<td><code>ChatOpenAI</code> (custom base URL)</td>
+</tr>
+<tr>
+<td>Local (Ollama/vLLM)</td>
+<td><code>local</code></td>
+<td>N/A</td>
+<td>Dynamic (fetched from server)</td>
+<td><code>ChatOllama</code> or <code>ChatOpenAI</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-concepts">Key Concepts</h3>
+<ul>
+<li><strong><code>ProviderType</code></strong>: An enum of supported provider names (<code>OPENAI</code>, <code>ANTHROPIC</code>, <code>GEMINI</code>, <code>OPENROUTER</code>, <code>LOCAL</code>).</li>
+<li><strong><code>ProviderConfig</code></strong>: A dataclass holding provider settings — type, API key, base URL, enabled state, models list, and extra kwargs.</li>
+<li><strong><code>ModelInfo</code></strong>: Describes a model's capabilities — context window, tool support, streaming support, vision support, and max output tokens.</li>
+<li><strong>Provider Registry</strong>: Providers are lazily registered at first use. Factory functions (<code>get_provider</code>, <code>get_model</code>) handle instantiation and caching.</li>
+</ul>
+<hr />
+<h2 id="configuring-providers">Configuring Providers</h2>
+<p>Providers are configured per-service in your deployment's configuration file. Each service can specify a default provider and model, plus provider-specific settings.</p>
+<h2 id="quick-start-by-provider">Quick Start by Provider</h2>
+<p>Use this flow if you want to start with a provider other than Ollama:</p>
+<ol>
+<li>Start from <code>examples/deployments/basic-ollama/config.yaml</code> and copy it to a new file.</li>
+<li>Change <code>services.chat_app.default_provider</code> and <code>services.chat_app.default_model</code>.</li>
+<li>If you are not using <code>local</code>, remove <code>services.chat_app.providers.local</code>.</li>
+<li>Add provider-specific <code>services.chat_app.providers.&lt;provider&gt;</code> settings only when needed (for example <code>local</code> mode/base URL).</li>
+<li>Put required secrets in your <code>.env</code> file.</li>
+<li>Run <code>archi create --name my-archi --config &lt;your-config&gt;.yaml --podman --env-file .secrets.env --services chatbot</code>.</li>
+</ol>
+<p>Minimal provider snippets for <code>services.chat_app</code>:</p>
+<h3 id="openai">OpenAI</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: openai
+    default_model: gpt-4o
+</code></pre>
+<p>Required secret: <code>OPENAI_API_KEY</code></p>
+<h3 id="anthropic">Anthropic</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: anthropic
+    default_model: claude-sonnet-4-20250514
+</code></pre>
+<p>Required secret: <code>ANTHROPIC_API_KEY</code></p>
+<h3 id="google-gemini">Google Gemini</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: gemini
+    default_model: gemini-2.0-flash
+    providers:
+      gemini:
+        enabled: true
+</code></pre>
+<p>Required secret: <code>GOOGLE_API_KEY</code></p>
+<h3 id="openrouter">OpenRouter</h3>
+<p>OpenRouter uses an OpenAI-compatible API to access models from multiple providers.</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: openrouter
+    default_model: anthropic/claude-3.5-sonnet
+</code></pre>
+<p>Required secret: <code>OPENROUTER_API_KEY</code></p>
+<p>Optional secrets: <code>OPENROUTER_SITE_URL</code>, <code>OPENROUTER_APP_NAME</code></p>
+<h3 id="local-models-ollama">Local Models (Ollama)</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: local
+    default_model: llama3.2
+    providers:
+      local:
+        base_url: http://localhost:11434
+        mode: ollama
+        models:
+          - llama3.2
+</code></pre>
+<h3 id="local-openai-compatible-server-vllm-lm-studio-etc">Local OpenAI-compatible server (vLLM, LM Studio, etc.)</h3>
+<pre><code class="language-yaml">services:
+  chat_app:
+    default_provider: local
+    default_model: my-model
+    providers:
+      local:
+        base_url: http://localhost:8000/v1
+        mode: openai_compat
+        models:
+          - my-model
+</code></pre>
+<p>Secret usually not required unless your local server enforces API auth.</p>
+<p>The <code>local</code> provider supports two modes:</p>
+<ul>
+<li><strong><code>ollama</code></strong> (default): Uses <code>ChatOllama</code>. Models are dynamically fetched from the Ollama server's <code>/api/tags</code> endpoint.</li>
+<li><strong><code>openai_compat</code></strong>: Uses <code>ChatOpenAI</code> with a custom base URL. Suitable for vLLM, LM Studio, or other OpenAI-compatible servers.</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> For GPU setup with local models, see <a href="../advanced_setup_deploy/#running-llms-locally-on-your-gpus">Advanced Setup &amp; Deployment</a>.</p>
+</blockquote>
+<hr />
+<h2 id="embedding-models">Embedding Models</h2>
+<p>Embeddings convert text into numerical vectors for semantic search. Configure these in the <code>data_manager</code> section:</p>
+<h3 id="openai-embeddings">OpenAI Embeddings</h3>
+<pre><code class="language-yaml">data_manager:
+  embedding_name: OpenAIEmbeddings
+  embedding_class_map:
+    OpenAIEmbeddings:
+      class: OpenAIEmbeddings
+      kwargs:
+        model: text-embedding-3-small
+      similarity_score_reference: 10
+</code></pre>
+<p>Requires <code>OPENAI_API_KEY</code> in your secrets file.</p>
+<h3 id="huggingface-embeddings">HuggingFace Embeddings</h3>
+<pre><code class="language-yaml">data_manager:
+  embedding_name: HuggingFaceEmbeddings
+  embedding_class_map:
+    HuggingFaceEmbeddings:
+      class: HuggingFaceEmbeddings
+      kwargs:
+        model_name: sentence-transformers/all-MiniLM-L6-v2
+        model_kwargs:
+          device: cpu
+        encode_kwargs:
+          normalize_embeddings: true
+      similarity_score_reference: 10
+</code></pre>
+<p>Uses HuggingFace models locally. Optionally requires <code>HUGGINGFACEHUB_API_TOKEN</code> for private models.</p>
+<hr />
+<h2 id="bring-your-own-key-byok">Bring Your Own Key (BYOK)</h2>
+<p>BYOK allows users to provide their own API keys for LLM providers at runtime, enabling cost attribution, provider flexibility, and privacy.</p>
+<blockquote>
+<p><strong>Supported Providers:</strong> BYOK session keys work with all configured provider types (OpenAI, Anthropic, OpenRouter, Gemini, etc.). The Settings UI shows status indicators for each provider.</p>
+</blockquote>
+<h3 id="key-hierarchy">Key Hierarchy</h3>
+<p>API keys are resolved in the following order (highest priority first):</p>
+<ol>
+<li><strong>Session Storage</strong>: User-provided keys via the Settings UI (BYOK)</li>
+<li><strong>Environment Variables / Docker Secrets</strong>: Admin-configured keys (e.g., <code>OPENAI_API_KEY</code> or keys mounted at <code>/run/secrets/</code>)</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> When a user provides a session key, it overrides any environment-level key for that user's requests. Environment keys serve as the default fallback for users who have not configured their own key.</p>
+</blockquote>
+<h3 id="using-byok-in-the-chat-interface">Using BYOK in the Chat Interface</h3>
+<ol>
+<li>Open the <strong>Settings</strong> modal (gear icon in the header)</li>
+<li>Expand the <strong>API Keys</strong> section</li>
+<li>Enter your API key for each provider you want to use</li>
+<li>Click <strong>Save</strong> to store it in your session</li>
+<li>Select your preferred <strong>Provider</strong> and <strong>Model</strong> from the dropdowns</li>
+<li>Start chatting</li>
+</ol>
+<p><strong>Status Indicators:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Icon</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✓ Env</td>
+<td>Key configured via environment variable (cannot be changed)</td>
+</tr>
+<tr>
+<td>✓ Session</td>
+<td>Key configured via your session</td>
+</tr>
+<tr>
+<td>○</td>
+<td>No key configured</td>
+</tr>
+</tbody>
+</table>
+<h3 id="byok-api-endpoints">BYOK API Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/providers/keys</code></td>
+<td>GET</td>
+<td>Get status of all provider keys</td>
+</tr>
+<tr>
+<td><code>/api/providers/keys/set</code></td>
+<td>POST</td>
+<td>Set a session API key (validates before storing)</td>
+</tr>
+<tr>
+<td><code>/api/providers/keys/clear</code></td>
+<td>POST</td>
+<td>Clear a session API key</td>
+</tr>
+</tbody>
+</table>
+<h3 id="security-considerations">Security Considerations</h3>
+<ul>
+<li>Keys are never logged or echoed</li>
+<li>Keys are session-scoped and cleared on logout or session expiry</li>
+<li>HTTPS is strongly recommended for production — see <a href="../advanced_setup_deploy/#https-configuration-for-production">HTTPS Configuration</a></li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../services/" class="btn btn-neutral float-left" title="Services"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../agents_tools/" class="btn btn-neutral float-right" title="Agents & Tools">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../services/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../agents_tools/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

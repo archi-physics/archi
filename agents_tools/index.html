@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Agents & Tools - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Agents \u0026 Tools";
+        var mkdocs_page_input_path = "agents_tools.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Agents & Tools</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#agent-specs">Agent Specs</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#format">Format</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#practical-agent-spec-examples">Practical Agent Spec Examples</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#minimal-default-agent">Minimal default agent</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#mcp-enabled-agent">MCP-enabled agent</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#monit-focused-agent-if-monit-tools-are-enabled-by-the-agent-class">MONIT-focused agent (if MONIT tools are enabled by the agent class)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#file-discovery">File Discovery</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#available-tools">Available Tools</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#search_local_files">search_local_files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#search_metadata_index">search_metadata_index</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#list_metadata_schema">list_metadata_schema</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#fetch_catalog_document">fetch_catalog_document</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#search_vectorstore_hybrid">search_vectorstore_hybrid</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#mcp">mcp</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agent-management-in-the-chat-ui">Agent Management in the Chat UI</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#pipelines">Pipelines</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#cmscompopsagent">CMSCompOpsAgent</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#qapipeline">QAPipeline</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pipeline-configuration">Pipeline Configuration</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#mcp-integration">MCP Integration</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#how-it-works">How It Works</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#agent-spec-example">Agent Spec Example</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#runtime-behavior">Runtime Behavior</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#vector-store-retrieval">Vector Store &amp; Retrieval</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#core-settings">Core Settings</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#hybrid-search">Hybrid Search</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#stemming">Stemming</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#supported-document-formats">Supported Document Formats</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#document-synchronization">Document Synchronization</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Agents & Tools</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/agents_tools.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="agents-tools">Agents &amp; Tools</h1>
+<p>Archi uses an <strong>agent-based architecture</strong> where AI assistants are defined by <strong>agent specs</strong> — Markdown files that specify the agent's name, available tools, and system prompt.</p>
+<h2 id="agent-specs">Agent Specs</h2>
+<p>Agent specs live in the directory configured at <code>services.chat_app.agents_dir</code>. Each <code>*.md</code> file defines one agent.</p>
+<h3 id="format">Format</h3>
+<p>An agent spec is a Markdown file with YAML frontmatter:</p>
+<pre><code class="language-markdown">---
+name: CMS Comp Ops
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+  - mcp
+---
+
+You are the CMS Comp Ops assistant. You help with operational questions,
+troubleshooting, and documentation lookups. Use tools when needed, cite
+evidence from retrieved sources, and keep responses concise and actionable.
+</code></pre>
+<p><strong>Required fields:</strong></p>
+<ul>
+<li><strong><code>name</code></strong> (string): Display name for the agent in the UI dropdown.</li>
+<li><strong><code>tools</code></strong> (list of strings): Tools this agent can use — a subset of tools defined by the agent class.</li>
+</ul>
+<p><strong>Prompt body:</strong> Everything after the frontmatter is the system prompt.</p>
+<h3 id="practical-agent-spec-examples">Practical Agent Spec Examples</h3>
+<h4 id="minimal-default-agent">Minimal default agent</h4>
+<pre><code class="language-markdown">---
+name: CMS CompOps Default
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+---
+
+You are a CMS CompOps assistant.
+
+Rules:
+- Use tools to find evidence before answering.
+- Prefer concise, operationally actionable responses.
+- Cite relevant files or tickets when possible.
+- If evidence is missing, say so and suggest the next query/tool call.
+</code></pre>
+<h4 id="mcp-enabled-agent">MCP-enabled agent</h4>
+<pre><code class="language-markdown">---
+name: CMS CompOps + MCP
+tools:
+  - search_vectorstore_hybrid
+  - fetch_catalog_document
+  - mcp
+---
+
+You are a research-focused assistant.
+
+Use vectorstore tools for internal docs first.
+Use MCP tools for external/system checks when internal evidence is insufficient.
+Always distinguish internal evidence from MCP-derived evidence.
+</code></pre>
+<h4 id="monit-focused-agent-if-monit-tools-are-enabled-by-the-agent-class">MONIT-focused agent (if MONIT tools are enabled by the agent class)</h4>
+<pre><code class="language-markdown">---
+name: CMS CompOps MONIT
+tools:
+  - search_vectorstore_hybrid
+  - fetch_catalog_document
+  - monit_opensearch_search
+  - monit_opensearch_aggregation
+---
+
+You support CompOps incident triage.
+
+When a request is about rates, failures, or timeseries:
+1. Query MONIT tools.
+2. Correlate with internal docs.
+3. Return likely cause, confidence, and next checks.
+</code></pre>
+<p>These files should live in <code>services.chat_app.agents_dir</code> and be selected by <code>services.chat_app.agent_class</code>.</p>
+<h3 id="file-discovery">File Discovery</h3>
+<p>The service loads all <code>*.md</code> files from the agents directory. The first agent in lexicographic order is selected as the default. Users can switch agents via the dropdown in the chat UI header.</p>
+<hr />
+<h2 id="available-tools">Available Tools</h2>
+<p>Agent classes define a <strong>tool registry</strong> — a mapping of tool names to tool builders. Each agent spec selects a subset of available tools via the <code>tools</code> list.</p>
+<p>The default agent class (<code>CMSCompOpsAgent</code>) provides these tools:</p>
+<h3 id="search_local_files"><code>search_local_files</code></h3>
+<p>Line-level search inside file contents. Supports regex and configurable context lines.</p>
+<ul>
+<li><strong>Use for:</strong> Finding specific text, code patterns, or error messages</li>
+<li><strong>Example query:</strong> <code>timeout error</code> with <code>before=2</code> and <code>after=2</code></li>
+</ul>
+<h3 id="search_metadata_index"><code>search_metadata_index</code></h3>
+<p>Search the document catalog by file name, path, or source metadata. Use free-text for partial matches or <code>key:value</code> for exact filters.</p>
+<ul>
+<li><strong>Use for:</strong> Finding files by name, path, or source</li>
+<li><strong>Example query:</strong> <code>mz_dilepton.py</code> or <code>relative_path:full/path/to/file.py</code></li>
+</ul>
+<h3 id="list_metadata_schema"><code>list_metadata_schema</code></h3>
+<p>Returns the metadata schema and available filter keys. Helps the agent understand what metadata fields exist.</p>
+<h3 id="fetch_catalog_document"><code>fetch_catalog_document</code></h3>
+<p>Pull the full text of a specific file by its hash. Supports truncation with <code>max_chars</code>.</p>
+<ul>
+<li><strong>Use for:</strong> Reading a specific document after finding it via search</li>
+</ul>
+<h3 id="search_vectorstore_hybrid"><code>search_vectorstore_hybrid</code></h3>
+<p>Semantic and keyword (BM25) hybrid retrieval of relevant passages from the vector store.</p>
+<ul>
+<li><strong>Use for:</strong> Answering questions when you don't know exact keywords</li>
+</ul>
+<h3 id="mcp"><code>mcp</code></h3>
+<p>Enables Model Context Protocol (MCP) tools from external servers. See <a href="#mcp-integration">MCP Integration</a> below.</p>
+<hr />
+<h2 id="agent-management-in-the-chat-ui">Agent Management in the Chat UI</h2>
+<p>The chat interface provides a full agent management experience:</p>
+<ul>
+<li><strong>Agent dropdown</strong>: Switch between available agents using the dropdown in the header</li>
+<li><strong>Create agents</strong>: Click the "+" button to create a new agent with name, tools, and prompt</li>
+<li><strong>Edit agents</strong>: Click the pencil icon on any agent to modify its configuration</li>
+<li><strong>Delete agents</strong>: Remove agents you no longer need (with confirmation)</li>
+</ul>
+<p>Changes are persisted and take effect on the next request.</p>
+<hr />
+<h2 id="pipelines">Pipelines</h2>
+<p>Archi supports several pipeline classes. The active pipeline is configured per service via the <code>agent_class</code> key:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+</code></pre>
+<h3 id="cmscompopsagent"><code>CMSCompOpsAgent</code></h3>
+<p>The default pipeline. A ReAct agent with tool-use capabilities — it can search documents, fetch content, and query the vector store. Supports MCP tools and streaming responses.</p>
+<h3 id="qapipeline"><code>QAPipeline</code></h3>
+<p>A simpler question-answering pipeline for straightforward retrieval-augmented generation without tool use.</p>
+<h3 id="pipeline-configuration">Pipeline Configuration</h3>
+<p>Pipeline selection is configured per service:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+</code></pre>
+<p>The class (<code>CMSCompOpsAgent</code>, <code>QAPipeline</code>, etc.) defines available tools and runtime behavior.
+The selected agent spec file defines the active prompt and tool subset.</p>
+<hr />
+<h2 id="mcp-integration">MCP Integration</h2>
+<p>Archi supports the <a href="https://modelcontextprotocol.io/">Model Context Protocol (MCP)</a> for connecting agents to external tool servers. This allows agents to use tools defined by third-party MCP servers — such as web search, code execution, or custom APIs — alongside Archi's built-in tools.</p>
+<h3 id="how-it-works">How It Works</h3>
+<ol>
+<li>MCP servers are defined in your deployment runtime configuration</li>
+<li>An agent spec includes <code>mcp</code> in its <code>tools</code> list to opt in</li>
+<li>At agent initialization, Archi connects to the MCP servers and discovers available tools</li>
+<li>The MCP tools are added to the agent's toolset alongside built-in tools</li>
+</ol>
+<h3 id="configuration">Configuration</h3>
+<p>Define MCP servers in your deployment configuration:</p>
+<pre><code class="language-yaml">mcp_servers:
+  my_server:
+    transport: &quot;stdio&quot;
+    command: &quot;uvx&quot;
+    args:
+      - &quot;mcp-server-example&quot;
+  web_search:
+    transport: &quot;sse&quot;
+    url: &quot;http://localhost:8080/sse&quot;
+</code></pre>
+<p>Each server entry follows the format expected by the <code>langchain-mcp-adapters</code> library:</p>
+<ul>
+<li><strong><code>transport</code></strong>: Communication method — <code>"stdio"</code> (subprocess) or <code>"sse"</code> (HTTP Server-Sent Events)</li>
+<li><strong><code>command</code></strong> / <strong><code>args</code></strong>: For <code>stdio</code> transport, the command to launch the server</li>
+<li><strong><code>url</code></strong>: For <code>sse</code> transport, the server endpoint</li>
+</ul>
+<h3 id="agent-spec-example">Agent Spec Example</h3>
+<p>Include <code>mcp</code> in the tools list to enable MCP tools for an agent:</p>
+<pre><code class="language-markdown">---
+name: Research Assistant
+tools:
+  - search_vectorstore_hybrid
+  - fetch_catalog_document
+  - mcp
+---
+
+You are a research assistant with access to external tools via MCP.
+Use vectorstore search for internal documents and MCP tools for
+external information retrieval.
+</code></pre>
+<h3 id="runtime-behavior">Runtime Behavior</h3>
+<ul>
+<li>MCP sessions are maintained in a background event loop for the lifetime of the service</li>
+<li>Each MCP tool is wrapped for synchronous execution so it integrates seamlessly with the ReAct agent loop</li>
+<li>Tool names from MCP servers are namespaced to avoid conflicts with built-in tools</li>
+</ul>
+<hr />
+<h2 id="vector-store-retrieval">Vector Store &amp; Retrieval</h2>
+<p>The vector store powers document retrieval in Archi. It uses PostgreSQL with pgvector for production-grade vector similarity search.</p>
+<h3 id="core-settings">Core Settings</h3>
+<pre><code class="language-yaml">data_manager:
+  collection_name: default_collection
+  embedding_name: OpenAIEmbeddings
+  chunk_size: 1000
+  chunk_overlap: 0
+  reset_collection: true
+  distance_metric: cosine
+  retrievers:
+    hybrid_retriever:
+      num_documents_to_retrieve: 5
+      bm25_weight: 0.6
+      semantic_weight: 0.4
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>collection_name</code></td>
+<td>Name of the vector store collection</td>
+<td><code>default_collection</code></td>
+</tr>
+<tr>
+<td><code>chunk_size</code></td>
+<td>Maximum characters per text chunk</td>
+<td><code>1000</code></td>
+</tr>
+<tr>
+<td><code>chunk_overlap</code></td>
+<td>Overlapping characters between chunks</td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td><code>reset_collection</code></td>
+<td>Wipe and recreate collection on startup</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>retrievers.hybrid_retriever.num_documents_to_retrieve</code></td>
+<td>Top-k documents per query</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>distance_metric</code></td>
+<td>Similarity metric: <code>cosine</code>, <code>l2</code>, or <code>ip</code></td>
+<td><code>cosine</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="hybrid-search">Hybrid Search</h3>
+<p>Hybrid search (semantic + BM25 keyword retrieval) is enabled by default as a dynamic runtime setting. The weights are configurable in your YAML:</p>
+<pre><code class="language-yaml">data_manager:
+  retrievers:
+    hybrid_retriever:
+      bm25_weight: 0.6
+      semantic_weight: 0.4
+</code></pre>
+<h3 id="stemming">Stemming</h3>
+<p>Enable stemming to reduce words to root forms for improved matching:</p>
+<pre><code class="language-yaml">data_manager:
+  stemming:
+    enabled: true
+</code></pre>
+<h3 id="supported-document-formats">Supported Document Formats</h3>
+<p><code>.txt</code>, <code>.md</code>, <code>.py</code>, <code>.c</code>, <code>.C</code>, <code>.h</code>, <code>.sh</code>, <code>.html</code>, <code>.htm</code>, <code>.pdf</code>, <code>.json</code>, <code>.yaml</code>, <code>.yml</code>, <code>.csv</code>, <code>.tsv</code>, <code>.log</code>, <code>.rst</code>, <code>.php</code></p>
+<h3 id="document-synchronization">Document Synchronization</h3>
+<p>Archi automatically synchronizes documents with the vector store:</p>
+<ol>
+<li><strong>New files</strong> are chunked, embedded, and indexed</li>
+<li><strong>Deleted files</strong> are removed from the collection</li>
+<li><strong>All artifacts</strong> are tracked in the PostgreSQL <code>resources</code> catalog</li>
+</ol>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../models_providers/" class="btn btn-neutral float-left" title="Models & Providers"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../configuration/" class="btn btn-neutral float-right" title="Configuration">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../models_providers/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../configuration/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

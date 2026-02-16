@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Benchmarking - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Benchmarking";
+        var mkdocs_page_input_path = "benchmarking.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Benchmarking</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#evaluation-modes">Evaluation Modes</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#sources-mode">SOURCES Mode</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#ragas-mode">RAGAS Mode</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#preparing-the-queries-file">Preparing the Queries File</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#ragas-settings">RAGAS Settings</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running">Running</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#results">Results</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Benchmarking</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/benchmarking.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="benchmarking">Benchmarking</h1>
+<p>Archi provides benchmarking functionality via the <code>archi evaluate</code> CLI command to measure retrieval and response quality.</p>
+<h2 id="evaluation-modes">Evaluation Modes</h2>
+<p>Two modes are supported (can be used together):</p>
+<h3 id="sources-mode">SOURCES Mode</h3>
+<p>Checks if retrieved documents contain the correct sources by comparing metadata fields.</p>
+<ul>
+<li>Default match field: <code>file_name</code> (configurable per-query)</li>
+<li>Override with <code>sources_match_field</code> in the queries file</li>
+</ul>
+<h3 id="ragas-mode">RAGAS Mode</h3>
+<p>Uses the <a href="https://docs.ragas.io/en/stable/concepts/metrics/">Ragas</a> evaluator for four metrics:</p>
+<ul>
+<li><strong>Answer relevancy</strong>: How relevant the answer is to the question</li>
+<li><strong>Faithfulness</strong>: Whether the answer is grounded in the retrieved context</li>
+<li><strong>Context precision</strong>: How relevant the retrieved documents are</li>
+<li><strong>Context relevancy</strong>: How much of the retrieved context is useful</li>
+</ul>
+<hr />
+<h2 id="preparing-the-queries-file">Preparing the Queries File</h2>
+<p>Provide questions, expected answers, and correct sources in JSON format:</p>
+<pre><code class="language-json">[
+  {
+    &quot;question&quot;: &quot;Does Jorian Benke work with the PPC?&quot;,
+    &quot;sources&quot;: [
+      &quot;https://ppc.mit.edu/blog/2025/07/14/welcome-our-first-ever-in-house-masters-student/&quot;,
+      &quot;CMSPROD-42&quot;
+    ],
+    &quot;answer&quot;: &quot;Yes, Jorian works with the PPC and her topic is Lorentz invariance.&quot;,
+    &quot;source_match_field&quot;: [&quot;url&quot;, &quot;ticket_id&quot;]
+  }
+]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>question</code></td>
+<td>Yes</td>
+<td>The question to ask</td>
+</tr>
+<tr>
+<td><code>sources</code></td>
+<td>Yes</td>
+<td>List of source identifiers (URLs, ticket IDs, etc.)</td>
+</tr>
+<tr>
+<td><code>answer</code></td>
+<td>Yes</td>
+<td>Expected answer (used for RAGAS evaluation)</td>
+</tr>
+<tr>
+<td><code>source_match_field</code></td>
+<td>No</td>
+<td>Metadata fields to match sources against (defaults to config value)</td>
+</tr>
+</tbody>
+</table>
+<p>See <code>examples/benchmarking/queries.json</code> for a complete example.</p>
+<hr />
+<h2 id="configuration">Configuration</h2>
+<pre><code class="language-yaml">services:
+  benchmarking:
+    queries_path: examples/benchmarking/queries.json
+    out_dir: bench_out
+    modes:
+      - &quot;RAGAS&quot;
+      - &quot;SOURCES&quot;
+    timeout: 180
+    batch_size: 10
+    mode_settings:
+      sources:
+        default_match_field: [&quot;file_name&quot;]
+      ragas_settings:
+        provider: OpenAI
+        evaluation_model_settings:
+          model_name: gpt-4o
+        embedding_model: OpenAI
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queries_path</code></td>
+<td>—</td>
+<td>Path to the queries JSON file</td>
+</tr>
+<tr>
+<td><code>out_dir</code></td>
+<td>—</td>
+<td>Output directory for results (must exist)</td>
+</tr>
+<tr>
+<td><code>modes</code></td>
+<td>—</td>
+<td>List of evaluation modes (<code>RAGAS</code>, <code>SOURCES</code>)</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>180</code></td>
+<td>Max seconds per QA pair for RAGAS evaluation</td>
+</tr>
+<tr>
+<td><code>batch_size</code></td>
+<td>Ragas default</td>
+<td>Number of QA pairs to evaluate at once</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ragas-settings">RAGAS Settings</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td>One of: <code>OpenAI</code>, <code>HuggingFace</code>, <code>Ollama</code>, <code>Anthropic</code></td>
+</tr>
+<tr>
+<td><code>evaluation_model_settings.model_name</code></td>
+<td>LangChain model name for evaluation</td>
+</tr>
+<tr>
+<td><code>evaluation_model_settings.base_url</code></td>
+<td>For Ollama: address of the running server</td>
+</tr>
+<tr>
+<td><code>embedding_model</code></td>
+<td><code>OpenAI</code> or <code>HuggingFace</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="running">Running</h2>
+<p>Evaluate one or more configurations:</p>
+<pre><code class="language-bash"># Single config file
+archi evaluate -n benchmark -c config.yaml -e .secrets.env
+
+# Directory of configs (for comparing hyperparameters)
+archi evaluate -n benchmark -cd configs/ -e .secrets.env
+
+# With GPU support
+archi evaluate -n benchmark -c config.yaml -e .secrets.env --gpu-ids all
+</code></pre>
+<p>Make sure the <code>out_dir</code> exists before running.</p>
+<hr />
+<h2 id="results">Results</h2>
+<p>Results are saved in a timestamped subdirectory of <code>out_dir</code> (e.g., <code>bench_out/2042-10-01_12-00-00/</code>).</p>
+<p>To analyze results, see <code>scripts/benchmarking/</code> which contains:</p>
+<ul>
+<li>Plotting functions</li>
+<li>An IPython notebook with usage examples (<code>benchmark_handler.ipynb</code>)</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../api_reference/" class="btn btn-neutral float-left" title="API Reference"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../advanced_setup_deploy/" class="btn btn-neutral float-right" title="Advanced Setup">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../api_reference/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../advanced_setup_deploy/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

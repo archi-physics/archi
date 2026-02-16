@@ -31,10 +31,7 @@
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
           <a href=".." class="icon icon-home"> Archi Docs
-        </a>
-        <div class="version">
-          1.2.4
-        </div><div role="search">
+        </a><div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
   </form>
@@ -43,7 +40,7 @@
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="..">Archi</a>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
                 </li>
               </ul>
               <ul>
@@ -59,16 +56,62 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup and Deployment</a>
+                <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
                 </li>
               </ul>
               <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
                 </li>
               </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                </li>
+              </ul>
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="#">Developer Guide</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#architecture-overview">Architecture Overview</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#provider-architecture">Provider Architecture</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#adding-a-new-provider">Adding a New Provider</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agent-pipeline-architecture">Agent &amp; Pipeline Architecture</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pipeline-classes">Pipeline Classes</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#adding-a-new-tool">Adding a New Tool</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#contribution-workflow">Contribution Workflow</a>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#editing-documentation">Editing Documentation</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#smoke-tests">Smoke Tests</a>
@@ -103,9 +146,21 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#extending-the-stack">Extending the stack</a>
+    <li class="toctree-l2"><a class="reference internal" href="#extending-the-stack">Extending the Stack</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#adding-a-new-data-source">Adding a New Data Source</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#adding-a-new-service">Adding a New Service</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#extending-embeddings-or-storage">Extending Embeddings or Storage</a>
+    </li>
+        </ul>
     </li>
     </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
                 </li>
               </ul>
       </div>
@@ -124,7 +179,7 @@
     <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
       <li class="breadcrumb-item active">Developer Guide</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/mit-submit/archi/edit/master/docs/developer_guide.md" class="icon icon-github"> Edit on GitHub</a>
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/developer_guide.md" class="icon icon-github"> Edit on GitHub</a>
     </li>
   </ul>
   <hr/>
@@ -134,6 +189,159 @@
               
                 <h1 id="developers-guide">Developers Guide</h1>
 <p>Below is all the information developers may need to get started contributing to the Archi project.</p>
+<h2 id="architecture-overview">Architecture Overview</h2>
+<p>Archi is a containerized RAG framework with these core components:</p>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│                    CLI (archi create)                     │
+│  Renders configs, builds images, launches containers     │
+└─────────────┬───────────────────────────────┬───────────┘
+              │                               │
+   ┌──────────▼──────────┐       ┌────────────▼──────────┐
+   │   Chat Service      │       │   Data Manager        │
+   │   (Flask, port 7861)│       │   (Flask, port 7871)  │
+   │   - ReAct agent     │       │   - Collectors        │
+   │   - Provider layer  │       │   - PersistenceService│
+   │   - Auth, BYOK      │       │   - VectorStoreManager│
+   └──────────┬──────────┘       └────────────┬──────────┘
+              │                               │
+   ┌──────────▼───────────────────────────────▼──────────┐
+   │              PostgreSQL (pgvector)                    │
+   │  Tables: resources, document_chunks, conversations,  │
+   │          conversation_metadata, feedback, timing,     │
+   │          agent_tool_calls, users, keys                │
+   └──────────────────────────────────────────────────────┘
+</code></pre>
+<p>Key source directories:</p>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/archi/</code></td>
+<td>Core orchestration — agent base class, pipelines, providers</td>
+</tr>
+<tr>
+<td><code>src/bin/</code></td>
+<td>Service entrypoints (Flask app factories)</td>
+</tr>
+<tr>
+<td><code>src/cli/</code></td>
+<td>CLI commands, service/source registries, deployment manager</td>
+</tr>
+<tr>
+<td><code>src/data_manager/</code></td>
+<td>Collectors, persistence, vectorstore indexing</td>
+</tr>
+<tr>
+<td><code>src/interfaces/</code></td>
+<td>Flask blueprints for chat, uploader, data viewer</td>
+</tr>
+<tr>
+<td><code>src/utils/</code></td>
+<td>Config loader, logging, shared utilities</td>
+</tr>
+</tbody>
+</table>
+<h2 id="provider-architecture">Provider Architecture</h2>
+<p>All LLM providers extend <code>BaseProvider</code> (<code>src/archi/providers/base_provider.py</code>):</p>
+<pre><code class="language-python">class BaseProvider(ABC):
+    @abstractmethod
+    def get_model(self, model_name, **kwargs) -&gt; BaseChatModel: ...
+    @abstractmethod
+    def get_embedding_model(self, model_name, **kwargs) -&gt; Embeddings: ...
+    @abstractmethod
+    def list_models(self) -&gt; list[str]: ...
+</code></pre>
+<p>Providers register themselves via <code>ProviderType</code> enum and are registered through <code>register_provider()</code>. Factory functions in <code>src/archi/providers/__init__.py</code>:</p>
+<ul>
+<li><code>get_provider(provider_type)</code> — returns a provider instance</li>
+<li><code>get_model(provider_type, model_name)</code> — returns a LangChain <code>BaseChatModel</code></li>
+<li><code>get_provider_with_api_key(provider_type, api_key)</code> — for BYOK</li>
+</ul>
+<p>Built-in providers:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Module</th>
+<th>Models</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OpenAIProvider</code></td>
+<td><code>openai_provider.py</code></td>
+<td>gpt-4o, gpt-4o-mini, etc.</td>
+</tr>
+<tr>
+<td><code>AnthropicProvider</code></td>
+<td><code>anthropic_provider.py</code></td>
+<td>claude-sonnet-4-20250514, claude-3.5-haiku, etc.</td>
+</tr>
+<tr>
+<td><code>GeminiProvider</code></td>
+<td><code>gemini_provider.py</code></td>
+<td>gemini-2.0-flash, gemini-2.5-pro, etc.</td>
+</tr>
+<tr>
+<td><code>OpenRouterProvider</code></td>
+<td><code>openrouter_provider.py</code></td>
+<td>Any model via OpenRouter API</td>
+</tr>
+<tr>
+<td><code>LocalProvider</code></td>
+<td><code>local_provider.py</code></td>
+<td>Ollama or OpenAI-compatible local models</td>
+</tr>
+</tbody>
+</table>
+<h3 id="adding-a-new-provider">Adding a New Provider</h3>
+<ol>
+<li>Create <code>src/archi/providers/my_provider.py</code> extending <code>BaseProvider</code>.</li>
+<li>Add an entry to the <code>ProviderType</code> enum.</li>
+<li>Call <code>register_provider(ProviderType.MY_PROVIDER, MyProvider)</code> to register it.</li>
+<li>Implement <code>get_model()</code>, <code>get_embedding_model()</code>, and <code>list_models()</code>.</li>
+<li>Add config keys under <code>services.chat_app.providers.my_provider</code>.</li>
+</ol>
+<h2 id="agent-pipeline-architecture">Agent &amp; Pipeline Architecture</h2>
+<p>The agent system is built around <code>BaseReActAgent</code> (<code>src/archi/archi.py</code>, ~975 lines):</p>
+<ul>
+<li>Implements a ReAct (Reasoning + Acting) loop with tool calling</li>
+<li>Manages conversation history, streaming, and tool execution</li>
+<li>Loads agent specs from markdown files with YAML frontmatter</li>
+</ul>
+<p><code>AgentSpec</code> (<code>src/archi/pipelines/agents/agent_spec.py</code>) is a dataclass:</p>
+<pre><code class="language-python">@dataclass
+class AgentSpec:
+    name: str
+    tools: list[str]
+    prompt: str
+    source_path: str
+</code></pre>
+<p>Agent specs are discovered via <code>list_agent_files()</code> and loaded via <code>load_agent_spec()</code>. The <code>select_agent_spec()</code> function picks the correct spec given a name.</p>
+<h3 id="pipeline-classes">Pipeline Classes</h3>
+<ul>
+<li><code>CMSCompOpsAgent</code> — default ReAct agent with 6 built-in tools (search_local_files, search_metadata_index, list_metadata_schema, fetch_catalog_document, search_vectorstore_hybrid, mcp)</li>
+<li><code>QAPipeline</code> — simpler retrieval-augmented QA without tool calling</li>
+</ul>
+<h3 id="adding-a-new-tool">Adding a New Tool</h3>
+<ol>
+<li>Define the tool function in the agent class or as a LangChain <code>@tool</code>.</li>
+<li>Register it in the tool mapping within the agent's <code>_build_tools()</code> method.</li>
+<li>Add the tool name to agent spec YAML frontmatter <code>tools</code> list.</li>
+</ol>
+<h2 id="contribution-workflow">Contribution Workflow</h2>
+<ol>
+<li><strong>Branch</strong>: Create a feature branch from <code>main</code> (e.g., <code>dev/my-feature</code>).</li>
+<li><strong>Develop</strong>: Follow PEP 8, use <code>snake_case</code> for functions, <code>PascalCase</code> for classes.</li>
+<li><strong>Test</strong>: Run smoke tests locally (see below).</li>
+<li><strong>Commit</strong>: Use short, lowercase commit summaries (e.g., <code>add gemini provider</code>).</li>
+<li><strong>PR</strong>: Include a brief summary, test results, and documentation impact. Link related issues.</li>
+</ol>
 <h2 id="editing-documentation">Editing Documentation</h2>
 <p>Editing documentation requires the <code>mkdocs</code> Python package:</p>
 <pre><code class="language-bash">pip install mkdocs
@@ -149,7 +357,7 @@ mkdocs serve
 <p>Always open a PR to merge documentation changes into <code>main</code>. Do not edit files directly in the <code>gh-pages</code> branch.</p>
 <h2 id="smoke-tests">Smoke Tests</h2>
 <p>If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:</p>
-<pre><code class="language-bash">export Archi_DIR=~/.archi
+<pre><code class="language-bash">export ARCHI_DIR=~/.archi
 export DEPLOYMENT_NAME=local-smoke
 export USE_PODMAN=false
 export SMOKE_FORCE_CREATE=true
@@ -256,8 +464,8 @@ export VECTORSTORE_QUERY=&quot;cms&quot;
 <p>Archi loads different base images hosted on Docker Hub. The Python base image is used when GPUs are not required; otherwise the PyTorch base image is used. The Dockerfiles for these base images live in <code>src/cli/templates/dockerfiles/base-X-image</code>.</p>
 <p>Images are hosted at:</p>
 <ul>
-<li>Python: <a href="https://hub.docker.com/r/archi/archi-python-base">https://hub.docker.com/r/archi/archi-python-base</a></li>
-<li>PyTorch: <a href="https://hub.docker.com/r/archi/archi-pytorch-base">https://hub.docker.com/r/archi/archi-pytorch-base</a></li>
+<li>Python: <a href="https://hub.docker.com/r/a2rchi/a2rchi-python-base">https://hub.docker.com/r/a2rchi/a2rchi-python-base</a></li>
+<li>PyTorch: <a href="https://hub.docker.com/r/a2rchi/a2rchi-pytorch-base">https://hub.docker.com/r/a2rchi/a2rchi-pytorch-base</a></li>
 </ul>
 <p>To rebuild a base image, navigate to the relevant <code>base-xxx-image</code> directory under <code>src/cli/templates/dockerfiles/</code>. Each directory contains the Dockerfile, requirements, and license information.</p>
 <p>Regenerate the requirements files with:</p>
@@ -268,13 +476,13 @@ cat requirements/cpu-requirementsHEADER.txt requirements/requirements-base.txt &
 cat requirements/gpu-requirementsHEADER.txt requirements/requirements-base.txt &gt; src/cli/templates/dockerfiles/base-pytorch-image/requirements.txt
 </code></pre>
 <p>Build the image:</p>
-<pre><code class="language-bash">podman build -t archi/&lt;image-name&gt;:&lt;tag&gt; .
+<pre><code class="language-bash">podman build -t a2rchi/&lt;image-name&gt;:&lt;tag&gt; .
 </code></pre>
 <p>After verifying the image, log in to Docker Hub (ask a senior developer for credentials):</p>
 <pre><code class="language-bash">podman login docker.io
 </code></pre>
 <p>Push the image:</p>
-<pre><code class="language-bash">podman push archi/&lt;image-name&gt;:&lt;tag&gt;
+<pre><code class="language-bash">podman push a2rchi/&lt;image-name&gt;:&lt;tag&gt;
 </code></pre>
 <h2 id="data-ingestion-architecture">Data Ingestion Architecture</h2>
 <p>Archi ingests content through <strong>sources</strong> which are collected by <strong>collectors</strong> (<code>data_manager/collectors</code>).
@@ -320,15 +528,25 @@ Finally, the <code>VectorStoreManager</code> reads these files, splits them into
 <li>Ingest or upload a new document and verify a new row appears in <code>resources</code>.</li>
 <li>Verify <code>VectorStoreManager</code> can update the collection using the Postgres catalog.</li>
 </ul>
-<h2 id="extending-the-stack">Extending the stack</h2>
+<h2 id="extending-the-stack">Extending the Stack</h2>
+<h3 id="adding-a-new-data-source">Adding a New Data Source</h3>
 <p>When integrating a new source, create a collector under <code>data_manager/collectors</code>. Collectors should yield <code>Resource</code> objects. A new <code>Resource</code> subclass is only needed if the content type is not already represented (e.g., text, HTML, markdown, images, etc.), but it must implement the required methods described above.</p>
 <p>When integrating a new collector, ensure that any per-source configuration is encoded in the resource metadata so downstream consumers—such as the chat app—can honour it.</p>
+<h3 id="adding-a-new-service">Adding a New Service</h3>
+<ol>
+<li>Create a Flask blueprint under <code>src/interfaces/</code>.</li>
+<li>Register the service in <code>src/cli/service_registry.py</code> with its name, port, and dependencies.</li>
+<li>Add a service entrypoint in <code>src/bin/</code>.</li>
+<li>Add any service-specific config keys under <code>services.&lt;name&gt;</code> in the base config template.</li>
+</ol>
+<h3 id="extending-embeddings-or-storage">Extending Embeddings or Storage</h3>
 <p>When extending the embedding pipeline or storage schema, keep this flow in mind: collectors produce resources → <code>PersistenceService</code> writes files and updates the Postgres catalog → <code>VectorStoreManager</code> indexes embeddings in PostgreSQL. Keeping responsibilities narrowly scoped makes the ingestion stack easier to reason about and evolve.</p>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../api_reference/" class="btn btn-neutral float-left" title="API Reference"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../advanced_setup_deploy/" class="btn btn-neutral float-left" title="Advanced Setup"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../troubleshooting/" class="btn btn-neutral float-right" title="Troubleshooting">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -351,12 +569,14 @@ Finally, the <code>VectorStoreManager</code> reads these files, splits them into
   <span class="rst-current-version" data-toggle="rst-current-version">
     
         <span>
-          <a href="https://github.com/mit-submit/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
         </span>
     
     
-      <span><a href="../api_reference/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../advanced_setup_deploy/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
+    
+      <span><a href="../troubleshooting/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
