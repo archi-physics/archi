@@ -564,74 +564,6 @@ test('A/B comparison hides message meta', async ({ page }) => {
 
 ---
 
-## 7. Agent Info Modal
-
-**Coverage**: 🟢 Core
-
-### User Story
-Users can view detailed information about the active agent configuration.
-
-### Expected Behavior
-1. Clicking agent info button (ℹ️) opens modal
-2. Modal shows: Active agent, Model, Pipeline, Embedding, Data sources
-3. Modal closes on X button, backdrop click, or Escape key
-
-### MCP Verification Checklist
-```markdown
-## Check: Agent Info Modal
-1. Click agent info button (ℹ️ icon):
-   - [ ] Modal opens
-   - [ ] Loading state shows briefly
-2. Verify content:
-   - [ ] "Active agent" shows config name
-   - [ ] "Model" shows current model label
-   - [ ] "Pipeline" shows pipeline class
-   - [ ] "Embedding" shows embedding class
-   - [ ] "Data sources" shows list
-3. Close modal:
-   - [ ] X button closes modal
-   - [ ] Clicking backdrop closes modal
-   - [ ] Escape key closes modal
-```
-
-### Playwright Tests
-```typescript
-test('agent info button opens modal with correct data', async ({ page }) => {
-  await page.goto('/chat');
-  
-  await page.getByRole('button', { name: 'Agent info' }).click();
-  
-  const modal = page.locator('.agent-info-modal');
-  await expect(modal).toBeVisible();
-  await expect(modal).toContainText('Active agent');
-  await expect(modal).toContainText('Model');
-  await expect(modal).toContainText('Pipeline');
-  await expect(modal).toContainText('Embedding');
-  await expect(modal).toContainText('Data sources');
-  
-  await page.locator('.agent-info-close').click();
-  await expect(modal).not.toBeVisible();
-});
-
-test('agent info modal closes on backdrop click', async ({ page }) => {
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Agent info' }).click();
-  
-  await page.mouse.click(10, 10);
-  await expect(page.locator('.agent-info-modal')).not.toBeVisible();
-});
-
-test('agent info modal closes on Escape', async ({ page }) => {
-  await page.goto('/chat');
-  await page.getByRole('button', { name: 'Agent info' }).click();
-  
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.agent-info-modal')).not.toBeVisible();
-});
-```
-
----
-
 ## 8. Settings Modal
 
 **Coverage**: 🟢 Core
@@ -1023,12 +955,11 @@ Users can navigate the interface using keyboard only.
 ```markdown
 ## Check: Keyboard Navigation
 1. Tab order (from input):
-   - [ ] Input → Config dropdown → Settings → Agent info → Send
+   - [ ] Input → Settings → Send
 2. Modal trap:
    - [ ] Tab stays within open modal
 3. Escape:
    - [ ] Closes settings modal
-   - [ ] Closes agent info modal
 4. Enter in input:
    - [ ] Sends message
    - [ ] Shift+Enter adds newline

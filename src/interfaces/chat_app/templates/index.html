@@ -72,21 +72,33 @@
       <div class="input-container">
         <div class="input-wrapper">
           <div class="input-left-controls">
-            <label for="model-select-a" class="visually-hidden">Select model</label>
-            <select id="model-select-a" class="model-select model-select-a" title="Select model"></select>
+            
             <button class="settings-btn" title="Settings" aria-label="Settings">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
               </svg>
             </button>
-            <button class="agent-info-btn" title="Agent info" aria-label="Agent info">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <circle cx="12" cy="8" r="1"></circle>
-              </svg>
-            </button>
+            <div class="agent-dropdown">
+              <button class="agent-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <span class="agent-dropdown-label">Agent</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="agent-dropdown-menu" role="menu" hidden>
+                <div class="agent-dropdown-list"></div>
+                <div class="agent-dropdown-divider"></div>
+                <button class="agent-dropdown-add" type="button">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  New agent
+                </button>
+              </div>
+            </div>
+            
           </div>
           <textarea class="input-field" placeholder="Ask archi..." rows="1" aria-label="Message input"></textarea>
           <button class="send-btn" title="Send message" aria-label="Send message">
@@ -293,6 +305,47 @@
         <div class="agent-info-body" id="agent-info-content">
           <p class="agent-info-loading">Loading agent info…</p>
         </div>
+      </div>
+    </div>
+
+    <div class="agent-spec-modal" style="display: none;">
+      <div class="agent-spec-backdrop"></div>
+      <div class="agent-spec-panel" role="dialog" aria-modal="true" aria-labelledby="agent-spec-title">
+        <div class="agent-spec-header">
+          <h3 id="agent-spec-title">New Agent</h3>
+          <button class="agent-spec-close" aria-label="Close agent spec editor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="agent-spec-body">
+          <div class="agent-spec-content">
+            <div class="agent-spec-editor-pane">
+              <div class="agent-spec-field">
+                <label class="agent-spec-label" for="agent-spec-name">Name</label>
+                <input id="agent-spec-name" class="agent-spec-name-input" type="text" placeholder="e.g. My Assistant" autocomplete="off" />
+              </div>
+              <div class="agent-spec-field">
+                <label class="agent-spec-label" for="agent-spec-prompt">Prompt</label>
+                <textarea id="agent-spec-prompt" class="agent-spec-prompt-input" rows="12" placeholder="Describe what this agent does..."></textarea>
+              </div>
+              <!-- hidden textarea kept for serialisation -->
+              <textarea id="agent-spec-editor" class="agent-spec-editor" style="display:none;" rows="14"></textarea>
+              <div class="agent-spec-status" id="agent-spec-status" role="alert"></div>
+              <div class="agent-spec-actions">
+                <button class="agent-spec-reset" type="button">Reset template</button>
+                <button class="agent-spec-save" type="button">Save</button>
+              </div>
+            </div>
+            <aside class="agent-spec-tools-pane" aria-label="Available tools">
+              <div class="agent-spec-tools-header">Tools</div>
+              <div class="agent-spec-tools-list"></div>
+            </aside>
+          </div>
+        </div>
+        <div class="agent-spec-resize-handle" aria-hidden="true"></div>
       </div>
     </div>
   </div>

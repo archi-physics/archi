@@ -67,6 +67,7 @@ class DynamicConfig:
     # Model settings
     active_pipeline: str = "QAPipeline"
     active_model: str = "openai/gpt-4o"
+    active_agent_name: Optional[str] = None
     temperature: float = 0.7
     max_tokens: int = 4096
     system_prompt: Optional[str] = None
@@ -189,6 +190,7 @@ class ConfigService:
                         id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
                         active_pipeline VARCHAR(100) NOT NULL DEFAULT 'QAPipeline',
                         active_model VARCHAR(200) NOT NULL DEFAULT 'openai/gpt-4o',
+                        active_agent_name VARCHAR(200),
                         temperature NUMERIC(3,2) NOT NULL DEFAULT 0.7,
                         max_tokens INTEGER NOT NULL DEFAULT 4096,
                         system_prompt TEXT,
@@ -219,6 +221,12 @@ class ConfigService:
                     ADD COLUMN IF NOT EXISTS global_config JSONB DEFAULT '{}'::jsonb
                     """
                 )
+                cursor.execute(
+                    """
+                    ALTER TABLE dynamic_config
+                    ADD COLUMN IF NOT EXISTS active_agent_name VARCHAR(200)
+                    """
+                )
                 conn.commit()
         except psycopg2.Error as e:
             logger.debug("Could not ensure config tables/columns: %s", e)
@@ -240,6 +248,14 @@ class ConfigService:
             if not isinstance(value, dict):
                 normalized[key] = {}
         return normalized
+
+    @staticmethod
+    def _derive_chat_defaults(config: Dict[str, Any]) -> tuple[Optional[str], Optional[str], Optional[str]]:
+        chat_cfg = config.get("services", {}).get("chat_app", {}) if isinstance(config, dict) else {}
+        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        provider = chat_cfg.get("default_provider")
+        model = chat_cfg.get("default_model")
+        return agent_class, provider, model
     
     # =========================================================================
     # Static Configuration
@@ -519,7 +535,7 @@ class ConfigService:
                 
                 cursor.execute(
                     """
-                    SELECT active_pipeline, active_model, temperature, max_tokens,
+                    SELECT active_pipeline, active_model, active_agent_name, temperature, max_tokens,
                            system_prompt, top_p, top_k, repetition_penalty,
                            active_condense_prompt, active_chat_prompt, active_system_prompt,
                            num_documents_to_retrieve, use_hybrid_search, bm25_weight, semantic_weight,
@@ -542,6 +558,7 @@ class ConfigService:
                 return DynamicConfig(
                     active_pipeline=row["active_pipeline"],
                     active_model=row["active_model"],
+                    active_agent_name=row.get("active_agent_name"),
                     temperature=float(row["temperature"]),
                     max_tokens=row["max_tokens"],
                     system_prompt=row["system_prompt"],
@@ -569,6 +586,7 @@ class ConfigService:
         *,
         active_pipeline: Optional[str] = None,
         active_model: Optional[str] = None,
+        active_agent_name: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
@@ -589,6 +607,7 @@ class ConfigService:
         Args:
             active_pipeline: New active pipeline
             active_model: New active model (must be in available_models)
+            active_agent_name: New active agent name
             temperature: New temperature (0.0 - 2.0)
             max_tokens: New max tokens
             system_prompt: New system prompt (or None to clear)
@@ -608,6 +627,7 @@ class ConfigService:
         self._validate_dynamic_config(
             active_pipeline=active_pipeline,
             active_model=active_model,
+            active_agent_name=active_agent_name,
             temperature=temperature,
             max_tokens=max_tokens,
             bm25_weight=bm25_weight,
@@ -624,6 +644,10 @@ class ConfigService:
         if active_model is not None:
             updates.append("active_model = %s")
             params.append(active_model)
+
+        if active_agent_name is not None:
+            updates.append("active_agent_name = %s")
+            params.append(active_agent_name)
         
         if temperature is not None:
             updates.append("temperature = %s")
@@ -668,7 +692,7 @@ class ConfigService:
                     UPDATE dynamic_config
                     SET {', '.join(updates)}
                     WHERE id = 1
-                    RETURNING active_pipeline, active_model, temperature, max_tokens,
+                    RETURNING active_pipeline, active_model, active_agent_name, temperature, max_tokens,
                               system_prompt, num_documents_to_retrieve,
                               use_hybrid_search, bm25_weight, semantic_weight,
                               updated_at, updated_by
@@ -691,6 +715,7 @@ class ConfigService:
                 return DynamicConfig(
                     active_pipeline=row["active_pipeline"],
                     active_model=row["active_model"],
+                    active_agent_name=row.get("active_agent_name"),
                     temperature=float(row["temperature"]),
                     max_tokens=row["max_tokens"],
                     system_prompt=row["system_prompt"],
@@ -772,6 +797,7 @@ class ConfigService:
         *,
         active_pipeline: Optional[str] = None,
         active_model: Optional[str] = None,
+        active_agent_name: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         bm25_weight: Optional[float] = None,
@@ -798,6 +824,12 @@ class ConfigService:
                     "active_model",
                     f"must be one of {static.available_models}"
                 )
+
+        if active_agent_name is not None and (not isinstance(active_agent_name, str) or not active_agent_name.strip()):
+            raise ConfigValidationError(
+                "active_agent_name",
+                "must be a non-empty string"
+            )
         
         if temperature is not None:
             if not (0.0 <= temperature <= 2.0):
@@ -868,20 +900,11 @@ class ConfigService:
                 "dimensions", embedding_dimensions
             )
         
-        # Get available providers/models from providers section
-        archi_cfg = config.get("archi", {}) or {}
-        providers_cfg = archi_cfg.get("providers", {}) or {}
-        available_models = []
-        available_providers = list(providers_cfg.keys())
-        for p_cfg in providers_cfg.values():
-            models = p_cfg.get("models") or []
-            for m in models:
-                if m not in available_models:
-                    available_models.append(m)
-
-        # Get available pipelines
-        pipelines_config = archi_cfg.get("pipeline_map", {})
-        available_pipelines = list(pipelines_config.keys())
+        # Get available providers/models from chat defaults
+        agent_class, provider, model = ConfigService._derive_chat_defaults(config)
+        available_pipelines = [agent_class] if agent_class else []
+        available_providers = [provider] if provider else []
+        available_models = [f"{provider}/{model}"] if provider and model else []
         
         # Initialize static config
         service.initialize_static_config(
@@ -903,8 +926,10 @@ class ConfigService:
         retrievers = data_manager.get("retrievers", {})
         hybrid = retrievers.get("hybrid_retriever", {})
         
+        active_model = f"{provider}/{model}" if provider and model else None
         service.update_dynamic_config(
-            active_pipeline=config.get("services", {}).get("chat_app", {}).get("pipeline", "QAPipeline"),
+            active_pipeline=config.get("services", {}).get("chat_app", {}).get("agent_class", "CMSCompOpsAgent"),
+            active_model=active_model,
             num_documents_to_retrieve=hybrid.get("num_documents_to_retrieve", 10),
             bm25_weight=hybrid.get("bm25_weight", 0.3),
             semantic_weight=hybrid.get("semantic_weight", 0.7),
@@ -945,19 +970,11 @@ class ConfigService:
                 "dimensions", embedding_dimensions
             )
         
-        # Get available providers/models from providers section
-        archi_cfg = config.get("archi", {}) or {}
-        providers_cfg = archi_cfg.get("providers", {}) or {}
-        available_models = []
-        available_providers = list(providers_cfg.keys())
-        for p_cfg in providers_cfg.values():
-            models = p_cfg.get("models") or []
-            for m in models:
-                if m not in available_models:
-                    available_models.append(m)
-
-        # Get available pipelines
-        available_pipelines = archi_cfg.get("pipeline_map", [])
+        # Get available providers/models from chat defaults
+        agent_class, provider, model = ConfigService._derive_chat_defaults(config)
+        available_pipelines = [agent_class] if agent_class else []
+        available_providers = [provider] if provider else []
+        available_models = [f"{provider}/{model}"] if provider and model else []
         
         existing_static = self.get_static_config()
         sources_config = data_manager.get("sources", {})
@@ -988,8 +1005,10 @@ class ConfigService:
         existing_dynamic = self.get_dynamic_config()
         if existing_dynamic.updated_by is None:
             # First initialization - set from YAML
+            active_model = f"{provider}/{model}" if provider and model else None
             self.update_dynamic_config(
-                active_pipeline=config.get("services", {}).get("chat_app", {}).get("pipeline", "QAPipeline"),
+                active_pipeline=config.get("services", {}).get("chat_app", {}).get("agent_class", "CMSCompOpsAgent"),
+                active_model=active_model,
                 num_documents_to_retrieve=hybrid.get("num_documents_to_retrieve", 10),
                 bm25_weight=hybrid.get("bm25_weight", 0.3),
                 semantic_weight=hybrid.get("semantic_weight", 0.7),
@@ -1202,6 +1221,7 @@ class ConfigService:
         result = {
             "active_pipeline": dynamic.active_pipeline,
             "active_model": prefs.get("preferred_model") or dynamic.active_model,
+            "active_agent_name": dynamic.active_agent_name,
             "temperature": prefs.get("preferred_temperature") if prefs.get("preferred_temperature") is not None else dynamic.temperature,
             "max_tokens": prefs.get("preferred_max_tokens") or dynamic.max_tokens,
             "top_p": prefs.get("preferred_top_p") if prefs.get("preferred_top_p") is not None else dynamic.top_p,

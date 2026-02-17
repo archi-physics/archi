@@ -19,6 +19,8 @@ class archi():
             *args,
             **kwargs
         ):
+        self.pipeline_kwargs = dict(kwargs)
+        self.pipeline_kwargs.pop("config_name", None)
         self.update(pipeline, config_name=kwargs.get("config_name", None))
         self.pipeline_name = pipeline
         self.vs_connector = VectorstoreConnector(self.config)
@@ -35,7 +37,8 @@ class archi():
             self.pipeline_name=pipeline
         self.pipeline = self._create_pipeline_instance(
             self.pipeline_name,
-            config=self.config
+            config=self.config,
+            **self.pipeline_kwargs,
         )
 
     def _create_pipeline_instance(self, class_name, *args, **kwargs):

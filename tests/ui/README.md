@@ -18,7 +18,6 @@ tests/ui/
     ├── 04-streaming.spec.ts      # Streaming & cancellation (8 tests)
     ├── 05-providers.spec.ts      # Provider/model selection (13 tests)
     ├── 06-ab-testing.spec.ts     # A/B testing mode (9 tests)
-    ├── 07-agent-info.spec.ts     # Agent info modal (11 tests)
     ├── 08-settings.spec.ts       # Settings modal (9 tests)
     ├── 09-api-keys.spec.ts       # API key management (9 tests)
     ├── 10-sidebar.spec.ts        # Sidebar navigation (12 tests)
@@ -95,7 +94,6 @@ npx playwright test tests/ui/workflows/03-message-flow.spec.ts --debug
 | 04 | Streaming | 8 | Real-time streaming, cancellation, cursor |
 | 05 | Providers | 13 | Provider/model selection, custom models |
 | 06 | A/B Testing | 9 | Dual panels, voting, blind comparison |
-| 07 | Agent Info | 11 | Info modal, agent details display |
 | 08 | Settings | 9 | Settings persistence, theme options |
 | 09 | API Keys | 9 | Key management, validation |
 | 10 | Sidebar | 12 | Tab switching, collapse/expand |
@@ -106,7 +104,7 @@ npx playwright test tests/ui/workflows/03-message-flow.spec.ts --debug
 | 15 | Errors | 12 | Error handling, recovery |
 | 16 | Responsive | 13 | Desktop/tablet/mobile layouts |
 
-**Total: ~155 tests across 16 workflow files**
+**Total: ~144 tests across 15 workflow files**
 
 ## Using Fixtures
 

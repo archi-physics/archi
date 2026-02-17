@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import shutil
+from types import SimpleNamespace
 
 import yaml
 from src.utils.postgres_service_factory import PostgresServiceFactory
@@ -23,6 +24,21 @@ class _FakeConfigService:
 
     def get_raw_config(self):
         return self._cfg
+
+    def get_static_config(self):
+        cfg = self._cfg or {}
+        return SimpleNamespace(
+            deployment_name=cfg.get("name"),
+            config_version=cfg.get("config_version"),
+            global_config=cfg.get("global"),
+            services_config=cfg.get("services"),
+            data_manager_config=cfg.get("data_manager"),
+            archi_config=cfg.get("archi"),
+            sources_config=cfg.get("sources"),
+            available_pipelines=cfg.get("available_pipelines", []),
+            available_models=cfg.get("available_models", []),
+            available_providers=cfg.get("available_providers", []),
+        )
 
     def initialize_from_yaml(self, cfg):
         self._cfg = cfg
@@ -54,7 +70,21 @@ def test_config_access_via_pg_stub():
         },
         'services': {
             'postgres': {'host': 'localhost', 'port': 5432, 'database': 'archi'},
-            'chat_app': {'pipeline': 'QAPipeline', 'port': 7868}
+            'chat_app': {
+                'agent_class': 'QAPipeline',
+                'default_provider': 'local',
+                'default_model': 'qwen3:4b',
+                'providers': {
+                    'local': {
+                        'enabled': True,
+                        'base_url': 'http://localhost:11434',
+                        'mode': 'ollama',
+                        'default_model': 'qwen3:4b',
+                        'models': ['qwen3:4b'],
+                    }
+                },
+                'port': 7868,
+            },
         },
         'data_manager': {
             'embedding_name': 'HuggingFaceEmbeddings',
@@ -64,31 +94,6 @@ def test_config_access_via_pg_stub():
                 'HuggingFaceEmbeddings': {'class': 'HuggingFaceEmbeddings', 'kwargs': {}}
             },
         },
-        'archi': {
-            'pipelines': ['QAPipeline', 'AgentPipeline'],
-            'providers': {
-                'openai': {
-                    'models': ['gpt-4o', 'gpt-4o-mini'],
-                    'default_model': 'gpt-4o'
-                }
-            },
-            'pipeline_map': {
-                'QAPipeline': {
-                    'models': {
-                        'required': {
-                            'chat_model': 'openai/gpt-4o'
-                        }
-                    }
-                },
-                'AgentPipeline': {
-                    'models': {
-                        'required': {
-                            'agent_model': 'openai/gpt-4o-mini'
-                        }
-                    }
-                }
-            }
-        }
     }
 
     _set_fake_factory(config)
@@ -110,7 +115,7 @@ def test_config_access_via_pg_stub():
     print("   ✓ get_global_config works")
 
     services_cfg = get_services_config()
-    assert services_cfg['chat_app']['pipeline'] == 'QAPipeline'
+    assert services_cfg['chat_app']['agent_class'] == 'QAPipeline'
     print("   ✓ get_services_config works")
 
     dm_cfg = get_data_manager_config()
@@ -118,7 +123,7 @@ def test_config_access_via_pg_stub():
     print("   ✓ get_data_manager_config works")
 
     archi_cfg = get_archi_config()
-    assert 'QAPipeline' in archi_cfg['pipelines']
+    assert archi_cfg == {}
     print("   ✓ get_archi_config works")
 
     _clear_factory()
@@ -292,27 +297,22 @@ def test_integration_flow():
             'global': {'DATA_PATH': '/tmp/data', 'verbosity': 3},
             'services': {
                 'postgres': {'host': 'localhost', 'port': 5432, 'database': 'archi'},
-                'chat_app': {'pipeline': 'QAPipeline'}
+                'chat_app': {
+                    'agent_class': 'QAPipeline',
+                    'default_provider': 'local',
+                    'default_model': 'qwen3:4b',
+                    'providers': {
+                        'local': {
+                            'enabled': True,
+                            'base_url': 'http://localhost:11434',
+                            'mode': 'ollama',
+                            'default_model': 'qwen3:4b',
+                            'models': ['qwen3:4b'],
+                        }
+                    },
+                },
             },
             'data_manager': {'embedding_name': 'HuggingFaceEmbeddings'},
-            'archi': {
-                'pipelines': ['QAPipeline'],
-                'providers': {
-                    'openai': {
-                        'models': ['gpt-4o'],
-                        'default_model': 'gpt-4o'
-                    }
-                },
-                'pipeline_map': {
-                    'QAPipeline': {
-                        'models': {
-                            'required': {
-                                'chat_model': 'openai/gpt-4o'
-                            }
-                        }
-                    }
-                }
-            }
         }
         
         with open(os.path.join(config_dir, 'integration.yaml'), 'w') as f:

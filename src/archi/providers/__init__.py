@@ -218,12 +218,19 @@ def get_model(provider_type: str | ProviderType, model_name: str, provider_confi
     Returns:
         A LangChain chat model instance
     """
+    extra_kwargs = {}
+    if isinstance(provider_config, dict):
+        extra_kwargs.update(provider_config.get("extra_kwargs", {}) or {})
+        if "mode" in provider_config and "local_mode" not in extra_kwargs:
+            extra_kwargs["local_mode"] = provider_config.get("mode")
+
     config = ProviderConfig(
-        provider_type = provider_type,
-        base_url = provider_config.get("base_url",None),
+        provider_type=provider_type,
+        base_url=provider_config.get("base_url", None) if isinstance(provider_config, dict) else None,
         enabled=True,
-        models = provider_config.get("models",[]),
-        default_model = provider_config.get("default_model",None)
+        models=provider_config.get("models", []) if isinstance(provider_config, dict) else [],
+        default_model=provider_config.get("default_model", None) if isinstance(provider_config, dict) else None,
+        extra_kwargs=extra_kwargs,
     )
     provider = get_provider(provider_type,config)
     return provider.get_chat_model(model_name, **kwargs)

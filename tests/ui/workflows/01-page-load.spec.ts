@@ -4,7 +4,7 @@
  * Tests that the page loads correctly with all required components
  * and initial data is fetched and rendered.
  */
-import { test, expect, setupBasicMocks, mockData } from '../fixtures';
+import { test, expect, setupBasicMocks } from '../fixtures';
 
 test.describe('Page Load & Initialization', () => {
   test.beforeEach(async ({ page }) => {
@@ -26,14 +26,15 @@ test.describe('Page Load & Initialization', () => {
     await expect(page.getByLabel('Message input')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Agent info' })).toBeVisible();
   });
 
-  test('entry meta label shows agent and model info', async ({ page }) => {
+  test('model selection is available in Settings', async ({ page }) => {
     await page.goto('/chat');
-    // Config dropdown shows available models/configs
-    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
-    await expect(configDropdown).toBeVisible();
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
+    await expect(providerSelect).toBeVisible();
+    await expect(modelSelect).toBeVisible();
   });
 
   test('header tabs are visible (Chat, Data)', async ({ page }) => {
@@ -48,22 +49,49 @@ test.describe('Page Load & Initialization', () => {
     await expect(chatTab).toHaveAttribute('aria-current', 'page');
   });
 
-  test('shows pipeline default model in entry meta', async ({ page }) => {
+  test('provider selection enables model dropdown', async ({ page }) => {
     await page.goto('/chat');
-    // Config dropdown shows available models
-    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
-    await expect(configDropdown).toBeVisible();
-    // Should have a selected value
-    await expect(configDropdown).not.toHaveValue('');
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
+    await expect(providerSelect).toBeVisible();
+    await expect(modelSelect).toBeVisible();
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+      await expect(modelSelect).toBeEnabled();
+    }
   });
 
-  test('config dropdown is populated', async ({ page }) => {
+  test('model dropdown is populated after provider selection', async ({ page }) => {
     await page.goto('/chat');
-    const configSelect = page.locator('#model-select-a');
-    await expect(configSelect).toBeVisible();
-    
-    const options = configSelect.locator('option');
-    await expect(options).toHaveCount(mockData.configs.options.length);
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
+    await expect(providerSelect).toBeVisible();
+    await expect(modelSelect).toBeVisible();
+
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+      const options = modelSelect.locator('option');
+      const optionCount = await options.count();
+      expect(optionCount).toBeGreaterThanOrEqual(1);
+    }
   });
 
   test('conversations load in sidebar', async ({ page }) => {

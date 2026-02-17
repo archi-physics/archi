@@ -48,15 +48,14 @@ curl -X POST http://localhost:7868/api/prompts/reload
 ```
 
 ### Option 2: Specify in Config
-You can specify explicit prompt file paths in your config.yaml:
+You can specify explicit prompt file paths in your config.yaml for classic pipelines:
 ```yaml
-archi:
-  pipeline_map:
-    QAPipeline:
-      prompts:
-        required:
-          chat_prompt: /path/to/my/custom.prompt
-          condense_prompt: /path/to/my/condense.prompt
+services:
+  chat_app:
+    agent_class: QAPipeline
+    prompts:
+      chat_prompt: /path/to/my/custom.prompt
+      condense_prompt: /path/to/my/condense.prompt
 ```
 
 ## File Format

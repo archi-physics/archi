@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/archi-physics/archi/main/docs/docs/_static/archi-logo.png" width="200" />
 </p>
 
-# _archi_ - AI Augmented Research Chat Intelligence
+# _archi_
 
 [![CI](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml/badge.svg)](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://archi-physics.github.io/archi/)
