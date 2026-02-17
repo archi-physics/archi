@@ -75,6 +75,8 @@ services:
     agents_dir: "{{ services.chat_app.agents_dir | default('', true) }}"
     default_provider: {{ services.chat_app.default_provider | default("local", true) }}
     default_model: {{ services.chat_app.default_model | default("llama3.2", true) }}
+    skills_dir: "{{ services.chat_app.skills_dir | default('', true) }}"
+    tools: {{ services.chat_app.tools | default({}, true) | tojson }}
     prompts: {{ services.chat_app.prompts | default({}, true) }}
     providers:
       local:
@@ -113,7 +115,7 @@ services:
     port: {{ services.data_manager.port | default(7871, true) }}
     external_port: {{ services.data_manager.external_port | default(7871, true) }}
     host: {{ services.data_manager.host | default("0.0.0.0", true) }}
-    hostname: {{ services.data_manager.hostname | default('host.containers.internal' if host_mode else 'data-manager', true) }}
+    hostname: {{ services.data_manager.hostname | default('localhost' if host_mode else 'data-manager', true) }}
     template_folder: "{{ services.data_manager.template_folder | default('/root/archi/src/interfaces/chat_app/templates', true) }}"
     static_folder: "{{ services.data_manager.static_folder | default('/root/archi/src/interfaces/chat_app/static', true) }}"
     flask_debug_mode: {{ services.data_manager.flask_debug_mode | default(false, true) }}

@@ -11,7 +11,7 @@ All providers extend the `BaseProvider` abstract class and are registered in a g
 | OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` | `ChatOpenAI` |
 | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` | `ChatAnthropic` |
 | Google Gemini | `gemini` | `GOOGLE_API_KEY` | `gemini-2.0-flash` | `ChatGoogleGenerativeAI` |
-| OpenRouter | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-sonnet-4` | `ChatOpenAI` (custom base URL) |
+| OpenRouter | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | `ChatOpenAI` (custom base URL) |
 | Local (Ollama/vLLM) | `local` | N/A | Dynamic (fetched from server) | `ChatOllama` or `ChatOpenAI` |
 
 ### Key Concepts
@@ -27,6 +27,19 @@ All providers extend the `BaseProvider` abstract class and are registered in a g
 
 Providers are configured per-service in your deployment's configuration file. Each service can specify a default provider and model, plus provider-specific settings.
 
+## Quick Start by Provider
+
+Use this flow if you want to start with a provider other than Ollama:
+
+1. Start from `examples/deployments/basic-ollama/config.yaml` and copy it to a new file.
+2. Change `services.chat_app.default_provider` and `services.chat_app.default_model`.
+3. If you are not using `local`, remove `services.chat_app.providers.local`.
+4. Add provider-specific `services.chat_app.providers.<provider>` settings only when needed (for example `local` mode/base URL).
+5. Put required secrets in your `.env` file.
+6. Run `archi create --name my-archi --config <your-config>.yaml --podman --env-file .secrets.env --services chatbot`.
+
+Minimal provider snippets for `services.chat_app`:
+
 ### OpenAI
 
 ```yaml
@@ -36,11 +49,7 @@ services:
     default_model: gpt-4o
 ```
 
-**Secrets:**
-
-```bash
-OPENAI_API_KEY=sk-...
-```
+Required secret: `OPENAI_API_KEY`
 
 ### Anthropic
 
@@ -51,11 +60,7 @@ services:
     default_model: claude-sonnet-4-20250514
 ```
 
-**Secrets:**
-
-```bash
-ANTHROPIC_API_KEY=sk-ant-...
-```
+Required secret: `ANTHROPIC_API_KEY`
 
 ### Google Gemini
 
@@ -69,38 +74,24 @@ services:
         enabled: true
 ```
 
-Available models: `gemini-2.0-flash`, `gemini-2.0-flash-thinking`, `gemini-1.5-pro`, `gemini-1.5-flash`.
-
-**Secrets:**
-
-```bash
-GOOGLE_API_KEY=AIza...
-```
+Required secret: `GOOGLE_API_KEY`
 
 ### OpenRouter
 
-OpenRouter uses an OpenAI-compatible API to access models from multiple providers. No special config entry is required — if `OPENROUTER_API_KEY` is set, the provider appears automatically in the chat UI.
-
-To make OpenRouter the default:
+OpenRouter uses an OpenAI-compatible API to access models from multiple providers.
 
 ```yaml
 services:
   chat_app:
     default_provider: openrouter
-    default_model: anthropic/claude-sonnet-4
+    default_model: anthropic/claude-3.5-sonnet
 ```
 
-**Secrets:**
+Required secret: `OPENROUTER_API_KEY`
 
-```bash
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_SITE_URL=https://your-site.com    # optional, for attribution
-OPENROUTER_APP_NAME=My Archi Instance        # optional, for attribution
-```
+Optional secrets: `OPENROUTER_SITE_URL`, `OPENROUTER_APP_NAME`
 
 ### Local Models (Ollama)
-
-Run open-source models locally via [Ollama](https://ollama.ai):
 
 ```yaml
 services:
@@ -115,12 +106,7 @@ services:
           - llama3.2
 ```
 
-The `local` provider supports two modes:
-
-- **`ollama`** (default): Uses `ChatOllama`. Models are dynamically fetched from the Ollama server's `/api/tags` endpoint.
-- **`openai_compat`**: Uses `ChatOpenAI` with a custom base URL. Suitable for vLLM, LM Studio, or other OpenAI-compatible servers.
-
-For `openai_compat` mode:
+### Local OpenAI-compatible server (vLLM, LM Studio, etc.)
 
 ```yaml
 services:
@@ -134,6 +120,13 @@ services:
         models:
           - my-model
 ```
+
+Secret usually not required unless your local server enforces API auth.
+
+The `local` provider supports two modes:
+
+- **`ollama`** (default): Uses `ChatOllama`. Models are dynamically fetched from the Ollama server's `/api/tags` endpoint.
+- **`openai_compat`**: Uses `ChatOpenAI` with a custom base URL. Suitable for vLLM, LM Studio, or other OpenAI-compatible servers.
 
 > **Note:** For GPU setup with local models, see [Advanced Setup & Deployment](advanced_setup_deploy.md#running-llms-locally-on-your-gpus).
 

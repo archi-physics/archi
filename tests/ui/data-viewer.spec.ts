@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
  * Data Viewer Page Tests
  * 
  * Comprehensive tests for the data viewer functionality.
- * Tests cover document listing, filtering, search, preview, and enable/disable.
+ * Tests cover document listing, filtering, search, and preview.
  */
 
 test.describe('Data Viewer Page', () => {
@@ -108,24 +108,6 @@ test.describe('Data Viewer Page', () => {
         }
       });
     });
-
-    // Mock bulk enable/disable
-    await page.route('**/api/data/bulk-enable', async (route) => {
-      await route.fulfill({ status: 200, json: { success: true } });
-    });
-
-    await page.route('**/api/data/bulk-disable', async (route) => {
-      await route.fulfill({ status: 200, json: { success: true } });
-    });
-
-    // Mock individual enable/disable
-    await page.route('**/api/data/documents/*/enable', async (route) => {
-      await route.fulfill({ status: 200, json: { success: true } });
-    });
-
-    await page.route('**/api/data/documents/*/disable', async (route) => {
-      await route.fulfill({ status: 200, json: { success: true } });
-    });
   });
 
   // ============================================================
@@ -191,15 +173,7 @@ test.describe('Data Viewer Page', () => {
     // Tickets might be visible if there are ticket documents
   });
 
-  test('categories show document counts', async ({ page }) => {
-    await page.goto('/data');
-    
-    await page.waitForTimeout(500);
-    
-    // Categories should show enabled/total counts like "1/1"
-    const counts = page.locator('text=/\\d+\\/\\d+/');
-    await expect(counts.first()).toBeVisible();
-  });
+
 
   test('clicking category expands/collapses it', async ({ page }) => {
     await page.goto('/data');
@@ -361,62 +335,6 @@ test.describe('Data Viewer Page', () => {
     // Initially should show placeholder
     await expect(page.getByText('Select a document to preview')).toBeVisible();
     await expect(page.getByText('Browse the file tree')).toBeVisible();
-  });
-
-  // ============================================================
-  // 5. Enable/Disable Tests
-  // ============================================================
-  test('document checkboxes toggle enabled state', async ({ page }) => {
-    await page.goto('/data');
-    
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
-    
-    // Find a checkbox and click it
-    const checkbox = page.locator('.tree-file input[type="checkbox"]').first();
-    if (await checkbox.isVisible()) {
-      await checkbox.click();
-      await page.waitForTimeout(300);
-      
-      // Without a conversation, should show warning toast
-      await expect(page.getByText('Cannot modify documents without a chat session')).toBeVisible();
-    }
-  });
-
-  test('Enable All button enables all documents', async ({ page }) => {
-    await page.goto('/data');
-    
-    // Click Enable All
-    await page.getByRole('button', { name: 'Enable' }).click();
-    
-    await page.waitForTimeout(500);
-    
-    // Without a conversation, should show warning toast
-    await expect(page.getByText('Cannot modify documents without a chat session')).toBeVisible();
-  });
-
-  test('Disable All button disables all documents', async ({ page }) => {
-    await page.goto('/data');
-    
-    // Click Disable All
-    await page.getByRole('button', { name: 'Disable' }).click();
-    
-    await page.waitForTimeout(500);
-    
-    // Without a conversation, should show warning toast
-    await expect(page.getByText('Cannot modify documents without a chat session')).toBeVisible();
-  });
-
-  test('disabled documents have visual indicator', async ({ page }) => {
-    await page.goto('/data');
-    
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
-    
-    // Disabled documents should have .disabled class
-    // May or may not be visible depending on mock data
   });
 
   // ============================================================

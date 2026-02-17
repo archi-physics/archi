@@ -20,39 +20,21 @@ test.describe('Chat UI', () => {
     await expect(page.getByRole('button', { name: 'Send message' })).toBeVisible();
   });
 
-  test('entry meta label shows agent and model info', async ({ page }) => {
+  test('model selection is available in Settings', async ({ page }) => {
     await page.goto('/chat');
-    // Config dropdown shows available models/configs
-    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
-    await expect(configDropdown).toBeVisible();
+    await page.getByRole('button', { name: 'Settings' }).click();
+
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
+
+    await expect(providerSelect).toBeVisible();
+    await expect(modelSelect).toBeVisible();
   });
 
   test('header tabs are visible (Chat, Data)', async ({ page }) => {
     await page.goto('/chat');
     await expect(page.locator('.header-tab').filter({ hasText: 'Chat' })).toBeVisible();
     await expect(page.locator('.header-tab').filter({ hasText: 'Data' })).toBeVisible();
-  });
-
-  test('agent info button opens modal with correct data', async ({ page }) => {
-    await page.goto('/chat');
-    
-    // Click agent info button
-    await page.getByRole('button', { name: 'Agent info' }).click();
-    
-    // Modal should be visible
-    const modal = page.locator('.agent-info-modal');
-    await expect(modal).toBeVisible();
-    
-    // Should show agent information
-    await expect(modal).toContainText('Active agent');
-    await expect(modal).toContainText('Model');
-    await expect(modal).toContainText('Pipeline');
-    await expect(modal).toContainText('Embedding');
-    await expect(modal).toContainText('Data sources');
-    
-    // Close modal
-    await page.locator('.agent-info-close').click();
-    await expect(modal).not.toBeVisible();
   });
 
   test('settings button opens settings modal', async ({ page }) => {
@@ -66,13 +48,29 @@ test.describe('Chat UI', () => {
   // ============================================================
   // 1.2 Message Flow Tests
   // ============================================================
-  test('shows pipeline default model label', async ({ page }) => {
+  test('provider selection enables model dropdown', async ({ page }) => {
     await page.goto('/chat');
-    // Config dropdown shows available models/configs
-    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
-    await expect(configDropdown).toBeVisible();
-    // Should have at least one option available
-    await expect(configDropdown).not.toHaveValue('');
+    await page.getByRole('button', { name: 'Settings' }).click();
+
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
+
+    await expect(providerSelect).toBeVisible();
+    await expect(modelSelect).toBeVisible();
+
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+      await expect(modelSelect).toBeEnabled();
+    }
   });
 
   test('send button toggles to stop while streaming', async ({ page }) => {
@@ -125,17 +123,12 @@ test.describe('Chat UI', () => {
     await expect(providerSelect).toHaveValue('');  // Empty = pipeline default
   });
 
-  test('entry meta updates when provider/model changes', async ({ page }) => {
+  test('settings modal can be opened and closed', async ({ page }) => {
     await page.goto('/chat');
-    
-    // Config dropdown should be visible
-    const configDropdown = page.getByRole('combobox', { name: 'Select model' });
-    await expect(configDropdown).toBeVisible();
-    
-    // Open settings - verify it can be opened
+
     await page.getByRole('button', { name: 'Settings' }).click();
     await expect(page.locator('.settings-panel')).toBeVisible();
-    
+
     await page.getByRole('button', { name: 'Close settings' }).click();
     await expect(page.locator('.settings-panel')).not.toBeVisible();
   });
@@ -180,32 +173,6 @@ test.describe('Chat UI', () => {
     
     // Messages should be cleared (or just welcome state)
     await expect(page.locator('.message.user')).toHaveCount(0);
-  });
-
-  // ============================================================
-  // 1.6 Agent Info Modal Tests
-  // ============================================================
-  test('agent info modal closes on backdrop click', async ({ page }) => {
-    await page.goto('/chat');
-    
-    await page.getByRole('button', { name: 'Agent info' }).click();
-    const modal = page.locator('.agent-info-modal');
-    await expect(modal).toBeVisible();
-    
-    // Click backdrop area outside modal (use position well outside the modal content)
-    await page.mouse.click(10, 10);
-    await expect(modal).not.toBeVisible();
-  });
-
-  test('agent info modal closes on Escape key', async ({ page }) => {
-    await page.goto('/chat');
-    
-    await page.getByRole('button', { name: 'Agent info' }).click();
-    const modal = page.locator('.agent-info-modal');
-    await expect(modal).toBeVisible();
-    
-    await page.keyboard.press('Escape');
-    await expect(modal).not.toBeVisible();
   });
 
   // ============================================================

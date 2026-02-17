@@ -155,12 +155,13 @@ class TemplateManager:
         context.prompt_mappings = {}
 
     def _stage_agents(self, context: TemplateContext) -> None:
-        agents_dir = context.get_option("agents_dir")
+        config = context.config_manager.config or {}
+        agents_dir = ((config.get("services") or {}).get("chat_app") or {}).get("agents_dir")
         dst_dir = context.base_dir / "data" / "agents"
         if not agents_dir:
             if dst_dir.exists() and any(p.suffix.lower() == ".md" for p in dst_dir.iterdir()):
                 return
-            raise ValueError("Missing required agents directory (pass --agents).")
+            raise ValueError("Missing required services.chat_app.agents_dir in config.")
         src_dir = Path(agents_dir).expanduser()
         if not src_dir.exists() or not src_dir.is_dir():
             raise ValueError(f"Agents directory not found: {src_dir}")

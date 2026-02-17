@@ -4,7 +4,7 @@ Archi uses an **agent-based architecture** where AI assistants are defined by **
 
 ## Agent Specs
 
-Agent specs live in a directory you pass to the CLI via `--agents`. Each `*.md` file defines one agent.
+Agent specs live in the directory configured at `services.chat_app.agents_dir`. Each `*.md` file defines one agent.
 
 ### Format
 
@@ -33,6 +33,70 @@ evidence from retrieved sources, and keep responses concise and actionable.
 - **`tools`** (list of strings): Tools this agent can use — a subset of tools defined by the agent class.
 
 **Prompt body:** Everything after the frontmatter is the system prompt.
+
+### Practical Agent Spec Examples
+
+#### Minimal default agent
+
+```markdown
+---
+name: CMS CompOps Default
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+---
+
+You are a CMS CompOps assistant.
+
+Rules:
+- Use tools to find evidence before answering.
+- Prefer concise, operationally actionable responses.
+- Cite relevant files or tickets when possible.
+- If evidence is missing, say so and suggest the next query/tool call.
+```
+
+#### MCP-enabled agent
+
+```markdown
+---
+name: CMS CompOps + MCP
+tools:
+  - search_vectorstore_hybrid
+  - fetch_catalog_document
+  - mcp
+---
+
+You are a research-focused assistant.
+
+Use vectorstore tools for internal docs first.
+Use MCP tools for external/system checks when internal evidence is insufficient.
+Always distinguish internal evidence from MCP-derived evidence.
+```
+
+#### MONIT-focused agent (if MONIT tools are enabled by the agent class)
+
+```markdown
+---
+name: CMS CompOps MONIT
+tools:
+  - search_vectorstore_hybrid
+  - fetch_catalog_document
+  - monit_opensearch_search
+  - monit_opensearch_aggregation
+---
+
+You support CompOps incident triage.
+
+When a request is about rates, failures, or timeseries:
+1. Query MONIT tools.
+2. Correlate with internal docs.
+3. Return likely cause, confidence, and next checks.
+```
+
+These files should live in `services.chat_app.agents_dir` and be selected by `services.chat_app.agent_class`.
 
 ### File Discovery
 
@@ -115,18 +179,17 @@ A simpler question-answering pipeline for straightforward retrieval-augmented ge
 
 ### Pipeline Configuration
 
-Detailed pipeline settings live in the `archi` section of the config:
+Pipeline selection is configured per service:
 
 ```yaml
-archi:
-  pipelines:
-    - CMSCompOpsAgent
-  pipeline_map:
-    CMSCompOpsAgent:
-      recursion_limit: 50
+services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
 ```
 
-The `recursion_limit` controls the maximum number of ReAct reasoning steps.
+The class (`CMSCompOpsAgent`, `QAPipeline`, etc.) defines available tools and runtime behavior.
+The selected agent spec file defines the active prompt and tool subset.
 
 ---
 
@@ -136,26 +199,25 @@ Archi supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.i
 
 ### How It Works
 
-1. MCP servers are defined in the `archi.mcp_servers` section of your config
+1. MCP servers are defined in your deployment runtime configuration
 2. An agent spec includes `mcp` in its `tools` list to opt in
 3. At agent initialization, Archi connects to the MCP servers and discovers available tools
 4. The MCP tools are added to the agent's toolset alongside built-in tools
 
 ### Configuration
 
-Define MCP servers in your configuration file:
+Define MCP servers in your deployment configuration:
 
 ```yaml
-archi:
-  mcp_servers:
-    my_server:
-      transport: "stdio"
-      command: "uvx"
-      args:
-        - "mcp-server-example"
-    web_search:
-      transport: "sse"
-      url: "http://localhost:8080/sse"
+mcp_servers:
+  my_server:
+    transport: "stdio"
+    command: "uvx"
+    args:
+      - "mcp-server-example"
+  web_search:
+    transport: "sse"
+    url: "http://localhost:8080/sse"
 ```
 
 Each server entry follows the format expected by the `langchain-mcp-adapters` library:

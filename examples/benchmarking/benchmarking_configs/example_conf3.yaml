@@ -16,8 +16,8 @@ services:
   chat_app:
     agent_class: QAPipeline
     agents_dir: examples/agents
-    provider: openai
-    model: gpt-4o
+    default_provider: openai
+    default_model: gpt-4o
     prompts:
       condense_prompt: configs/prompts/condense.prompt
       chat_prompt: configs/prompts/submit.prompt

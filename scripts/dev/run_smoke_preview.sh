@@ -20,12 +20,13 @@ WAIT_URL="${WAIT_URL:-http://localhost:2786/api/health}"
 WAIT_ATTEMPTS="${WAIT_ATTEMPTS:-60}"
 WAIT_SLEEP="${WAIT_SLEEP:-2}"
 BASE_URL="${BASE_URL:-http://localhost:2786}"
-USE_PODMAN="${USE_PODMAN:-true}"
+USE_PODMAN="${USE_PODMAN:-false}"
 SMOKE_CLEANUP="${SMOKE_CLEANUP:-true}"
 SMOKE_DUMP_LOGS="${SMOKE_DUMP_LOGS:-true}"
 SMOKE_FORCE_CREATE="${SMOKE_FORCE_CREATE:-true}"
 SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL:-}"
 SMOKE_OLLAMA_URL="${SMOKE_OLLAMA_URL:-}"
+SMOKE_OLLAMA_HOST="${SMOKE_OLLAMA_HOST:-}"
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-900}"
 export USE_PODMAN
 
@@ -107,9 +108,10 @@ import yaml
 config_dest = os.environ.get("CONFIG_DEST")
 with open(config_dest, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-local_cfg = ((cfg.get("archi") or {}).get("providers") or {}).get("local") or {}
+chat_cfg = (cfg.get("services") or {}).get("chat_app") or {}
+local_cfg = (chat_cfg.get("providers") or {}).get("local") or {}
 models = local_cfg.get("models") or []
-print(models[0] if models else "")
+print(chat_cfg.get("default_model") or (models[0] if models else ""))
 PY
 )"
 fi
@@ -121,25 +123,31 @@ import yaml
 config_dest = os.environ.get("CONFIG_DEST")
 with open(config_dest, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-local_cfg = ((cfg.get("archi") or {}).get("providers") or {}).get("local") or {}
+chat_cfg = (cfg.get("services") or {}).get("chat_app") or {}
+local_cfg = (chat_cfg.get("providers") or {}).get("local") or {}
 print(local_cfg.get("base_url", "http://localhost:11434"))
 PY
 )"
+fi
+if [[ -z "${SMOKE_OLLAMA_HOST}" ]]; then
+  SMOKE_OLLAMA_HOST="${SMOKE_OLLAMA_URL}"
 fi
 if [[ -z "${SMOKE_OLLAMA_MODEL}" ]]; then
   echo "Unable to determine Ollama model from ${CONFIG_DEST}. Set SMOKE_OLLAMA_MODEL." >&2
   exit 1
 fi
-CONFIG_DEST="${CONFIG_DEST}" SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL}" python - <<'PY'
+CONFIG_DEST="${CONFIG_DEST}" SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL}" SMOKE_OLLAMA_URL="${SMOKE_OLLAMA_URL}" python - <<'PY'
 import os
 import yaml
 
 config_dest = os.environ.get("CONFIG_DEST")
 smoke_model = os.environ.get("SMOKE_OLLAMA_MODEL")
+smoke_url = os.environ.get("SMOKE_OLLAMA_URL")
 with open(config_dest, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-archi = cfg.setdefault("archi", {})
-providers = archi.setdefault("providers", {})
+services = cfg.setdefault("services", {})
+chat_cfg = services.setdefault("chat_app", {})
+providers = chat_cfg.setdefault("providers", {})
 local_cfg = providers.setdefault("local", {})
 models = local_cfg.get("models") or []
 if smoke_model:
@@ -147,11 +155,70 @@ if smoke_model:
         models[0] = smoke_model
     else:
         models.append(smoke_model)
-local_cfg["models"] = models
-archi["providers"] = providers
-cfg["archi"] = archi
+    local_cfg["models"] = models
+    local_cfg["default_model"] = smoke_model
+    local_cfg.setdefault("enabled", True)
+    chat_cfg["default_provider"] = "local"
+    chat_cfg["default_model"] = smoke_model
+if smoke_url:
+    local_cfg["base_url"] = smoke_url
+providers["local"] = local_cfg
+chat_cfg["providers"] = providers
+services["chat_app"] = chat_cfg
+cfg["services"] = services
 with open(config_dest, "w", encoding="utf-8") as handle:
     yaml.safe_dump(cfg, handle, sort_keys=False)
+PY
+
+AGENTS_DIR="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
+import os
+import yaml
+
+config_dest = os.environ.get("CONFIG_DEST")
+with open(config_dest, "r", encoding="utf-8") as handle:
+    cfg = yaml.safe_load(handle) or {}
+chat_cfg = (cfg.get("services") or {}).get("chat_app") or {}
+print(chat_cfg.get("agents_dir", ""))
+PY
+)"
+
+if [[ -z "${AGENTS_DIR}" ]]; then
+  echo "agents_dir is missing from ${CONFIG_DEST}" >&2
+  exit 1
+fi
+
+CONFIG_DEST="${CONFIG_DEST}" AGENTS_DIR="${AGENTS_DIR}" REPO_ROOT="$(pwd)" python - <<'PY'
+import os
+from pathlib import Path
+import importlib.util
+import yaml
+
+agents_dir = Path(os.environ.get("AGENTS_DIR", ""))
+if not agents_dir.exists() or not agents_dir.is_dir():
+    raise SystemExit(f"agents_dir does not exist: {agents_dir}")
+
+repo_root = Path(os.environ.get("REPO_ROOT", ".")).resolve()
+agent_spec_path = repo_root / "src" / "archi" / "pipelines" / "agents" / "agent_spec.py"
+if not agent_spec_path.exists():
+    raise SystemExit(f"agent_spec.py not found at {agent_spec_path}")
+
+module_name = "archi_agent_spec"
+spec = importlib.util.spec_from_file_location(module_name, agent_spec_path)
+if spec is None or spec.loader is None:
+    raise SystemExit("Unable to import agent_spec module")
+agent_spec = importlib.util.module_from_spec(spec)
+import sys
+sys.modules[module_name] = agent_spec
+spec.loader.exec_module(agent_spec)
+list_agent_files = agent_spec.list_agent_files
+load_agent_spec = agent_spec.load_agent_spec
+
+agent_files = list_agent_files(agents_dir)
+if not agent_files:
+    raise SystemExit(f"agents_dir has no .md files: {agents_dir}")
+
+for path in agent_files:
+    load_agent_spec(path)
 PY
 
 if ! command -v ollama >/dev/null 2>&1; then
@@ -182,6 +249,9 @@ if [[ "${ENV_FILE}" == "${DEFAULT_ENV_FILE}" ]]; then
   ENV_FILE_CREATED=1
   : > "${ENV_FILE}"
   echo "PG_PASSWORD=$(openssl rand -base64 32)" >> "${ENV_FILE}"
+  if [[ -n "${SMOKE_OLLAMA_HOST}" ]]; then
+    echo "OLLAMA_HOST=${SMOKE_OLLAMA_HOST}" >> "${ENV_FILE}"
+  fi
 else
   info "Using existing env file ${ENV_FILE}; leaving it unchanged."
 fi
@@ -257,8 +327,8 @@ import yaml
 rendered = os.environ.get("RENDERED_CONFIG")
 with open(rendered, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-pipelines = (cfg.get("archi") or {}).get("pipelines") or []
-print(pipelines[0] if pipelines else "")
+chat_cfg = (cfg.get("services") or {}).get("chat_app") or {}
+print(chat_cfg.get("agent_class", ""))
 PY
 )"
 
@@ -337,10 +407,11 @@ import yaml
 rendered = os.environ.get("RENDERED_CONFIG")
 with open(rendered, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-local_cfg = ((cfg.get("archi") or {}).get("providers") or {}).get("local") or {}
+local_cfg = (((cfg.get("services") or {}).get("chat_app") or {}).get("providers") or {}).get("local") or {}
 print(local_cfg.get("base_url", "http://localhost:11434"))
 PY
 )"
+export OLLAMA_HOST="${SMOKE_OLLAMA_HOST:-${OLLAMA_URL}}"
 export OLLAMA_MODEL="$(RENDERED_CONFIG="${RENDERED_CONFIG}" python - <<'PY'
 import os
 import yaml
@@ -348,7 +419,7 @@ import yaml
 rendered = os.environ.get("RENDERED_CONFIG")
 with open(rendered, "r", encoding="utf-8") as handle:
     cfg = yaml.safe_load(handle) or {}
-local_cfg = ((cfg.get("archi") or {}).get("providers") or {}).get("local") or {}
+local_cfg = (((cfg.get("services") or {}).get("chat_app") or {}).get("providers") or {}).get("local") or {}
 models = local_cfg.get("models") or []
 print(models[0] if models else "")
 PY

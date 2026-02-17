@@ -4,24 +4,32 @@ Archi (AI Augmented Research Chat Intelligence) is a retrieval-augmented generat
 
 Archi makes it easy to deploy AI assistants with a suite of tools that connect to
 
-- communication platforms such as Piazza, Slack, Mattermost, and email, and
-- knowledge bases such as web links, files, JIRA tickets, and documentation.
+- knowledge bases such as web links, files, JIRA tickets, and documentation
+- communication platforms such as Piazza, Slack, Mattermost, and email
 
-It is modular and extensible, allowing users to add connectors and customise pipeline behaviour for a wide range of tasks—from answering simple questions to delivering detailed explanations.
+It is modular and extensible, allowing users to add connectors and customize pipeline behavior for a wide range of tasks—from answering simple questions to delivering detailed explanations.
+
+## Start Here
+
+If you are new to Archi, follow this path:
+
+1. [Install](install.md)
+2. [Quickstart](quickstart.md)
+3. [User Guide](user_guide.md)
 
 ## About
 
-Archi is an end-to-end framework developed by Prof. Paus (MIT Physics), Prof. Kraska (MIT EECS), and their students. It has already been successfully deployed as a user chatbot and technical assistant at SubMIT (the MIT Physics Department's private cluster) and as an educational assistant for several MIT courses, including 8.01 and 8.511.
+Archi is developed by Prof. Paus (MIT Physics), Prof. Kraska (MIT EECS), and their students. It has already been successfully deployed as a user chatbot and technical assistant at SubMIT (the MIT Physics Department's computing cluster) and as an educational assistant for several MIT courses, including 8.01 and 8.511.
 
 What sets Archi apart is that it is fully open source, configurable across foundational models and LLM libraries, and designed for private deployment. Under the hood, Archi is a highly configurable RAG system tailored for educational and scientific support. Given its success, the scope now spans additional MIT classes, CERN, Harvard, and internal deployments such as CSAIL's support staff.
+
+### Research Resource Support
+
+Archi serves technical support teams and end users. At SubMIT, it functions both as a user-facing chatbot and as a ticket assistant. Integration with Redmine enables Archi to prepare draft responses to support tickets that staff can review before sending. In both roles, Archi accesses the corpus of tickets and documentation, citing relevant sources in its answers.
 
 ### Educational Support
 
 Archi assists TAs, lecturers, and support staff—or students directly—by preparing answers based on curated class resources. In MIT course deployments, Archi leverages Piazza posts, documentation, and other class-specific materials. The Piazza integration can draft answers for staff to review or send, while the system continuously learns from revisions and new posts, improving over time.
-
-### Research Resource Support
-
-Archi also serves technical support teams and end users. At SubMIT, it functions both as a user-facing chatbot and as a ticket assistant. Integration with Redmine enables Archi to prepare draft responses to support tickets that staff can review before sending. In both roles, Archi accesses the corpus of tickets and documentation, citing relevant sources in its answers.
 
 ---
 

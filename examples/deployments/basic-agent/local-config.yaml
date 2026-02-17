@@ -4,7 +4,7 @@
 # Run with:
 # export ARCHI_DIR=/tmp/archi-test
 # echo "PG_PASSWORD=testpassword123" > /tmp/test-env
-# archi create --name cms-agent --config examples/deployments/basic-agent/local-config.yaml --services chatbot --env-file /tmp/test-env --agents examples/agents
+# archi create --name cms-agent --config examples/deployments/basic-agent/local-config.yaml --services chatbot --env-file /tmp/test-env 
 
 name: cms_agent_local
 
@@ -14,12 +14,12 @@ services:
   chat_app:
     agent_class: CMSCompOpsAgent
     agents_dir: examples/agents
-    provider: local
-    model: qwen3:4b
+    default_provider: local
+    default_model: qwen3:4b
     providers:
       local:
         enabled: true
-        base_url: http://host.docker.internal:11434  # Docker's way to reach localhost
+        base_url: http://host.docker.internal:11434 # Docker's way to reach localhost
         mode: ollama
         default_model: "qwen3:4b"
         models:
@@ -28,7 +28,7 @@ services:
     port: 7868
     external_port: 7868
   vectorstore:
-    backend: postgres  # PostgreSQL with pgvector
+    backend: postgres # PostgreSQL with pgvector
   data_manager:
     port: 4242
     external_port: 4242

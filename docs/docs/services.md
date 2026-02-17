@@ -54,7 +54,7 @@ archi create [...] --services chatbot
 
 ## Document Upload
 
-Document upload functionality is built into the **Data Manager** service. Documents can be uploaded via the uploader web interface or by copying files directly into the data directory.
+Document upload is exposed in the chat UI and backed by the **Data Manager** service. Documents can be uploaded via the web interface or by copying files directly into the data directory.
 
 See [Data Sources — Adding Documents Manually](data_sources.md#adding-documents-manually) for setup instructions.
 

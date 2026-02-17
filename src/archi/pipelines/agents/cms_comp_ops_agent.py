@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
-from typing import Any, Callable, Dict, List, Sequence, Optional
-
-from langchain_core.documents import Document
-from langchain.agents.middleware import TodoListMiddleware, LLMToolSelectorMiddleware
+from typing import Any, Callable, Dict, List
 
 from src.utils.logging import get_logger
+from src.utils.env import read_secret
 from src.archi.pipelines.agents.base_react import BaseReActAgent
 from src.data_manager.vectorstore.retrievers import HybridRetriever
 from src.archi.pipelines.agents.tools import (
@@ -17,8 +14,11 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_schema_tool,
     create_retriever_tool,
     RemoteCatalogClient,
+    MONITOpenSearchClient,
+    create_monit_opensearch_search_tool,
+    create_monit_opensearch_aggregation_tool,
 )
-from src.archi.pipelines.agents.utils.history_utils import infer_speaker
+from src.archi.pipelines.agents.utils.skill_utils import load_skill
 
 logger = get_logger(__name__)
 
@@ -39,9 +39,41 @@ class CMSCompOpsAgent(BaseReActAgent):
         self._vector_tool = None
         self.enable_vector_tools = "search_vectorstore_hybrid" in self.selected_tool_names
 
+        # Initialize MONIT client (shared across search and aggregation tools)
+        self._monit_client = None
+        self._rucio_events_skill = None
+        self._init_monit()
+
         self.rebuild_static_tools()
         self.rebuild_static_middleware()
         self.refresh_agent()
+
+    @property
+    def _chat_app_config(self) -> Dict[str, Any]:
+        """Return the services.chat_app config section."""
+        return self.config.get("services", {}).get("chat_app", {})
+
+    def _init_monit(self) -> None:
+        """Initialize the MONIT OpenSearch client if credentials and config are available."""
+        monit_token = read_secret("MONIT_GRAFANA_TOKEN")
+        monit_url = (
+            self._chat_app_config.get("tools", {}).get("monit", {}).get("url")
+        )
+
+        if monit_token and monit_url:
+            try:
+                self._monit_client = MONITOpenSearchClient(url=monit_url, token=monit_token)
+                self._rucio_events_skill = load_skill("rucio_events", self.config)
+                logger.info("MONIT OpenSearch client initialized successfully")
+            except Exception as e:
+                logger.warning("Failed to initialize MONIT OpenSearch client: %s", e)
+        elif not monit_url:
+            logger.info(
+                "No MONIT URL configured in services.chat_app.tools.monit.url; "
+                "MONIT OpenSearch tools not available"
+            )
+        else:
+            logger.info("MONIT_GRAFANA_TOKEN not found; MONIT OpenSearch tools not available")
 
     def get_tool_registry(self) -> Dict[str, Callable[[], Any]]:
         return {name: entry["builder"] for name, entry in self._tool_definitions().items()}
@@ -50,7 +82,7 @@ class CMSCompOpsAgent(BaseReActAgent):
         return {name: entry["description"] for name, entry in self._tool_definitions().items()}
 
     def _tool_definitions(self) -> Dict[str, Dict[str, Any]]:
-        return {
+        defs = {
             "search_local_files": {
                 "builder": self._build_file_search_tool,
                 "description": (
@@ -93,6 +125,21 @@ class CMSCompOpsAgent(BaseReActAgent):
             },
         }
 
+        # Keep this safe for lightweight introspection paths that call
+        # get_tool_registry()/get_tool_descriptions() on an uninitialized
+        # instance (constructed via __new__).
+        if getattr(self, "_monit_client", None) is not None:
+            defs["monit_opensearch_search"] = {
+                "builder": self._build_monit_opensearch_search_tool,
+                "description": "Search MONIT OpenSearch for CMS Rucio events.",
+            }
+            defs["monit_opensearch_aggregation"] = {
+                "builder": self._build_monit_opensearch_aggregation_tool,
+                "description": "Run aggregation queries on MONIT OpenSearch for CMS Rucio events.",
+            }
+
+        return defs
+
     def _build_file_search_tool(self) -> Callable:
         description = self._tool_definitions()["search_local_files"]["description"]
         return create_file_search_tool(
@@ -126,6 +173,24 @@ class CMSCompOpsAgent(BaseReActAgent):
     def _build_vector_tool_placeholder(self) -> List[Callable]:
         return []
 
+    def _build_monit_opensearch_search_tool(self) -> Callable:
+        """Build the MONIT OpenSearch search tool for Rucio events."""
+        return create_monit_opensearch_search_tool(
+            self._monit_client,
+            tool_name="rucio_events_search",
+            index="monit_prod_cms_rucio_raw_events*",
+            skill=self._rucio_events_skill,
+        )
+
+    def _build_monit_opensearch_aggregation_tool(self) -> Callable:
+        """Build the MONIT OpenSearch aggregation tool for Rucio events."""
+        return create_monit_opensearch_aggregation_tool(
+            self._monit_client,
+            tool_name="rucio_events_aggregation",
+            index="monit_prod_cms_rucio_raw_events*",
+            skill=self._rucio_events_skill,
+        )
+
     # def _build_static_middleware(self) -> List[Callable]:
     #     """
     #     Initialize middleware: currently, testing what works best.
@@ -137,54 +202,6 @@ class CMSCompOpsAgent(BaseReActAgent):
     #         max_tools=3,
     #     )
     #     return [todolist_middleware, llmtoolselector_middleware]
-
-    def _store_documents(self, stage: str, docs: Sequence[Document]) -> None:
-        """Centralised helper used by tools to record documents into the active memory."""
-        memory = self.active_memory
-        if not memory:
-            return
-        # Prefer memory convenience method if available
-        try:
-            logger.debug("Recording %d documents from stage '%s' via record_documents", len(docs), stage)
-            memory.record_documents(stage, docs)
-        except Exception:
-            # fallback to explicit record + note
-            memory.record(stage, docs)
-            memory.note(f"{stage} returned {len(list(docs))} document(s).")
-
-    def _prepare_inputs(self, history: Any, **kwargs) -> Dict[str, Any]:
-        """Create list of messages using LangChain's formatting."""
-        history = history or []
-        history_messages = [infer_speaker(msg[0])(msg[1]) for msg in history]
-        return {"history": history_messages}
-
-    def _prepare_agent_inputs(self, **kwargs) -> Dict[str, Any]:
-        """Prepare agent state and formatted inputs shared by invoke/stream."""
-
-        # event-level memory (which documents were retrieved)
-        memory = self.start_run_memory()
-
-        # refresh vs connection
-        vectorstore = kwargs.get("vectorstore")
-        if vectorstore:
-            self._update_vector_retrievers(vectorstore)
-        else:
-            self._vector_retrievers = None
-            self._vector_tools = None
-        extra_tools = self._vector_tools if self._vector_tools else None
-
-        self.refresh_agent(extra_tools=extra_tools)
-
-        inputs = self._prepare_inputs(history=kwargs.get("history"))
-        history_messages = inputs["history"]
-        if history_messages:
-            memory.note(f"History contains {len(history_messages)} message(s).")
-            last_message = history_messages[-1]
-            content = self._message_content(last_message)
-            if content:
-                snippet = content if len(content) <= 200 else f"{content[:197]}..."
-                memory.note(f"Latest user message: {snippet}")
-        return {"messages": history_messages}
 
     def _update_vector_retrievers(self, vectorstore: Any) -> None:
         """Instantiate or refresh the vectorstore retriever tool using hybrid retrieval."""

@@ -147,11 +147,11 @@ Always open a PR to merge documentation changes into `main`. Do not edit files d
 If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:
 
 ```bash
-export Archi_DIR=~/.archi
+export ARCHI_DIR=~/.archi
 export DEPLOYMENT_NAME=local-smoke
-export USE_PODMAN=true
+export USE_PODMAN=false
 export SMOKE_FORCE_CREATE=true
-export SMOKE_OLLAMA_MODEL=gpt-oss:latest
+export SMOKE_OLLAMA_MODEL=qwen3:4b
 scripts/dev/run_smoke_preview.sh "${DEPLOYMENT_NAME}"
 ```
 
@@ -169,7 +169,7 @@ The combined smoke workflow alone does not start Archi for you. Start a deployme
 export Archi_CONFIG_PATH=~/.archi/archi-<deployment-name>/configs/<config-name>.yaml
 export Archi_CONFIG_NAME=<config-name>
 export Archi_PIPELINE_NAME=CMSCompOpsAgent
-export USE_PODMAN=true
+export USE_PODMAN=false
 export OLLAMA_MODEL=<ollama-model-name>
 export PGHOST=localhost
 export PGPORT=<postgres-port>
@@ -190,6 +190,44 @@ export FILE_SEARCH_QUERY="first linux server installation"
 export METADATA_SEARCH_QUERY="ppc.mit.edu"
 export VECTORSTORE_QUERY="cms"
 ```
+
+## CI / CD Architecture
+
+All CI workflows run on GitHub-hosted `ubuntu-latest` runners with Docker (not Podman).
+
+### PR Preview (`pr-preview.yml`)
+
+Every pull request triggers four parallel/sequential jobs:
+
+| Job | Runner | Purpose |
+|-----|--------|---------|
+| **lint** | `ubuntu-latest` | `black --check .` and `isort --check .` |
+| **unit-tests** | `ubuntu-latest` | `pytest tests/unit/ -v --tb=short` |
+| **build-base-images** | `ubuntu-latest` | Detects changes to base image inputs; builds if needed |
+| **preview** | `ubuntu-latest` | Smoke deployment + Playwright UI tests |
+
+The `preview` job:
+
+1. Installs Ollama and pulls `qwen3:4b` (~2.6GB).
+2. Builds and deploys the app via `archi create` with Docker.
+3. Runs integration smoke tests (`combined_smoke.sh`).
+4. Runs Playwright UI tests against `http://localhost:2786`.
+
+### Release (`test-and-build-tag.yml`)
+
+Manually dispatched; builds Docker base images, pushes to DockerHub, runs smoke tests, then tags and releases.
+
+### Publish Base Images (`publish-base-images.yml`)
+
+Triggered on push to `main`; rebuilds and pushes base images when requirements or Dockerfiles change.
+
+### Docker Layer Caching
+
+All workflows that build Docker images use `docker/setup-buildx-action` with `actions/cache` for layer caching, reducing rebuild times on cache hits.
+
+### Local Development
+
+For local smoke testing, Docker is the default container runtime (`USE_PODMAN=false`). To use Podman locally, set `USE_PODMAN=true` and use the `--podman` flag with `archi` CLI commands.
 
 ## Postgres Usage Overview
 

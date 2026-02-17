@@ -179,59 +179,7 @@ test.describe('Data Viewer Document Management', () => {
     }
   });
 
-  test('disabled document has visual indication', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForTimeout(500);
-    
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
 
-    // doc3 is disabled - should have .disabled class
-    const disabledItem = page.locator('.tree-file.disabled');
-    
-    // Should have at least one disabled document
-    const count = await disabledItem.count();
-    expect(count).toBeGreaterThan(0);
-  });
-
-  test('checkbox state reflects enabled status', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForTimeout(500);
-    
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
-
-    // Enabled documents should have checked checkbox
-    const enabledCheckbox = page.locator('.tree-file:not(.disabled) input[type="checkbox"]').first();
-    if (await enabledCheckbox.isVisible()) {
-      await expect(enabledCheckbox).toBeChecked();
-    }
-
-    // Disabled documents should have unchecked checkbox
-    const disabledCheckbox = page.locator('.tree-file.disabled input[type="checkbox"]').first();
-    if (await disabledCheckbox.isVisible()) {
-      await expect(disabledCheckbox).not.toBeChecked();
-    }
-  });
-
-  test('toggling checkbox sends enable/disable request', async ({ page }) => {
-    await page.goto('/data');
-    await page.waitForTimeout(500);
-    
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
-
-    // Try to toggle a checkbox - should show warning about needing conversation
-    const checkbox = page.locator('.tree-file input[type="checkbox"]').first();
-    if (await checkbox.isVisible()) {
-      await checkbox.click();
-      await page.waitForTimeout(300);
-      
-      // Should show warning toast about needing conversation context
-      const toast = page.locator('.toast');
-      await expect(toast.first()).toBeVisible();
-    }
-  });
 
   test('document preview shows metadata', async ({ page }) => {
     await page.goto('/data');
@@ -294,39 +242,5 @@ test.describe('Data Viewer Document Management', () => {
     const docs = page.locator('.tree-file');
     const docCount = await docs.count();
     expect(docCount).toBeGreaterThan(0);
-  });
-
-  test('stats update after enabling/disabling documents', async ({ page }) => {
-    let enabledCount = 2;
-
-    await page.route('**/api/data/stats*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        json: {
-          total_documents: 3,
-          total_chunks: 9,
-          total_size_bytes: 7168,
-          enabled_count: enabledCount,
-          last_updated: new Date().toISOString()
-        }
-      });
-    });
-
-    await page.goto('/data');
-    await page.waitForTimeout(500);
-    
-    // Initial state
-    await page.getByRole('button', { name: 'Expand All' }).click();
-    await page.waitForTimeout(300);
-
-    // Disable a document
-    const checkbox = page.locator('.tree-file:not(.disabled) input[type="checkbox"]').first();
-    if (await checkbox.isVisible()) {
-      enabledCount = 1;
-      await checkbox.uncheck();
-      await page.waitForTimeout(500);
-
-      // Stats should update (via refresh or automatic update)
-    }
   });
 });

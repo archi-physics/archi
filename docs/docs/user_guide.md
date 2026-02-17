@@ -4,24 +4,29 @@ This guide covers the core concepts and features of Archi. Each topic has its ow
 
 ## Overview
 
-Archi is organized around three core concepts:
+Archi is a retrieval-based assistant framework with four core parts:
 
-- **Data Sources**: How you ingest content into the vector store for retrieval
-- **Services**: Containerized applications that interact with the AI pipelines
-- **Agents & Pipelines**: AI assistants with configurable tools and prompts
+- **Data sources**: Where knowledge comes from (links, git repos, JIRA/Redmine, uploaded files)
+- **Vector store + retrievers**: Where ingested content is indexed and searched semantically/lexically
+- **Agents + tools**: The reasoning layer that decides what to do and can call tools (search, fetch, MCP, etc.)
+- **Services**: The apps users interact with (`chatbot`, `data_manager`, integrations, dashboards)
 
-Both data sources and services are enabled via flags to the `archi create` command:
+Why both a vector store and tools?
+
+- The **vector store** is best for relevance-based retrieval across the indexed knowledge base.
+- **Tools** let the agent do targeted operations (metadata lookup, full-document fetch, external system calls) that pure embedding search cannot do reliably.
+
+Services are enabled at deployment via flags to `archi create`:
 
 ```bash
-archi create [...] --services chatbot,uploader --sources git,jira --agents examples/agents
+archi create [...] --services chatbot
 ```
 
-Configuration details for each are set in a YAML configuration file. See the [Configuration Reference](configuration.md) for the full schema.
-
----
+Pipelines (agent classes) define runtime behavior. Agent specs define prompt + enabled tool subset. Models, embeddings, and retriever settings are configured in YAML.
 
 ## Data Sources
 
+Data sources define what gets ingested into Archi's knowledge base for retrieval.
 Archi supports several data ingestion methods:
 
 - **Web link lists** (including SSO-protected pages)
@@ -30,7 +35,7 @@ Archi supports several data ingestion methods:
 - **Manual document upload** via the Uploader service or direct file copy
 - **Local documents**
 
-Sources are configured under `data_manager.sources` in your config file and enabled with `--sources` at deploy time.
+Sources are configured under `data_manager.sources` in your config file.
 
 **[Read more →](data_sources.md)**
 
@@ -56,14 +61,7 @@ Archi provides these deployable services:
 
 ## Agents & Tools
 
-Agents are defined by **agent specs** — Markdown files with YAML frontmatter specifying name, tools, and system prompt. Agent specs are passed to the CLI via `--agents`.
-
-The default agent class (`CMSCompOpsAgent`) provides tools for:
-
-- Metadata and content search across ingested documents
-- Hybrid semantic + BM25 vector store retrieval
-- Full document fetching by hash
-- External tools via MCP (Model Context Protocol)
+Agents are defined by **agent specs** — Markdown files with YAML frontmatter specifying name, tools, and system prompt. The agent specs directory is configured via `services.chat_app.agents_dir`.
 
 **[Read more →](agents_tools.md)**
 
@@ -129,30 +127,6 @@ Archi has benchmarking functionality via the `archi evaluate` CLI command:
 - **RAGAS mode**: Uses the Ragas evaluator for answer relevancy, faithfulness, context precision, and context relevancy
 
 **[Read more →](benchmarking.md)**
-
----
-
-## Prompt Customization
-
-Prompts are stored as `.prompt` files in your deployment directory. Archi supports three prompt types:
-
-- **condense**: Condensing conversation history
-- **chat**: Main response generation
-- **system**: System-level instructions
-
-Prompts can be set per-deployment (admin) or per-user via the API.
-
-```
-~/.archi/<deployment-name>/data/prompts/
-├── condense/
-│   └── default.prompt
-├── chat/
-│   └── default.prompt
-└── system/
-    └── default.prompt
-```
-
-See the [API Reference](api_reference.md#prompts) for prompt management endpoints.
 
 ---
 

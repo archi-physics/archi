@@ -9,27 +9,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # formatting:
-  #   runs-on: [submit76-runner]
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+  # ── Fast feedback (parallel) ────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-  #     - name: Install formatting tools
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install black==24.10.0
+      - name: Install formatting tools
+        run: pip install black==24.10.0 isort==6.0.1
 
-  #     - name: Check formatting with Black
-  #       run: black --check .
+      - name: Check formatting with Black
+        continue-on-error: true
+        run: black --check .
 
+      - name: Check import ordering with isort
+        continue-on-error: true
+        run: isort --check .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install . || true
+          pip install -r requirements/requirements-base.txt
+          pip install pytest
+
+      - name: Run unit tests
+        run: python -m pytest tests/unit/ -v --tb=short
+
+  # ── Build base images (only when inputs change) ─────────────────────
   build-base-images:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
@@ -39,6 +65,12 @@ jobs:
       changed: ${{ steps.detect.outputs.changed }}
       tag: ${{ steps.detect.outputs.tag }}
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -68,19 +100,23 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Python (GitHub runner)
-        if: ${{ !contains(runner.name, 'submit') && steps.detect.outputs.changed == 'true' }}
+      - name: Set up Python
+        if: steps.detect.outputs.changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Set up Python (Self-hosted)
-        if: ${{ contains(runner.name, 'submit') && steps.detect.outputs.changed == 'true' }}
-        run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
+      - name: Set up Docker Buildx
+        if: steps.detect.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        if: steps.detect.outputs.changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-base-${{ runner.os }}-${{ hashFiles('requirements/**', 'src/cli/templates/dockerfiles/**/Dockerfile') }}
+          restore-keys: buildx-base-${{ runner.os }}-
 
       - name: Install archi CLI
         if: steps.detect.outputs.changed == 'true'
@@ -94,10 +130,13 @@ jobs:
 
       - name: Build updated base images
         if: steps.detect.outputs.changed == 'true'
-        run: scripts/dev/build_docker_images.sh "${{ steps.detect.outputs.tag }}"
+        run: |
+          # Only build python base for PR preview (pytorch not used in smoke tests)
+          scripts/dev/build_docker_images.sh -i a2rchi/a2rchi-python-base "${{ steps.detect.outputs.tag }}"
 
+  # ── Smoke deployment + integration tests ────────────────────────────
   preview:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     needs: build-base-images
     permissions:
       contents: read
@@ -105,52 +144,58 @@ jobs:
     env:
       ARCHI_DIR: ${{ github.workspace }}/archi-local
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python (GitHub runner)
-        if: ${{ !contains(runner.name, 'submit') }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Set up Python (Self-hosted)
-        if: ${{ contains(runner.name, 'submit') }}
-        run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
-
       - name: Install archi CLI
         run: |
-          CI_VENV="/tmp/ci-venv-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "CI_VENV=$CI_VENV" >> "$GITHUB_ENV"
-          python3 -m venv "$CI_VENV"
-          . "$CI_VENV/bin/activate"
           python -m pip install --upgrade pip
           pip install ".[all]" || pip install .
           python -c "import importlib.util, mkdocs; assert importlib.util.find_spec('mkdocs.__main__'), 'mkdocs.__main__ missing'; print('mkdocs:', mkdocs.__version__)"
 
-      - name: Install docker-compose (for act/local testing)
-        if: ${{ !contains(runner.name, 'submit') }}
+      - name: Install Ollama and pull model
         run: |
-          curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
-          docker-compose version
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
+              echo "Ollama is ready"
+              break
+            fi
+            sleep 1
+          done
+          ollama pull qwen3:4b
+
+      - name: Disable Docker containerd image store
+        run: |
+          # Docker on ubuntu-latest uses containerd image store by default.
+          # This causes "already exists" errors when multiple compose services
+          # share the same image name (e.g. config-seed reuses chatbot image).
+          # Must overwrite daemon.json AND remove drop-in dir to fully revert.
+          echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json
+          sudo rm -rf /etc/docker/daemon.json.d
+          sudo systemctl restart docker
+          docker info | grep -i "Storage Driver"
 
       - name: Prepare base image references
         if: needs.build-base-images.outputs.changed == 'true'
-        run: |
-          . "$CI_VENV/bin/activate"
-          python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source localhost --orig-tag all
+        run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source localhost --orig-tag all
 
       - name: Verify MkDocs build
-        run: |
-          . "$CI_VENV/bin/activate"
-          mkdocs build --config-file docs/mkdocs.yml --strict
+        run: mkdocs build --config-file docs/mkdocs.yml --strict
 
       - name: Clean up MkDocs build artifacts
         run: rm -rf site
@@ -158,15 +203,53 @@ jobs:
       - name: Run smoke deployment
         uses: ./.github/actions/run-smoke
         with:
-          deployment-name: manual-${{ github.run_id }}
+          deployment-name: ci-${{ github.run_id }}
           config-path: tests/pr_preview_config/pr_preview_config.yaml
           config-destination: configs/ci/ci_config.generated.yaml
           services: chatbot
           hostmode: "true"
           wait-url: http://localhost:2786/api/health
           base-url: http://localhost:2786
-          extra-env: ARCHI_COMPOSE_UP_FLAGS=--build
-          use-podman: ${{ contains(runner.name, 'submit') }}
+          extra-env: |
+            ARCHI_COMPOSE_UP_FLAGS=--build --force-recreate
+            SMOKE_OLLAMA_MODEL=qwen3:4b
+            SMOKE_OLLAMA_URL=http://localhost:11434
+            SMOKE_OLLAMA_HOST=http://localhost:11434
+            SMOKE_CLEANUP=false
+          use-podman: "false"
+
+      # ── Playwright UI tests (run in same job; deployment is on localhost) ──
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        env:
+          BASE_URL: http://localhost:2786
+          CI: "true"
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      # ── Cleanup ─────────────────────────────────────────────────────────
+      - name: Cleanup smoke deployment
+        if: ${{ always() }}
+        run: |
+          yes | archi delete --name ci-${{ github.run_id }} || true
 
       - name: Cleanup local base images
         if: ${{ always() && needs.build-base-images.outputs.changed == 'true' }}
@@ -174,18 +257,8 @@ jobs:
           set -euo pipefail
           TAG="${{ needs.build-base-images.outputs.tag }}"
           echo "Cleaning up local base images with tag: $TAG"
-          docker rmi "localhost/archi/archi-python-base:${TAG}" || true
-          docker rmi "localhost/archi/archi-pytorch-base:${TAG}" || true
-          docker rmi "localhost/archi/archi-python-base:latest" || true
-          docker rmi "localhost/archi/archi-pytorch-base:latest" || true
+          docker rmi "localhost/a2rchi/a2rchi-python-base:${TAG}" || true
+          docker rmi "localhost/a2rchi/a2rchi-pytorch-base:${TAG}" || true
+          docker rmi "localhost/a2rchi/a2rchi-python-base:latest" || true
+          docker rmi "localhost/a2rchi/a2rchi-pytorch-base:latest" || true
           echo "Cleanup complete"
-
-      - name: Cleanup CI virtualenv
-        if: ${{ always() }}
-        run: |
-          if [[ -n "${CI_VENV:-}" && -d "$CI_VENV" ]]; then
-            rm -rf "$CI_VENV"
-            echo "Removed virtualenv: $CI_VENV"
-          else
-            echo "No CI virtualenv to remove"
-          fi

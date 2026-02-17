@@ -19,7 +19,7 @@ which archi
 Create a new Archi deployment.
 
 ```bash
-archi create --name <name> --config <config.yaml> --env-file <secrets.env> --services <services> --agents <agents_dir> [OPTIONS]
+archi create --name <name> --config <config.yaml> --env-file <secrets.env> --services <services> [OPTIONS]
 ```
 
 **Required options:**
@@ -28,7 +28,6 @@ archi create --name <name> --config <config.yaml> --env-file <secrets.env> --ser
 |--------|-------------|
 | `--name`, `-n` | Name of the deployment |
 | `--config`, `-c` | Path to YAML configuration file (repeatable for multiple files) |
-| `--agents`, `-a` | Path to a directory of agent markdown files (at least one `*.md` required) |
 
 **Recommended options:**
 
@@ -42,7 +41,6 @@ archi create --name <name> --config <config.yaml> --env-file <secrets.env> --ser
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--config-dir`, `-cd` | Directory containing configuration files | — |
-| `--sources`, `-src` | Comma-separated data sources to enable (e.g., `git,jira,redmine`) | `links` only |
 | `--podman`, `-p` | Use Podman instead of Docker | Docker |
 | `--gpu-ids` | GPU configuration: `all` or comma-separated IDs (e.g., `0,1`) | None |
 | `--tag`, `-t` | Image tag for built containers | `2000` |
@@ -56,16 +54,16 @@ archi create --name <name> --config <config.yaml> --env-file <secrets.env> --ser
 ```bash
 # Basic deployment with Ollama
 archi create -n my-archi -c config.yaml -e .secrets.env \
-  --services chatbot --agents examples/agents --podman
+  --services chatbot --podman
 
 # Full deployment with GPU and multiple services
 archi create -n prod-archi -c config.yaml -e .secrets.env \
-  --services chatbot,uploader,grafana --sources git,jira \
-  --agents examples/agents --gpu-ids all
+  --services chatbot,uploader,grafana \
+  --gpu-ids all
 
 # Dry run to validate configuration
 archi create -n test -c config.yaml -e .secrets.env \
-  --services chatbot --agents examples/agents --dry-run
+  --services chatbot --dry-run
 ```
 
 **Notes:**
@@ -170,7 +168,7 @@ Launch the benchmarking runtime to evaluate configurations against a set of ques
 archi evaluate --name <name> --env-file <secrets.env> --config <config.yaml> [OPTIONS]
 ```
 
-Supports the same flags as `create` (`--sources`, `--podman`, `--gpu-ids`, `--tag`, `--hostmode`, `--verbosity`, `--force`). Configuration files should define the `services.benchmarking` section.
+Supports the same flags as `create` (`--podman`, `--gpu-ids`, `--tag`, `--hostmode`, `--verbosity`, `--force`). Configuration files should define the `services.benchmarking` section.
 
 **Example:**
 
@@ -188,7 +186,7 @@ See [Benchmarking](benchmarking.md) for full details on query format and evaluat
 
 | Variable | Description |
 |----------|-------------|
-| `Archi_DIR` | Override the deployment directory (default: `~/.archi`) |
+| `ARCHI_DIR` | Override the deployment directory (default: `~/.archi`) |
 | `OLLAMA_HOST` | Ollama server address (default: `http://localhost:11434`) |
 
 ---

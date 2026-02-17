@@ -37,7 +37,24 @@ See the [User Guide](user_guide.md) for detailed information about each service 
 
 ## Pipelines
 
-Archi supports several pipelines (agent classes and classic pipelines). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.
+Archi supports several pipelines (agentic and not). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.
+
+Example agent spec file (`examples/agents/default.md`):
+
+```markdown
+---
+name: CMS CompOps Default
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+---
+
+You are a CMS CompOps assistant.
+Use tools to gather evidence before answering, and keep responses concise.
+```
 
 ## Configuration
 
@@ -45,7 +62,7 @@ Once you have chosen the services, sources, and agent class you want to use, cre
 
 > **Important:** The configuration file follows the format of `src/cli/templates/base-config.yaml`. Any fields not specified in your configuration will be populated with the defaults from this template.
 
-Example configuration for the `chatbot` service using a local Ollama model and an agent spec from `--agents`:
+Example configuration for the `chatbot` service using a local Ollama model and agent specs from `services.chat_app.agents_dir`:
 
 ```yaml
 name: my_archi
@@ -79,22 +96,24 @@ data_manager:
 
 Agent specs are Markdown files (see `examples/agents/`) with YAML frontmatter for `name` and `tools`, and the prompt in the Markdown body.
 
-<details>
+> **Using OpenAI, Anthropic, Gemini, OpenRouter, or a non-Ollama local server?** This quickstart uses Ollama for the first deployment path. For provider-specific startup snippets (including required secrets and config), see [Models & Providers](models_providers.md#quick-start-by-provider).
+
+<details markdown="1">
 <summary>Explanation of configuration parameters</summary>
 
 - `name`: Name of your Archi deployment.
 - `data_manager`: Settings related to data ingestion and the vector store.
-  - `sources.links.input_lists`: Lists of URLs to seed the deployment.
-  - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
-  - `embedding_name`: Embedding model used for vectorization.
-  - `chunk_size`: Controls how documents are split prior to embedding.
+- `data_manager.sources.links.input_lists`: Lists of URLs to seed the deployment.
+- `data_manager.sources.<source>.visible`: Controls whether content from a given source is surfaced to end users (defaults to `true`).
+- `data_manager.embedding_name`: Embedding model used for vectorization.
+- `data_manager.chunk_size`: Controls how documents are split prior to embedding.
 - `services`: Settings for individual services/interfaces.
-  - `chat_app.agent_class`: Agent class to run (pipeline class name).
-  - `chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
-  - `chat_app.default_provider`/`chat_app.default_model`: Default provider/model for chat when no UI override is set.
-  - `chat_app.providers.local`: Ollama/local provider configuration.
-  - `chat_app`: Chat interface configuration, including hostname and descriptive metadata.
-  - `vectorstore.backend`: Vector store backend (`postgres` with pgvector).
+- `services.chat_app.agent_class`: Agent class to run (pipeline class name).
+- `services.chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
+- `services.chat_app.default_provider` and `services.chat_app.default_model`: Default provider/model for chat when no UI override is set.
+- `services.chat_app.providers.local`: Ollama/local provider configuration.
+- `services.chat_app`: Chat interface configuration, including hostname and descriptive metadata.
+- `services.vectorstore.backend`: Vector store backend (`postgres` with pgvector).
 
 </details>
 
@@ -115,35 +134,25 @@ echo "PG_PASSWORD=my_strong_password" > ~/.secrets.env
 If you are not using open-source models, supply the relevant API credentials:
 
 - `OPENAI_API_KEY`: OpenAI API key.
-- `OPENROUTER_API_KEY`: OpenRouter API key (for `OpenRouterLLM`).
+- `OPENROUTER_API_KEY`: OpenRouter API key.
 - `OPENROUTER_SITE_URL`: Optional site URL for OpenRouter attribution.
 - `OPENROUTER_APP_NAME`: Optional app name for OpenRouter attribution.
 - `ANTHROPIC_API_KEY`: Anthropic API key.
+- `GOOGLE_API_KEY`: Google Gemini API key.
 - `HUGGINGFACEHUB_API_TOKEN`: HuggingFace access token (for private models or embeddings).
 
 Other services may require additional secrets; see the [Secrets Management](secrets.md) guide for a complete reference.
 
-## Creating an Archi Deployment
+## Creating an Archi Deployment with Ollama
 
-Create your deployment with the CLI. A CPU-only deployment with a local Ollama model:
-
-```bash
-archi create -n my-archi \
-  --config examples/deployments/basic-ollama/config.yaml \
-  --env-file .secrets.env \
-  --services chatbot \
-  --agents examples/agents
-```
-
-To use GPU acceleration, add `--gpu-ids`:
+Create your deployment with the CLI. A deployment with a local Ollama model (make sure you specify in the `config.yaml` the URL of your Ollama instance):
 
 ```bash
-archi create -n my-archi \
+archi create --name my-archi \
   --config examples/deployments/basic-ollama/config.yaml \
+  --podman \
   --env-file .secrets.env \
-  --services chatbot \
-  --agents examples/agents \
-  --gpu-ids all
+  --services chatbot
 ```
 
 | Flag | Description |
@@ -152,17 +161,15 @@ archi create -n my-archi \
 | `--config` / `-c` | Path to configuration file |
 | `--env-file` / `-e` | Path to the secrets `.env` file |
 | `--services` / `-s` | Comma-separated services to deploy |
-| `--agents` / `-a` | **(Required)** Path to a directory of agent markdown files |
-| `--gpu-ids` | GPU IDs to use (e.g., `0`, `0,1`, or `all`) |
 | `--podman` | Use Podman instead of Docker |
 
-> **Note:** By default the deployment uses only the link sources in your config's `data_manager.sources.links.input_lists`. To include other sources (git, JIRA, etc.), use the `--sources` flag and add their config under `data_manager.sources`.
+Agent specs are loaded from `services.chat_app.agents_dir` in the config.
 
 <details>
 <summary>Example output</summary>
 
 ```bash
-archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all --agents examples/agents
+archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot
 ```
 
 ```
@@ -189,25 +196,29 @@ The first deployment builds the container images from scratch (which may take a 
 
 > **Tip:** Having issues? Run the command with `-v 4` to enable DEBUG-level logging.
 
-### A note about multiple configurations
-
-When multiple configuration files are passed, their `services` sections must remain consistent, otherwise the deployment fails. The current use cases for multiple configurations include swapping pipelines/prompts dynamically via the chat app and maintaining separate benchmarking configurations.
-
 ### Verifying a deployment
 
-List running deployments with:
+Run these checks after `archi create`:
+
+**Step 1: Confirm deployment registration**
 
 ```bash
 archi list-deployments
 ```
 
-You should see output similar to:
+You should see your deployment name (for example `my-archi`).
 
-```text
-Existing deployments:
+**Step 2: Confirm services are running with your container runtime**
+
+```bash
+podman ps
+# or: docker ps
 ```
 
-(Additional details will follow for each deployment.)
+You should see containers for at least `chatbot` and `postgres`.
+
+**Step 3: Open the chat app URL printed by the CLI (default `http://localhost:7861`) and verify the UI loads.**
+
 
 ---
 

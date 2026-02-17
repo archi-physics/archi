@@ -4,6 +4,7 @@ import time
 import uuid
 
 from langchain.agents import create_agent
+from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage, SystemMessage
 try:
     from langchain_core.messages import BaseMessageChunk
@@ -12,6 +13,7 @@ except ImportError:
 from langgraph.graph.state import CompiledStateGraph
 
 from src.archi.pipelines.agents.utils.prompt_utils import read_prompt
+from src.archi.pipelines.agents.utils.history_utils import infer_speaker
 from src.archi.providers import get_model
 from src.archi.providers.base import ProviderType
 from src.archi.utils.output_dataclass import PipelineOutput
@@ -900,9 +902,55 @@ class BaseReActAgent:
         """Build and returns static middleware defined in the config."""
         return []
 
+    def _store_documents(self, stage: str, docs: Sequence[Document]) -> None:
+        """Centralised helper used by tools to record documents into the active memory."""
+        memory = self.active_memory
+        if not memory:
+            return
+        # Prefer memory convenience method if available
+        try:
+            logger.debug("Recording %d documents from stage '%s' via record_documents", len(docs), stage)
+            memory.record_documents(stage, docs)
+        except Exception:
+            # fallback to explicit record + note
+            memory.record(stage, docs)
+            memory.note(f"{stage} returned {len(list(docs))} document(s).")
+
+    def _prepare_inputs(self, history: Any, **kwargs) -> Dict[str, Any]:
+        """Create list of messages using LangChain's formatting."""
+        history = history or []
+        history_messages = [infer_speaker(msg[0])(msg[1]) for msg in history]
+        return {"history": history_messages}
+
     def _prepare_agent_inputs(self, **kwargs) -> Dict[str, Any]:
-        """Subclasses must implement to provide agent input payloads."""
-        raise NotImplementedError(f"{self.__class__.__name__} must implement _prepare_agent_inputs")
+        """Prepare agent state and formatted inputs shared by invoke/stream."""
+        memory = self.start_run_memory()
+
+        vectorstore = kwargs.get("vectorstore")
+        if vectorstore and hasattr(self, "_update_vector_retrievers"):
+            self._update_vector_retrievers(vectorstore)  # type: ignore[call-arg]
+        elif vectorstore is None:
+            if hasattr(self, "_vector_retrievers"):
+                self._vector_retrievers = None  # type: ignore[attr-defined]
+            if hasattr(self, "_vector_tools"):
+                self._vector_tools = None  # type: ignore[attr-defined]
+
+        extra_tools = None
+        if hasattr(self, "_vector_tools"):
+            extra_tools = self._vector_tools if self._vector_tools else None  # type: ignore[attr-defined]
+
+        self.refresh_agent(extra_tools=extra_tools)
+
+        inputs = self._prepare_inputs(history=kwargs.get("history"))
+        history_messages = inputs["history"]
+        if history_messages:
+            memory.note(f"History contains {len(history_messages)} message(s).")
+            last_message = history_messages[-1]
+            content = self._message_content(last_message)
+            if content:
+                snippet = content if len(content) <= 200 else f"{content[:197]}..."
+                memory.note(f"Latest user message: {snippet}")
+        return {"messages": history_messages}
 
     def _metadata_from_agent_output(self, answer_output: Dict[str, Any]) -> Dict[str, Any]:
         """Hook for subclasses to enrich metadata returned to callers."""

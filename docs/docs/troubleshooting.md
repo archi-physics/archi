@@ -37,7 +37,7 @@ ss -tlnp | grep 7861
 
 1. Use `--gpu-ids` to restrict which GPUs are used:
    ```bash
-   archi create -n myapp --agents agents/ -c config.yaml --gpu-ids 0
+   archi create -n myapp -c config.yaml --gpu-ids 0
    ```
 
 2. Switch to a smaller model or use CPU-only mode (omit `--gpu-ids`).
@@ -105,7 +105,7 @@ docker ps --filter "name=archi-myapp"
 
 1. **No data ingested**: Check the data viewer to verify documents exist.
 2. **Wrong provider config**: Verify your API key is set and the provider/model names are correct.
-3. **Retrieval issues**: Check `data_manager.retrieval` settings — `top_k` may be too low or similarity threshold too high.
+3. **Retrieval issues**: Check `data_manager.retrievers.hybrid_retriever` settings — `num_documents_to_retrieve` may be too low, or `bm25_weight`/`semantic_weight` may need tuning.
 
 Enable verbose logging by checking container logs:
 ```bash
@@ -120,7 +120,7 @@ docker logs -f archi-myapp-chat
 
 **Checks**:
 
-1. Ensure the `CHAT_SECRET_KEY` environment variable is set in your `.secrets.env`.
+1. Ensure `FLASK_UPLOADER_APP_SECRET_KEY` is set in your `.secrets.env` for stable session behavior.
 2. Verify postgres is running and accessible.
 3. Check that auth tables were initialized — the chat service creates them on first startup.
 
@@ -158,7 +158,7 @@ archi list-deployments
 
 Check services for a specific deployment:
 ```bash
-archi list-services -n <deployment-name>
+archi list-services
 ```
 
 ---

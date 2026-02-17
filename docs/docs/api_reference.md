@@ -4,6 +4,13 @@ REST API endpoints for the Archi chat application. All endpoints are prefixed wi
 
 > **Note:** For the CLI reference, see [CLI Reference](cli_reference.md). For the configuration YAML schema, see [Configuration Reference](configuration.md).
 
+## How to Read This Page
+
+- Base URL is your running chat service (for example `http://localhost:7861`).
+- Most `/api/*` endpoints require an authenticated session.
+- Endpoints marked **Admin only** require an admin user.
+- Authentication routes (`/login`, `/logout`, `/auth/user`) are not under `/api/`.
+
 ---
 
 ## Chat
@@ -132,7 +139,7 @@ Get static (deploy-time) configuration.
 ```json
 {
   "deployment_name": "my-archi",
-  "embedding_model": "text-embedding-ada-002",
+  "embedding_model": "text-embedding-3-small",
   "available_pipelines": ["QAPipeline", "CMSCompOpsAgent"],
   "available_models": ["gpt-4o", "claude-3-opus"],
   "auth_enabled": true,

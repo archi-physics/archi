@@ -45,5 +45,9 @@ include = ["src*"]
 requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+addopts = "-v --tb=short"
+
 [project.urls]
 "Homepage" = "https://github.com/archi-physics/archi"

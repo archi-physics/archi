@@ -19,8 +19,8 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_REPOSITORIES: Sequence[str] = (
-    "archi/archi-python-base",
-    "archi/archi-pytorch-base",
+    "a2rchi/a2rchi-python-base",
+    "a2rchi/a2rchi-pytorch-base",
 )
 
 

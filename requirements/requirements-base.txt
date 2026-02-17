@@ -1,3 +1,5 @@
+# Base Python dependencies shared by all service images.
+# Changes here trigger a base-image rebuild in CI.
 backoff==2.2.1
 beautifulsoup4==4.12.3 
 clickhouse-connect==0.6.6

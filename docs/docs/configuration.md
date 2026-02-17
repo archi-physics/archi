@@ -50,6 +50,7 @@ The main chat interface.
 | `agents_dir` | string | — | Path to agent markdown files |
 | `default_provider` | string | `local` | Default LLM provider |
 | `default_model` | string | `llama3.2` | Default model |
+| `tools` | dict | `{}` | Agent-class-specific tool settings (for example `tools.monit.url`) |
 | `trained_on` | string | — | Description shown in the chat UI |
 | `hostname` | string | `localhost` | Public hostname for the chat interface |
 | `port` | int | `7861` | Internal container port |
@@ -218,43 +219,30 @@ data_manager:
 
 ---
 
-## `archi`
+## Agent Configuration Model
 
-Defines pipelines, model routing, and MCP servers.
+Archi no longer uses a top-level `archi:` block in standard deployment YAML.
 
-### Pipelines
+Agent behavior is defined by:
 
-```yaml
-archi:
-  pipelines:
-    - CMSCompOpsAgent
-    - QAPipeline
-  pipeline_map:
-    CMSCompOpsAgent:
-      recursion_limit: 50
-```
+- `services.chat_app.agent_class`: which pipeline class runs (for example `CMSCompOpsAgent`)
+- `services.chat_app.agents_dir`: where agent spec markdown files live
+- agent specs (`*.md`): selected tool subset (`tools`) and system prompt body
+- `services.chat_app.tools`: optional agent-class-specific tool settings
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `pipelines` | list | Pipeline classes to load |
-| `pipeline_map` | dict | Per-pipeline configuration (prompts, models, limits) |
-
-### MCP Servers
+Example:
 
 ```yaml
-archi:
-  mcp_servers:
-    my_server:
-      transport: "stdio"
-      command: "uvx"
-      args:
-        - "mcp-server-example"
-    web_search:
-      transport: "sse"
-      url: "http://localhost:8080/sse"
+services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    tools:
+      monit:
+        url: https://monit-grafana.cern.ch
 ```
 
-See [Agents & Tools — MCP Integration](agents_tools.md#mcp-integration) for details.
+See [Agents & Tools](agents_tools.md) for agent spec format and tool selection.
 
 ---
 
@@ -301,13 +289,6 @@ data_manager:
   embedding_name: OpenAIEmbeddings
   chunk_size: 1000
   chunk_overlap: 0
-
-archi:
-  pipelines:
-    - CMSCompOpsAgent
-  pipeline_map:
-    CMSCompOpsAgent:
-      recursion_limit: 50
 ```
 
 > **Tip:** For the full base template with all defaults, see `src/cli/templates/base-config.yaml` in the repository.

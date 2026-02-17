@@ -1,10 +1,6 @@
 # Data Sources
 
-Archi ingests content from a variety of **data sources** into the PostgreSQL-backed vector store used for document retrieval. Sources are enabled at deploy time with the `--sources` flag and configured in the `data_manager` section of your configuration file.
-
-```bash
-archi create [...] --sources git,jira,redmine
-```
+Archi ingests content from a variety of **data sources** into the PostgreSQL-backed vector store used for document retrieval. Sources are configured in `data_manager.sources` in your YAML configuration.
 
 > **Note:** The `links` source is always enabled by default — you do not need to pass it explicitly.
 
@@ -68,7 +64,7 @@ data_manager:
               max_depth: 2
 ```
 
-Deploy with `--sources sso` and prefix protected URLs with `sso-`:
+With `sso.enabled: true`, prefix protected URLs with `sso-`:
 
 ```
 sso-https://example.com/protected/page
@@ -83,7 +79,7 @@ SSO_PASSWORD=password
 
 ### Running
 
-Link scraping is automatically enabled — no extra flags are needed unless the links are SSO-protected.
+Link scraping is controlled by your config (`data_manager.sources.links.enabled`).
 
 ---
 
@@ -113,11 +109,7 @@ GIT_USERNAME=your_username
 GIT_TOKEN=your_token
 ```
 
-### Running
-
-```bash
-archi create [...] --sources git
-```
+Once enabled in config, deploy normally with `archi create --config <config.yaml> --services <...>`.
 
 ---
 
@@ -165,11 +157,7 @@ data_manager:
 JIRA_PAT=<your_jira_personal_access_token>
 ```
 
-### Running
-
-```bash
-archi create [...] --sources jira
-```
+Once enabled in config, deploy normally with `archi create --config <config.yaml> --services <...>`.
 
 ---
 
@@ -195,11 +183,7 @@ REDMINE_USER=...
 REDMINE_PW=...
 ```
 
-### Running
-
-```bash
-archi create [...] --sources redmine
-```
+Once enabled in config, deploy normally with `archi create --config <config.yaml> --services <...>`.
 
 > To automate email replies to resolved tickets, also enable the `redmine-mailer` service. See [Services](services.md).
 
