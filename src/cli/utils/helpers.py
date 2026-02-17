@@ -9,7 +9,6 @@ import click
 import yaml
 
 from src.cli.service_registry import service_registry
-from src.cli.source_registry import source_registry
 from src.cli.utils.service_builder import ServiceBuilder
 from src.utils.logging import get_logger
 
@@ -131,25 +130,6 @@ def warn_if_template_mismatch() -> None:
     )
     if not click.confirm(message, default=False):
         raise click.ClickException("Aborted due to template mismatch.")
-
-def parse_sources_option(ctx, param, value):
-    """Parse comma-separated data sources list"""
-    if not value:
-        return []
-    
-    available_sources = [
-        name for name in source_registry.names() if name != 'links'
-    ]
-    sources = [s.strip() for s in value.split(',')]
-    
-    invalid_sources = [s for s in sources if s not in available_sources]
-    if invalid_sources:
-        raise click.BadParameter(
-            f'Invalid data sources: {", ".join(invalid_sources)}. '
-            f'Available: {", ".join(available_sources)}'
-        )
-    
-    return sources
 
 def _infer_host_mode_from_compose(compose_data: Dict[str, Any]) -> bool:
     services = compose_data.get("services", {}) or {}

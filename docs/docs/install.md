@@ -14,7 +14,7 @@ Archi is deployed using a Python-based CLI onto containers. It requires:
 Clone the Archi repository:
 
 ```bash
-git clone https://github.com/mit-submit/archi.git
+git clone https://github.com/archi-physics/archi.git
 ```
 
 Check out the latest stable tag (recommended for users; stay on `main` only if you're actively developing):
@@ -43,7 +43,7 @@ The command prints the path to the `archi` executable.
 
 ```bash
 # Clone the repository
-git clone https://github.com/mit-submit/archi.git
+git clone https://github.com/archi-physics/archi.git
 cd archi
 export ARCHI_DIR=$(pwd)
 

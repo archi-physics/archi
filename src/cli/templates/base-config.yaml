@@ -75,6 +75,8 @@ services:
     agents_dir: "{{ services.chat_app.agents_dir | default('', true) }}"
     default_provider: {{ services.chat_app.default_provider | default("local", true) }}
     default_model: {{ services.chat_app.default_model | default("llama3.2", true) }}
+    skills_dir: "{{ services.chat_app.skills_dir | default('', true) }}"
+    tools: {{ services.chat_app.tools | default({}, true) | tojson }}
     prompts: {{ services.chat_app.prompts | default({}, true) }}
     providers:
       local:

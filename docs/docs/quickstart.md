@@ -37,7 +37,24 @@ See the [User Guide](user_guide.md) for detailed information about each service 
 
 ## Pipelines
 
-Archi supports several pipelines (agent classes and classic pipelines). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.
+Archi supports several pipelines (agentic and not). The active agent class is configured per service, and the agent prompt/tools are defined in agent markdown files.
+
+Example agent spec file (`examples/agents/default.md`):
+
+```markdown
+---
+name: CMS CompOps Default
+tools:
+  - search_local_files
+  - search_metadata_index
+  - list_metadata_schema
+  - fetch_catalog_document
+  - search_vectorstore_hybrid
+---
+
+You are a CMS CompOps assistant.
+Use tools to gather evidence before answering, and keep responses concise.
+```
 
 ## Configuration
 
@@ -79,22 +96,24 @@ data_manager:
 
 Agent specs are Markdown files (see `examples/agents/`) with YAML frontmatter for `name` and `tools`, and the prompt in the Markdown body.
 
-<details>
+> **Using OpenAI, Anthropic, Gemini, OpenRouter, or a non-Ollama local server?** This quickstart uses Ollama for the first deployment path. For provider-specific startup snippets (including required secrets and config), see [Models & Providers](models_providers.md#quick-start-by-provider).
+
+<details markdown="1">
 <summary>Explanation of configuration parameters</summary>
 
 - `name`: Name of your Archi deployment.
 - `data_manager`: Settings related to data ingestion and the vector store.
-  - `sources.links.input_lists`: Lists of URLs to seed the deployment.
-  - `sources.<name>.visible`: Controls whether content from a given source should be surfaced to end users (defaults to `true`).
-  - `embedding_name`: Embedding model used for vectorization.
-  - `chunk_size`: Controls how documents are split prior to embedding.
+- `data_manager.sources.links.input_lists`: Lists of URLs to seed the deployment.
+- `data_manager.sources.<source>.visible`: Controls whether content from a given source is surfaced to end users (defaults to `true`).
+- `data_manager.embedding_name`: Embedding model used for vectorization.
+- `data_manager.chunk_size`: Controls how documents are split prior to embedding.
 - `services`: Settings for individual services/interfaces.
-  - `chat_app.agent_class`: Agent class to run (pipeline class name).
-  - `chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
-  - `chat_app.default_provider`/`chat_app.default_model`: Default provider/model for chat when no UI override is set.
-  - `chat_app.providers.local`: Ollama/local provider configuration.
-  - `chat_app`: Chat interface configuration, including hostname and descriptive metadata.
-  - `vectorstore.backend`: Vector store backend (`postgres` with pgvector).
+- `services.chat_app.agent_class`: Agent class to run (pipeline class name).
+- `services.chat_app.agents_dir`: Local path to agent markdown files (copied into the deployment).
+- `services.chat_app.default_provider` and `services.chat_app.default_model`: Default provider/model for chat when no UI override is set.
+- `services.chat_app.providers.local`: Ollama/local provider configuration.
+- `services.chat_app`: Chat interface configuration, including hostname and descriptive metadata.
+- `services.vectorstore.backend`: Vector store backend (`postgres` with pgvector).
 
 </details>
 
@@ -115,38 +134,42 @@ echo "PG_PASSWORD=my_strong_password" > ~/.secrets.env
 If you are not using open-source models, supply the relevant API credentials:
 
 - `OPENAI_API_KEY`: OpenAI API key.
-- `OPENROUTER_API_KEY`: OpenRouter API key (for `OpenRouterLLM`).
+- `OPENROUTER_API_KEY`: OpenRouter API key.
 - `OPENROUTER_SITE_URL`: Optional site URL for OpenRouter attribution.
 - `OPENROUTER_APP_NAME`: Optional app name for OpenRouter attribution.
 - `ANTHROPIC_API_KEY`: Anthropic API key.
+- `GOOGLE_API_KEY`: Google Gemini API key.
 - `HUGGINGFACEHUB_API_TOKEN`: HuggingFace access token (for private models or embeddings).
 
 Other services may require additional secrets; see the [User Guide](user_guide.md) for details.
 
-## Creating an Archi Deployment
+## Creating an Archi Deployment with Ollama
 
-Create your deployment with the CLI:
+Create your deployment with the CLI. A deployment with a local Ollama model (make sure you specify in the `config.yaml` the URL of your Ollama instance):
 
 ```bash
-archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+archi create --name my-archi \
+  --config examples/deployments/basic-ollama/config.yaml \
+  --podman \
+  --env-file .secrets.env \
+  --services chatbot
 ```
 
-This command specifies:
+| Flag | Description |
+|------|-------------|
+| `--name` / `-n` | Deployment name |
+| `--config` / `-c` | Path to configuration file |
+| `--env-file` / `-e` | Path to the secrets `.env` file |
+| `--services` / `-s` | Comma-separated services to deploy |
+| `--podman` | Use Podman instead of Docker |
 
-- `--name`: Deployment name.
-- `--config`: Path to the configuration file.
-- `--podman`: Use Podman for container management (`docker` is the default).
-- `--env-file`: Path to the secrets file.
-- `--services`: Services to deploy (only the `chatbot` service in this example but others can be included separated by commas).
-- Agent specs are loaded from `services.chat_app.agents_dir` in the config.
-
-Note that this command will create a deployment using only the link sources specified in the `data_manager.sources.links.input_lists` by default, if other sources (such as git-based documentation or pages under sso) want to be included they must be included using the `--sources` flag and in the configuration file.
+Agent specs are loaded from `services.chat_app.agents_dir` in the config.
 
 <details>
 <summary>Example output</summary>
 
 ```bash
-archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot --gpu-ids all
+archi create --name my-archi --config examples/deployments/basic-ollama/config.yaml --podman --env-file .secrets.env --services chatbot
 ```
 
 ```
@@ -173,22 +196,45 @@ The first deployment builds the container images from scratch (which may take a 
 
 > **Tip:** Having issues? Run the command with `-v 4` to enable DEBUG-level logging.
 
-### A note about multiple configurations
-
-When multiple configuration files are passed, their `services` sections must remain consistent, otherwise the deployment fails. The current use cases for multiple configurations include swapping pipelines/prompts dynamically via the chat app and maintaining separate benchmarking configurations.
-
 ### Verifying a deployment
 
-List running deployments with:
+Run these checks after `archi create`:
+
+**Step 1: Confirm deployment registration**
 
 ```bash
 archi list-deployments
 ```
 
-You should see output similar to:
+You should see your deployment name (for example `my-archi`).
 
-```text
-Existing deployments:
+**Step 2: Confirm services are running with your container runtime**
+
+```bash
+podman ps
+# or: docker ps
 ```
 
-(Additional details will follow for each deployment.)
+You should see containers for at least `chatbot` and `postgres`.
+
+**Step 3: Open the chat app URL printed by the CLI (default `http://localhost:7861`) and verify the UI loads.**
+
+
+---
+
+## Next Steps
+
+Once your deployment is running:
+
+- **Chat UI**: Open `http://localhost:7861` in your browser to start chatting.
+- **Data Viewer**: Navigate to the `/data` page in the chat UI to browse ingested documents.
+- **Upload Documents**: If you deployed the `uploader` service, access the upload interface at its configured port.
+
+From here, explore the rest of the documentation:
+
+- [User Guide](user_guide.md) — overview of all capabilities
+- [Agents & Tools](agents_tools.md) — customize agent behavior and prompts
+- [Models & Providers](models_providers.md) — switch to cloud LLMs (OpenAI, Anthropic, Gemini)
+- [Configuration Reference](configuration.md) — full YAML config schema
+- [CLI Reference](cli_reference.md) — all CLI commands and options
+- [Troubleshooting](troubleshooting.md) — common issues and fixes
