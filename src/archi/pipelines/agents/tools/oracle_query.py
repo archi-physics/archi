@@ -202,14 +202,28 @@ def create_oracle_query_tool(
                     "Try a simpler query or add row limits."
                 )
             logger.warning("Oracle query error on '%s': %s", db_name, e)
-            hint = ""
+            schema_filter = cfg.allowed_schemas
             if "ORA-00942" in err_str:
-                hint = " Hint: use the oracle_schema tool to discover available table names before querying."
-            elif "ORA-00904" in err_str:
-                hint = " Hint: use the oracle_schema tool with table_name to check available column names."
-            elif "ORA-01722" in err_str:
-                hint = " Hint: use the oracle_schema tool to check column data types — you may be comparing a NUMBER column with a string."
-            return f"Oracle query error: {err_str}{hint}"
+                tables = _list_tables(manager, db_name, schema_filter)
+                return (
+                    f"Oracle query error: {err_str}\n\n"
+                    f"{tables}\n\n"
+                    "Please correct the table name and try again."
+                )
+            if "ORA-00904" in err_str:
+                return (
+                    f"Oracle query error: {err_str}\n\n"
+                    "Use describe_oracle_schema to check available columns "
+                    "and correct the column name."
+                )
+            if "ORA-01722" in err_str:
+                return (
+                    f"Oracle query error: {err_str}\n\n"
+                    "A NUMBER column is being compared with a string. "
+                    "Use describe_oracle_schema to check column types "
+                    "and correct the query."
+                )
+            return f"Oracle query error: {err_str}"
 
         if not rows:
             return "Query returned 0 rows."
@@ -313,6 +327,7 @@ def create_oracle_schema_tool(
         return _describe_columns(manager, db_name, schema_part, table_part, schema_filter)
 
     return _describe_oracle_schema
+
 
 
 def _list_tables(
