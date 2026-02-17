@@ -207,6 +207,7 @@ jobs:
           config-path: tests/pr_preview_config/pr_preview_config.yaml
           config-destination: configs/ci/ci_config.generated.yaml
           services: chatbot
+          agents: CMSCompOpsAgent
           hostmode: "true"
           wait-url: http://localhost:2786/api/health
           base-url: http://localhost:2786
