@@ -268,6 +268,9 @@ if ! command -v ollama >/dev/null 2>&1; then
   echo "ollama CLI not found; install it or set a different model." >&2
   exit 1
 fi
+info "Ensuring Ollama model '${SMOKE_OLLAMA_MODEL}' is available..."
+OLLAMA_HOST="${SMOKE_OLLAMA_URL}" ollama pull "${SMOKE_OLLAMA_MODEL}"
+fi
 
 DEPLOYMENT_DIR="${ARCHI_DIR}/archi-${DEPLOYMENT_NAME}"
 if [[ -d "${DEPLOYMENT_DIR}" ]]; then
