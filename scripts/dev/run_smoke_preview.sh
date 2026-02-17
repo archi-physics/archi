@@ -171,6 +171,14 @@ local_cfg = (chat_cfg.get("providers") or {}).get("local") or {}
 print(local_cfg.get("base_url", "http://localhost:11434"))
 PY
 )"
+<<<<<<< add-vllm-provider
+  fi
+  if [[ -z "${SMOKE_OLLAMA_MODEL}" ]]; then
+    echo "Unable to determine Ollama model from ${CONFIG_DEST}. Set SMOKE_OLLAMA_MODEL." >&2
+    exit 1
+  fi
+  CONFIG_DEST="${CONFIG_DEST}" SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL}" SMOKE_OLLAMA_URL="${SMOKE_OLLAMA_URL}" python - <<'PY'
+=======
 fi
 if [[ -z "${SMOKE_OLLAMA_HOST}" ]]; then
   SMOKE_OLLAMA_HOST="${SMOKE_OLLAMA_URL}"
@@ -180,6 +188,7 @@ if [[ -z "${SMOKE_OLLAMA_MODEL}" ]]; then
   exit 1
 fi
 CONFIG_DEST="${CONFIG_DEST}" SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL}" SMOKE_OLLAMA_URL="${SMOKE_OLLAMA_URL}" python - <<'PY'
+>>>>>>> dev
 import os
 import yaml
 
@@ -213,6 +222,14 @@ with open(config_dest, "w", encoding="utf-8") as handle:
     yaml.safe_dump(cfg, handle, sort_keys=False)
 PY
 
+<<<<<<< add-vllm-provider
+  if ! command -v ollama >/dev/null 2>&1; then
+    echo "ollama CLI not found; install it or set a different model." >&2
+    exit 1
+  fi
+  info "Ensuring Ollama model '${SMOKE_OLLAMA_MODEL}' is available..."
+  OLLAMA_HOST="${SMOKE_OLLAMA_URL}" ollama pull "${SMOKE_OLLAMA_MODEL}"
+=======
 AGENTS_DIR="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
 import os
 import yaml
@@ -267,6 +284,7 @@ PY
 if ! command -v ollama >/dev/null 2>&1; then
   echo "ollama CLI not found; install it or set a different model." >&2
   exit 1
+>>>>>>> dev
 fi
 
 DEPLOYMENT_DIR="${ARCHI_DIR}/archi-${DEPLOYMENT_NAME}"
