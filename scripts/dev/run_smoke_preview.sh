@@ -267,7 +267,6 @@ PY
 if ! command -v ollama >/dev/null 2>&1; then
   echo "ollama CLI not found; install it or set a different model." >&2
   exit 1
->>>>>>> dev
 fi
 
 DEPLOYMENT_DIR="${ARCHI_DIR}/archi-${DEPLOYMENT_NAME}"
