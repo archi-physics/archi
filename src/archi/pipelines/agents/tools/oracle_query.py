@@ -7,7 +7,7 @@ Provides two LangChain tools:
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from langchain.tools import tool
 
@@ -28,11 +28,44 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 
+_ORACLE_TYPE_NAMES = {
+    "DB_TYPE_VARCHAR": "VARCHAR2",
+    "DB_TYPE_CHAR": "CHAR",
+    "DB_TYPE_NVARCHAR": "NVARCHAR2",
+    "DB_TYPE_NUMBER": "NUMBER",
+    "DB_TYPE_DATE": "DATE",
+    "DB_TYPE_TIMESTAMP": "TIMESTAMP",
+    "DB_TYPE_CLOB": "CLOB",
+    "DB_TYPE_BLOB": "BLOB",
+    "DB_TYPE_RAW": "RAW",
+}
+
+
+def _type_label(type_obj: Any) -> str:
+    """Convert an oracledb type object to a readable label."""
+    name = getattr(type_obj, "name", None) or str(type_obj)
+    return _ORACLE_TYPE_NAMES.get(name, name)
+
+
+def _column_summary(cursor_description: Sequence[Tuple]) -> str:
+    """Build a one-line summary of column names and types from cursor.description."""
+    parts = []
+    for col in cursor_description:
+        col_name = col[0]
+        if len(col) > 1 and col[1] is not None:
+            col_type = _type_label(col[1])
+            parts.append(f"{col_name} {col_type}")
+        else:
+            parts.append(col_name)
+    return ", ".join(parts)
+
+
 def format_results_as_markdown(
     columns: List[str],
     rows: List[Tuple],
     *,
     max_chars: int = 4000,
+    cursor_description: Optional[Sequence[Tuple]] = None,
 ) -> str:
     """Render query results as a markdown table.
 
@@ -43,12 +76,20 @@ def format_results_as_markdown(
         return "Query returned 0 rows."
 
     total_rows = len(rows)
+    lines: List[str] = []
+
+    # Column type summary
+    if cursor_description:
+        summary = _column_summary(cursor_description)
+        lines.append(f"{total_rows} rows returned ({len(columns)} columns: {summary}).\n")
+    else:
+        lines.append(f"{total_rows} rows returned.\n")
 
     # Build header
     header = "| " + " | ".join(str(c) for c in columns) + " |"
     separator = "| " + " | ".join("---" for _ in columns) + " |"
-    lines = [header, separator]
-    base_len = len(header) + 1 + len(separator) + 1  # +1 for newlines
+    lines.extend([header, separator])
+    base_len = sum(len(l) + 1 for l in lines)
 
     shown = 0
     current_len = base_len
@@ -150,7 +191,8 @@ def create_oracle_query_tool(
             with manager.get_connection(db_name) as conn:
                 cursor = conn.cursor()
                 cursor.execute(safe_sql)
-                columns = [col[0] for col in cursor.description] if cursor.description else []
+                desc = cursor.description or []
+                columns = [col[0] for col in desc]
                 rows = cursor.fetchall()
         except Exception as e:
             err_str = str(e)
@@ -160,12 +202,19 @@ def create_oracle_query_tool(
                     "Try a simpler query or add row limits."
                 )
             logger.warning("Oracle query error on '%s': %s", db_name, e)
-            return f"Oracle query error: {err_str}"
+            hint = ""
+            if "ORA-00942" in err_str:
+                hint = " Hint: use the oracle_schema tool to discover available table names before querying."
+            elif "ORA-00904" in err_str:
+                hint = " Hint: use the oracle_schema tool with table_name to check available column names."
+            elif "ORA-01722" in err_str:
+                hint = " Hint: use the oracle_schema tool to check column data types — you may be comparing a NUMBER column with a string."
+            return f"Oracle query error: {err_str}{hint}"
 
         if not rows:
             return "Query returned 0 rows."
 
-        return format_results_as_markdown(columns, rows, max_chars=4000)
+        return format_results_as_markdown(columns, rows, max_chars=4000, cursor_description=desc)
 
     return _query_oracle_db
 
