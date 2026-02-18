@@ -950,6 +950,36 @@ class BaseReActAgent:
             if content:
                 snippet = content if len(content) <= 200 else f"{content[:197]}..."
                 memory.note(f"Latest user message: {snippet}")
+
+        # --- Token trimming based on model context window ---
+        try:
+            if hasattr(self.agent_llm, "get_num_tokens_from_messages"):
+
+                context_window = self._get_model_context_window()
+
+                safety_margin = int(context_window * 0.15)
+                max_prompt_tokens = context_window - safety_margin
+
+                logger.debug("Model: %s", getattr(self.agent_llm, "model", "unknown"))
+                logger.debug("Context window: %d", context_window)
+                logger.debug("Prompt token budget: %d", max_prompt_tokens)
+
+                while True:
+                    token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                    if token_count < max_prompt_tokens:
+                        break
+
+                    if len(history_messages) <= 1:
+                        break
+
+                    history_messages.pop(0)
+
+                logger.debug("Final trimmed token count: %d", token_count)
+
+        except Exception as e:
+            logger.debug("Token trimming skipped: %s", e)
+
         return {"messages": history_messages}
 
     def _metadata_from_agent_output(self, answer_output: Dict[str, Any]) -> Dict[str, Any]:
@@ -1020,3 +1050,29 @@ class BaseReActAgent:
             metadata=safe_metadata,
             final=final,
         )
+
+    def _get_model_context_window(self) -> Optional[int]:
+        """
+        Retrieve context_window from the configured provider + model
+        using the provider abstraction layer.
+        """
+        try:
+            if not self.default_provider or not self.default_model:
+                return None
+
+            from src.archi.providers import get_provider
+
+            # Get provider instance (no reconstruction hacks)
+            provider = get_provider(self.default_provider)
+
+            if not provider:
+                return None
+
+            model_info = provider.get_model_info(self.default_model)
+            if model_info:
+                return model_info.context_window
+
+        except Exception as e:
+            logger.debug("Could not determine context window: %s", e)
+
+        return 1e6
