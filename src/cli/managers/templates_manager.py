@@ -427,7 +427,7 @@ class TemplateManager:
             template_vars["rubrics"] = self._get_grader_rubrics(context.config_manager)
 
         # Pass vLLM model name from provider config to compose template
-        vllm_cfg = context.config_manager.config.get("archi", {}).get("providers", {}).get("vllm", {})
+        vllm_cfg = context.config_manager.config.get("services", {}).get("chat_app", {}).get("providers", {}).get("vllm", {})
         if vllm_cfg.get("default_model"):
             template_vars["vllm_model"] = vllm_cfg["default_model"]
         if vllm_cfg.get("tool_call_parser"):
