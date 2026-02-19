@@ -1,0 +1,12 @@
+# Prompt used to condense a chat history and a follow up question into a stand alone question. 
+# This is a very general prompt for condensing histories, so for base installs it will not need to be modified
+# 
+# All condensing prompts must have the following tags in them, which will be filled with the appropriate information:
+#      {chat_history}
+#      {question}
+#
+Given the following conversation between you (the AI named archi), a human user who needs help, and an expert, and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+
+Chat History: {history}
+Follow Up Input: {question}
+Standalone question:
