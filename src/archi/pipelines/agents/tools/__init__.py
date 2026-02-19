@@ -12,6 +12,8 @@ from .monit_opensearch import (
     create_monit_opensearch_search_tool,
     create_monit_opensearch_aggregation_tool,
 )
+from .oracle_connection import OracleConnectionManager
+from .oracle_query import create_oracle_query_tool, create_oracle_schema_tool
 
 __all__ = [
     "create_document_fetch_tool",
@@ -24,4 +26,7 @@ __all__ = [
     "MONITOpenSearchClient",
     "create_monit_opensearch_search_tool",
     "create_monit_opensearch_aggregation_tool",
+    "OracleConnectionManager",
+    "create_oracle_query_tool",
+    "create_oracle_schema_tool",
 ]

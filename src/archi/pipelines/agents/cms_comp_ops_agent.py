@@ -17,6 +17,9 @@ from src.archi.pipelines.agents.tools import (
     MONITOpenSearchClient,
     create_monit_opensearch_search_tool,
     create_monit_opensearch_aggregation_tool,
+    OracleConnectionManager,
+    create_oracle_query_tool,
+    create_oracle_schema_tool,
 )
 from src.archi.pipelines.agents.utils.skill_utils import load_skill
 
@@ -43,6 +46,10 @@ class CMSCompOpsAgent(BaseReActAgent):
         self._monit_client = None
         self._rucio_events_skill = None
         self._init_monit()
+
+        # Initialize Oracle connection manager (shared across query and schema tools)
+        self._oracle_manager = None
+        self._init_oracle()
 
         self.rebuild_static_tools()
         self.rebuild_static_middleware()
@@ -74,6 +81,20 @@ class CMSCompOpsAgent(BaseReActAgent):
             )
         else:
             logger.info("MONIT_GRAFANA_TOKEN not found; MONIT OpenSearch tools not available")
+
+    def _init_oracle(self) -> None:
+        """Initialize the Oracle connection manager if databases are configured."""
+        try:
+            oracle_dbs = self._chat_app_config.get("tools", {}).get("oracle_databases", {})
+            manager = OracleConnectionManager.from_config(oracle_dbs)
+            if manager is not None and manager.has_databases():
+                self._oracle_manager = manager
+                db_names = [d["name"] for d in manager.list_databases()]
+                logger.info("Oracle connection manager initialized for databases: %s", ", ".join(db_names))
+            else:
+                logger.info("No Oracle databases configured; Oracle tools not available")
+        except Exception as e:
+            logger.warning("Failed to initialize Oracle connection manager: %s", e)
 
     def get_tool_registry(self) -> Dict[str, Callable[[], Any]]:
         return {name: entry["builder"] for name, entry in self._tool_definitions().items()}
@@ -138,6 +159,17 @@ class CMSCompOpsAgent(BaseReActAgent):
                 "description": "Run aggregation queries on MONIT OpenSearch for CMS Rucio events.",
             }
 
+        # Only register Oracle tools if the connection manager was successfully initialized
+        if self._oracle_manager is not None and self._oracle_manager.has_databases():
+            defs["oracle_query"] = {
+                "builder": self._build_oracle_query_tool,
+                "description": "Run read-only SQL queries against configured Oracle databases.",
+            }
+            defs["oracle_schema"] = {
+                "builder": self._build_oracle_schema_tool,
+                "description": "Describe Oracle database schemas, tables, and columns.",
+            }
+
         return defs
 
     def _build_file_search_tool(self) -> Callable:
@@ -190,6 +222,14 @@ class CMSCompOpsAgent(BaseReActAgent):
             index="monit_prod_cms_rucio_raw_events*",
             skill=self._rucio_events_skill,
         )
+
+    def _build_oracle_query_tool(self) -> Callable:
+        """Build the Oracle SQL query tool."""
+        return create_oracle_query_tool(self._oracle_manager)
+
+    def _build_oracle_schema_tool(self) -> Callable:
+        """Build the Oracle schema description tool."""
+        return create_oracle_schema_tool(self._oracle_manager)
 
     # def _build_static_middleware(self) -> List[Callable]:
     #     """

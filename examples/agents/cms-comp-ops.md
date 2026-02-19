@@ -7,6 +7,10 @@ tools:
   - fetch_catalog_document
   - search_vectorstore_hybrid
   - mcp
+  - monit_opensearch_search
+  - monit_opensearch_aggregation
+  - oracle_query
+  - oracle_schema
 ---
 
 You are the CMS Comp Ops assistant. You help with operational questions, troubleshooting,

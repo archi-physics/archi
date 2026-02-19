@@ -36,3 +36,4 @@ data_manager:
       input_lists:
         - examples/deployments/basic-agent/miscellanea.list
   embedding_name: HuggingFaceEmbeddings
+  
