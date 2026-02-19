@@ -111,19 +111,113 @@ archi:
 
 The part after `vllm/` must match the HuggingFace model ID that vLLM is serving.
 
-#### vLLM service settings
+#### vLLM provider settings
+
+The vLLM provider is configured under `services.chat_app.providers.vllm` in your config YAML. At minimum you need `enabled` and `default_model`:
 
 ```yaml
 services:
-  vllm:
-    model: Qwen/Qwen3-8B      # Model to load (required)
-    tool_parser: hermes         # Tool-call parser backend (optional)
+  chat_app:
+    providers:
+      vllm:
+        enabled: true
+        base_url: http://localhost:8000/v1
+        default_model: "Qwen/Qwen3-8B"
+        tool_call_parser: hermes          # optional, default: hermes
+        models:
+          - "Qwen/Qwen3-8B"
 ```
 
-| Setting | Default | Description |
-|---|---|---|
-| `model` | `Qwen/Qwen2.5-7B-Instruct-1M` | HuggingFace model ID to serve |
-| `tool_parser` | `hermes` | Parser for structured tool calls. Common values: `hermes` (Qwen, Hermes models), `mistral`, `llama3_json` |
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Enable the vLLM provider |
+| `base_url` | string | `http://localhost:8000/v1` | vLLM server OpenAI-compatible endpoint |
+| `default_model` | string | `Qwen/Qwen2.5-7B-Instruct-1M` | HuggingFace model ID to serve |
+| `tool_call_parser` | string | `hermes` | Parser for structured tool calls (`hermes`, `mistral`, `llama3_json`) |
+| `models` | list | — | Available model IDs for the UI model selector |
+
+#### vLLM Server Tuning
+
+When archi manages the vLLM sidecar container (deployed via `--services vllm-server`), you can configure server launch arguments alongside the provider settings above. Each key is translated to a vLLM CLI flag at container startup. All keys are optional — when omitted, vLLM's own defaults apply.
+
+> **Note**: These keys only affect the managed vLLM sidecar container. If you are pointing `base_url` at an external vLLM server, configure that server directly instead.
+
+| Key | Type | Default | When to change |
+|---|---|---|---|
+| `gpu_memory_utilization` | float | `0.9` | Model barely fits in VRAM, or you want to reserve GPU memory for other processes |
+| `max_model_len` | int | model default | Reduce context window to lower memory usage, or increase it for long-document workloads |
+| `tensor_parallel_size` | int | `1` | Shard a large model across multiple GPUs |
+| `dtype` | string | `auto` | Force a specific weight precision (`float16`, `bfloat16`) instead of auto-detection |
+| `quantization` | string | none | Run quantized model weights (`awq`, `gptq`, `fp8`) to reduce memory |
+| `enforce_eager` | bool | `false` | Disable CUDA graph compilation to save memory at the cost of throughput |
+| `max_num_seqs` | int | `256` | Limit concurrent sequences to reduce memory pressure under high load |
+| `enable_prefix_caching` | bool | `true` | Disable KV cache prefix sharing if it causes issues with your model |
+
+##### Complete config example
+
+A single-GPU deployment with memory tuning:
+
+```yaml
+services:
+  chat_app:
+    providers:
+      vllm:
+        enabled: true
+        base_url: http://localhost:8000/v1
+        default_model: "Qwen/Qwen3-8B"
+        tool_call_parser: hermes
+        models:
+          - "Qwen/Qwen3-8B"
+        gpu_memory_utilization: 0.85
+        max_model_len: 8192
+```
+
+##### `engine_args` passthrough
+
+For any vLLM flag not covered by a named key above, use the `engine_args` map. Each entry is passed as `--<key> <value>` to the vLLM server. Keys use kebab-case matching vLLM's CLI flags. For boolean flags that take no argument (e.g. `--trust-remote-code`), use an empty string as the value. Do not duplicate flags that already have a named key above.
+
+```yaml
+services:
+  chat_app:
+    providers:
+      vllm:
+        engine_args:
+          swap-space: 8        # CPU swap space per GPU in GiB (default: 4)
+          seed: 42
+          trust-remote-code: "" # bare flag (no value) — use "" for boolean flags
+```
+
+##### Multi-GPU example
+
+Sharding a 30B model across 4 GPUs:
+
+```yaml
+services:
+  chat_app:
+    providers:
+      vllm:
+        enabled: true
+        base_url: http://localhost:8000/v1
+        default_model: "Qwen/Qwen3-30B-A3B-Instruct"
+        tool_call_parser: hermes
+        models:
+          - "Qwen/Qwen3-30B-A3B-Instruct"
+        gpu_memory_utilization: 0.92
+        tensor_parallel_size: 4
+        max_model_len: 16384
+        dtype: bfloat16
+        engine_args:
+          swap-space: 8
+```
+
+Deploy with all GPUs:
+
+```bash
+archi create -n my-deployment \
+  -c config.yaml \
+  --services chatbot,vllm-server \
+  --gpu-ids 0,1,2,3
+```
 
 ### Environment Variables
 
@@ -180,9 +274,16 @@ docker logs vllm-server-<deployment-name>
 
 Common causes:
 
-- **Insufficient VRAM**: The model doesn't fit in GPU memory. Try a smaller model or use `--gpu-ids` to add more GPUs.
+- **Insufficient VRAM**: The model doesn't fit in GPU memory. Options:
+    - Lower `gpu_memory_utilization` (e.g. `0.7`) to leave headroom for other processes
+    - Set `max_model_len` to a smaller value (e.g. `4096`) to reduce KV cache memory
+    - Add `quantization: awq` or `quantization: gptq` if the model has quantized weights available
+    - Set `enforce_eager: true` to disable CUDA graphs (saves memory, reduces throughput)
+    - Increase `tensor_parallel_size` and add more GPUs via `--gpu-ids`
+    - Try a smaller model
 - **Missing NVIDIA runtime**: Ensure the NVIDIA Container Toolkit is installed and configured.
 - **/dev/shm too small**: vLLM warns at startup if shared memory is below 1 GB. The container uses `ipc: host` by default, but if that is restricted, increase `shm_size`.
+- **Invalid engine argument**: If the vLLM log shows `unrecognized arguments`, check for typos in `engine_args` keys (must be kebab-case, e.g. `swap-space` not `swap_space`) or boolean flags that need an empty-string value (`""`).
 
 ### Chatbot can't reach vLLM
 
@@ -216,4 +317,4 @@ This means the vLLM server wasn't started with tool calling flags. If you are de
 
 ### Slow first response
 
-The first request after startup may be slow (30-60s) while vLLM compiles CUDA kernels and warms up. Subsequent requests will be significantly faster. The chatbot's `depends_on` health check ensures it doesn't send requests before vLLM is ready, but the health check only confirms the server is listening — not that the first compilation is complete.
+The first request after startup may be slow (30-60s) while vLLM compiles CUDA kernels and warms up. Subsequent requests will be significantly faster. The chatbot's `depends_on` health check ensures it doesn't send requests before vLLM is ready, but the health check only confirms the server is listening — not that the first compilation is complete. If startup compilation time is a problem, set `enforce_eager: true` to skip CUDA graph compilation (at the cost of lower throughput).

@@ -1,0 +1,55 @@
+# Basic configuration file for a Archi deployment
+# with a chat app interface and PostgreSQL with pgvector for document storage.
+# The LLM is used through an existing Ollama server.
+#
+# run with:
+# archi create --name my-archi-vllm --config examples/deployments/basic-vllm/config.yaml --services chatbot --hostmode 
+
+name: my_archi
+
+services:
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: qwen3:32b
+    providers:
+      vllm:
+        enabled: true
+        base_url: http://localhost:8000/v1 # make sure this matches your vllm server URL!
+        mode: ollama
+        default_model: "vllm:qwen3:8b" # make sure this matches a model you have downloaded locally with ollama
+        models:
+          - "vllm:Gemma 3:4B"
+          # - "vllm:Gemma 3:12B"
+          - "vllm:qwen3:8B-Instruct"
+          # - "vllm:Qwen3-30B-Instruct"
+        # --- vLLM server engine args (all optional) ---
+        # gpu_memory_utilization: 0.9  # fraction of GPU VRAM (0.0-1.0, default: 0.9)
+        # max_model_len: 8192          # cap context window to reduce memory
+        # tensor_parallel_size: 2      # shard model across N GPUs
+        # dtype: auto                  # weight precision (auto, float16, bfloat16)
+        # quantization: awq            # quantization method (awq, gptq, fp8)
+        # enforce_eager: false         # disable CUDA graphs to save memory
+        # max_num_seqs: 256            # max concurrent sequences
+        # enable_prefix_caching: true  # KV cache prefix sharing
+        # engine_args:                 # passthrough for any other vLLM flag
+        #   swap-space: 4              # CPU swap space per GPU in GiB
+        #   seed: 42
+    trained_on: "FASRC DOCS"
+    port: 7861
+    external_port: 7861
+  vectorstore:
+    backend: postgres # PostgreSQL with pgvector (only supported backend)
+  data_manager:
+    port: 7889
+    external_port: 7889
+    auth:
+      enabled: false # set to true and provide DM_API_TOKEN in .env for production
+
+data_manager:
+  sources:
+    links:
+      input_lists:
+        - config/sources.list
+  embedding_name: HuggingFaceEmbeddings

@@ -577,7 +577,20 @@ services:
         if [ "$$SHM_SIZE" -lt 1048576 ] 2>/dev/null; then
           echo "WARNING: /dev/shm is $$(( $$SHM_SIZE / 1024 ))MB — less than 1GB. Use ipc: host or increase shm_size for stable multi-GPU inference."
         fi
-        exec python3 -m vllm.entrypoints.openai.api_server --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}" --enable-auto-tool-choice --tool-call-parser "{{ vllm_tool_parser | default('hermes') }}"
+        exec python3 -m vllm.entrypoints.openai.api_server \
+          --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}" \
+          --enable-auto-tool-choice \
+          --tool-call-parser "{{ vllm_tool_parser | default('hermes') }}" \
+          {% if vllm_gpu_memory_utilization is defined %}--gpu-memory-utilization {{ vllm_gpu_memory_utilization }} {% endif %}\
+          {% if vllm_max_model_len is defined %}--max-model-len {{ vllm_max_model_len }} {% endif %}\
+          {% if vllm_tensor_parallel_size is defined %}--tensor-parallel-size {{ vllm_tensor_parallel_size }} {% endif %}\
+          {% if vllm_dtype is defined %}--dtype {{ vllm_dtype }} {% endif %}\
+          {% if vllm_quantization is defined %}--quantization {{ vllm_quantization }} {% endif %}\
+          {% if vllm_enforce_eager is defined and vllm_enforce_eager %}--enforce-eager {% endif %}\
+          {% if vllm_max_num_seqs is defined %}--max-num-seqs {{ vllm_max_num_seqs }} {% endif %}\
+          {% if vllm_enable_prefix_caching is defined and not vllm_enable_prefix_caching %}--no-enable-prefix-caching {% endif %}\
+          {% for key, val in vllm_engine_args.items() %}{% if val != '' %}--{{ key }} {{ val }} {% else %}--{{ key }} {% endif %}{% endfor %}
+
     ipc: host
     {% if host_mode -%}
     network_mode: host
