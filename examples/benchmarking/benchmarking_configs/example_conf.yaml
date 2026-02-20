@@ -12,22 +12,9 @@ data_manager:
   embedding_name: HuggingFaceEmbeddings
 
 services:
-  chat_app:
-    agent_class: QAPipeline
-    agents_dir: examples/agents
-    default_provider: local
-    default_model: gemma3
-    providers:
-      local:
-        enabled: true
-        base_url: http://localhost:7870 # make sure this matches your ollama server URL!
-        mode: ollama
-        default_model: "gemma3"
-        models:
-          - "gemma3"
-    prompts:
-      condense_prompt: examples/benchmarking/condense.prompt
-      chat_prompt: examples/benchmarking/qa.prompt
-
   benchmarking:
+    agent_class: CMSCompOpsAgent
+    agent_md_file: examples/agents/cms-comp-ops.md
+    provider: local
+    model: gemma3
     queries_path: examples/benchmarking/queries.json

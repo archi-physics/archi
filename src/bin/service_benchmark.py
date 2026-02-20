@@ -4,13 +4,15 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib import error as url_error
+from urllib import request as url_request
 
 import pandas as pd
 import yaml
 from datasets import Dataset
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from ragas import RunConfig, evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
@@ -18,7 +20,7 @@ from ragas.metrics import (answer_relevancy, context_precision, context_recall,
                            faithfulness)
 
 from src.archi.archi import archi
-from src.archi.pipelines.agents.agent_spec import AgentSpecError, select_agent_spec
+from src.archi.pipelines.agents.agent_spec import AgentSpecError, load_agent_spec
 from src.archi.providers import get_model
 from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
@@ -172,44 +174,63 @@ class Benchmarker:
 
         # for now it only uses one pipeline (the first one) but maybe later we make this work for mulitple
         logger.info(f"loaded new configuration: {self.current_config}")
-        pipeline = (
-            config.get("services", {}).get("benchmarking", {}).get("agent_class")
-            or config.get("services", {}).get("chat_app", {}).get("agent_class")
-            or config.get("services", {}).get("chat_app", {}).get("pipeline")
-            or "CMSCompOpsAgent"
-        )
-        chat_cfg = config.get("services", {}).get("chat_app", {}) if isinstance(config, dict) else {}
+        benchmark_cfg = config.get("services", {}).get("benchmarking", {}) if isinstance(config, dict) else {}
+        pipeline = benchmark_cfg.get("agent_class")
+        provider = benchmark_cfg.get("provider")
+        model = benchmark_cfg.get("model")
+        agent_md_file = benchmark_cfg.get("agent_md_file")
+        ollama_url = benchmark_cfg.get("ollama_url")
+        missing = [k for k, v in {
+            "agent_class": pipeline,
+            "provider": provider,
+            "model": model,
+            "agent_md_file": agent_md_file,
+        }.items() if not v]
+        if missing:
+            raise ValueError(
+                f"Missing required benchmarking runtime fields in services.benchmarking: {', '.join(missing)}"
+            )
+        if str(provider).lower() == "local" and not ollama_url:
+            raise ValueError(
+                "Missing required benchmarking runtime field in services.benchmarking: ollama_url (required when provider is local)"
+            )
+        if ollama_url:
+            os.environ["OLLAMA_HOST"] = str(ollama_url)
+
         agent_spec = None
-        agents_dir = chat_cfg.get("agents_dir")
-        if agents_dir:
-            try:
-                agent_spec = select_agent_spec(Path(agents_dir))
-            except AgentSpecError as exc:
-                logger.warning("Failed to load agent spec: %s", exc)
+        try:
+            agent_spec = load_agent_spec(Path(str(agent_md_file)))
+        except AgentSpecError as exc:
+            raise ValueError(f"Failed to load benchmark agent spec '{agent_md_file}': {exc}") from exc
         self.chain = archi(
             pipeline,
             agent_spec=agent_spec,
-            default_provider=chat_cfg.get("default_provider"),
-            default_model=chat_cfg.get("default_model"),
-            prompt_overrides=chat_cfg.get("prompts", {}),
+            default_provider=provider,
+            default_model=model,
+            prompt_overrides={},
         )
 
 
     def get_ragas_llm_evaluator(self):
         ragas_configs = self.config['services']['benchmarking']['mode_settings']['ragas_settings']
-        provider = ragas_configs['provider']
-        provider_settings = ragas_configs['evaluation_model_settings']
-        model_name = provider_settings['model_name']
+        benchmark_cfg = self.config.get("services", {}).get("benchmarking", {})
+        provider = benchmark_cfg.get("provider")
+        model_name = benchmark_cfg.get("model")
+        ollama_url = benchmark_cfg.get("ollama_url")
 
-        match provider.lower():
+        match str(provider).lower():
             case "openai":
                 return ChatOpenAI(model=model_name)
             case "ollama":
                 from langchain_ollama import ChatOllama
-                base_url = provider_settings['base_url']
+                base_url = ollama_url
+                return ChatOllama(model=model_name, base_url=base_url,num_predict=-2,model_kwargs={'format': 'json'})
+            case "local":
+                from langchain_ollama import ChatOllama
+                base_url = ollama_url
                 return ChatOllama(model=model_name, base_url=base_url,num_predict=-2,model_kwargs={'format': 'json'})
             case "huggingface":
-                base_url = provider_settings.get("base_url") or "http://localhost:8000/v1"
+                base_url = ollama_url or "http://localhost:8000/v1"
                 return get_model("local", model_name, base_url=base_url, local_mode="openai_compat")
             case "anthropic":
                 from langchain_anthropic import ChatAnthropic
@@ -311,6 +332,10 @@ class Benchmarker:
             elif type(msg) is HumanMessage:
                 # we don't store these...
                 pass
+            elif type(msg) is ToolMessage:
+                # we don't store these?
+                logger.debug(msg)
+                pass
             else:
                 logger.warning(f"Unexpected message type: {type(msg)}")
         return formatted_messages
@@ -328,7 +353,8 @@ class Benchmarker:
         reference sources were found.
         """
         sources = result.get('source_documents', [])
-
+        logger.info("Agent found %s sources.", len(sources))
+        
         matches: List[bool] = []
         for source in formatted_reference_sources:
             field, reference = list(source.items())[0]
@@ -401,6 +427,8 @@ class Benchmarker:
 
 
     def run(self):
+        self.wait_for_ingestion_completion()
+
         modes_being_run = set(self.benchmarking_configs['modes'])
 
         logger.info("")
@@ -544,6 +572,55 @@ class Benchmarker:
         ResultHandler.dump(self.benchmark_name)
         ResultHandler.dump_html(self.benchmark_name)
         return
+
+    def wait_for_ingestion_completion(self):
+        timeout_seconds = int(os.environ.get("BENCH_INGEST_WAIT_TIMEOUT", "3600"))
+        poll_interval_seconds = int(os.environ.get("BENCH_INGEST_POLL_INTERVAL", "5"))
+        status_urls = [
+            "http://data-manager:7871/api/ingestion/status",
+            "http://localhost:7871/api/ingestion/status",
+            "http://host.containers.internal:7871/api/ingestion/status",
+        ]
+        start_time = time.monotonic()
+        attempt = 0
+
+        logger.info("Waiting for data-manager ingestion to complete before benchmarking...")
+        while True:
+            attempt += 1
+            last_error = None
+            for status_url in status_urls:
+                try:
+                    with url_request.urlopen(status_url, timeout=5) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                    state = str(payload.get("state", "")).lower()
+                    step = payload.get("step")
+                    err = payload.get("error")
+                    logger.info(
+                        "Ingestion status check #%s via %s -> state=%s step=%s",
+                        attempt,
+                        status_url,
+                        state,
+                        step,
+                    )
+                    if state == "completed":
+                        logger.info("Data-manager ingestion completed; starting benchmark.")
+                        return
+                    if state == "error":
+                        raise RuntimeError(f"Data-manager ingestion failed at step '{step}': {err}")
+                    break
+                except (url_error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+                    last_error = exc
+                    continue
+
+            elapsed = time.monotonic() - start_time
+            if elapsed >= timeout_seconds:
+                if last_error:
+                    raise TimeoutError(
+                        f"Timed out after {timeout_seconds}s waiting for ingestion status endpoint. Last error: {last_error}"
+                    )
+                raise TimeoutError(f"Timed out after {timeout_seconds}s waiting for ingestion completion.")
+
+            time.sleep(poll_interval_seconds)
 
 if __name__ == "__main__":
 

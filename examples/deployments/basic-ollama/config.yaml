@@ -36,7 +36,7 @@ services:
 data_manager:
   sources:
     jira:
-      max_tickets: 10
+      max_tickets: 100
       url: https://its.cern.ch/jira/
       projects:
         - "CMSPROD"

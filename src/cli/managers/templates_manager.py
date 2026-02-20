@@ -156,8 +156,29 @@ class TemplateManager:
 
     def _stage_agents(self, context: TemplateContext) -> None:
         config = context.config_manager.config or {}
-        agents_dir = ((config.get("services") or {}).get("chat_app") or {}).get("agents_dir")
         dst_dir = context.base_dir / "data" / "agents"
+        services_cfg = config.get("services", {}) or {}
+
+        if context.benchmarking:
+            benchmark_cfg = services_cfg.get("benchmarking", {}) or {}
+            agent_md_file = benchmark_cfg.get("agent_md_file")
+            if not agent_md_file:
+                raise ValueError("Missing required services.benchmarking.agent_md_file in config.")
+            source_path = Path(str(agent_md_file)).expanduser()
+            config_path = Path(str(config.get("_config_path", ""))).expanduser()
+            if not source_path.is_absolute() and config_path:
+                candidate = (config_path.parent / source_path).resolve()
+                if candidate.exists():
+                    source_path = candidate
+            if not source_path.exists() or not source_path.is_file():
+                raise ValueError(f"Benchmark agent file not found: {source_path}")
+            if source_path.suffix.lower() != ".md":
+                raise ValueError(f"Benchmark agent file must be a .md file: {source_path}")
+            dst_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_path, dst_dir / source_path.name)
+            return
+
+        agents_dir = (services_cfg.get("chat_app") or {}).get("agents_dir")
         if not agents_dir:
             if dst_dir.exists() and any(p.suffix.lower() == ".md" for p in dst_dir.iterdir()):
                 return
@@ -295,6 +316,12 @@ class TemplateManager:
                 service_cfg = services_cfg.get(service_name)
                 if isinstance(service_cfg, dict):
                     service_cfg["agents_dir"] = "/root/archi/agents"
+            if context.benchmarking:
+                benchmark_cfg = services_cfg.get("benchmarking")
+                if isinstance(benchmark_cfg, dict):
+                    agent_md_file = benchmark_cfg.get("agent_md_file")
+                    if agent_md_file:
+                        benchmark_cfg["agent_md_file"] = f"/root/archi/agents/{Path(str(agent_md_file)).name}"
 
             config_template = self.env.get_template(BASE_CONFIG_TEMPLATE)
             config_rendered = config_template.render(verbosity=context.plan.verbosity, **updated_config)

@@ -13,8 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DOCKERFILES_DIR = PROJECT_ROOT / "src" / "cli" / "templates" / "dockerfiles"
 
 BASE_IMAGE_MAP = {
-    "python": "archi-python-base",
-    "pytorch": "archi-pytorch-base",
+    "python": "a2rchi-python-base",
+    "pytorch": "a2rchi-pytorch-base",
 }
 
 SOURCE_PREFIXES = {

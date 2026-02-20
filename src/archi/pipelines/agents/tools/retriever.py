@@ -66,6 +66,7 @@ def create_retriever_tool(
     max_documents: int = 4,
     max_chars: int = 800,
     store_docs: Optional[Callable[[str, Sequence[Document]], None]] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[[str], str]:
     """
     Wrap a `BaseRetriever` instance in a LangChain tool.
@@ -88,6 +89,14 @@ def create_retriever_tool(
 
     @tool(name, description=tool_description)
     def _retriever_tool(query: str) -> str:
+        logger.debug("Retriever tool '%s' called with query=%r", name, query)
+        if store_tool_input:
+            try:
+                store_tool_input(name, {"query": query})
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
+        if query is None or not str(query).strip():
+            logger.warning("Retriever tool '%s' received empty query", name)
         results = retriever.invoke(query)
         docs = _normalize_results(results or [])
         if store_docs:

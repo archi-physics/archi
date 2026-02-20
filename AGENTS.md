@@ -55,3 +55,10 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 ## Agent Workflow
 - When changing user-facing behavior, CLI flags, configuration, or public APIs, update the relevant docs in `docs/` and/or `README.md` in the same change.
 - If no docs change is needed, note the reason briefly in the PR description or commit message.
+
+## Deployment & Validation Policy
+- **Match the real runtime path before debugging:** Verify which code path the running service imports (workspace source vs installed `site-packages`) and patch/reload the active path.
+- **Deployment assumptions must be explicit:** State which container/service is being validated (for example `chatbot-debug` and its dependent `postgres-debug` / `data-manager-debug`).
+- **Always validate behavior after changes:** Do not stop at code edits. Run at least one end-to-end check against the running deployment and confirm expected outputs in logs/trace/events.
+- **Use source-of-truth checks for trace bugs:** Validate both streamed events and persisted DB trace rows (for example `agent_traces.events`) when debugging tool-call rendering mismatches.
+- **Iterate until intent is confirmed:** If validation fails or is inconclusive, continue debugging and re-test after each fix until the observed behavior matches the requested goal.

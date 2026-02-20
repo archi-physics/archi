@@ -106,18 +106,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set up Docker Buildx
-        if: steps.detect.outputs.changed == 'true'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Cache Docker layers
-        if: steps.detect.outputs.changed == 'true'
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: buildx-base-${{ runner.os }}-${{ hashFiles('requirements/**', 'src/cli/templates/dockerfiles/**/Dockerfile') }}
-          restore-keys: buildx-base-${{ runner.os }}-
-
       - name: Install archi CLI
         if: steps.detect.outputs.changed == 'true'
         run: |
@@ -133,6 +121,17 @@ jobs:
         run: |
           # Only build python base for PR preview (pytorch not used in smoke tests)
           scripts/dev/build_docker_images.sh -i a2rchi/a2rchi-python-base "${{ steps.detect.outputs.tag }}"
+
+      - name: Push updated base image to Docker Hub
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          TAG: ${{ steps.detect.outputs.tag }}
+        run: |
+          set -euo pipefail
+          echo "$DOCKERHUB_TOKEN" | docker login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
+          docker push "a2rchi/a2rchi-python-base:${TAG}"
 
   # ── Smoke deployment + integration tests ────────────────────────────
   preview:
@@ -190,9 +189,20 @@ jobs:
           sudo systemctl restart docker
           docker info | grep -i "Storage Driver"
 
+      - name: Pull updated base image from Docker Hub
+        if: needs.build-base-images.outputs.changed == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          TAG: ${{ needs.build-base-images.outputs.tag }}
+        run: |
+          set -euo pipefail
+          echo "$DOCKERHUB_TOKEN" | docker login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
+          docker pull "docker.io/a2rchi/a2rchi-python-base:${TAG}"
+
       - name: Prepare base image references
         if: needs.build-base-images.outputs.changed == 'true'
-        run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source localhost --orig-tag all
+        run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source dockerhub --orig-tag all
 
       - name: Verify MkDocs build
         run: mkdocs build --config-file docs/mkdocs.yml --strict
@@ -257,8 +267,5 @@ jobs:
           set -euo pipefail
           TAG="${{ needs.build-base-images.outputs.tag }}"
           echo "Cleaning up local base images with tag: $TAG"
-          docker rmi "localhost/a2rchi/a2rchi-python-base:${TAG}" || true
-          docker rmi "localhost/a2rchi/a2rchi-pytorch-base:${TAG}" || true
-          docker rmi "localhost/a2rchi/a2rchi-python-base:latest" || true
-          docker rmi "localhost/a2rchi/a2rchi-pytorch-base:latest" || true
+          docker rmi "docker.io/a2rchi/a2rchi-python-base:${TAG}" || true
           echo "Cleanup complete"

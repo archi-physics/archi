@@ -373,7 +373,7 @@ class ChatWrapper:
 
     def get_top_sources(self, documents, scores):
         """
-        Build a list of top reference entries (link or ticket id).
+        Build a de-duplicated list of reference entries (link or ticket id).
         """
         if scores:
             sorted_indices = np.argsort(scores)
@@ -415,55 +415,77 @@ class ChatWrapper:
                 }
             )
 
-            if len(top_sources) >= 5:
-                break
-
         logger.debug(f"Top sources: {top_sources}")
         return top_sources
 
     @staticmethod
+    def _format_source_entry(entry):
+        score = entry["score"]
+        link = entry["link"]
+        display_name = entry["display"]
+
+        if score == -1.0 or score == "N/A":
+            score_str = ""
+        else:
+            score_str = f" ({score:.2f})"
+
+        if link:
+            return f"- [{display_name}]({link}){score_str}\n"
+        return f"- {display_name}{score_str}\n"
+
+    @staticmethod
     def format_links(top_sources):
         _output = ""
+        if not top_sources:
+            return _output
 
-        if top_sources:
-            _output += '''
-            <div style="
-                margin-top: 1.5em;
-                padding-top: 0.5em;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                font-size: 0.75em;
-                color: #adb5bd;
-                line-height: 1.3;
-            ">
-                <div style="margin-bottom: 0.3em; font-weight: 500;">Sources:</div>
+        visible_sources = top_sources[:5]
+        hidden_sources = top_sources[5:]
+        _output += '''
+        <div style="
+            margin-top: 1.5em;
+            padding-top: 0.5em;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75em;
+            color: #adb5bd;
+            line-height: 1.3;
+        ">
+            <div style="margin-bottom: 0.3em; font-weight: 500;">Sources:</div>
+        '''
+
+        def _entry_html(entry):
+            score = entry["score"]
+            link = entry["link"]
+            display_name = entry["display"]
+
+            if score == -1.0 or score == "N/A":
+                score_str = ""
+            else:
+                score_str = f"({score:.2f})"
+
+            if link:
+                reference_html = f"<a href=\"{link}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #66b3ff; text-decoration: none;\" onmouseover=\"this.style.textDecoration='underline'\" onmouseout=\"this.style.textDecoration='none'\">{display_name}</a>"
+            else:
+                reference_html = f"<span style=\"color: #66b3ff;\">{display_name}</span>"
+
+            return f'''
+                <div style="margin: 0.15em 0; display: flex; align-items: center; gap: 0.4em;">
+                    <span>•</span>
+                    {reference_html}
+                    <span style="color: #6c757d; font-size: 0.9em;">{score_str}</span>
+                </div>
             '''
 
-            for entry in top_sources:
-                score = entry["score"]
-                link = entry["link"]
-                display_name = entry["display"]
-                
-                # Format score: show nothing for -1 (placeholder), otherwise show numeric value
-                if score == -1.0 or score == "N/A":
-                    score_str = ""
-                else:
-                    score_str = f"({score:.2f})"
+        for entry in visible_sources:
+            _output += _entry_html(entry)
 
-                if link:
-                    reference_html = f"<a href=\"{link}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #66b3ff; text-decoration: none;\" onmouseover=\"this.style.textDecoration='underline'\" onmouseout=\"this.style.textDecoration='none'\">{display_name}</a>"
-                else:
-                    reference_html = f"<span style=\"color: #66b3ff;\">{display_name}</span>"
+        if hidden_sources:
+            _output += f'<details style="margin-top: 0.4em;"><summary style="cursor: pointer; color: #66b3ff;">Show all sources ({len(top_sources)})</summary>'
+            for entry in hidden_sources:
+                _output += _entry_html(entry)
+            _output += '</details>'
 
-                _output += f'''
-                    <div style="margin: 0.15em 0; display: flex; align-items: center; gap: 0.4em;">
-                        <span>•</span>
-                        {reference_html}
-                        <span style="color: #6c757d; font-size: 0.9em;">{score_str}</span>
-                    </div>
-                '''
-
-            _output += '</div>'
-
+        _output += '</div>'
         return _output
 
     @staticmethod
@@ -472,23 +494,18 @@ class ChatWrapper:
         if not top_sources:
             return ""
 
+        visible_sources = top_sources[:5]
+        hidden_sources = top_sources[5:]
+
         _output = "\n\n---\n**Sources:**\n"
+        for entry in visible_sources:
+            _output += ChatWrapper._format_source_entry(entry)
 
-        for entry in top_sources:
-            score = entry["score"]
-            link = entry["link"]
-            display_name = entry["display"]
-
-            # Format score: show nothing for -1 (placeholder), otherwise show numeric value
-            if score == -1.0 or score == "N/A":
-                score_str = ""
-            else:
-                score_str = f" ({score:.2f})"
-
-            if link:
-                _output += f"- [{display_name}]({link}){score_str}\n"
-            else:
-                _output += f"- {display_name}{score_str}\n"
+        if hidden_sources:
+            _output += f"\n<details><summary>Show all sources ({len(top_sources)})</summary>\n\n"
+            for entry in hidden_sources:
+                _output += ChatWrapper._format_source_entry(entry)
+            _output += "\n</details>\n"
 
         return _output
 
@@ -1532,6 +1549,38 @@ class ChatWrapper:
         trace_events: List[Dict[str, Any]] = []
         tool_call_count = 0
         stream_start_time = time.time()
+        emitted_tool_call_ids = set()
+        emitted_tool_start_ids = set()
+        pending_tool_call_ids: List[str] = []
+        tool_calls_by_id: Dict[str, Dict[str, Any]] = {}
+        synthetic_tool_counter = 0
+
+        def _next_tool_call_id(tool_name: str) -> str:
+            nonlocal synthetic_tool_counter
+            synthetic_tool_counter += 1
+            safe_name = re.sub(r"[^a-zA-Z0-9_]+", "_", (tool_name or "unknown")).strip("_") or "unknown"
+            return f"synthetic_tool_{synthetic_tool_counter}_{safe_name}"
+
+        def _is_empty_tool_args(tool_args: Any) -> bool:
+            return tool_args in (None, "", {}, [])
+
+        def _has_meaningful_tool_payload(tool_name: Any, tool_args: Any) -> bool:
+            if isinstance(tool_name, str) and tool_name.strip() and tool_name.strip().lower() != "unknown":
+                return True
+            return not _is_empty_tool_args(tool_args)
+
+        def _remember_tool_call(tool_call_id: str, tool_name: Any, tool_args: Any) -> None:
+            if not tool_call_id:
+                return
+            current = tool_calls_by_id.get(tool_call_id, {})
+            current_name = current.get("tool_name", "unknown")
+            current_args = current.get("tool_args", {})
+            merged_name = tool_name if isinstance(tool_name, str) and tool_name.strip() else current_name
+            merged_args = tool_args if not _is_empty_tool_args(tool_args) else current_args
+            tool_calls_by_id[tool_call_id] = {
+                "tool_name": merged_name or "unknown",
+                "tool_args": merged_args,
+            }
 
         try:
             context, error_code = self._prepare_chat_context(
@@ -1604,20 +1653,70 @@ class ChatWrapper:
                     tool_messages = getattr(output, "messages", []) or []
                     tool_message = tool_messages[0] if tool_messages else None
                     tool_calls = getattr(tool_message, "tool_calls", None) if tool_message else None
+                    memory_args_by_id = {}
+                    if output.metadata:
+                        memory_args_by_id = output.metadata.get("tool_inputs_by_id", {}) or {}
+                    raw_args_by_id: Dict[str, Any] = {}
+                    if tool_message is not None:
+                        try:
+                            additional = getattr(tool_message, "additional_kwargs", {}) or {}
+                            raw_tool_calls = additional.get("tool_calls") or []
+                            for raw_call in raw_tool_calls:
+                                if not isinstance(raw_call, dict):
+                                    continue
+                                raw_id = raw_call.get("id")
+                                function_obj = raw_call.get("function") or {}
+                                raw_arguments = function_obj.get("arguments")
+                                parsed_args: Any = None
+                                if isinstance(raw_arguments, str) and raw_arguments.strip():
+                                    try:
+                                        parsed_args = json.loads(raw_arguments)
+                                    except Exception:
+                                        parsed_args = {"_raw_arguments": raw_arguments}
+                                elif isinstance(raw_arguments, dict):
+                                    parsed_args = raw_arguments
+                                if raw_id and parsed_args is not None:
+                                    raw_args_by_id[raw_id] = parsed_args
+                        except Exception:
+                            pass
                     if tool_calls:
                         for tool_call in tool_calls:
+                            tool_call_id = tool_call.get("id", "")
+                            tool_args = tool_call.get("args", {})
+                            if _is_empty_tool_args(tool_args):
+                                tool_args = raw_args_by_id.get(tool_call_id, tool_args)
+                            if _is_empty_tool_args(tool_args):
+                                fallback = memory_args_by_id.get(tool_call_id, {})
+                                if isinstance(fallback, dict):
+                                    tool_args = fallback.get("tool_input", tool_args)
+                            tool_name = tool_call.get("name", "unknown")
+                            if (not tool_name) and isinstance(memory_args_by_id.get(tool_call_id), dict):
+                                tool_name = memory_args_by_id[tool_call_id].get("tool_name", "unknown")
+                            if (not tool_call_id) and (not _has_meaningful_tool_payload(tool_name, tool_args)):
+                                continue
+                            if not tool_call_id:
+                                tool_call_id = _next_tool_call_id(tool_name)
+                            _remember_tool_call(tool_call_id, tool_name, tool_args)
+                            if tool_call_id in emitted_tool_call_ids:
+                                continue
+                            emitted_tool_call_ids.add(tool_call_id)
+                            pending_tool_call_ids.append(tool_call_id)
                             tool_call_count += 1
-                            trace_event = {
-                                "type": "tool_start",
-                                "tool_call_id": tool_call.get("id", ""),
-                                "tool_name": tool_call.get("name", "unknown"),
-                                "tool_args": tool_call.get("args", {}),
-                                "timestamp": timestamp,
-                                "conversation_id": context.conversation_id,
-                            }
-                            trace_events.append(trace_event)
-                            if include_tool_steps:
-                                yield trace_event
+                    elif memory_args_by_id:
+                        for memory_id, memory_call in memory_args_by_id.items():
+                            if not isinstance(memory_call, dict):
+                                continue
+                            tool_name = memory_call.get("tool_name", "unknown")
+                            tool_args = memory_call.get("tool_input", {})
+                            if not _has_meaningful_tool_payload(tool_name, tool_args):
+                                continue
+                            tool_call_id = memory_id or _next_tool_call_id(tool_name)
+                            if tool_call_id in emitted_tool_call_ids:
+                                continue
+                            emitted_tool_call_ids.add(tool_call_id)
+                            pending_tool_call_ids.append(tool_call_id)
+                            _remember_tool_call(tool_call_id, tool_name, tool_args)
+                            tool_call_count += 1
                         
                 elif event_type == "tool_output":
                     tool_messages = getattr(output, "messages", []) or []
@@ -1627,9 +1726,39 @@ class ChatWrapper:
                     full_length = len(tool_output) if truncated else None
                     display_output = self._truncate_text(tool_output, max_step_chars)
                     
+                    output_tool_call_id = getattr(tool_message, "tool_call_id", "") if tool_message else ""
+                    if not output_tool_call_id and pending_tool_call_ids:
+                        output_tool_call_id = pending_tool_call_ids.pop(0)
+                    elif output_tool_call_id in pending_tool_call_ids:
+                        pending_tool_call_ids.remove(output_tool_call_id)
+
+                    # Emit tool_start once, immediately before first output for stable ordering.
+                    if output_tool_call_id and output_tool_call_id not in emitted_tool_start_ids:
+                        memory_args_by_id = output.metadata.get("tool_inputs_by_id", {}) if output.metadata else {}
+                        fallback = memory_args_by_id.get(output_tool_call_id, {})
+                        fallback_name = "unknown"
+                        fallback_args: Any = {}
+                        if isinstance(fallback, dict):
+                            fallback_name = fallback.get("tool_name", "unknown")
+                            fallback_args = fallback.get("tool_input", {})
+                        _remember_tool_call(output_tool_call_id, fallback_name, fallback_args)
+                        call_info = tool_calls_by_id.get(output_tool_call_id, {})
+                        start_event = {
+                            "type": "tool_start",
+                            "tool_call_id": output_tool_call_id,
+                            "tool_name": call_info.get("tool_name", "unknown"),
+                            "tool_args": call_info.get("tool_args", {}),
+                            "timestamp": timestamp,
+                            "conversation_id": context.conversation_id,
+                        }
+                        trace_events.append(start_event)
+                        emitted_tool_start_ids.add(output_tool_call_id)
+                        if include_tool_steps:
+                            yield start_event
+
                     trace_event = {
                         "type": "tool_output",
-                        "tool_call_id": getattr(tool_message, "tool_call_id", "") if tool_message else "",
+                        "tool_call_id": output_tool_call_id,
                         "output": display_output,
                         "truncated": truncated,
                         "full_length": full_length,
@@ -1742,6 +1871,20 @@ class ChatWrapper:
                     )
                 yield {"type": "error", "status": 500, "message": "server error; see chat logs for message"}
                 return
+
+                # For providers like gpt-5, streamed tool chunks may carry empty args while
+                # the final AI message contains full tool arguments. Backfill before final.
+                try:
+                    final_tool_calls = last_output.extract_tool_calls() if hasattr(last_output, "extract_tool_calls") else []
+                    for tc in final_tool_calls:
+                        tool_call_id = tc.get("id", "")
+                        tool_name = tc.get("name", "unknown")
+                        tool_args = tc.get("args", {})
+                        if not tool_call_id or _is_empty_tool_args(tool_args):
+                            continue
+                        _remember_tool_call(tool_call_id, tool_name, tool_args)
+                except Exception:
+                    pass
                 
             # keep track of total number of queries and log this amount
             self.number_of_queries += 1

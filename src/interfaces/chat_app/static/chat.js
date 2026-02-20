@@ -2217,6 +2217,19 @@ const UI = {
     const timeline = document.querySelector(`.trace-container[data-message-id="${messageId}"] .step-timeline`);
     if (!timeline) return;
 
+    const existingStep = timeline.querySelector(`[data-tool-call-id="${event.tool_call_id}"]`);
+    if (existingStep) {
+      const labelEl = existingStep.querySelector('.step-label');
+      if (labelEl && event.tool_name) {
+        labelEl.textContent = event.tool_name;
+      }
+      const argsCode = existingStep.querySelector('.tool-args pre code');
+      if (argsCode) {
+        argsCode.textContent = this.formatToolArgs(event.tool_args);
+      }
+      return;
+    }
+
     const toolHtml = `
       <div class="step tool-step tool-running" data-step-id="${event.tool_call_id}" data-tool-call-id="${event.tool_call_id}">
         <div class="step-connector">
@@ -2432,9 +2445,13 @@ const UI = {
     const events = trace.events;
     if (!events || events.length === 0) return;
 
-    // Count tool calls
-    const toolCalls = events.filter(e => e.type === 'tool_start' || e.type === 'tool_use');
-    const toolCount = toolCalls.length;
+    // Count unique tool calls (tool_start updates may appear multiple times for same id)
+    const toolCallIds = new Set(
+      events
+        .filter(e => (e.type === 'tool_start' || e.type === 'tool_use') && e.tool_call_id)
+        .map(e => e.tool_call_id)
+    );
+    const toolCount = toolCallIds.size;
 
     // Calculate total duration
     const durationMs = trace.total_duration_ms || 0;
@@ -2528,6 +2545,19 @@ const UI = {
   },
 
   addHistoricalToolStep(timeline, event, outputEvent) {
+    const existingStep = timeline.querySelector(`[data-tool-call-id="${event.tool_call_id}"]`);
+    if (existingStep) {
+      const labelEl = existingStep.querySelector('.step-label');
+      if (labelEl && event.tool_name) {
+        labelEl.textContent = event.tool_name;
+      }
+      const argsCode = existingStep.querySelector('.tool-args pre code');
+      if (argsCode) {
+        argsCode.textContent = this.formatToolArgs(event.tool_args || event.arguments);
+      }
+      return;
+    }
+
     const toolName = event.tool_name || 'Unknown Tool';
     const toolArgs = this.formatToolArgs(event.tool_args || event.arguments);
     
