@@ -2,7 +2,7 @@ name: Test and Build Tag
 
 env:
   ARCHI_DIR: ${{ github.workspace }}/archi-local
-  REGISTRY_PREFIX: archi
+  REGISTRY_PREFIX: a2rchi
 
 on:
   workflow_dispatch:
@@ -20,11 +20,17 @@ permissions:
 
 jobs:
   build-images:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       clean: ${{ steps.version.outputs.clean }}
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -32,11 +38,19 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-release-${{ runner.os }}-${{ hashFiles('requirements/**', 'src/cli/templates/dockerfiles/**/Dockerfile') }}
+          restore-keys: buildx-release-${{ runner.os }}-
 
       - name: Determine release version
         id: version
@@ -69,21 +83,25 @@ jobs:
         run: scripts/dev/push_docker_images.sh "${{ steps.version.outputs.tag }}"
 
   smoke-test:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     needs: build-images
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || 'main' }}
           fetch-depth: 0
 
-      - name: Set up Python 
-        run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install CLI dependencies
         run: |
@@ -93,6 +111,26 @@ jobs:
       - name: Ensure scripts are executable
         run: chmod +x scripts/dev/*.sh
 
+      - name: Install Ollama and pull model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
+              echo "Ollama is ready"
+              break
+            fi
+            sleep 1
+          done
+          ollama pull qwen3:4b
+
+      - name: Disable Docker containerd image store
+        run: |
+          echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json
+          sudo rm -rf /etc/docker/daemon.json.d
+          sudo systemctl restart docker
+          docker info | grep -i "Storage Driver"
+
       - name: Point Dockerfiles to versioned base images
         run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-images.outputs.tag }}" --switch-source dockerhub
 
@@ -100,15 +138,18 @@ jobs:
         uses: ./.github/actions/run-smoke
         with:
           deployment-name: release-${{ github.run_id }}
-          extra-env: ARCHI_COMPOSE_UP_FLAGS=--build --pull 
+          extra-env: |
+            ARCHI_COMPOSE_UP_FLAGS=--build --pull
+            SMOKE_OLLAMA_MODEL=qwen3:4b
+            SMOKE_OLLAMA_URL=http://localhost:11434
+            SMOKE_OLLAMA_HOST=http://localhost:11434
           config-path: tests/pr_preview_config/pr_preview_config.yaml
           config-destination: configs/ci/ci_config.generated.yaml
-          env-file: .env
           services: chatbot
           hostmode: "true"
           wait-url: http://localhost:2786/api/health
           base-url: http://localhost:2786
-          use-podman: "true"
+          use-podman: "false"
 
       - name: Commit Dockerfile base image updates
         if: success()
@@ -135,7 +176,7 @@ jobs:
           docker volume prune -f || true
 
   release:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     needs: [build-images, smoke-test]
     steps:
       - name: Checkout
@@ -144,12 +185,10 @@ jobs:
           ref: ${{ inputs.ref || 'main' }}
           fetch-depth: 0
 
-      - name: Set up Python (Self-hosted)
-        run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Promote Docker images to latest
         env:

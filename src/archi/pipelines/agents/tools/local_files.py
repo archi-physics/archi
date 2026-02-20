@@ -31,6 +31,7 @@ class RemoteCatalogClient:
         port: int = 7871,
         external_port: Optional[int] = None,
         timeout: float = 10.0,
+        api_token: Optional[str] = None,
     ):
         host_mode_flag = self._resolve_host_mode(host_mode)
 
@@ -41,6 +42,9 @@ class RemoteCatalogClient:
             final_port = external_port if host_mode_flag and external_port else port
             self.base_url = f"http://{host}:{final_port}"
         self.timeout = timeout
+        self._headers: Dict[str, str] = {}
+        if api_token:
+            self._headers["Authorization"] = f"Bearer {api_token}"
 
     @classmethod
     def from_deployment_config(cls, config: Optional[Dict[str, object]]) -> "RemoteCatalogClient":
@@ -48,7 +52,8 @@ class RemoteCatalogClient:
         cfg = config or {}
         services_cfg = cfg.get("services", {}) if isinstance(cfg, dict) else {}
         data_manager_cfg = services_cfg.get("data_manager", {}) if isinstance(services_cfg, dict) else {}
-        auth_cfg = data_manager_cfg.get("auth", {}) if isinstance(data_manager_cfg, dict) else {}
+
+        api_token = read_secret("DM_API_TOKEN") or None
 
         return cls(
             base_url=data_manager_cfg.get("base_url"),
@@ -56,6 +61,7 @@ class RemoteCatalogClient:
             hostname=data_manager_cfg.get("hostname") or data_manager_cfg.get("host"),
             port=data_manager_cfg.get("port", 7871),
             external_port=data_manager_cfg.get("external_port"),
+            api_token=api_token,
         )
 
     @staticmethod
@@ -100,6 +106,7 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/search",
             params=params,
+            headers=self._headers,
             timeout=self.timeout,
         )
         resp.raise_for_status()
@@ -110,6 +117,7 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/document/{resource_hash}",
             params={"max_chars": max_chars},
+            headers=self._headers,
             timeout=self.timeout,
         )
         if resp.status_code == 404:
@@ -120,6 +128,7 @@ class RemoteCatalogClient:
     def schema(self) -> Dict[str, object]:
         resp = requests.get(
             f"{self.base_url}/api/catalog/schema",
+            headers=self._headers,
             timeout=self.timeout,
         )
         resp.raise_for_status()

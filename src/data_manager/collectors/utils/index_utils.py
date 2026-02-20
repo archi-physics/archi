@@ -624,48 +624,67 @@ class CatalogService:
         Returns:
             Dict with hash, display_name, content, content_type, size_bytes, truncated
         """
-        path = self.get_filepath_for_hash(document_hash)
-        if not path:
-            return None
-
         metadata = self.get_metadata_for_hash(document_hash)
         if not metadata:
             return None
 
-        # Determine content type from suffix
-        suffix = metadata.get("suffix", path.suffix).lower()
-        content_type_map = {
-            ".md": "text/markdown",
-            ".txt": "text/plain",
-            ".py": "text/x-python",
-            ".js": "text/javascript",
-            ".html": "text/html",
-            ".json": "application/json",
-            ".yaml": "text/yaml",
-            ".yml": "text/yaml",
-            ".csv": "text/csv",
-        }
-        content_type = content_type_map.get(suffix, "text/plain")
+        display_name = metadata.get("display_name", document_hash)
 
-        # Read content
-        try:
-            size_bytes = path.stat().st_size
-            truncated = size_bytes > max_size
-            read_size = min(size_bytes, max_size)
+        path = self.get_filepath_for_hash(document_hash)
+        if path:
+            # Determine content type from suffix
+            suffix = metadata.get("suffix", path.suffix).lower()
+            content_type_map = {
+                ".md": "text/markdown",
+                ".txt": "text/plain",
+                ".py": "text/x-python",
+                ".js": "text/javascript",
+                ".html": "text/html",
+                ".json": "application/json",
+                ".yaml": "text/yaml",
+                ".yml": "text/yaml",
+                ".csv": "text/csv",
+            }
+            content_type = content_type_map.get(suffix, "text/plain")
 
-            with open(path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read(read_size)
-        except Exception as e:
-            logger.warning(f"Failed to read content for {document_hash}: {e}")
-            return None
+            # Read content
+            try:
+                size_bytes = path.stat().st_size
+                truncated = size_bytes > max_size
+                read_size = min(size_bytes, max_size)
 
+                with open(path, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read(read_size)
+
+                return {
+                    "hash": document_hash,
+                    "display_name": display_name,
+                    "content": content,
+                    "content_type": content_type,
+                    "size_bytes": size_bytes,
+                    "truncated": truncated,
+                }
+            except Exception as e:
+                logger.warning(f"Failed to read content for {document_hash}: {e}")
+                # Fall through to metadata fallback
+
+        # Fallback: metadata-only preview
+        url = metadata.get("url", "")
+        source_type = metadata.get("source_type", "unknown")
+        lines = [f"# {display_name}", ""]
+        if url:
+            lines.append(f"**URL:** {url}")
+        lines.append(f"**Source:** {source_type}")
+        lines.extend(["", "_Content will be available after documents are processed._"])
+        content = "\n".join(lines)
         return {
             "hash": document_hash,
-            "display_name": metadata.get("display_name", document_hash),
+            "display_name": display_name,
             "content": content,
-            "content_type": content_type,
-            "size_bytes": size_bytes,
-            "truncated": truncated,
+            "content_type": "text/markdown",
+            "size_bytes": 0,
+            "truncated": False,
+            "source": "metadata",
         }
 
     @classmethod

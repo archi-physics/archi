@@ -4,7 +4,7 @@
 
 # _archi_ - AI Augmented Research Chat Intelligence
 
-[![CI](https://github.com/mit-submit/archi/actions/workflows/pr-preview.yml/badge.svg)](https://github.com/mit-submit/archi/actions/workflows/pr-preview.yml)
+[![CI](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml/badge.svg)](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://archi-physics.github.io/archi/)
 
 _archi_ is a retrieval-augmented generation framework for research and education teams who need a low-barrier to entry, configurable, private, and extensible assistant. The system was first developed at MIT for the SubMIT computing project, and now powers chat, ticketing, and course-support workflows across academia and research organizations.
@@ -23,12 +23,20 @@ _archi_ provides:
 
 The [docs](https://archi-physics.github.io/archi/) are organized as follows:
 
-- [Install](https://archi-physics.github.io/archi/install/) — system requirements and environment preparation.
-- [Quickstart](https://archi-physics.github.io/archi/quickstart/) — after installation, learn how to deploy your first Archi instance.
-- [User Guide](https://archi-physics.github.io/archi/user_guide/) — framework concepts for users and administrators.
-- [Advanced Setup & Deployment](https://archi-physics.github.io/archi/advanced_setup_deploy/) — configuring Archi for GPU use, custom models, and advanced workflows.
-- [API Reference](https://archi-physics.github.io/archi/api_reference/) — programmatic interfaces and integration points.
-- [Developer Guide](https://archi-physics.github.io/archi/developer_guide/) — codebase layout, contribution workflow, and extension patterns.
+- [Install](https://archi-physics.github.io/archi/install/) — system requirements and installation.
+- [Quickstart](https://archi-physics.github.io/archi/quickstart/) — deploy your first Archi instance in minutes.
+- [User Guide](https://archi-physics.github.io/archi/user_guide/) — overview of all capabilities.
+- [Data Sources](https://archi-physics.github.io/archi/data_sources/) — configure web links, git, JIRA, Redmine, and more.
+- [Services](https://archi-physics.github.io/archi/services/) — chat, uploader, data manager, Piazza, and other interfaces.
+- [Models & Providers](https://archi-physics.github.io/archi/models_providers/) — LLM providers, embeddings, and BYOK.
+- [Agents & Tools](https://archi-physics.github.io/archi/agents_tools/) — agent specs, tools, MCP integration.
+- [Configuration](https://archi-physics.github.io/archi/configuration/) — full YAML config schema reference.
+- [CLI Reference](https://archi-physics.github.io/archi/cli_reference/) — all CLI commands and options.
+- [API Reference](https://archi-physics.github.io/archi/api_reference/) — REST API endpoints.
+- [Benchmarking](https://archi-physics.github.io/archi/benchmarking/) — evaluate retrieval and response quality.
+- [Advanced Setup](https://archi-physics.github.io/archi/advanced_setup_deploy/) — GPU setup and production deployment.
+- [Developer Guide](https://archi-physics.github.io/archi/developer_guide/) — architecture, contributing, and extension patterns.
+- [Troubleshooting](https://archi-physics.github.io/archi/troubleshooting/) — common issues and fixes.
 
 ## Getting Started
 

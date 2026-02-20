@@ -1,3 +1,4 @@
+import os
 import shlex
 import subprocess
 import threading
@@ -14,7 +15,8 @@ class CommandRunner:
     @staticmethod
     def run_simple(command_str: str, cwd: Path = None) -> Tuple[str, str, int]:
         """Simple command execution - no streaming"""
-        command_list = shlex.split(command_str)
+        posix = os.name == 'posix'
+        command_list = shlex.split(command_str, posix=posix)
         logger.debug(f"Executing command: {command_str}")
         
         process = subprocess.Popen(
@@ -34,7 +36,8 @@ class CommandRunner:
     @staticmethod
     def run_streaming(command_str: str, cwd: Path = None) -> Tuple[str, str, int]:
         """Run command with real-time output streaming and proper exit code handling"""
-        command_list = shlex.split(command_str)
+        posix = os.name == 'posix'
+        command_list = shlex.split(command_str, posix=posix)
         
         logger.debug(f"Executing command: {command_str}")
         

@@ -11,15 +11,15 @@ test.describe('Provider & Model Selection', () => {
     await setupBasicMocks(page);
   });
 
-  test('default agent selector shows available agents', async ({ page }) => {
+  test('agent dropdown shows available agents', async ({ page }) => {
     await page.goto('/chat');
     
-    // The footer has a simple agent selector (model-select-a)
-    const agentSelect = page.locator('#model-select-a');
-    await expect(agentSelect).toBeVisible();
-    
-    // Should have at least one agent option (mock data has 2: cms_simple, test_config)
-    const optionCount = await agentSelect.locator('option').count();
+    const agentDropdown = page.locator('.agent-dropdown');
+    await expect(agentDropdown).toBeVisible();
+
+    await page.locator('.agent-dropdown-btn').click();
+    const agentItems = page.locator('.agent-dropdown-item');
+    const optionCount = await agentItems.count();
     expect(optionCount).toBeGreaterThanOrEqual(1);
   });
 
@@ -40,9 +40,12 @@ test.describe('Provider & Model Selection', () => {
     // Open settings
     await page.getByRole('button', { name: 'Settings' }).click();
     
-    // Provider select should be visible in the Model Provider region
-    const providerSelect = page.getByRole('region', { name: 'Model Provider' }).getByRole('combobox', { name: 'Provider' });
+    const providerSelect = page.locator('#provider-select');
     await expect(providerSelect).toBeVisible();
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
     
     // Should have pipeline default plus providers (real UI has 5: default + 4 providers)
     const optionCount = await providerSelect.locator('option').count();
@@ -55,15 +58,23 @@ test.describe('Provider & Model Selection', () => {
     // Open settings
     await page.getByRole('button', { name: 'Settings' }).click();
     
-    // Get the provider and model selects within the Model Provider region
-    const region = page.getByRole('region', { name: 'Model Provider' });
-    const modelSelect = region.getByRole('combobox', { name: 'Model' });
+    const modelSelect = page.locator('#model-select-primary');
     
     // Model dropdown starts disabled when using pipeline default
     await expect(modelSelect).toBeDisabled();
     
-    // Select a provider (OpenRouter is enabled in our mock data)
-    await region.getByRole('combobox', { name: 'Provider' }).selectOption('OpenRouter');
+    const providerSelect = page.locator('#provider-select');
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+    }
     
     // Model dropdown should now be enabled
     await expect(modelSelect).toBeEnabled();
@@ -75,13 +86,21 @@ test.describe('Provider & Model Selection', () => {
     // Open settings
     await page.getByRole('button', { name: 'Settings' }).click();
     
-    const region = page.getByRole('region', { name: 'Model Provider' });
-    
-    // Select OpenRouter
-    await region.getByRole('combobox', { name: 'Provider' }).selectOption('OpenRouter');
+    const providerSelect = page.locator('#provider-select');
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+    }
     
     // Model dropdown should have options
-    const modelSelect = region.getByRole('combobox', { name: 'Model' });
+    const modelSelect = page.locator('#model-select-primary');
     const optionCount = await modelSelect.locator('option').count();
     expect(optionCount).toBeGreaterThan(0);
   });
@@ -92,33 +111,30 @@ test.describe('Provider & Model Selection', () => {
     // Open settings
     await page.getByRole('button', { name: 'Settings' }).click();
     
-    const region = page.getByRole('region', { name: 'Model Provider' });
-    const providerSelect = region.getByRole('combobox', { name: 'Provider' });
-    const modelSelect = region.getByRole('combobox', { name: 'Model' });
+    const providerSelect = page.locator('#provider-select');
+    const modelSelect = page.locator('#model-select-primary');
     
     // Select a provider first
-    await providerSelect.selectOption('OpenRouter');
+    await page.waitForFunction(() => {
+      const select = document.querySelector('#provider-select');
+      return select && select.options.length > 1;
+    });
+    const providerValues = await providerSelect.evaluate((select) =>
+      Array.from(select.options).map((option) => option.value),
+    );
+    const providerValue = providerValues.find((value) => value);
+    if (providerValue) {
+      await providerSelect.selectOption(providerValue);
+    }
     
     // Model should be enabled
     await expect(modelSelect).toBeEnabled();
     
     // Select pipeline default
-    await providerSelect.selectOption('Use pipeline default');
+    await providerSelect.selectOption('');
     
     // Model should be disabled again
     await expect(modelSelect).toBeDisabled();
-  });
-
-  test('shows current pipeline default info', async ({ page }) => {
-    await page.goto('/chat');
-    
-    // Open settings
-    await page.getByRole('button', { name: 'Settings' }).click();
-    
-    // Should show info about pipeline default in the Model Provider region
-    // The span with status-text shows "Using pipeline default: ..."
-    const region = page.getByRole('region', { name: 'Model Provider' });
-    await expect(region.getByText(/Using pipeline default:/)).toBeVisible();
   });
 
   test('API Keys tab is accessible', async ({ page }) => {

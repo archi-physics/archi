@@ -48,25 +48,6 @@ const greet = (name) => {
     await expect(page.locator('pre code')).toHaveCount(2);
   });
 
-  // Skip: UI doesn't display language labels on code blocks
-  test.skip('code blocks have language label', async ({ page }) => {
-    await page.route('**/api/get_chat_response_stream', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/plain',
-        body: `{"type":"final","response":${JSON.stringify(codeResponse)},"message_id":1,"user_message_id":1,"conversation_id":1}\n`,
-      });
-    });
-
-    await page.goto('/chat');
-    
-    await page.getByLabel('Message input').fill('Show code');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    
-    // Should show language indicator
-    await expect(page.locator('.code-language, .language-label')).toContainText(/python|javascript/i);
-  });
-
   test('copy button appears on code blocks', async ({ page }) => {
     await page.route('**/api/get_chat_response_stream', async (route) => {
       await route.fulfill({
@@ -180,34 +161,7 @@ const greet = (name) => {
     await expect(page.locator('.message.assistant code:not(pre code)')).toContainText('print()');
   });
 
-  // Skip: Code block horizontal scroll styling is implementation-dependent
-  test.skip('code block horizontal scroll for long lines', async ({ page }) => {
-    const longCodeResponse = `\`\`\`python
-very_long_variable_name_that_goes_on_and_on = some_function_with_many_arguments(arg1, arg2, arg3, arg4, arg5, arg6)
-\`\`\``;
 
-    await page.route('**/api/get_chat_response_stream', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/plain',
-        body: `{"type":"final","response":${JSON.stringify(longCodeResponse)},"message_id":1,"user_message_id":1,"conversation_id":1}\n`,
-      });
-    });
-
-    await page.goto('/chat');
-    
-    await page.getByLabel('Message input').fill('Long code');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    
-    const codeBlock = page.locator('pre');
-    await expect(codeBlock).toBeVisible();
-    
-    // Should have overflow-x: auto or scroll
-    const overflow = await codeBlock.evaluate(el => 
-      window.getComputedStyle(el).overflowX
-    );
-    expect(['auto', 'scroll']).toContain(overflow);
-  });
 
   test('multiple code blocks are independent', async ({ page }) => {
     await page.route('**/api/get_chat_response_stream', async (route) => {

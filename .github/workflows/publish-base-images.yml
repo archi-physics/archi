@@ -10,17 +10,21 @@ permissions:
 
 jobs:
   publish:
-    runs-on: [submit76-runner]
+    runs-on: ubuntu-latest
     env:
       ARCHI_DIR: ${{ github.workspace }}/archi-local
 
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-
 
       - name: Detect base image changes
         id: base_changes
@@ -45,13 +49,30 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Python (Self-hosted)
+      - name: Set up Python
+        if: steps.base_changes.outputs.changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Docker Buildx
+        if: steps.base_changes.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        if: steps.base_changes.outputs.changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-publish-${{ runner.os }}-${{ hashFiles('requirements/**', 'src/cli/templates/dockerfiles/**/Dockerfile') }}
+          restore-keys: buildx-publish-${{ runner.os }}-
+
+      - name: Install archi CLI
         if: steps.base_changes.outputs.changed == 'true'
         run: |
-          export PYENV_ROOT="$HOME/.pyenv"
-          export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          python3 --version
+          python -m pip install --upgrade pip
+          pip install ".[all]" || pip install .
+
       - name: Build base images
         if: steps.base_changes.outputs.changed == 'true'
         id: build

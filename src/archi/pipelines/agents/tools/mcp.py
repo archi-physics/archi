@@ -1,16 +1,16 @@
 from __future__ import annotations
-
-from typing import List, Any
-from src.utils.logging import get_logger
-from src.utils.config_access import get_archi_config
+from typing import List, Any, Tuple, Optional
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.tools import BaseTool
 
+from src.utils.config_access import get_archi_config
+from src.utils.logging import get_logger
+
 logger = get_logger(__name__)
 
-async def initialize_mcp_client() -> Tuple[MultiServerMCPClient, List[BaseTool]]:
+async def initialize_mcp_client() -> Tuple[Optional[MultiServerMCPClient], List[BaseTool]]:
     """
     Initializes the MCP client and fetches tool definitions.
     Returns:
@@ -27,9 +27,8 @@ async def initialize_mcp_client() -> Tuple[MultiServerMCPClient, List[BaseTool]]
 
     for name in mcp_servers.keys():
         try:
-            async with client.session(name) as session:
-                tools = await load_mcp_tools(session)
-                all_tools.extend(tools)
+            tools = await client.get_tools(server_name=name)
+            all_tools.extend(tools)
         except Exception as e:
             failed_servers[name] = str(e)
 

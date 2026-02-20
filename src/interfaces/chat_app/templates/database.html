@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>archi - Database Viewer</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- App styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='database.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/archi_notext.png') }}">
+</head>
+<body>
+  <div class="database-app">
+    <!-- Header -->
+    <header class="database-header">
+      <div class="header-left">
+        <a href="/data" class="back-link" title="Back to Data">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"></path>
+          </svg>
+          <span>Data</span>
+        </a>
+      </div>
+      <div class="header-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+        </svg>
+        <h1>Database Viewer</h1>
+      </div>
+      <div class="header-right">
+        <span class="connection-badge connected">
+          <span class="connection-dot"></span>
+          PostgreSQL
+        </span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="database-content">
+      <!-- Sidebar -->
+      <aside class="database-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Tables</div>
+          <ul class="table-list" id="table-list">
+            <li class="table-list-loading">
+              <span class="spinner"></span>
+              Loading tables...
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Quick Actions</div>
+          <div class="quick-actions">
+            <button class="quick-action-btn" data-query="stats">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              Database Stats
+            </button>
+            <button class="quick-action-btn" data-query="recent_docs">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              Recent Documents
+            </button>
+            <button class="quick-action-btn" data-query="embedding_coverage">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              </svg>
+              Embedding Coverage
+            </button>
+            <button class="quick-action-btn" data-query="recent_chats">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Recent Chats
+            </button>
+            <button class="quick-action-btn" data-query="orphans">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              Find Orphans
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Panel -->
+      <main class="database-main">
+        <!-- SQL Editor -->
+        <div class="sql-editor-container">
+          <div class="sql-editor-header">
+            <span class="sql-editor-title">SQL Query</span>
+            <div class="sql-editor-actions">
+              <button class="btn-text" id="format-sql-btn">Format</button>
+              <button class="btn btn-primary btn-sm" id="run-query-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Run
+              </button>
+            </div>
+          </div>
+          <div class="sql-editor-body">
+            <textarea 
+              id="sql-editor" 
+              class="sql-editor" 
+              spellcheck="false"
+              placeholder="SELECT * FROM documents LIMIT 100;"
+            >SELECT id, display_name, source_type, 
+       pg_size_pretty(size_bytes) as size,
+       created_at
+FROM documents 
+ORDER BY created_at DESC
+LIMIT 100;</textarea>
+          </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="results-container">
+          <div class="results-header">
+            <span class="results-title">Results</span>
+            <div class="results-meta" id="results-meta">
+              <span id="results-count">--</span>
+              <span class="results-separator">•</span>
+              <span id="results-time">--</span>
+            </div>
+            <div class="results-actions">
+              <button class="btn-text" id="export-csv-btn" disabled>Export CSV</button>
+            </div>
+          </div>
+          <div class="results-body" id="results-body">
+            <div class="results-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+              <p>Run a query to see results</p>
+            </div>
+          </div>
+          <div class="results-footer" id="results-footer" style="display: none;">
+            <div class="pagination">
+              <button class="pagination-btn" id="prev-page-btn" disabled>← Prev</button>
+              <span class="pagination-info" id="pagination-info">Page 1</span>
+              <button class="pagination-btn" id="next-page-btn" disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Theme init (must load before page renders) -->
+  <script src="{{ url_for('static', filename='modules/theme-init.js') }}"></script>
+  
+  <!-- Database viewer module -->
+  <script src="{{ url_for('static', filename='modules/database-viewer.js') }}"></script>
+  <script>
+    // Initialize database viewer
+    document.addEventListener('DOMContentLoaded', () => {
+      window.dbViewer = new DatabaseViewer();
+    });
+  </script>
+</body>
+</html>

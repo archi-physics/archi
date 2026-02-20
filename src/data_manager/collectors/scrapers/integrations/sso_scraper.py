@@ -45,6 +45,13 @@ class SSOScraper(ABC):
         if self.username:
             logger.info(f"Using username: {self.username}")
     
+    def _is_image_url(self, url: str) -> bool:
+        """Check if URL points to an image file."""
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.ico', '.webp')
+        parsed_url = urllib.parse.urlparse(url)
+        path = parsed_url.path.lower()
+        return any(path.endswith(ext) for ext in image_extensions)
+    
     @abstractmethod
     def get_username_from_env(self):
         """Get username from environment variables. Override in subclasses."""
@@ -126,7 +133,12 @@ class SSOScraper(ABC):
                             continue
                         
                         if not self._clear_url(normalized_url):
-                            continue                        
+                            continue
+                        
+                        # Skip image files
+                        if self._is_image_url(normalized_url):
+                            logger.debug(f"Skipping image URL: {normalized_url}")
+                            continue
 
                         links.append(normalized_url)
                         
@@ -187,6 +199,12 @@ class SSOScraper(ABC):
             
             # Skip if we've already visited this URL
             if current_url in self.visited_urls:
+                continue
+            
+            # Skip image files
+            if self._is_image_url(current_url):
+                logger.debug(f"Skipping image URL: {current_url}")
+                self.visited_urls.add(current_url)
                 continue
                 
             logger.info(f"Crawling page {depth + 1}/{max_depth}: {current_url}")

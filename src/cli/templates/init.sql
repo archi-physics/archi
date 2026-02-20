@@ -162,6 +162,7 @@ CREATE TABLE IF NOT EXISTS dynamic_config (
     
     -- Schedules
     ingestion_schedule VARCHAR(100) NOT NULL DEFAULT '',  -- Cron expression
+    source_schedules JSONB NOT NULL DEFAULT '{}'::jsonb,  -- Per-source schedules
     
     -- Logging
     verbosity INTEGER NOT NULL DEFAULT 3,
@@ -232,17 +233,23 @@ CREATE TABLE IF NOT EXISTS documents (
     indexed_at TIMESTAMP,        -- When embeddings were created
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     
+    -- Ingestion tracking
+    ingestion_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    ingestion_error TEXT,
+    
     -- Soft delete
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMP,
     
-    CONSTRAINT valid_source CHECK (source_type IN ('local_files', 'web', 'ticket', 'git', 'sso', 'unknown'))
+    CONSTRAINT valid_source CHECK (source_type IN ('local_files', 'web', 'ticket', 'git', 'sso', 'unknown')),
+    CONSTRAINT valid_ingestion_status CHECK (ingestion_status IN ('pending', 'embedding', 'embedded', 'failed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(resource_hash);
 CREATE INDEX IF NOT EXISTS idx_documents_source ON documents(source_type);
 CREATE INDEX IF NOT EXISTS idx_documents_name ON documents USING gin (display_name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_documents_active ON documents(is_deleted) WHERE NOT is_deleted;
+CREATE INDEX IF NOT EXISTS idx_documents_ingestion_status ON documents(ingestion_status);
 
 -- Document chunks with embeddings
 -- Note: Vector dimension ({{ embedding_dimensions }}) must match static_config.embedding_dimensions
@@ -317,16 +324,16 @@ CREATE TABLE IF NOT EXISTS user_document_defaults (
 CREATE INDEX IF NOT EXISTS idx_user_doc_defaults_user ON user_document_defaults(user_id);
 
 -- Conversation overrides: override user default for a specific conversation
-CREATE TABLE IF NOT EXISTS conversation_document_overrides (
+CREATE TABLE IF NOT EXISTS conversation_doc_overrides (
     conversation_id INTEGER NOT NULL,  -- FK added after conversation_metadata created
-    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    document_hash VARCHAR NOT NULL,  -- Hash reference to document (denormalized for simplicity)
     enabled BOOLEAN NOT NULL,  -- Explicit override value
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     
-    PRIMARY KEY (conversation_id, document_id)
+    PRIMARY KEY (conversation_id, document_hash)
 );
 
-CREATE INDEX IF NOT EXISTS idx_conv_doc_overrides_conv ON conversation_document_overrides(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_conv_doc_overrides_conv ON conversation_doc_overrides(conversation_id);
 
 -- ============================================================================
 -- 6. CONVERSATIONS & CHAT
@@ -353,21 +360,21 @@ CREATE TABLE IF NOT EXISTS conversation_metadata (
 CREATE INDEX IF NOT EXISTS idx_conv_meta_user ON conversation_metadata(user_id);
 CREATE INDEX IF NOT EXISTS idx_conv_meta_client ON conversation_metadata(client_id);
 
--- Add FK to conversation_document_overrides now that conversation_metadata exists
+-- Add FK to conversation_doc_overrides now that conversation_metadata exists
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conname = 'conversation_document_overrides_conversation_id_fkey'
-          AND conrelid = 'conversation_document_overrides'::regclass
+        WHERE conname = 'conversation_doc_overrides_conversation_id_fkey'
+          AND conrelid = 'conversation_doc_overrides'::regclass
     ) THEN
-        ALTER TABLE conversation_document_overrides
-            DROP CONSTRAINT conversation_document_overrides_conversation_id_fkey;
+        ALTER TABLE conversation_doc_overrides
+            DROP CONSTRAINT conversation_doc_overrides_conversation_id_fkey;
     END IF;
 END $$;
-ALTER TABLE conversation_document_overrides 
-    ADD CONSTRAINT conversation_document_overrides_conversation_id_fkey 
+ALTER TABLE conversation_doc_overrides 
+    ADD CONSTRAINT conversation_doc_overrides_conversation_id_fkey 
     FOREIGN KEY (conversation_id) REFERENCES conversation_metadata(conversation_id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS conversations (
@@ -540,7 +547,7 @@ GRANT SELECT ON
     documents,
     document_chunks,
     user_document_defaults,
-    conversation_document_overrides,
+    conversation_doc_overrides,
     configs,
     conversation_metadata,
     conversations,

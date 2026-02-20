@@ -25,6 +25,13 @@ DELETE FROM feedback
 WHERE mid = %s AND feedback IN ('like', 'dislike');
 """
 
+SQL_GET_REACTION_FEEDBACK = """
+SELECT feedback FROM feedback
+WHERE mid = %s AND feedback IN ('like', 'dislike')
+ORDER BY feedback_ts DESC
+LIMIT 1;
+"""
+
 SQL_QUERY_CONVO = """
 SELECT sender, content
 FROM conversations

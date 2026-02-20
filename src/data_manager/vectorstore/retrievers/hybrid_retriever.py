@@ -81,14 +81,22 @@ class HybridRetriever(BaseRetriever):
                 "Using Postgres hybrid search: k=%d, semantic_weight=%.2f, bm25_weight=%.2f",
                 self.k, self.semantic_weight, self.bm25_weight,
             )
-            results = self.vectorstore.hybrid_search(
-                query=query,
-                k=self.k,
-                semantic_weight=self.semantic_weight,
-                bm25_weight=self.bm25_weight,
-            )
-            logger.debug("Hybrid search returned %d documents", len(results))
-            return results
+            try:
+                results = self.vectorstore.hybrid_search(
+                    query=query,
+                    k=self.k,
+                    semantic_weight=self.semantic_weight,
+                    bm25_weight=self.bm25_weight,
+                )
+                logger.debug("Hybrid search returned %d documents", len(results))
+                return results
+            except RuntimeError as exc:
+                message = str(exc).lower()
+                if "not supported" in message or "unsupported" in message or "not implemented" in message:
+                    logger.warning("Hybrid search not supported by backend, falling back to semantic-only: %s", exc)
+                else:
+                    logger.error("Hybrid search failed with unexpected RuntimeError; re-raising", exc_info=True)
+                    raise
         
         # Fallback: semantic-only search
         logger.debug("Falling back to semantic-only search (k=%d)", self.k)

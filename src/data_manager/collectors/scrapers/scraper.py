@@ -26,6 +26,13 @@ class LinkScraper:
         # seen_urls tracks anything queued/visited; visited_urls tracks pages actually crawled.
         self.visited_urls = set()
         self.seen_urls = set()
+    
+    def _is_image_url(self, url: str) -> bool:
+        """Check if URL points to an image file."""
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.ico', '.webp')
+        parsed_url = urlparse(url)
+        path = parsed_url.path.lower()
+        return any(path.endswith(ext) for ext in image_extensions)
 
     def reap(self, response, current_url: str, selenium_scrape: bool = False, authenticator = None):
         """
@@ -211,6 +218,12 @@ class LinkScraper:
             
             # Skip if we've already visited this URL
             if current_url in self.visited_urls:
+                continue
+            
+            # Skip image files
+            if self._is_image_url(current_url):
+                logger.debug(f"Skipping image URL: {current_url}")
+                self._mark_visited(current_url)
                 continue
 
             logger.info(f"Crawling depth {depth + 1}/{max_depth}: {current_url}")

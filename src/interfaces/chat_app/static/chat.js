@@ -42,6 +42,14 @@ const CONFIG = {
     CLEAR_PROVIDER_KEY: '/api/providers/keys/clear',
     PIPELINE_DEFAULT_MODEL: '/api/pipeline/default_model',
     AGENT_INFO: '/api/agent/info',
+    AGENT_TEMPLATE: '/api/agents/template',
+    AGENT_SAVE: '/api/agents',
+    AGENTS_LIST: '/api/agents/list',
+    AGENT_SPEC: '/api/agents/spec',
+    AGENT_ACTIVE: '/api/agents/active',
+    LIKE: '/api/like',
+    DISLIKE: '/api/dislike',
+    TEXT_FEEDBACK: '/api/text_feedback',
   },
   STREAMING: {
     TIMEOUT: 300000, // 5 minutes
@@ -78,6 +86,19 @@ const Utils = {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  },
+
+  normalizeAgentName(name) {
+    if (!name) return name;
+    return name.replace(/^name:\s*/i, '').trim();
+  },
+
+  /**
+   * Escape a string for use inside an HTML attribute (e.g. onclick)
+   */
+  escapeAttr(text) {
+    if (text == null) return '';
+    return String(text).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   },
 
   /**
@@ -126,6 +147,20 @@ const Utils = {
       clearTimeout(timeout);
       timeout = setTimeout(() => fn(...args), delay);
     };
+  },
+
+  /**
+   * Format duration in ms to human-readable string
+   * @param {number} ms - Duration in milliseconds
+   * @returns {string} - Formatted duration (e.g., "850ms", "2.3s", "1m 5s")
+   */
+  formatDuration(ms) {
+    if (ms == null || isNaN(ms)) return '';
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.round((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
   },
 };
 
@@ -323,6 +358,55 @@ const API = {
     return this.fetchJson(url);
   },
 
+  async getAgentTemplate(name = null) {
+    const url = name
+      ? `${CONFIG.ENDPOINTS.AGENT_TEMPLATE}?name=${encodeURIComponent(name)}`
+      : CONFIG.ENDPOINTS.AGENT_TEMPLATE;
+    return this.fetchJson(url);
+  },
+
+  async getAgentsList() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENTS_LIST);
+  },
+
+  async getAgentSpec(name) {
+    const url = `${CONFIG.ENDPOINTS.AGENT_SPEC}?name=${encodeURIComponent(name)}`;
+    return this.fetchJson(url);
+  },
+
+  async setActiveAgent(name) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_ACTIVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
+  async deleteAgent(name) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_SAVE, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
+  async saveAgentSpec(payload) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AGENT_SAVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
   async getProviderModels(providerType) {
     const url = `${CONFIG.ENDPOINTS.PROVIDER_MODELS}?provider=${encodeURIComponent(providerType)}`;
     return this.fetchJson(url);
@@ -354,6 +438,40 @@ const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider: providerType }),
+    });
+  },
+
+  // Feedback methods
+  async likeMessage(messageId) {
+    return this.fetchJson(CONFIG.ENDPOINTS.LIKE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message_id: messageId }),
+    });
+  },
+
+  async dislikeMessage(messageId, options = {}) {
+    return this.fetchJson(CONFIG.ENDPOINTS.DISLIKE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message_id: messageId,
+        feedback_msg: options.feedback_msg || '',
+        incorrect: options.incorrect || false,
+        unhelpful: options.unhelpful || false,
+        inappropriate: options.inappropriate || false,
+      }),
+    });
+  },
+
+  async submitTextFeedback(messageId, text) {
+    return this.fetchJson(CONFIG.ENDPOINTS.TEXT_FEEDBACK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message_id: messageId,
+        feedback_msg: text,
+      }),
     });
   },
 };
@@ -478,7 +596,7 @@ const UI = {
       messagesInner: document.querySelector('.messages-inner'),
       inputField: document.querySelector('.input-field'),
       sendBtn: document.querySelector('.send-btn'),
-      modelSelectA: document.querySelector('.model-select-a'),
+      modelSelectA: null,
       modelSelectB: document.querySelector('.model-select-b'),
       settingsBtn: document.querySelector('.settings-btn'),
       dataTab: document.getElementById('data-tab'),
@@ -488,11 +606,29 @@ const UI = {
       abCheckbox: document.querySelector('.ab-checkbox'),
       abModelGroup: document.querySelector('.ab-model-group'),
       traceVerboseOptions: document.querySelector('.trace-verbose-options'),
-      agentInfoBtn: document.querySelector('.agent-info-btn'),
+      agentDropdown: document.querySelector('.agent-dropdown'),
+      agentDropdownBtn: document.querySelector('.agent-dropdown-btn'),
+      agentDropdownMenu: document.querySelector('.agent-dropdown-menu'),
+      agentDropdownLabel: document.querySelector('.agent-dropdown-label'),
+      agentDropdownList: document.querySelector('.agent-dropdown-list'),
+      agentDropdownAdd: document.querySelector('.agent-dropdown-add'),
       agentInfoModal: document.querySelector('.agent-info-modal'),
       agentInfoBackdrop: document.querySelector('.agent-info-backdrop'),
       agentInfoClose: document.querySelector('.agent-info-close'),
       agentInfoContent: document.getElementById('agent-info-content'),
+      agentSpecModal: document.querySelector('.agent-spec-modal'),
+      agentSpecBackdrop: document.querySelector('.agent-spec-backdrop'),
+      agentSpecClose: document.querySelector('.agent-spec-close'),
+      agentSpecTitle: document.getElementById('agent-spec-title'),
+      agentSpecEditor: document.getElementById('agent-spec-editor'),
+      agentSpecName: document.getElementById('agent-spec-name'),
+      agentSpecPrompt: document.getElementById('agent-spec-prompt'),
+      agentSpecStatus: document.getElementById('agent-spec-status'),
+      agentSpecSave: document.querySelector('.agent-spec-save'),
+      agentSpecReset: document.querySelector('.agent-spec-reset'),
+      agentSpecToolsList: document.querySelector('.agent-spec-tools-list'),
+      agentSpecResizeHandle: document.querySelector('.agent-spec-resize-handle'),
+      agentSpecPanel: document.querySelector('.agent-spec-panel'),
       // Provider selection elements
       providerSelect: document.getElementById('provider-select'),
       modelSelectPrimary: document.getElementById('model-select-primary'),
@@ -513,6 +649,13 @@ const UI = {
     };
 
     this.sendBtnDefaultHtml = this.elements.sendBtn?.innerHTML || '';
+
+    if (this.elements.agentDropdownMenu) {
+      this.elements.agentDropdownMenu.hidden = true;
+    }
+    if (this.elements.agentDropdownBtn) {
+      this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
 
     this.bindEvents();
     this.initTraceVerboseMode();
@@ -572,20 +715,76 @@ const UI = {
         localStorage.setItem('currentConversationId', conversationId);
         window.location.href = `/data?conversation_id=${encodeURIComponent(conversationId)}`;
       } else {
-        alert('Please select or start a conversation first to manage its data.');
+        // Allow viewing all documents without a conversation
+        window.location.href = '/data';
       }
     });
 
-    // Agent info modal
-    this.elements.agentInfoBtn?.addEventListener('click', () => {
-      this.openAgentInfo();
-    });
     this.elements.agentInfoBackdrop?.addEventListener('click', () => {
       this.closeAgentInfo();
     });
     this.elements.agentInfoClose?.addEventListener('click', () => {
       this.closeAgentInfo();
     });
+    this.elements.agentDropdownBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleAgentDropdown();
+    });
+    this.elements.agentDropdownAdd?.addEventListener('click', async () => {
+      this.closeAgentDropdown();
+      try {
+        await this.openAgentSpecEditor({ mode: 'create' });
+      } catch (e) {
+        console.error('Failed to open agent spec editor:', e);
+      }
+    });
+    this.elements.agentDropdownList?.addEventListener('click', (e) => {
+      const target = e.target;
+      const row = target.closest('.agent-dropdown-item');
+      if (!row) return;
+      // Handle inline delete confirmation buttons
+      if (target.closest('.agent-dropdown-confirm-yes')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.doDeleteAgent(name);
+        return;
+      }
+      if (target.closest('.agent-dropdown-confirm-no')) {
+        // Cancel: re-render list to remove confirmation state
+        Chat.loadAgents();
+        return;
+      }
+      if (target.closest('.agent-dropdown-edit')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.openAgentSpecEditor({ mode: 'edit', name });
+        return;
+      }
+      if (target.closest('.agent-dropdown-delete')) {
+        const name = row.dataset.agentName;
+        this.showDeleteConfirmation(row, name);
+        return;
+      }
+      if (row.dataset.agentName && !target.closest('.agent-dropdown-actions')) {
+        this.closeAgentDropdown();
+        Chat.setActiveAgent(row.dataset.agentName);
+      }
+    });
+    this.elements.agentSpecBackdrop?.addEventListener('click', () => {
+      this.closeAgentSpecEditor();
+    });
+    this.elements.agentSpecClose?.addEventListener('click', () => {
+      this.closeAgentSpecEditor();
+    });
+    this.elements.agentSpecReset?.addEventListener('click', () => {
+      this.resetAgentSpecForm();
+    });
+    this.elements.agentSpecSave?.addEventListener('click', () => {
+      this.saveAgentSpec();
+    });
+    // Resize handle for agent spec modal
+    this.initAgentSpecResize();
     
     // A/B toggle in settings
     this.elements.abCheckbox?.addEventListener('change', (e) => {
@@ -671,8 +870,21 @@ const UI = {
       if (e.key === 'Escape' && this.elements.settingsModal?.style.display !== 'none') {
         this.closeSettings();
       }
+      if (e.key === 'Escape' && this.elements.agentSpecModal?.style.display !== 'none') {
+        this.closeAgentSpecEditor();
+      }
+      if (e.key === 'Escape' && this.elements.agentDropdownMenu && !this.elements.agentDropdownMenu.hidden) {
+        this.closeAgentDropdown();
+      }
       if (e.key === 'Escape' && this.elements.agentInfoModal?.style.display !== 'none') {
         this.closeAgentInfo();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!this.elements.agentDropdownMenu || this.elements.agentDropdownMenu.hidden) return;
+      if (!this.elements.agentDropdown?.contains(e.target)) {
+        this.closeAgentDropdown();
       }
     });
     
@@ -824,15 +1036,27 @@ const UI = {
     try {
       const configName = this.getSelectedConfig('A');
       const info = await API.getAgentInfo(configName);
-      const agentLabel = Chat.getAgentLabel();
+      const agentLabel = Utils.normalizeAgentName(info?.agent_name || Chat.getAgentLabel());
+      if (info?.agent_name && !Chat.state.activeAgentName) {
+        Chat.state.activeAgentName = Utils.normalizeAgentName(info.agent_name);
+        if (this.elements.agentDropdownLabel) {
+          this.elements.agentDropdownLabel.textContent = Utils.normalizeAgentName(info.agent_name);
+        }
+      }
       const modelLabel = Chat.getCurrentModelLabel();
       const pipelineLabel = info?.pipeline || 'Unknown';
       const embeddingLabel = info?.embedding_name || 'Not specified';
       const sources = Array.isArray(info?.data_sources) ? info.data_sources : [];
+      const tools = Array.isArray(info?.agent_tools) ? info.agent_tools : [];
+      const prompt = info?.agent_prompt || '';
 
       const sourcesHtml = sources.length
         ? `<ul class="agent-info-list">${sources.map(source => `<li>${Utils.escapeHtml(source)}</li>`).join('')}</ul>`
         : '<p>No data sources configured.</p>';
+
+      const toolsHtml = tools.length
+        ? `<ul class="agent-info-list">${tools.map(tool => `<li>${Utils.escapeHtml(tool)}</li>`).join('')}</ul>`
+        : '<p>No tools configured.</p>';
 
       this.elements.agentInfoContent.innerHTML = `
         <div class="agent-info-section">
@@ -854,12 +1078,372 @@ const UI = {
         <div class="agent-info-section">
           <h4>Data sources</h4>
           ${sourcesHtml}
+        </div>
+        <div class="agent-info-section">
+          <h4>Tools</h4>
+          ${toolsHtml}
+        </div>
+        <div class="agent-info-section">
+          <h4>Prompt</h4>
+          <pre class="agent-info-prompt">${Utils.escapeHtml(prompt)}</pre>
         </div>`;
     } catch (e) {
       console.error('Failed to load agent info:', e);
       this.elements.agentInfoContent.innerHTML = `
         <p class="agent-info-loading">Unable to load agent info. Please try again.</p>`;
     }
+  },
+
+  toggleAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    if (this.elements.agentDropdownMenu.hidden) {
+      this.openAgentDropdown();
+    } else {
+      this.closeAgentDropdown();
+    }
+  },
+
+  openAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    this.elements.agentDropdownMenu.hidden = false;
+    this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'true');
+  },
+
+  closeAgentDropdown() {
+    if (!this.elements.agentDropdownMenu || !this.elements.agentDropdownBtn) return;
+    this.elements.agentDropdownMenu.hidden = true;
+    this.elements.agentDropdownBtn.setAttribute('aria-expanded', 'false');
+  },
+
+  showDeleteConfirmation(row, name) {
+    if (!row) return;
+    row.classList.add('agent-dropdown-item-confirming');
+    row.innerHTML = `
+      <span class="agent-dropdown-confirm-text">Delete "${Utils.escapeHtml(name)}"?</span>
+      <div class="agent-dropdown-confirm-actions">
+        <button class="agent-dropdown-confirm-yes" type="button">Delete</button>
+        <button class="agent-dropdown-confirm-no" type="button">Cancel</button>
+      </div>`;
+  },
+
+  async doDeleteAgent(name) {
+    if (!name) return;
+    try {
+      await API.deleteAgent(Utils.normalizeAgentName(name));
+      await Chat.loadAgents();
+    } catch (e) {
+      console.error('Failed to delete agent:', e);
+      this.setAgentSpecStatus(e.message || 'Unable to delete agent.', 'error');
+    }
+  },
+
+  renderAgentsList(agents = [], activeName = null) {
+    if (this.elements.agentDropdownLabel) {
+      this.elements.agentDropdownLabel.textContent = Utils.normalizeAgentName(activeName) || 'Agent';
+    }
+    if (!this.elements.agentDropdownList) return;
+    let activeMatched = false;
+    const rows = agents.map((agent) => {
+      const rawName = agent.name || agent.filename || 'Unknown';
+      const name = Utils.normalizeAgentName(rawName);
+      let isActive = false;
+      if (!activeMatched && activeName && Utils.normalizeAgentName(activeName) === name) {
+        isActive = true;
+        activeMatched = true;
+      }
+      const checkmark = isActive ? '<svg class="agent-dropdown-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '<span class="agent-dropdown-check-spacer"></span>';
+      return `
+        <div class="agent-dropdown-item${isActive ? ' active' : ''}" data-agent-name="${Utils.escapeHtml(name)}">
+          <span class="agent-dropdown-name">${checkmark}${Utils.escapeHtml(name)}</span>
+          <div class="agent-dropdown-actions">
+            <button class="agent-dropdown-edit" type="button" title="Edit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="agent-dropdown-delete" type="button" title="Delete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </div>`;
+    });
+    this.elements.agentDropdownList.innerHTML = rows.length
+      ? rows.join('')
+      : '<div class="agent-dropdown-item">No agents found</div>';
+  },
+
+  async openAgentSpecEditor({ mode = 'create', name = null } = {}) {
+    if (!this.elements.agentSpecModal) return;
+    this.elements.agentSpecModal.style.display = 'flex';
+    this.setAgentSpecStatus('');
+    this.agentSpecMode = mode;
+    this.agentSpecName = name;
+    // Restore persisted size
+    this.restoreAgentSpecSize();
+    if (this.elements.agentSpecTitle) {
+      this.elements.agentSpecTitle.textContent = mode === 'edit' ? `Edit ${name || 'Agent'}` : 'New Agent';
+    }
+    // Update reset button label
+    if (this.elements.agentSpecReset) {
+      this.elements.agentSpecReset.textContent = mode === 'edit' ? 'Revert changes' : 'Reset template';
+    }
+    // Clear validation errors
+    this.clearAgentSpecValidation();
+    if (mode === 'edit' && name) {
+      await this.loadAgentToolPalette();
+      await this.loadAgentSpecByName(name);
+    } else {
+      await this.loadAgentSpecTemplate();
+    }
+    // Auto-focus name in create mode
+    if (mode === 'create') {
+      setTimeout(() => this.elements.agentSpecName?.focus(), 100);
+    }
+  },
+
+  closeAgentSpecEditor() {
+    if (this.elements.agentSpecModal) {
+      this.elements.agentSpecModal.style.display = 'none';
+    }
+  },
+
+  clearAgentSpecValidation() {
+    this.elements.agentSpecName?.classList.remove('field-error');
+    this.elements.agentSpecPrompt?.classList.remove('field-error');
+  },
+
+  setAgentSpecStatus(message, type = '') {
+    if (!this.elements.agentSpecStatus) return;
+    this.elements.agentSpecStatus.textContent = message || '';
+    this.elements.agentSpecStatus.classList.remove('error', 'success');
+    if (type) {
+      this.elements.agentSpecStatus.classList.add(type);
+    }
+  },
+
+  /** Parse YAML frontmatter and prompt body from .md content */
+  parseAgentSpec(content) {
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+    if (!match) return { name: '', tools: [], prompt: content.trim() };
+    const yaml = match[1];
+    const prompt = (match[2] || '').trim();
+    const nameMatch = yaml.match(/^name:\s*(.+)$/m);
+    const name = nameMatch ? nameMatch[1].trim() : '';
+    const tools = [];
+    const toolsMatch = yaml.match(/^tools:\s*\n((?:\s+-\s+.+\n?)*)/m);
+    if (toolsMatch) {
+      const lines = toolsMatch[1].split('\n');
+      for (const line of lines) {
+        const m = line.match(/^\s+-\s+(.+)$/);
+        if (m) tools.push(m[1].trim());
+      }
+    }
+    return { name, tools, prompt };
+  },
+
+  /** Serialise structured form fields back to .md format */
+  serialiseAgentSpec(name, tools, prompt) {
+    let yaml = `---\nname: ${name}\n`;
+    if (tools.length) {
+      yaml += 'tools:\n';
+      for (const t of tools) yaml += `  - ${t}\n`;
+    }
+    yaml += '---\n\n';
+    return yaml + prompt;
+  },
+
+  /** Populate structured form fields from parsed data */
+  populateAgentSpecForm({ name = '', tools = [], prompt = '' } = {}) {
+    if (this.elements.agentSpecName) this.elements.agentSpecName.value = name;
+    if (this.elements.agentSpecPrompt) this.elements.agentSpecPrompt.value = prompt;
+    // Update tool checkboxes
+    const checkboxes = this.elements.agentSpecToolsList?.querySelectorAll('input[type="checkbox"]');
+    if (checkboxes) {
+      checkboxes.forEach((cb) => {
+        cb.checked = tools.includes(cb.value);
+      });
+    }
+  },
+
+  /** Collect form fields into the hidden editor textarea for save */
+  collectAgentSpecForm() {
+    const name = this.elements.agentSpecName?.value.trim() || '';
+    const prompt = this.elements.agentSpecPrompt?.value.trim() || '';
+    const tools = [];
+    const checkboxes = this.elements.agentSpecToolsList?.querySelectorAll('input[type="checkbox"]:checked');
+    if (checkboxes) {
+      checkboxes.forEach((cb) => tools.push(cb.value));
+    }
+    return { name, tools, prompt };
+  },
+
+  async loadAgentSpecTemplate() {
+    this.setAgentSpecStatus('');
+    try {
+      const response = await API.getAgentTemplate();
+      const template = response?.template || '';
+      if (this.elements.agentSpecEditor) this.elements.agentSpecEditor.value = template;
+      this._lastAvailableTools = response?.tools || [];
+      this.renderAgentToolPalette(this._lastAvailableTools);
+      const parsed = this.parseAgentSpec(template);
+      this.populateAgentSpecForm(parsed);
+    } catch (e) {
+      console.error('Failed to load agent template:', e);
+      if (this.elements.agentSpecEditor) this.elements.agentSpecEditor.value = '';
+      this.populateAgentSpecForm();
+      this.setAgentSpecStatus('Unable to load agent template.', 'error');
+    }
+  },
+
+  async loadAgentToolPalette() {
+    try {
+      const response = await API.getAgentTemplate();
+      this._lastAvailableTools = response?.tools || [];
+      this.renderAgentToolPalette(this._lastAvailableTools);
+    } catch (e) {
+      console.error('Failed to load tool palette:', e);
+      this._lastAvailableTools = [];
+      this.renderAgentToolPalette([]);
+    }
+  },
+
+  async loadAgentSpecByName(name) {
+    this.setAgentSpecStatus('');
+    try {
+      const response = await API.getAgentSpec(name);
+      const content = response?.content || '';
+      if (this.elements.agentSpecEditor) this.elements.agentSpecEditor.value = content;
+      const parsed = this.parseAgentSpec(content);
+      this.populateAgentSpecForm(parsed);
+    } catch (e) {
+      console.error('Failed to load agent spec:', e);
+      if (this.elements.agentSpecEditor) this.elements.agentSpecEditor.value = '';
+      this.populateAgentSpecForm();
+      this.setAgentSpecStatus('Unable to load agent spec.', 'error');
+    }
+  },
+
+  resetAgentSpecForm() {
+    this.clearAgentSpecValidation();
+    this.setAgentSpecStatus('');
+    if (this.agentSpecMode === 'edit' && this.agentSpecName) {
+      // Revert to saved version
+      this.loadAgentSpecByName(this.agentSpecName);
+    } else {
+      this.loadAgentSpecTemplate();
+    }
+  },
+
+  renderAgentToolPalette(tools = []) {
+    if (!this.elements.agentSpecToolsList) return;
+    if (!tools.length) {
+      this.elements.agentSpecToolsList.innerHTML = '<div class="agent-spec-tool-desc">No tools available.</div>';
+      return;
+    }
+    // Get currently selected tools from the form
+    const currentForm = this.collectAgentSpecForm();
+    const selectedTools = currentForm.tools || [];
+    const items = tools.map((tool) => {
+      const toolName = tool.name || '';
+      const checked = selectedTools.includes(toolName) ? 'checked' : '';
+      return `
+      <label class="agent-spec-tool">
+        <input type="checkbox" class="agent-spec-tool-checkbox" value="${Utils.escapeHtml(toolName)}" ${checked} />
+        <div class="agent-spec-tool-info">
+          <div class="agent-spec-tool-name">${Utils.escapeHtml(toolName)}</div>
+          <div class="agent-spec-tool-desc">${Utils.escapeHtml(tool.description || '')}</div>
+        </div>
+      </label>`;
+    });
+    this.elements.agentSpecToolsList.innerHTML = items.join('');
+  },
+
+  async saveAgentSpec() {
+    this.clearAgentSpecValidation();
+    const { name, tools, prompt } = this.collectAgentSpecForm();
+    // Client-side validation
+    let hasError = false;
+    if (!name) {
+      this.elements.agentSpecName?.classList.add('field-error');
+      this.setAgentSpecStatus('Agent name is required.', 'error');
+      hasError = true;
+    }
+    if (!prompt) {
+      this.elements.agentSpecPrompt?.classList.add('field-error');
+      if (!hasError) this.setAgentSpecStatus('Prompt is required.', 'error');
+      hasError = true;
+    }
+    if (hasError) return;
+    // Serialise to .md format
+    const content = this.serialiseAgentSpec(name, tools, prompt);
+    if (this.elements.agentSpecEditor) this.elements.agentSpecEditor.value = content;
+    if (this.elements.agentSpecSave) {
+      this.elements.agentSpecSave.disabled = true;
+    }
+    this.setAgentSpecStatus('Saving...');
+    try {
+      const response = await API.saveAgentSpec({
+        content,
+        mode: this.agentSpecMode || 'create',
+        existing_name: this.agentSpecName || null,
+      });
+      if (this.agentSpecMode === 'edit') {
+        const savedName = Utils.normalizeAgentName(response?.name || this.agentSpecName || '');
+        if (savedName) {
+          this.agentSpecName = savedName;
+        }
+        if (Utils.normalizeAgentName(Chat.state.activeAgentName) === Utils.normalizeAgentName(savedName)) {
+          await Chat.setActiveAgent(savedName);
+        }
+      }
+      this.setAgentSpecStatus('Saved agent spec.', 'success');
+      await Chat.loadAgents();
+    } catch (e) {
+      console.error('Failed to save agent spec:', e);
+      this.setAgentSpecStatus(e.message || 'Unable to save agent spec.', 'error');
+    } finally {
+      if (this.elements.agentSpecSave) {
+        this.elements.agentSpecSave.disabled = false;
+      }
+    }
+  },
+
+  /** Resize handle logic for agent spec modal */
+  initAgentSpecResize() {
+    const handle = this.elements.agentSpecResizeHandle;
+    const panel = this.elements.agentSpecPanel;
+    if (!handle || !panel) return;
+    let startX, startY, startW, startH;
+    const onMouseMove = (e) => {
+      const newW = Math.max(480, startW + (e.clientX - startX));
+      const newH = Math.max(400, startH + (e.clientY - startY));
+      panel.style.width = newW + 'px';
+      panel.style.maxWidth = newW + 'px';
+      panel.style.maxHeight = newH + 'px';
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      // Persist size
+      localStorage.setItem('archi_agent_spec_width', panel.style.width);
+      localStorage.setItem('archi_agent_spec_height', panel.style.maxHeight);
+    };
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      startX = e.clientX;
+      startY = e.clientY;
+      startW = panel.offsetWidth;
+      startH = panel.offsetHeight;
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  },
+
+  restoreAgentSpecSize() {
+    const panel = this.elements.agentSpecPanel;
+    if (!panel) return;
+    const w = localStorage.getItem('archi_agent_spec_width');
+    const h = localStorage.getItem('archi_agent_spec_height');
+    if (w) { panel.style.width = w; panel.style.maxWidth = w; }
+    if (h) { panel.style.maxHeight = h; }
   },
 
   toggleSidebar() {
@@ -946,17 +1530,11 @@ const UI = {
   },
 
   getSelectedConfig(which = 'A') {
-    const select = this.elements.modelSelectA;
-    return select?.value ?? '';
+    return Chat.state.configs?.[0]?.name || '';
   },
 
   renderConfigs(configs) {
-    [this.elements.modelSelectA, this.elements.modelSelectB].forEach((select) => {
-      if (!select) return;
-      select.innerHTML = configs
-        .map((c) => `<option value="${Utils.escapeHtml(c.name)}">${Utils.escapeHtml(c.name)}</option>`)
-        .join('');
-    });
+    // Config selector removed from UI; keep configs in state only.
   },
 
   renderProviders(providers, selectedProvider = null) {
@@ -1308,6 +1886,14 @@ const UI = {
       ? `<div class="message-meta">${Utils.escapeHtml(msg.meta)}</div>`
       : '';
 
+    // Determine feedback state class
+    let feedbackClass = '';
+    if (msg.feedback === 'like') {
+      feedbackClass = 'feedback-like-active';
+    } else if (msg.feedback === 'dislike') {
+      feedbackClass = 'feedback-dislike-active';
+    }
+
     return `
       <div class="message ${roleClass}" data-id="${msg.id || ''}">
         <div class="message-inner">
@@ -1318,6 +1904,24 @@ const UI = {
           </div>
           <div class="message-content">${msg.html || ''}</div>
           ${metaHtml}
+          ${!isUser ? `
+          <div class="message-actions ${feedbackClass}">
+            <button class="feedback-btn feedback-like" onclick="UI.handleFeedback(this, 'like')" aria-label="Helpful" title="Helpful">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+              </svg>
+            </button>
+            <button class="feedback-btn feedback-dislike" onclick="UI.handleFeedback(this, 'dislike')" aria-label="Not helpful" title="Not helpful">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+              </svg>
+            </button>
+            <button class="feedback-btn feedback-comment" onclick="UI.handleFeedback(this, 'comment')" aria-label="Add comment" title="Add comment">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+          </div>` : ''}
         </div>
       </div>`;
   },
@@ -1623,20 +2227,52 @@ const UI = {
     const existingTrace = inner.querySelector('.trace-container');
     if (existingTrace) return;
 
-    const traceIconSvg = `<svg class="trace-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+    const traceIconSvg = `<svg class="trace-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
     const traceHtml = `
       <div class="trace-container" data-message-id="${messageId}">
         <div class="trace-header">
           ${traceIconSvg}
           <span class="trace-label">Agent Activity</span>
+          <span class="trace-timer" data-start="${Date.now()}">0.0s</span>
           <button class="trace-toggle" aria-label="Toggle agent activity details" title="Toggle agent activity" onclick="UI.toggleTraceExpanded('${messageId}')">
-            <span class="toggle-icon" aria-hidden="true">▼</span>
+            <span class="toggle-icon" aria-hidden="true">&#9660;</span>
           </button>
         </div>
-        <div class="trace-content"></div>
+        <div class="trace-content">
+          <div class="context-meter" style="display: none;">
+            <div class="meter-bar"><div class="meter-fill"></div></div>
+            <span class="meter-label">Calculating...</span>
+          </div>
+          <div class="step-timeline"></div>
+        </div>
       </div>`;
 
     inner.insertAdjacentHTML('afterbegin', traceHtml);
+    
+    // Start elapsed timer
+    this.startTraceTimer(messageId);
+  },
+
+  startTraceTimer(messageId) {
+    const timerEl = document.querySelector(`.trace-container[data-message-id="${messageId}"] .trace-timer`);
+    if (!timerEl) return;
+    
+    const startTime = parseInt(timerEl.dataset.start, 10);
+    const updateTimer = () => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      timerEl.textContent = elapsed.toFixed(1) + 's';
+    };
+    
+    const intervalId = setInterval(updateTimer, 100);
+    timerEl.dataset.intervalId = intervalId;
+  },
+
+  stopTraceTimer(messageId) {
+    const timerEl = document.querySelector(`.trace-container[data-message-id="${messageId}"] .trace-timer`);
+    if (!timerEl || !timerEl.dataset.intervalId) return;
+    
+    clearInterval(parseInt(timerEl.dataset.intervalId, 10));
+    delete timerEl.dataset.intervalId;
   },
 
   toggleTraceExpanded(messageId) {
@@ -1646,51 +2282,143 @@ const UI = {
     container.classList.toggle('collapsed');
     const toggleIcon = container.querySelector('.toggle-icon');
     if (toggleIcon) {
-      toggleIcon.textContent = container.classList.contains('collapsed') ? '▶' : '▼';
+      toggleIcon.innerHTML = container.classList.contains('collapsed') ? '&#9654;' : '&#9660;';
     }
   },
 
-  renderToolStart(messageId, event) {
-    const traceContent = document.querySelector(`.trace-container[data-message-id="${messageId}"] .trace-content`);
-    if (!traceContent) return;
+  // =========================================================================
+  // Thinking Step Rendering
+  // =========================================================================
 
-    const toolHtml = `
-      <div class="tool-block tool-running" data-tool-call-id="${event.tool_call_id}">
-        <div class="tool-header" onclick="UI.toggleToolExpanded('${event.tool_call_id}')">
-          <span class="tool-icon">🔧</span>
-          <span class="tool-name">${Utils.escapeHtml(event.tool_name)}</span>
-          <span class="tool-status">
-            <span class="spinner"></span> Running...
-          </span>
+  renderThinkingStart(messageId, event) {
+    const timeline = document.querySelector(`.trace-container[data-message-id="${messageId}"] .step-timeline`);
+    if (!timeline) return;
+
+    const stepHtml = `
+      <div class="step thinking-step" data-step-id="${event.step_id}">
+        <div class="step-connector">
+          <span class="step-marker thinking-marker"></span>
+          <div class="step-line"></div>
         </div>
-        <div class="tool-details">
-          <div class="tool-args">
-            <div class="tool-section-label">Arguments</div>
-            <pre><code>${this.formatToolArgs(event.tool_args)}</code></pre>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.step_id)}')">
+            <span class="step-icon">...</span>
+            <span class="step-label">Thinking</span>
+            <span class="step-timer">
+              <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+            </span>
+            <button class="step-toggle" aria-label="Expand thinking details">&#9654;</button>
           </div>
-          <div class="tool-output-section" style="display: none;">
-            <div class="tool-section-label">Output</div>
-            <pre><code class="tool-output-content"></code></pre>
+          <div class="step-details" style="display: none;">
+            <div class="section-label">Details</div>
+            <pre><code>Processing...</code></pre>
           </div>
         </div>
       </div>`;
 
-    traceContent.insertAdjacentHTML('beforeend', toolHtml);
+    timeline.insertAdjacentHTML('beforeend', stepHtml);
+    this.scrollToBottom();
+  },
+
+  renderThinkingEnd(messageId, event) {
+    const step = document.querySelector(`.thinking-step[data-step-id="${event.step_id}"]`);
+    if (!step) return;
+
+    // If no thinking content, remove the step entirely - it's just noise
+    if (!event.thinking_content || !event.thinking_content.trim()) {
+      step.remove();
+      return;
+    }
+
+    // Has actual thinking content - show it
+    step.classList.add('completed');
+    const timerEl = step.querySelector('.step-timer');
+    if (timerEl && event.duration_ms != null) {
+      timerEl.textContent = Utils.formatDuration(event.duration_ms);
+    }
+    
+    const details = step.querySelector('.step-details pre code');
+    if (details) {
+      details.textContent = event.thinking_content.trim();
+    }
+    
+    const marker = step.querySelector('.step-marker');
+    if (marker) {
+      marker.classList.remove('thinking-marker');
+      marker.classList.add('completed-marker');
+    }
+  },
+
+  // =========================================================================
+  // Tool Step Rendering (Timeline Style)
+  // =========================================================================
+
+  renderToolStart(messageId, event) {
+    const timeline = document.querySelector(`.trace-container[data-message-id="${messageId}"] .step-timeline`);
+    if (!timeline) return;
+
+    const toolHtml = `
+      <div class="step tool-step tool-running" data-step-id="${event.tool_call_id}" data-tool-call-id="${event.tool_call_id}">
+        <div class="step-connector">
+          <span class="step-marker tool-marker"></span>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.tool_call_id)}')">
+            <span class="step-icon tool-icon-glyph">T</span>
+            <span class="step-label">${Utils.escapeHtml(event.tool_name)}</span>
+            <span class="step-status">
+              <span class="spinner"></span>
+            </span>
+            <button class="step-toggle" aria-label="Expand tool details">&#9654;</button>
+          </div>
+          <div class="step-details" style="display: none;">
+            <div class="tool-args">
+              <div class="section-label">Arguments</div>
+              <pre><code>${this.formatToolArgs(event.tool_args)}</code></pre>
+            </div>
+            <div class="tool-output-section" style="display: none;">
+              <div class="section-label">Output</div>
+              <pre><code class="tool-output-content"></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    timeline.insertAdjacentHTML('beforeend', toolHtml);
     this.scrollToBottom();
 
     // Auto-expand if verbose mode
     if (Chat.state.traceVerboseMode === 'verbose') {
-      const toolBlock = traceContent.querySelector(`[data-tool-call-id="${event.tool_call_id}"]`);
-      toolBlock?.classList.add('expanded');
+      const step = timeline.querySelector(`[data-step-id="${event.tool_call_id}"]`);
+      step?.classList.add('expanded');
+      const details = step?.querySelector('.step-details');
+      if (details) details.style.display = 'block';
+    }
+  },
+
+  toggleStepExpanded(stepId) {
+    const step = document.querySelector(`.step[data-step-id="${stepId}"]`);
+    if (!step) return;
+    
+    step.classList.toggle('expanded');
+    const details = step.querySelector('.step-details');
+    const toggle = step.querySelector('.step-toggle');
+    
+    if (details) {
+      details.style.display = step.classList.contains('expanded') ? 'block' : 'none';
+    }
+    if (toggle) {
+      toggle.innerHTML = step.classList.contains('expanded') ? '&#9660;' : '&#9654;';
     }
   },
 
   renderToolOutput(messageId, event) {
-    const toolBlock = document.querySelector(`.tool-block[data-tool-call-id="${event.tool_call_id}"]`);
-    if (!toolBlock) return;
+    const step = document.querySelector(`.tool-step[data-tool-call-id="${event.tool_call_id}"]`);
+    if (!step) return;
 
-    const outputSection = toolBlock.querySelector('.tool-output-section');
-    const outputContent = toolBlock.querySelector('.tool-output-content');
+    const outputSection = step.querySelector('.tool-output-section');
+    const outputContent = step.querySelector('.tool-output-content');
     
     if (outputSection) {
       outputSection.style.display = 'block';
@@ -1715,26 +2443,34 @@ const UI = {
   },
 
   renderToolEnd(messageId, event) {
-    const toolBlock = document.querySelector(`.tool-block[data-tool-call-id="${event.tool_call_id}"]`);
-    if (!toolBlock) return;
+    const step = document.querySelector(`.tool-step[data-tool-call-id="${event.tool_call_id}"]`);
+    if (!step) return;
 
-    toolBlock.classList.remove('tool-running');
-    toolBlock.classList.add(event.status === 'success' ? 'tool-success' : 'tool-error');
+    step.classList.remove('tool-running');
+    step.classList.add(event.status === 'success' ? 'tool-success' : 'tool-error');
 
-    const statusEl = toolBlock.querySelector('.tool-status');
+    const marker = step.querySelector('.step-marker');
+    if (marker) {
+      marker.classList.remove('tool-marker');
+      marker.classList.add(event.status === 'success' ? 'success-marker' : 'error-marker');
+    }
+
+    const statusEl = step.querySelector('.step-status');
     if (statusEl) {
       if (event.status === 'success') {
-        const durationText = event.duration_ms ? ` ${event.duration_ms}ms` : '';
-        statusEl.innerHTML = `<span class="checkmark">✓</span>${durationText}`;
+        const durationText = event.duration_ms ? Utils.formatDuration(event.duration_ms) : '';
+        statusEl.innerHTML = `<span class="checkmark">&#10003;</span> ${durationText}`;
       } else {
-        statusEl.innerHTML = `<span class="error-icon">✗</span> Error`;
+        statusEl.innerHTML = `<span class="error-icon">&#10007;</span>`;
       }
     }
 
     // Auto-collapse if many tools
-    const toolCount = document.querySelectorAll('.tool-block').length;
+    const toolCount = document.querySelectorAll('.tool-step').length;
     if (Chat.state.traceVerboseMode === 'normal' && toolCount > CONFIG.TRACE.AUTO_COLLAPSE_TOOL_COUNT) {
-      toolBlock.classList.remove('expanded');
+      step.classList.remove('expanded');
+      const details = step.querySelector('.step-details');
+      if (details) details.style.display = 'none';
     }
   },
 
@@ -1925,10 +2661,51 @@ const UI = {
     const toolBlock = document.querySelector(`.tool-block[data-tool-call-id="${toolCallId}"]`);
     if (toolBlock) {
       toolBlock.classList.toggle('expanded');
+  // =========================================================================
+  // Context Meter
+  // =========================================================================
+
+  updateContextMeter(messageId, usage) {
+    const meter = document.querySelector(`.trace-container[data-message-id="${messageId}"] .context-meter`);
+    if (!meter || !usage) return;
+
+    meter.style.display = 'flex';
+    
+    const fill = meter.querySelector('.meter-fill');
+    const label = meter.querySelector('.meter-label');
+    
+    const promptTokens = usage.prompt_tokens || 0;
+    const completionTokens = usage.completion_tokens || 0;
+    const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
+    
+    // Prefer backend-provided context window, fall back to 128k
+    const contextWindow = (usage.context_window && usage.context_window > 0)
+      ? usage.context_window
+      : 128000;
+    const usagePercent = Math.min((promptTokens / contextWindow) * 100, 100);
+    
+    if (fill) {
+      fill.style.width = usagePercent.toFixed(1) + '%';
+      // Color based on usage
+      if (usagePercent > 80) {
+        fill.style.backgroundColor = 'var(--error-text, #dc3545)';
+      } else if (usagePercent > 50) {
+        fill.style.backgroundColor = 'var(--warning-text, #ffc107)';
+      }
+    }
+    
+    if (label) {
+      label.textContent = `${promptTokens.toLocaleString()} prompt + ${completionTokens.toLocaleString()} completion = ${totalTokens.toLocaleString()} tokens`;
     }
   },
 
-  finalizeTrace(messageId, trace) {
+  // =========================================================================
+  // Finalize Trace
+  // =========================================================================
+
+  finalizeTrace(messageId, trace, finalEvent) {
+    this.stopTraceTimer(messageId);
+    
     const container = document.querySelector(`.trace-container[data-message-id="${messageId}"]`);
     if (!container) return;
 
@@ -1937,12 +2714,17 @@ const UI = {
     if (label && toolCount > 0) {
       label.textContent = `Agent Activity (${toolCount} tool${toolCount === 1 ? '' : 's'})`;
     }
+    
+    // Update context meter if usage available
+    if (finalEvent && finalEvent.usage) {
+      this.updateContextMeter(messageId, finalEvent.usage);
+    }
 
     // Auto-collapse in normal mode
     if (Chat.state.traceVerboseMode === 'normal') {
       container.classList.add('collapsed');
       const toggleIcon = container.querySelector('.toggle-icon');
-      if (toggleIcon) toggleIcon.textContent = '▶';
+      if (toggleIcon) toggleIcon.innerHTML = '&#9654;';
     }
   },
 
@@ -1958,6 +2740,176 @@ const UI = {
     }
   },
 
+  // =========================================================================
+  // Historical Trace Rendering (for loaded conversations)
+  // =========================================================================
+
+  renderHistoricalTrace(messageId, trace) {
+    if (!trace || !trace.events) return;
+
+    const msgEl = this.elements.messagesInner?.querySelector(`[data-id="${messageId}"]`);
+    if (!msgEl) return;
+
+    const inner = msgEl.querySelector('.message-inner');
+    if (!inner) return;
+
+    // Don't add if already exists
+    if (inner.querySelector('.trace-container')) return;
+
+    const events = trace.events;
+    if (!events || events.length === 0) return;
+
+    // Count tool calls
+    const toolCalls = events.filter(e => e.type === 'tool_start' || e.type === 'tool_use');
+    const toolCount = toolCalls.length;
+
+    // Calculate total duration
+    const durationMs = trace.total_duration_ms || 0;
+    const durationStr = Utils.formatDuration(durationMs);
+
+    const traceIconSvg = `<svg class="trace-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
+    
+    // Build trace container with collapsed state
+    const labelText = toolCount > 0 
+      ? `Agent Activity (${toolCount} tool${toolCount === 1 ? '' : 's'})` 
+      : 'Agent Activity';
+
+    const traceHtml = `
+      <div class="trace-container collapsed" data-message-id="${messageId}">
+        <div class="trace-header">
+          ${traceIconSvg}
+          <span class="trace-label">${labelText}</span>
+          <span class="trace-timer">${durationStr}</span>
+          <button class="trace-toggle" aria-label="Toggle agent activity details" title="Toggle agent activity" onclick="UI.toggleTraceExpanded('${messageId}')">
+            <span class="toggle-icon" aria-hidden="true">&#9654;</span>
+          </button>
+        </div>
+        <div class="trace-content">
+          <div class="context-meter" style="display: none;">
+            <div class="meter-bar"><div class="meter-fill"></div></div>
+            <span class="meter-label">Calculating...</span>
+          </div>
+          <div class="step-timeline"></div>
+        </div>
+      </div>`;
+
+    inner.insertAdjacentHTML('afterbegin', traceHtml);
+
+    // Now populate the timeline with events
+    const timeline = inner.querySelector('.step-timeline');
+    if (!timeline) return;
+
+    // Process events and add steps
+    const toolStartEvents = {};
+    const thinkingEvents = {};
+    let usageData = null;
+
+    for (const event of events) {
+      if (event.type === 'thinking_start') {
+        thinkingEvents[event.step_id] = event;
+      } else if (event.type === 'thinking_end') {
+        const startEvent = thinkingEvents[event.step_id];
+        if (startEvent && event.thinking_content && event.thinking_content.trim()) {
+          this.addHistoricalThinkingStep(timeline, event);
+        }
+      } else if (event.type === 'tool_start' || event.type === 'tool_use') {
+        toolStartEvents[event.tool_call_id] = event;
+        // Add the tool step immediately
+        this.addHistoricalToolStep(timeline, event, null);
+      } else if (event.type === 'tool_end' || event.type === 'tool_result' || event.type === 'tool_output') {
+        const startEvent = toolStartEvents[event.tool_call_id];
+        // Update the tool step with output
+        this.updateHistoricalToolStep(timeline, event, startEvent);
+      } else if (event.type === 'usage') {
+        usageData = event;
+      }
+    }
+
+    // Populate context meter if usage data is available
+    if (usageData) {
+      this.updateContextMeter(messageId, usageData);
+    }
+  },
+
+  addHistoricalThinkingStep(timeline, event) {
+    const stepHtml = `
+      <div class="step thinking-step completed" data-step-id="${event.step_id}">
+        <div class="step-connector">
+          <span class="step-marker completed-marker"></span>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.step_id)}')">
+            <span class="step-icon">💭</span>
+            <span class="step-label">Thinking</span>
+            <span class="step-timer">${event.duration_ms ? Utils.formatDuration(event.duration_ms) : ''}</span>
+            <button class="step-toggle" aria-label="Expand thinking details">&#9654;</button>
+          </div>
+          <div class="step-details" style="display: none;">
+            <div class="section-label">Details</div>
+            <pre><code>${Utils.escapeHtml(event.thinking_content || '')}</code></pre>
+          </div>
+        </div>
+      </div>`;
+    timeline.insertAdjacentHTML('beforeend', stepHtml);
+  },
+
+  addHistoricalToolStep(timeline, event, outputEvent) {
+    const toolName = event.tool_name || 'Unknown Tool';
+    const toolArgs = this.formatToolArgs(event.tool_args || event.arguments);
+    
+    const stepHtml = `
+      <div class="step tool-step completed" data-step-id="${event.tool_call_id}" data-tool-call-id="${event.tool_call_id}">
+        <div class="step-connector">
+          <span class="step-marker completed-marker"></span>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.tool_call_id)}')">
+            <span class="step-icon tool-icon-glyph">T</span>
+            <span class="step-label">${Utils.escapeHtml(toolName)}</span>
+            <span class="step-status">✓</span>
+            <button class="step-toggle" aria-label="Expand tool details">&#9654;</button>
+          </div>
+          <div class="step-details" style="display: none;">
+            <div class="tool-args">
+              <div class="section-label">Arguments</div>
+              <pre><code>${toolArgs}</code></pre>
+            </div>
+            <div class="tool-output-section" style="display: none;">
+              <div class="section-label">Output</div>
+              <pre><code class="tool-output-content"></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    timeline.insertAdjacentHTML('beforeend', stepHtml);
+  },
+
+  updateHistoricalToolStep(timeline, outputEvent, startEvent) {
+    const step = timeline.querySelector(`[data-tool-call-id="${outputEvent.tool_call_id}"]`);
+    if (!step) return;
+
+    // Update duration if available
+    if (outputEvent.duration_ms) {
+      const statusEl = step.querySelector('.step-status');
+      if (statusEl) {
+        statusEl.textContent = Utils.formatDuration(outputEvent.duration_ms);
+      }
+    }
+
+    // Update output if available
+    const output = outputEvent.tool_output || outputEvent.result || outputEvent.output;
+    if (output) {
+      const outputSection = step.querySelector('.tool-output-section');
+      const outputContent = step.querySelector('.tool-output-content');
+      if (outputSection && outputContent) {
+        outputSection.style.display = 'block';
+        outputContent.textContent = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+      }
+    }
+  },
+
   showCancelButton(messageId) {
     const msgEl = this.elements.messagesInner?.querySelector(`[data-id="${messageId}"]`);
     if (!msgEl) return;
@@ -1967,7 +2919,7 @@ const UI = {
 
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'cancel-stream-btn';
-    cancelBtn.innerHTML = '⏹ Stop';
+    cancelBtn.innerHTML = 'Stop';
     cancelBtn.onclick = () => Chat.cancelStream();
 
     msgEl.querySelector('.message-inner')?.appendChild(cancelBtn);
@@ -1976,6 +2928,189 @@ const UI = {
   hideCancelButton(messageId) {
     const msgEl = this.elements.messagesInner?.querySelector(`[data-id="${messageId}"]`);
     msgEl?.querySelector('.cancel-stream-btn')?.remove();
+  },
+
+  // =========================================================================
+  // Feedback Handlers
+  // =========================================================================
+
+  async handleFeedback(button, type) {
+    const msgEl = button.closest('.message');
+    if (!msgEl) return;
+
+    const messageId = msgEl.dataset.id;
+    if (!messageId || isNaN(Number(messageId))) {
+      console.warn('Cannot submit feedback: invalid message id', messageId);
+      return;
+    }
+
+    const actionsEl = msgEl.querySelector('.message-actions');
+    
+    // Disable buttons during request
+    const buttons = actionsEl?.querySelectorAll('.feedback-btn');
+    buttons?.forEach(btn => btn.disabled = true);
+
+    try {
+      if (type === 'like') {
+        const result = await API.likeMessage(Number(messageId));
+        this.updateFeedbackState(actionsEl, result.state);
+      } else if (type === 'dislike') {
+        const result = await API.dislikeMessage(Number(messageId));
+        this.updateFeedbackState(actionsEl, result.state);
+      } else if (type === 'comment') {
+        this.showFeedbackModal(messageId);
+      }
+    } catch (e) {
+      console.error(`Failed to submit ${type}:`, e);
+    } finally {
+      buttons?.forEach(btn => btn.disabled = false);
+    }
+  },
+
+  updateFeedbackState(actionsEl, state) {
+    if (!actionsEl) return;
+    
+    // Remove all active states
+    actionsEl.classList.remove('feedback-like-active', 'feedback-dislike-active');
+    
+    // Apply new state
+    if (state === 'like') {
+      actionsEl.classList.add('feedback-like-active');
+    } else if (state === 'dislike') {
+      actionsEl.classList.add('feedback-dislike-active');
+    }
+  },
+
+  showFeedbackModal(messageId) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('feedback-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'feedback-modal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-content feedback-modal-content">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <svg class="modal-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <h3>Send Feedback</h3>
+            </div>
+            <button class="modal-close" aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="feedback-description">Help us improve by sharing your thoughts on this response.</p>
+            <label class="feedback-label" for="feedback-text">Your feedback</label>
+            <textarea id="feedback-text" placeholder="What could be improved? What was helpful or unhelpful?" rows="5"></textarea>
+            <p class="feedback-hint">Your feedback helps us make the assistant better for everyone.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" id="submit-feedback-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              Submit Feedback
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    const textarea = modal.querySelector('#feedback-text');
+    const submitBtn = modal.querySelector('#submit-feedback-btn');
+    const closeBtn = modal.querySelector('.modal-close');
+    const cancelBtn = modal.querySelector('[data-dismiss="modal"]');
+
+    // Reset
+    textarea.value = '';
+    modal.style.display = 'flex';
+    modal.classList.add('modal-visible');
+    setTimeout(() => textarea.focus(), 100);
+
+    const closeModal = () => {
+      modal.classList.remove('modal-visible');
+      setTimeout(() => { modal.style.display = 'none'; }, 150);
+    };
+
+    const handleSubmit = async () => {
+      const text = textarea.value.trim();
+      if (!text) {
+        closeModal();
+        return;
+      }
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+        </svg>
+        Sending...
+      `;
+      
+      try {
+        await API.submitTextFeedback(Number(messageId), text);
+      } catch (e) {
+        console.error('Failed to submit feedback:', e);
+        // Show error in the modal instead of silently closing
+        const hint = modal.querySelector('.feedback-hint');
+        if (hint) {
+          hint.textContent = 'Failed to submit feedback. Please try again.';
+          hint.style.color = 'var(--error-text, #f85149)';
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          Submit Feedback
+        `;
+        return; // Don't close modal on error
+      }
+      
+      // Reset button
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+        Submit Feedback
+      `;
+      closeModal();
+    };
+
+    // Clean up old listeners by cloning nodes
+    const newSubmitBtn = submitBtn.cloneNode(true);
+    submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+    newSubmitBtn.onclick = handleSubmit;
+
+    const newCloseBtn = closeBtn.cloneNode(true);
+    closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+    newCloseBtn.onclick = closeModal;
+
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    newCancelBtn.onclick = closeModal;
+
+    // Use a named handler for the backdrop click so we can remove it
+    if (modal._backdropHandler) {
+      modal.removeEventListener('click', modal._backdropHandler);
+    }
+    modal._backdropHandler = (e) => {
+      if (e.target === modal) closeModal();
+    };
+    modal.addEventListener('click', modal._backdropHandler);
   },
 };
 
@@ -2008,6 +3143,8 @@ const Chat = {
     selectedCustomModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_CUSTOM) || null,
     selectedProviderB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B) || null,
     selectedModelB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_B) || null,
+    agents: [],
+    activeAgentName: null,
   },
 
   async init() {
@@ -2023,6 +3160,7 @@ const Chat = {
       this.loadApiKeyStatus(),
       this.loadSandboxApprovalMode(),
       UI.loadUserProfile(),
+      this.loadAgents(),
     ]);
 
     // Update model label after all data is loaded (configs, providers, pipeline default)
@@ -2042,6 +3180,49 @@ const Chat = {
       UI.renderConfigs(this.state.configs);
     } catch (e) {
       console.error('Failed to load configs:', e);
+    }
+  },
+
+  async loadAgents() {
+    try {
+      const data = await API.getAgentsList();
+      this.state.agents = data?.agents || [];
+      const activeName = data?.active_name || this.state.agents[0]?.name || null;
+      this.state.activeAgentName = Utils.normalizeAgentName(activeName);
+      UI.renderAgentsList(this.state.agents, this.state.activeAgentName);
+      this.updateActiveModelLabel();
+    } catch (e) {
+      console.error('Failed to load agents list:', e);
+    }
+  },
+
+  async setActiveAgent(name) {
+    if (!name) return;
+    try {
+      const response = await API.setActiveAgent(name);
+      const activeName = response?.active_name || name;
+      this.state.activeAgentName = Utils.normalizeAgentName(activeName);
+      UI.renderAgentsList(this.state.agents, this.state.activeAgentName);
+      this.updateActiveModelLabel();
+    } catch (e) {
+      console.error('Failed to set active agent:', e);
+    }
+  },
+
+  async deleteAgent(name) {
+    // Legacy path — now handled via inline confirmation in UI
+    if (!name) return;
+    await this.doDeleteAgent(name);
+  },
+
+  async doDeleteAgent(name) {
+    if (!name) return;
+    try {
+      await API.deleteAgent(Utils.normalizeAgentName(name));
+      await this.loadAgents();
+    } catch (e) {
+      console.error('Failed to delete agent:', e);
+      alert(e.message || 'Unable to delete agent.');
     }
   },
 
@@ -2095,17 +3276,21 @@ const Chat = {
 
   formatPipelineDefaultLabel() {
     const info = this.state.pipelineDefaultModel;
-    // Just show the model name (e.g., "openai/gpt-5-nano")
+    // Show model_name if available, otherwise model_class
     if (info?.model_name) {
       return info.model_name;
+    }
+    if (info?.model_class) {
+      return info.model_class;
     }
     return 'Default model';
   },
 
   getAgentLabel() {
-    const selectedConfig = UI.getSelectedConfig('A');
-    if (selectedConfig) return selectedConfig;
-    return this.state.configs[0]?.name || 'Default agent';
+    if (this.state.activeAgentName) {
+      return this.state.activeAgentName;
+    }
+    return 'Default agent';
   },
 
   getCurrentModelLabel() {
@@ -2406,10 +3591,12 @@ const Chat = {
       this.state.messages = (data.messages || []).map((msg, idx) => {
         const isUser = msg.sender === 'User';
         return {
-          id: `${msg.message_id || idx}-${isUser ? 'u' : 'a'}`,
+          id: msg.message_id || `${idx}-${isUser ? 'u' : 'a'}`,
           sender: msg.sender,
           html: isUser ? Utils.escapeHtml(msg.content) : Markdown.render(msg.content),
           meta: isUser ? null : this.getEntryMetaLabel(),
+          feedback: msg.feedback || null,
+          trace: msg.trace || null,  // Include trace data
         };
       });
 
@@ -2417,9 +3604,23 @@ const Chat = {
       this.state.history = (data.messages || []).map((msg) => [msg.sender, msg.content]);
 
       UI.renderMessages(this.state.messages);
+      
+      // Render historical trace data for assistant messages
+      for (const msg of this.state.messages) {
+        if (msg.sender !== 'User' && msg.trace) {
+          UI.renderHistoricalTrace(msg.id, msg.trace);
+        }
+      }
+      
       await this.loadConversations(); // Refresh list to show active state
     } catch (e) {
       console.error('Failed to load conversation:', e);
+      this.state.conversationId = null;
+      this.state.messages = [];
+      this.state.history = [];
+      Storage.setActiveConversationId(null);
+      UI.renderMessages([]);
+      UI.showToast('Conversation not found. Starting a new chat.');
     }
   },
 
@@ -2692,7 +3893,7 @@ const Chat = {
           
           // Finalize trace display
           if (showTrace) {
-            UI.finalizeTrace(elementId, { toolCalls });
+            UI.finalizeTrace(elementId, { toolCalls }, event);
           }
           
           UI.updateABResponse(elementId, Markdown.render(finalText), false);
@@ -2797,6 +3998,19 @@ const Chat = {
 
     // Create abort controller for cancellation
     this.state.abortController = new AbortController();
+    let timeoutId = null;
+    let timedOut = false;
+
+    const resetTimeout = () => {
+      if (!CONFIG.STREAMING.TIMEOUT) return;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        this.state.abortController?.abort();
+      }, CONFIG.STREAMING.TIMEOUT);
+    };
 
     // Create trace container if in verbose/normal mode
     const showTrace = this.state.traceVerboseMode !== 'minimal';
@@ -2807,6 +4021,8 @@ const Chat = {
     try {
       // Get selected provider and model
       const { provider, model } = this.getSelectedProviderAndModel();
+
+      resetTimeout();
       
       for await (const event of API.streamResponse(
         this.state.history,
@@ -2816,6 +4032,7 @@ const Chat = {
         provider,
         model
       )) {
+        resetTimeout();
         // Handle trace events
         if (event.type === 'tool_start') {
           this.state.activeTrace.toolCalls.set(event.tool_call_id, {
@@ -2863,6 +4080,16 @@ const Chat = {
           const approved = await UI.showApprovalModal(event);
           // Send approval decision to server
           await this.handleSandboxApproval(event.approval_id, approved);
+        } else if (event.type === 'thinking_start') {
+          this.state.activeTrace.events.push(event);
+          if (showTrace) {
+            UI.renderThinkingStart(messageId, event);
+          }
+        } else if (event.type === 'thinking_end') {
+          this.state.activeTrace.events.push(event);
+          if (showTrace) {
+            UI.renderThinkingEnd(messageId, event);
+          }
         } else if (event.type === 'chunk') {
           // Chunks may be accumulated or delta content
           if (event.accumulated) {
@@ -2892,9 +4119,9 @@ const Chat = {
             this.state.activeTrace.traceId = event.trace_id;
           }
           
-          // Finalize trace display
+          // Finalize trace display with usage data
           if (showTrace) {
-            UI.finalizeTrace(messageId, this.state.activeTrace);
+            UI.finalizeTrace(messageId, this.state.activeTrace, event);
           }
           
           UI.updateMessage(messageId, {
@@ -2908,6 +4135,14 @@ const Chat = {
             if (msgEl) SandboxArtifacts.enhance(msgEl);
           }
           
+          // Update message ID from backend so feedback works
+          if (event.message_id != null) {
+            const msg = this.state.messages.find(m => m.id === messageId);
+            if (msg) msg.id = event.message_id;
+            const msgEl = document.querySelector(`[data-id="${messageId}"]`);
+            if (msgEl) msgEl.dataset.id = event.message_id;
+          }
+
           if (event.conversation_id != null) {
             this.state.conversationId = event.conversation_id;
             Storage.setActiveConversationId(event.conversation_id);
@@ -2939,9 +4174,11 @@ const Chat = {
     } catch (e) {
       if (e.name === 'AbortError') {
         UI.updateMessage(messageId, {
-          html: streamedText 
-            ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
-            : '<p class="cancelled-notice"><em>Response cancelled</em></p>',
+          html: timedOut
+            ? '<p class="cancelled-notice"><em>Response timed out</em></p>'
+            : streamedText 
+              ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
+              : '<p class="cancelled-notice"><em>Response cancelled</em></p>',
           streaming: false,
         });
         return;
@@ -2952,6 +4189,9 @@ const Chat = {
         streaming: false,
       });
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       this.state.abortController = null;
       this.state.activeTrace = null;
     }

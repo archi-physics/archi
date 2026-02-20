@@ -31,7 +31,7 @@ class DataManager():
         self.persistence = PersistenceService(self.data_path, pg_config=self.pg_config)
         self.config_service = factory.config_service if factory else ConfigService(pg_config=self.pg_config)
         static_config = self.config_service.get_static_config()
-        if not static_config or not static_config.sources_config:
+        if not static_config or static_config.sources_config is None:
             raise RuntimeError("Static config missing sources_config; run deployment initialization first.")
         self.config["data_manager"]["sources"] = static_config.sources_config
 
@@ -74,7 +74,8 @@ class DataManager():
         if progress_callback:
             progress_callback("Flushing indices")
         self.persistence.flush_index()
-        
+
+
         # Verify catalog was updated
         catalog = self.persistence.catalog
         catalog.refresh()  # Ensure we have the latest data

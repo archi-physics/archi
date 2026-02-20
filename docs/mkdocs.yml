@@ -1,14 +1,20 @@
 site_name: Archi Docs
 nav:
-  - Archi: index.md
+  - Home: index.md
   - Install: install.md
   - Quickstart: quickstart.md
   - User Guide: user_guide.md
-  - Advanced Setup and Deployment: advanced_setup_deploy.md
+  - Data Sources: data_sources.md
+  - Services: services.md
+  - Models & Providers: models_providers.md
+  - Agents & Tools: agents_tools.md
+  - Configuration: configuration.md
+  - CLI Reference: cli_reference.md
   - API Reference: api_reference.md
+  - Benchmarking: benchmarking.md
+  - Advanced Setup: advanced_setup_deploy.md
   - Developer Guide: developer_guide.md
+  - Troubleshooting: troubleshooting.md
 theme: readthedocs
-repo_url: https://github.com/mit-submit/archi
+repo_url: https://github.com/archi-physics/archi
 repo_name: 'GitHub'
-extra:
-  version: 1.2.4

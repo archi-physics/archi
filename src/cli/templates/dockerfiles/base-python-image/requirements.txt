@@ -2,7 +2,6 @@
 --extra-index-url https://pypi.org/simple
 
 torch==2.6.0 
-torchvision==0.21.0
 backoff==2.2.1
 beautifulsoup4==4.12.3 
 clickhouse-connect==0.6.6

@@ -1,0 +1,24 @@
+name: Trigger GitLab Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger GitLab Pipeline
+        run: |
+          echo "GitLab Ref: ${{ vars.GITLAB_REF }}"
+          echo "GitHub Ref: ${{ github.ref_name }}"
+
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            -F "token=${{ secrets.GITLAB_TRIGGER_TOKEN }}" \
+            -F "ref=${{ vars.GITLAB_REF }}" \
+            "https://gitlab.cern.ch/api/v4/projects/221125/trigger/pipeline")
+
+          echo "=== GitLab Response ==="
+          echo "$RESPONSE"
+

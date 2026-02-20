@@ -7,13 +7,13 @@ key.py
 !templates/dockerfiles/base-python-image/*
 *.ipynb
 !plots/*.ipynb
+*.swp
 __pycache__
 venv
 *.DS_Store
 *.egg-info
 *sqlite_db
 .vscode
-801-content/
 *secrets/
 *secrets*
 logos/
@@ -30,3 +30,10 @@ openspec/*/tasks.md
 openspec/*/proposal.md
 node_modules/
 test-results/
+playwright-report/
+
+# Data artifacts from local testing
+git/
+local_files/
+raw_local_files/
+websites/

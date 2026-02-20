@@ -249,7 +249,8 @@ class TestHybridSearch:
         conn, cursor = mock_pg_connection
         
         # First call checks for BM25 index, second checks for chunk_tsv column
-        cursor.fetchone.side_effect = [(1,), None]  # BM25 index exists, no chunk_tsv
+        # Use dict-like results for RealDictCursor compatibility
+        cursor.fetchone.side_effect = [{'relname': 'idx_bm25'}, None]  # BM25 index exists, no chunk_tsv
         cursor.fetchall.return_value = [
             {
                 'id': 1,
@@ -278,58 +279,69 @@ class TestHybridSearch:
         assert 'machine learning' in doc.page_content.lower()
     
     def test_hybrid_search_without_bm25_index(self, vector_store, mock_pg_connection):
-        """Test hybrid search falls back to ts_rank without BM25 index."""
+        """Test hybrid search raises error when BM25 index is missing."""
         conn, cursor = mock_pg_connection
         
-        # First call checks for BM25 index, second checks for chunk_tsv column
-        cursor.fetchone.side_effect = [None, (1,)]  # No BM25 index, has chunk_tsv
-        cursor.fetchall.return_value = [
-            {
-                'id': 1,
-                'chunk_text': 'Document text',
-                'metadata': '{}',
-                'semantic_score': 0.8,
-                'bm25_score': 0.5,
-                'combined_score': 0.71,
-                'resource_hash': None,
-                'display_name': None,
-                'source_type': None,
-                'url': None,
-            },
-        ]
+        # No BM25 index found
+        cursor.fetchone.return_value = None
         
         with patch.object(vector_store, '_get_connection', return_value=conn):
-            results = vector_store.hybrid_search("query", k=5)
-        
-        # Should still return results using ts_rank fallback
-        assert len(results) == 1
+            with pytest.raises(RuntimeError, match="BM25 index"):
+                vector_store.hybrid_search("query", k=5)
     
     def test_hybrid_search_custom_weights(self, vector_store, mock_pg_connection):
         """Test hybrid search with custom weights."""
         conn, cursor = mock_pg_connection
-        # First call checks for BM25 index, second checks for chunk_tsv column
-        cursor.fetchone.side_effect = [(1,), None]  # BM25 index exists, no chunk_tsv
-        cursor.fetchall.return_value = []
+        # First call checks for BM25 index
+        # Use dict-like results for RealDictCursor compatibility
+        cursor.fetchone.return_value = {'relname': 'idx_bm25'}  # BM25 index exists
+        # Return mock results so we don't fall back to semantic search
+        cursor.fetchall.return_value = [
+            {
+                'id': 1,
+                'chunk_text': 'test content',
+                'metadata': {},
+                'semantic_score': 0.8,
+                'bm25_score': 0.7,
+                'combined_score': 0.74,  # 0.8*0.4 + 0.7*0.6
+                'resource_hash': 'hash123',
+                'display_name': 'Test Doc',
+                'source_type': 'web',
+                'url': None,
+            }
+        ]
         
         with patch.object(vector_store, '_get_connection', return_value=conn):
-            vector_store.hybrid_search(
+            results = vector_store.hybrid_search(
                 "query",
                 k=5,
                 semantic_weight=0.4,
                 bm25_weight=0.6,
             )
         
-        # Verify weights were passed to query
-        call_args = cursor.execute.call_args[0]
-        params = call_args[1]
-        assert 0.4 in params
-        assert 0.6 in params
+        # Verify we got results
+        assert len(results) == 1
+        
+        # Verify hybrid search query was executed (weights are embedded in SQL params)
+        # Find the hybrid search query (has combined_score)
+        for call in cursor.execute.call_args_list:
+            call_args = call[0]
+            query_sql = call_args[0]
+            if 'combined_score' in query_sql.lower():
+                params = call_args[1]
+                # Weights should be in params (0.4 and 0.6)
+                assert 0.4 in params
+                assert 0.6 in params
+                break
+        else:
+            pytest.fail("Hybrid search query with combined_score not found")
     
     def test_hybrid_search_score_combination(self, vector_store, mock_pg_connection):
         """Test that hybrid search correctly combines scores."""
         conn, cursor = mock_pg_connection
         # First call checks for BM25 index, second checks for chunk_tsv column
-        cursor.fetchone.side_effect = [(1,), None]  # BM25 index exists, no chunk_tsv
+        # Use dict-like results for RealDictCursor compatibility
+        cursor.fetchone.side_effect = [{'relname': 'idx_bm25'}, None]  # BM25 index exists, no chunk_tsv
         
         # Results with known scores
         cursor.fetchall.return_value = [

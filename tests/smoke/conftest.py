@@ -5,6 +5,7 @@ Pytest fixtures for smoke tests.
 import os
 import uuid
 import pytest
+import psycopg2
 
 # PostgreSQL connection config for test container
 PG_CONFIG = {
@@ -35,16 +36,28 @@ def test_conv_id(test_user_id):
     """Create a test conversation and return the ID."""
     from src.utils.conversation_service import ConversationService, Message
     
-    service = ConversationService(connection_params=PG_CONFIG)
-    conv_id = str(uuid.uuid4().int % 1000000)
+    # First create conversation_metadata (required by FK constraint)
+    conv_id = uuid.uuid4().int % 1000000
+    conn = psycopg2.connect(**PG_CONFIG)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO conversation_metadata (conversation_id, user_id, title)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (conversation_id) DO NOTHING
+            """, (conv_id, test_user_id, "Test Conversation"))
+        conn.commit()
+    finally:
+        conn.close()
     
-    # Add a message to create the conversation
+    # Now add a message
+    service = ConversationService(connection_params=PG_CONFIG)
     msg = Message(
-        conversation_id=conv_id,
+        conversation_id=str(conv_id),
         sender="user",
         content="Test message",
         archi_service="test",
     )
     service.insert_message(msg)
     
-    return conv_id
+    return str(conv_id)

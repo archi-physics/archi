@@ -34,7 +34,7 @@ class DataViewerService:
 
     def list_documents(
         self,
-        conversation_id: str,
+        conversation_id: Optional[str] = None,
         source_type: Optional[str] = None,
         search: Optional[str] = None,
         enabled_filter: Optional[str] = None,
@@ -45,7 +45,7 @@ class DataViewerService:
         List documents with per-chat enabled state.
 
         Args:
-            conversation_id: The conversation ID for per-chat state
+            conversation_id: The conversation ID for per-chat state (optional for global listing)
             source_type: Filter by source type ("local", "web", "ticket", "all")
             search: Search query for display_name and url
             enabled_filter: Filter by enabled state ("all", "enabled", "disabled")
@@ -199,3 +199,15 @@ class DataViewerService:
             True if enabled (default), False if disabled
         """
         return self.catalog.is_document_enabled(conversation_id, document_hash)
+
+    def get_document_chunks(self, document_hash: str) -> List[Dict[str, Any]]:
+        """
+        Get all chunks for a document with their boundaries.
+        
+        Args:
+            document_hash: The document's resource_hash
+            
+        Returns:
+            List of chunk dicts with index, text, start_char, end_char
+        """
+        return self.catalog.get_document_chunks(document_hash)

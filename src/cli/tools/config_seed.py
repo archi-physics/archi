@@ -29,13 +29,20 @@ def seed(config: dict, cs: ConfigService):
     print("[config-seed] Starting seed with config keys:", list(config.keys()))
     dm = config.get("data_manager", {})
     services = config.get("services", {})
-    archi_cfg = config.get("archi", {})
+    archi_cfg = config.get("archi", {}) or {}
     global_cfg = config.get("global", {})
 
     # Embedding dimensions fallback TODO why is this here?
     embedding_name = dm.get("embedding_name", "HuggingFaceEmbeddings")
     embedding_class_map = dm.get("embedding_class_map", {})
     embedding_dimensions = embedding_class_map.get(embedding_name, {}).get("dimensions", 384)
+
+    agent_class = services.get("chat_app", {}).get("agent_class")
+    provider = services.get("chat_app", {}).get("provider")
+    model = services.get("chat_app", {}).get("model")
+    available_pipelines = [agent_class] if agent_class else []
+    available_models = [f"{provider}/{model}"] if provider and model else []
+    available_providers = [provider] if provider else []
 
     cs.initialize_static_config(
         deployment_name=config.get("name", "default"),
@@ -45,9 +52,9 @@ def seed(config: dict, cs: ConfigService):
         chunk_size=dm.get("chunk_size", 1000),
         chunk_overlap=dm.get("chunk_overlap", 150),
         distance_metric=dm.get("distance_metric", "cosine"),
-        available_pipelines=list((archi_cfg.get("pipeline_map", {}) or {}).keys()),
-        available_models=[m for p in (archi_cfg.get("providers", {}) or {}).values() for m in (p.get("models") or [])],
-        available_providers=list((archi_cfg.get("providers", {}) or {}).keys()),
+        available_pipelines=available_pipelines,
+        available_models=available_models,
+        available_providers=available_providers,
         auth_enabled=services.get("chat_app", {}).get("auth", {}).get("enabled", False),
         sources_config=dm.get("sources", {}),
         services_config=services,
@@ -63,8 +70,10 @@ def seed(config: dict, cs: ConfigService):
     if dynamic.updated_by is None:
         retrievers = dm.get("retrievers", {})
         hybrid = retrievers.get("hybrid_retriever", {})
+        active_model = f"{provider}/{model}" if provider and model else None
         cs.update_dynamic_config(
-            active_pipeline=services.get("chat_app", {}).get("pipeline", "QAPipeline"),
+            active_pipeline=services.get("chat_app", {}).get("agent_class", "CMSCompOpsAgent"),
+            active_model=active_model,
             num_documents_to_retrieve=hybrid.get("num_documents_to_retrieve", 10),
             bm25_weight=hybrid.get("bm25_weight", 0.3),
             semantic_weight=hybrid.get("semantic_weight", 0.7),

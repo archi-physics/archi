@@ -8,6 +8,8 @@ from flask import Flask
 from piazza_api import Piazza as PiazzaAPI
 
 from src.archi.archi import archi
+from pathlib import Path
+from src.archi.pipelines.agents.agent_spec import AgentSpecError, select_agent_spec
 from src.data_manager.data_manager import DataManager
 from src.utils.env import read_secret
 from src.utils.logging import get_logger
@@ -21,7 +23,26 @@ class PiazzaAIWrapper:
         self.data_manager = DataManager(run_ingestion=False)
 
         # intialize chain
-        self.archi = archi(pipeline="QAPipeline")
+        config = get_full_config()
+        services_cfg = config.get("services", {})
+        piazza_cfg = services_cfg.get("piazza", {})
+        agent_class = piazza_cfg.get("agent_class", "QAPipeline")
+        agent_spec = None
+        agents_dir = piazza_cfg.get("agents_dir") or services_cfg.get("chat_app", {}).get("agents_dir")
+        if agents_dir:
+            try:
+                agent_spec = select_agent_spec(Path(agents_dir))
+            except AgentSpecError as exc:
+                logger.warning(f"Failed to load agent spec: {exc}")
+                agent_spec = None
+        prompt_overrides = piazza_cfg.get("prompts", {})
+        self.archi = archi(
+            pipeline=agent_class,
+            agent_spec=agent_spec,
+            default_provider=piazza_cfg.get("default_provider"),
+            default_model=piazza_cfg.get("default_model"),
+            prompt_overrides=prompt_overrides,
+        )
 
     def __call__(self, post):
 

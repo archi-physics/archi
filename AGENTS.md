@@ -42,7 +42,11 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - Shell scripts under `scripts/` and `tests/smoke/` use `bash` with `set -euo pipefail`.
 
 ## Testing Guidelines
-No testing is set up yet.
+- **Unit tests:** Run `pytest tests/unit/ -v --tb=short` (requires project dependencies: `pip install ".[all]"`).
+- **UI tests:** Run `npx playwright test` against a running deployment (set `BASE_URL` env var). Install with `npm ci && npx playwright install --with-deps chromium`.
+- **Smoke tests:** Run via `scripts/dev/run_smoke_preview.sh <name>`. Requires Ollama with a model pulled, Docker, and the archi CLI.
+- **Lint:** Run `black --check .` and `isort --check .` for formatting checks.
+- **CI:** All PR checks run on `ubuntu-latest` GitHub runners. PR CI includes lint, unit tests, smoke deployment, and Playwright UI tests.
 
 ## Commit & Pull Request Guidelines
 - Recent history uses short, lowercase summaries (e.g., `fix bug`, `split data manager...`); keep commits concise and descriptive.
