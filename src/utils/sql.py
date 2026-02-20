@@ -259,3 +259,43 @@ SET status = 'cancelled',
     cancellation_reason = %s
 WHERE conversation_id = %s AND status = 'running';
 """
+
+# =============================================================================
+# Service Alert Queries
+# =============================================================================
+
+SQL_INSERT_ALERT = """
+INSERT INTO service_alerts (severity, message, description, created_by)
+VALUES (%s, %s, %s, %s)
+RETURNING id, severity, message, description, created_by, created_at, expires_at, active;
+"""
+
+SQL_SET_ALERT_EXPIRY = """
+UPDATE service_alerts
+SET expires_at = %s
+WHERE id = %s;
+"""
+
+SQL_LIST_ALERTS = """
+SELECT id, severity, message, description, created_by, created_at, expires_at, active
+FROM service_alerts
+ORDER BY created_at DESC;
+"""
+
+SQL_LIST_ACTIVE_BANNER_ALERTS = """
+SELECT id, severity, message, description, created_by, created_at, expires_at
+FROM (
+    SELECT id, severity, message, description, created_by, created_at, expires_at
+    FROM service_alerts
+    WHERE active = TRUE AND (expires_at IS NULL OR expires_at > NOW())
+    ORDER BY created_at DESC
+    LIMIT 5
+) latest
+ORDER BY
+    CASE severity WHEN 'alarm' THEN 0 WHEN 'warning' THEN 1 WHEN 'info' THEN 2 WHEN 'news' THEN 3 ELSE 4 END,
+    created_at DESC;
+"""
+
+SQL_DELETE_ALERT = """
+DELETE FROM service_alerts WHERE id = %s;
+"""
