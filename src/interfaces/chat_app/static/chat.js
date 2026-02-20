@@ -2661,6 +2661,9 @@ const UI = {
     const toolBlock = document.querySelector(`.tool-block[data-tool-call-id="${toolCallId}"]`);
     if (toolBlock) {
       toolBlock.classList.toggle('expanded');
+    }
+  },
+
   // =========================================================================
   // Context Meter
   // =========================================================================
