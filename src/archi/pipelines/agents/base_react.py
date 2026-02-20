@@ -956,6 +956,13 @@ class BaseReActAgent:
             if hasattr(self.agent_llm, "get_num_tokens_from_messages"):
 
                 context_window = self._get_model_context_window()
+                # Guard against None or invalid values
+                if not isinstance(context_window, int) or context_window <= 0:
+                    logger.debug(
+                    "Invalid context window (%s), skipping trimming.",
+                    context_window,
+                    )
+                    return {"messages": history_messages}
 
                 safety_margin = int(context_window * 0.15)
                 max_prompt_tokens = context_window - safety_margin
@@ -1075,4 +1082,4 @@ class BaseReActAgent:
         except Exception as e:
             logger.debug("Could not determine context window: %s", e)
 
-        return 1e6
+        return None
