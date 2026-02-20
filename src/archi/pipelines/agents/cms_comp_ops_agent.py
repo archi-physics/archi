@@ -13,6 +13,9 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_search_tool,
     create_metadata_schema_tool,
     create_retriever_tool,
+    create_http_get_tool,
+    create_sandbox_tool,
+    initialize_mcp_client,
     RemoteCatalogClient,
     MONITOpenSearchClient,
     create_monit_opensearch_search_tool,
@@ -170,6 +173,37 @@ class CMSCompOpsAgent(BaseReActAgent):
             description=description,
         )
 
+        http_get_tool = create_http_get_tool(
+            name="fetch_url",
+            description=(
+                "Fetch live content from a URL via HTTP GET request. "
+                "Input: A valid HTTP or HTTPS URL. "
+                "Output: The response body text or an error message. "
+                "Use this to retrieve real-time data from web endpoints, APIs, documentation, or status pages. "
+                "Examples: checking endpoint status, fetching API data, retrieving documentation."
+            ),
+            timeout=15.0,
+            max_response_chars=600000,
+        )
+
+        all_tools = [file_search_tool, metadata_search_tool, metadata_schema_tool, fetch_tool, http_get_tool]
+
+        # Add sandbox tool for code execution in isolated containers
+        sandbox_tool = create_sandbox_tool(
+            name="run_code",
+            description=(
+                "Execute code in a secure sandboxed Docker container. "
+                "Input: code (str), language ('python', 'bash', or 'sh'). "
+                "Output: stdout, stderr, exit code, and any files written to /workspace/output/. "
+                "The /workspace/ and /workspace/output/ directories are pre-created and writable — "
+                "do NOT call os.makedirs() for them. Do not show internal sandbox paths in the output. "
+                "Use this for running Python scripts, shell commands, data processing, API calls with curl, "
+                "rucio commands, or any code that needs to be executed safely. "
+                "The container is ephemeral and destroyed after execution."
+            ),
+        )
+        all_tools.append(sandbox_tool)
+        logger.info("Sandbox tool added to CMSCompOpsAgent")
     def _build_vector_tool_placeholder(self) -> List[Callable]:
         return []
 

@@ -634,6 +634,14 @@ const UI = {
       modelSelectPrimary: document.getElementById('model-select-primary'),
       providerSelectB: document.getElementById('provider-select-b'),
       providerStatus: document.getElementById('provider-status'),
+      // User profile elements
+      userProfileWidget: document.getElementById('user-profile-widget'),
+      userDisplayName: document.getElementById('user-display-name'),
+      userEmail: document.getElementById('user-email'),
+      userRolesToggle: document.getElementById('user-roles-toggle'),
+      userRolesPanel: document.getElementById('user-roles-panel'),
+      userRolesList: document.getElementById('user-roles-list'),
+      userLogoutBtn: document.getElementById('user-logout-btn'),
       customModelInput: document.getElementById('custom-model-input'),
       customModelRow: document.getElementById('custom-model-row'),
       activeModelLabel: document.getElementById('active-model-label'),
@@ -842,6 +850,21 @@ const UI = {
       Chat.handleProviderBChange(e.target.value);
     });
     
+    // User profile widget interactions
+    this.elements.userRolesToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleUserRolesPanel();
+    });
+    
+    this.elements.userProfileWidget?.addEventListener('click', () => {
+      this.toggleUserRolesPanel();
+    });
+    
+    this.elements.userLogoutBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.href = '/logout';
+    });
+    
     // Close modal on Escape
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.elements.settingsModal?.style.display !== 'none') {
@@ -927,6 +950,85 @@ const UI = {
     if (this.elements.agentInfoModal) {
       this.elements.agentInfoModal.style.display = 'none';
     }
+  },
+
+  toggleUserRolesPanel() {
+    this.elements.userProfileWidget?.classList.toggle('expanded');
+  },
+
+  async loadUserProfile() {
+    try {
+      const response = await fetch('/auth/user');
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      
+      if (!data.logged_in) {
+        // User not logged in, hide the widget
+        if (this.elements.userProfileWidget) {
+          this.elements.userProfileWidget.style.display = 'none';
+        }
+        return;
+      }
+      
+      // Show the widget
+      if (this.elements.userProfileWidget) {
+        this.elements.userProfileWidget.style.display = 'block';
+      }
+      
+      // Extract name from email (before @)
+      const email = data.email || 'User';
+      const displayName = email.split('@')[0];
+      
+      // Update user info
+      if (this.elements.userDisplayName) {
+        this.elements.userDisplayName.textContent = displayName;
+      }
+      if (this.elements.userEmail) {
+        this.elements.userEmail.textContent = email;
+      }
+      
+      // Render roles
+      this.renderUserRoles(data.roles || []);
+      
+    } catch (e) {
+      console.error('Failed to load user profile:', e);
+      // Hide widget on error
+      if (this.elements.userProfileWidget) {
+        this.elements.userProfileWidget.style.display = 'none';
+      }
+    }
+  },
+
+  renderUserRoles(roles) {
+    if (!this.elements.userRolesList) return;
+    
+    if (!roles || roles.length === 0) {
+      this.elements.userRolesList.innerHTML = '<p style="color: var(--text-tertiary); font-size: var(--text-xs); padding: 0 4px;">No roles assigned</p>';
+      return;
+    }
+    
+    const getRoleClass = (role) => {
+      if (role.includes('admin')) return 'role-admin';
+      if (role.includes('expert')) return 'role-expert';
+      return '';
+    };
+    
+    const roleIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>`;
+    
+    this.elements.userRolesList.innerHTML = roles
+      .map(role => `
+        <div class="user-role-badge ${getRoleClass(role)}">
+          ${roleIcon}
+          ${Utils.escapeHtml(role)}
+        </div>
+      `)
+      .join('');
   },
 
   async loadAgentInfo() {
@@ -1648,6 +1750,38 @@ const UI = {
     });
   },
 
+  updateSandboxApprovalToggle(data) {
+    const toggle = document.getElementById('sandbox-approval-toggle');
+    const statusText = document.getElementById('sandbox-approval-mode-text');
+    const group = document.getElementById('sandbox-approval-group');
+    
+    if (!toggle || !statusText) {
+      if (group) group.style.display = 'none';
+      return;
+    }
+    
+    // Show the group
+    if (group) group.style.display = '';
+    
+    // Set toggle state based on effective mode
+    const isManual = data.effective_mode === 'manual';
+    toggle.checked = isManual;
+    
+    // Update status text
+    if (data.session_mode) {
+      // User has a session override
+      statusText.textContent = `Mode: ${data.effective_mode} (session preference)`;
+    } else {
+      // Using deployment default
+      statusText.textContent = `Mode: ${data.effective_mode} (deployment default)`;
+    }
+    
+    // Bind the toggle change event (remove existing listeners first)
+    toggle.onchange = () => {
+      Chat.toggleSandboxApprovalMode(toggle.checked);
+    };
+  },
+
   renderConversations(conversations, activeId) {
     const list = this.elements.conversationList;
     if (!list) return;
@@ -1726,6 +1860,12 @@ const UI = {
     }
 
     container.innerHTML = messages.map((msg) => this.createMessageHTML(msg)).join('');
+    
+    // Enhance sandbox artifact images/links in loaded messages
+    if (typeof SandboxArtifacts !== 'undefined') {
+      SandboxArtifacts.enhance(container);
+    }
+    
     this.scrollToBottom();
   },
 
@@ -2334,6 +2474,196 @@ const UI = {
     }
   },
 
+  renderApprovalRequest(messageId, event) {
+    /**
+     * Render an approval request indicator in the trace view with full code display.
+     */
+    const container = document.querySelector(`.trace-container[data-message-id="${messageId}"]`);
+    if (!container) return;
+
+    const toolsContainer = container.querySelector('.trace-tools');
+    if (!toolsContainer) return;
+
+    const code = event.code || '';
+    const language = event.language || 'python';
+    const image = event.image || 'default';
+    const codeLines = code.split('\n').length;
+    const escapedCode = Utils.escapeHtml(code);
+
+    const approvalBlock = document.createElement('div');
+    approvalBlock.className = 'tool-block approval-request expanded';
+    approvalBlock.dataset.approvalId = event.approval_id;
+    approvalBlock.innerHTML = `
+      <div class="tool-header">
+        <span class="tool-icon">⚠️</span>
+        <span class="tool-name">Sandbox Code Execution</span>
+        <span class="tool-status pending">Awaiting approval...</span>
+      </div>
+      <div class="tool-body">
+        <div class="approval-meta">
+          <span class="language-badge">${Utils.escapeHtml(language)}</span>
+          <span class="image-badge">📦 ${Utils.escapeHtml(image)}</span>
+          <span class="lines-badge">${codeLines} lines</span>
+        </div>
+        <div class="approval-code-block">
+          <div class="code-block-header">
+            <span class="code-language">${Utils.escapeHtml(language)}</span>
+            <button class="copy-btn" title="Copy code">📋</button>
+          </div>
+          <pre class="approval-code"><code class="language-${Utils.escapeHtml(language)}">${escapedCode}</code></pre>
+        </div>
+      </div>
+    `;
+
+    // Add copy functionality
+    const copyBtn = approvalBlock.querySelector('.copy-btn');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(code).then(() => {
+          copyBtn.textContent = '✓';
+          setTimeout(() => { copyBtn.textContent = '📋'; }, 1500);
+        });
+      };
+    }
+
+    toolsContainer.appendChild(approvalBlock);
+    this.scrollToBottom();
+    
+    // Apply syntax highlighting if available
+    if (typeof hljs !== 'undefined') {
+      const codeEl = approvalBlock.querySelector('code');
+      if (codeEl) hljs.highlightElement(codeEl);
+    }
+  },
+
+  async showApprovalModal(event) {
+    /**
+     * Show a modal dialog for the user to approve or reject sandbox code execution.
+     * Returns a Promise that resolves to true (approved) or false (rejected).
+     */
+    return new Promise((resolve) => {
+      // Create modal overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'approval-modal-overlay';
+      
+      const modal = document.createElement('div');
+      modal.className = 'approval-modal';
+      modal.innerHTML = `
+        <div class="approval-modal-header">
+          <h3>⚠️ Sandbox Execution Approval</h3>
+          <p>The AI wants to execute the following code. Please review and approve or reject.</p>
+        </div>
+        <div class="approval-modal-body">
+          <div class="approval-code-block">
+            <div class="approval-code-header">
+              <span class="language-badge">${Utils.escapeHtml(event.language || 'python')}</span>
+              <span class="image-badge">${Utils.escapeHtml(event.image || 'default')}</span>
+            </div>
+            <pre><code>${Utils.escapeHtml(event.code || '')}</code></pre>
+          </div>
+        </div>
+        <div class="approval-modal-footer">
+          <button class="btn-reject">Reject</button>
+          <button class="btn-approve">Approve</button>
+        </div>
+        <div class="approval-timeout-notice">
+          This request will expire in ${Math.floor((event.timeout_seconds || 300) / 60)} minutes.
+        </div>
+      `;
+      
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      // Handle button clicks
+      const approveBtn = modal.querySelector('.btn-approve');
+      const rejectBtn = modal.querySelector('.btn-reject');
+      
+      const cleanup = () => {
+        overlay.remove();
+      };
+      
+      approveBtn.onclick = () => {
+        cleanup();
+        // Update the approval block status
+        const approvalBlock = document.querySelector(`.approval-request[data-approval-id="${event.approval_id}"]`);
+        if (approvalBlock) {
+          approvalBlock.classList.remove('expanded');
+          approvalBlock.classList.add('tool-success');
+          const statusEl = approvalBlock.querySelector('.tool-status');
+          if (statusEl) {
+            statusEl.innerHTML = '<span class="checkmark">✓</span> Approved';
+            statusEl.classList.remove('pending');
+          }
+        }
+        resolve(true);
+      };
+      
+      rejectBtn.onclick = () => {
+        cleanup();
+        // Update the approval block status
+        const approvalBlock = document.querySelector(`.approval-request[data-approval-id="${event.approval_id}"]`);
+        if (approvalBlock) {
+          approvalBlock.classList.remove('expanded');
+          approvalBlock.classList.add('tool-error');
+          const statusEl = approvalBlock.querySelector('.tool-status');
+          if (statusEl) {
+            statusEl.innerHTML = '<span class="error-icon">✗</span> Rejected';
+            statusEl.classList.remove('pending');
+          }
+        }
+        resolve(false);
+      };
+      
+      // Close on overlay click (treat as reject)
+      overlay.onclick = (e) => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      };
+      
+      // Handle escape key
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          cleanup();
+          document.removeEventListener('keydown', handleEscape);
+          resolve(false);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+    });
+  },
+
+  updateApprovalStatus(approvalId, status) {
+    /**
+     * Update the status display for an approval request.
+     */
+    const approvalBlock = document.querySelector(`.approval-request[data-approval-id="${approvalId}"]`);
+    if (!approvalBlock) return;
+
+    const statusEl = approvalBlock.querySelector('.tool-status');
+    if (!statusEl) return;
+
+    statusEl.classList.remove('pending');
+    if (status === 'approved') {
+      approvalBlock.classList.add('tool-success');
+      statusEl.innerHTML = '<span class="checkmark">✓</span> Approved';
+    } else if (status === 'rejected') {
+      approvalBlock.classList.add('tool-error');
+      statusEl.innerHTML = '<span class="error-icon">✗</span> Rejected';
+    } else if (status === 'expired') {
+      approvalBlock.classList.add('tool-error');
+      statusEl.innerHTML = '<span class="error-icon">⏱</span> Expired';
+    }
+  },
+
+  toggleToolExpanded(toolCallId) {
+    const toolBlock = document.querySelector(`.tool-block[data-tool-call-id="${toolCallId}"]`);
+    if (toolBlock) {
+      toolBlock.classList.toggle('expanded');
+    }
+  },
+
   // =========================================================================
   // Context Meter
   // =========================================================================
@@ -2831,6 +3161,8 @@ const Chat = {
       this.loadProviders(),
       this.loadPipelineDefaultModel(),
       this.loadApiKeyStatus(),
+      this.loadSandboxApprovalMode(),
+      UI.loadUserProfile(),
       this.loadAgents(),
     ]);
 
@@ -3187,6 +3519,57 @@ const Chat = {
     } catch (e) {
       console.error('Failed to clear API key:', e);
       throw e;
+    }
+  },
+
+  // Sandbox Approval Mode Management
+  async loadSandboxApprovalMode() {
+    try {
+      const response = await fetch('/api/sandbox/approval-mode');
+      if (!response.ok) {
+        // Sandbox might not be enabled - hide the toggle
+        this.hideSandboxApprovalToggle();
+        return;
+      }
+      const data = await response.json();
+      this.state.sandboxApprovalMode = data;
+      UI.updateSandboxApprovalToggle(data);
+    } catch (e) {
+      console.error('Failed to load sandbox approval mode:', e);
+      this.hideSandboxApprovalToggle();
+    }
+  },
+
+  hideSandboxApprovalToggle() {
+    const group = document.getElementById('sandbox-approval-group');
+    if (group) {
+      group.style.display = 'none';
+    }
+  },
+
+  async toggleSandboxApprovalMode(enabled) {
+    const mode = enabled ? 'manual' : 'auto';
+    try {
+      const response = await fetch('/api/sandbox/approval-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update approval mode');
+      }
+      const data = await response.json();
+      this.state.sandboxApprovalMode = {
+        session_mode: data.session_mode,
+        effective_mode: data.effective_mode,
+        default_mode: this.state.sandboxApprovalMode?.default_mode,
+      };
+      UI.updateSandboxApprovalToggle(this.state.sandboxApprovalMode);
+      console.log('Sandbox approval mode updated:', data.message);
+    } catch (e) {
+      console.error('Failed to toggle sandbox approval mode:', e);
+      // Revert the toggle UI
+      await this.loadSandboxApprovalMode();
     }
   },
 
@@ -3690,6 +4073,16 @@ const Chat = {
           if (showTrace) {
             UI.renderToolEnd(messageId, event);
           }
+        } else if (event.type === 'approval_request') {
+          // Sandbox approval request - show modal for user to approve/reject
+          this.state.activeTrace.events.push(event);
+          if (showTrace) {
+            UI.renderApprovalRequest(messageId, event);
+          }
+          // Show approval modal
+          const approved = await UI.showApprovalModal(event);
+          // Send approval decision to server
+          await this.handleSandboxApproval(event.approval_id, approved);
         } else if (event.type === 'thinking_start') {
           this.state.activeTrace.events.push(event);
           if (showTrace) {
@@ -3738,6 +4131,12 @@ const Chat = {
             html: Markdown.render(finalText),
             streaming: false,
           });
+          
+          // Enhance sandbox artifact images/links
+          if (typeof SandboxArtifacts !== 'undefined') {
+            const msgEl = document.getElementById(messageId);
+            if (msgEl) SandboxArtifacts.enhance(msgEl);
+          }
           
           // Update message ID from backend so feedback works
           if (event.message_id != null) {
@@ -3798,6 +4197,29 @@ const Chat = {
       }
       this.state.abortController = null;
       this.state.activeTrace = null;
+    }
+  },
+
+  async handleSandboxApproval(approvalId, approved) {
+    /**
+     * Send approval decision for a sandbox execution request.
+     */
+    const endpoint = approved
+      ? `/api/sandbox/approval/${approvalId}/approve`
+      : `/api/sandbox/approval/${approvalId}/reject`;
+    
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',  // Include session cookies for auth
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to send approval decision:', response.status);
+      }
+    } catch (e) {
+      console.error('Error sending approval decision:', e);
     }
   },
 

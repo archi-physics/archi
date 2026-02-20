@@ -62,6 +62,18 @@ from src.utils.sql import (
 from src.interfaces.chat_app.document_utils import *
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
 
+# RBAC imports for role-based access control
+from src.utils.rbac import (
+    get_registry,
+    get_user_roles,
+    has_permission,
+    require_permission,
+    require_any_permission,
+    require_authenticated,
+)
+from src.utils.rbac.permissions import get_permission_context
+from src.utils.rbac.audit import log_authentication_event
+
 
 logger = get_logger(__name__)
 
@@ -1532,6 +1544,11 @@ class ChatWrapper:
         trace_events: List[Dict[str, Any]] = []
         tool_call_count = 0
         stream_start_time = time.time()
+        # Sandbox artifact handling (set if import succeeds)
+        sandbox_context_set = False
+        get_sandbox_artifacts = None
+        format_artifacts_markdown = None
+        clear_sandbox_context = None
 
         try:
             context, error_code = self._prepare_chat_context(
@@ -1579,6 +1596,89 @@ class ChatWrapper:
                 pipeline_name=self.archi.pipeline_name if hasattr(self.archi, 'pipeline_name') else None,
             )
 
+            # Queue for events from the agent stream (including approval requests)
+            # Threading is needed because tools may block waiting for approval,
+            # but we still need to send approval_request events to the frontend.
+            import queue
+            import threading
+            event_queue = queue.Queue()
+            stream_done = threading.Event()
+            stream_exception = [None]  # Use list to allow mutation from thread
+            
+            def approval_callback(approval_request_dict):
+                """Called by sandbox tool when approval is needed."""
+                logger.info("Approval callback invoked, putting request in queue: %s", approval_request_dict.get("approval_id"))
+                event_queue.put(("approval", approval_request_dict))
+
+            # Get session-level approval mode override (if user has set one)
+            session_approval_mode = session.get("sandbox_approval_mode")
+
+            # Set up sandbox context so artifacts are persisted directly to disk
+            try:
+                from src.archi.pipelines.agents.tools.sandbox import (
+                    set_sandbox_context,
+                    get_sandbox_artifacts as _get_sandbox_artifacts,
+                    clear_sandbox_context as _clear_sandbox_context,
+                )
+                from src.interfaces.chat_app.sandbox_artifacts import (
+                    format_artifacts_markdown as _format_artifacts_markdown,
+                )
+                set_sandbox_context(
+                    trace_id,
+                    self.data_path,
+                    conversation_id=context.conversation_id,
+                    approval_callback=approval_callback,
+                    approval_mode_override=session_approval_mode,
+                )
+                sandbox_context_set = True
+                # Store references for use outside this try block
+                get_sandbox_artifacts = _get_sandbox_artifacts
+                format_artifacts_markdown = _format_artifacts_markdown
+                clear_sandbox_context = _clear_sandbox_context
+            except Exception as e:
+                logger.debug("Could not set sandbox context: %s", e)
+                get_sandbox_artifacts = None
+                format_artifacts_markdown = None
+
+            # Run agent stream in background thread so we can yield approval
+            # requests while tools are blocking waiting for user response.
+            def run_stream():
+                try:
+                    for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
+                        event_queue.put(("output", output))
+                except Exception as e:
+                    stream_exception[0] = e
+                finally:
+                    stream_done.set()
+            
+            stream_thread = threading.Thread(target=run_stream, daemon=True)
+            stream_thread.start()
+            
+            # Consume events from queue, yielding to SSE stream
+            while not stream_done.is_set() or not event_queue.empty():
+                try:
+                    event_type_tag, event_data = event_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                
+                # Handle approval requests immediately
+                if event_type_tag == "approval":
+                    logger.info("Yielding approval_request event to SSE stream: %s", event_data.get("approval_id"))
+                    yield {
+                        "type": "approval_request",
+                        "approval_id": event_data.get("approval_id"),
+                        "code": event_data.get("code"),
+                        "language": event_data.get("language"),
+                        "image": event_data.get("image"),
+                        "tool_call_id": event_data.get("tool_call_id"),
+                        "timeout_seconds": event_data.get("timeout_seconds", 300),
+                        "conversation_id": context.conversation_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                    continue
+                
+                # Handle agent output
+                output = event_data
             for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id):
                 if client_timeout and time.time() - stream_start_time > client_timeout:
                     if trace_id:
@@ -1730,6 +1830,10 @@ class ChatWrapper:
                                 }
 
             timestamps["chain_finished_ts"] = datetime.now()
+            
+            # Check if stream thread raised an exception
+            if stream_exception[0] is not None:
+                raise stream_exception[0]
 
             if last_output is None:
                 if trace_id:
@@ -1796,6 +1900,29 @@ class ChatWrapper:
                     total_duration_ms=total_duration_ms,
                 )
 
+            # Retrieve sandbox-generated artifact metadata and append
+            # markdown links.  The frontend fetches files from the
+            # /api/sandbox-artifacts/<trace_id>/<filename> route.
+            # Files are already persisted to disk by the sandbox tool itself.
+            if sandbox_context_set and get_sandbox_artifacts is not None:
+                try:
+                    artifacts = get_sandbox_artifacts()
+                    logger.info(
+                        "Sandbox artifacts check: found %d artifact(s), trace_id=%s",
+                        len(artifacts) if artifacts else 0,
+                        trace_id,
+                    )
+                    if artifacts and format_artifacts_markdown is not None:
+                        markdown_suffix = format_artifacts_markdown(artifacts)
+                        logger.info(
+                            "Appending %d artifact(s) as markdown: %s",
+                            len(artifacts),
+                            [a['filename'] for a in artifacts],
+                        )
+                        output += markdown_suffix
+                except Exception as e:
+                    logger.warning("Failed to retrieve sandbox artifacts: %s", e, exc_info=True)
+
             yield {
                 "type": "final",
                 "response": output,
@@ -1823,6 +1950,12 @@ class ChatWrapper:
                     cancelled_by='user',
                     cancellation_reason='Stream cancelled by client',
                 )
+                # Cancel any pending sandbox approvals for this trace
+                try:
+                    from src.utils.sandbox.approval import cancel_approvals_for_trace
+                    cancel_approvals_for_trace(trace_id)
+                except Exception as e:
+                    logger.debug("Could not cancel sandbox approvals: %s", e)
             raise
         except ConversationAccessError as exc:
             logger.warning("Unauthorized conversation access attempt: %s", exc)
@@ -1847,6 +1980,12 @@ class ChatWrapper:
                 )
             yield {"type": "error", "status": 500, "message": "server error; see chat logs for message"}
         finally:
+            # Clean up sandbox context if it was set
+            if sandbox_context_set and clear_sandbox_context is not None:
+                try:
+                    clear_sandbox_context()
+                except Exception:
+                    pass
             if self.cursor is not None:
                 self.cursor.close()
             if self.conn is not None:
@@ -1935,7 +2074,8 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/terms', 'terms', self.require_auth(self.terms))
         self.add_endpoint('/api/like', 'like', self.require_auth(self.like),  methods=["POST"])
         self.add_endpoint('/api/dislike', 'dislike', self.require_auth(self.dislike),  methods=["POST"])
-        self.add_endpoint('/api/update_config', 'update_config', self.require_auth(self.update_config), methods=["POST"])
+        # Config modification requires config:modify permission (archi-expert or archi-admins)
+        self.add_endpoint('/api/update_config', 'update_config', self.require_perm('config:modify')(self.update_config), methods=["POST"])
         self.add_endpoint('/api/get_configs', 'get_configs', self.require_auth(self.get_configs), methods=["GET"])
         self.add_endpoint('/api/text_feedback', 'text_feedback', self.require_auth(self.text_feedback), methods=["POST"])
 
@@ -1958,6 +2098,53 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/trace/message/<int:message_id>', 'get_trace_by_message', self.require_auth(self.get_trace_by_message), methods=["GET"])
         self.add_endpoint('/api/cancel_stream', 'cancel_stream', self.require_auth(self.cancel_stream), methods=["POST"])
 
+        # Sandbox artifact serving
+        self.add_endpoint(
+            '/api/sandbox-artifacts/<trace_id>/<filename>',
+            'serve_sandbox_artifact',
+            self.require_auth(self.serve_sandbox_artifact),
+            methods=["GET"],
+        )
+
+        # Sandbox approval endpoints
+        logger.info("Adding sandbox approval API endpoints")
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>',
+            'sandbox_get_approval',
+            self.require_auth(self.sandbox_get_approval),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>/approve',
+            'sandbox_approve',
+            self.require_auth(self.sandbox_approve),
+            methods=["POST"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval/<approval_id>/reject',
+            'sandbox_reject',
+            self.require_auth(self.sandbox_reject),
+            methods=["POST"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approvals/pending',
+            'sandbox_pending_approvals',
+            self.require_auth(self.sandbox_pending_approvals),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/config',
+            'sandbox_get_config',
+            self.require_auth(self.sandbox_get_config),
+            methods=["GET"],
+        )
+        self.add_endpoint(
+            '/api/sandbox/approval-mode',
+            'sandbox_set_approval_mode',
+            self.require_auth(self.sandbox_set_approval_mode),
+            methods=["POST", "GET"],
+        )
+
         # Provider endpoints
         logger.info("Adding provider API endpoints")
         self.add_endpoint('/api/providers', 'get_providers', self.require_auth(self.get_providers), methods=["GET"])
@@ -1976,16 +2163,19 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/agents/active', 'set_active_agent', self.require_auth(self.set_active_agent), methods=["POST"])
 
         # Data viewer endpoints
+        # View data page and list documents - requires documents:view permission
+        # Enable/disable documents - requires documents:select permission
         logger.info("Adding data viewer API endpoints")
-        self.add_endpoint('/data', 'data_viewer', self.require_auth(self.data_viewer_page))
-        self.add_endpoint('/api/data/documents', 'list_data_documents', self.require_auth(self.list_data_documents), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/content', 'get_data_document_content', self.require_auth(self.get_data_document_content), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/chunks', 'get_data_document_chunks', self.require_auth(self.get_data_document_chunks), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/enable', 'enable_data_document', self.require_auth(self.enable_data_document), methods=["POST"])
-        self.add_endpoint('/api/data/documents/<document_hash>/disable', 'disable_data_document', self.require_auth(self.disable_data_document), methods=["POST"])
-        self.add_endpoint('/api/data/bulk-enable', 'bulk_enable_documents', self.require_auth(self.bulk_enable_documents), methods=["POST"])
-        self.add_endpoint('/api/data/bulk-disable', 'bulk_disable_documents', self.require_auth(self.bulk_disable_documents), methods=["POST"])
-        self.add_endpoint('/api/data/stats', 'get_data_stats', self.require_auth(self.get_data_stats), methods=["GET"])
+
+        self.add_endpoint('/data', 'data_viewer', self.require_perm('documents:view')(self.data_viewer_page))
+        self.add_endpoint('/api/data/documents', 'list_data_documents', self.require_perm('documents:view')(self.list_data_documents), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/content', 'get_data_document_content', self.require_perm('documents:view')(self.get_data_document_content), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/chunks', 'get_data_document_chunks', self.require_perm('documents:view')(self.get_data_document_chunks), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/enable', 'enable_data_document', self.require_perm('documents:select')(self.enable_data_document), methods=["POST"])
+        self.add_endpoint('/api/data/documents/<document_hash>/disable', 'disable_data_document', self.require_perm('documents:select')(self.disable_data_document), methods=["POST"])
+        self.add_endpoint('/api/data/bulk-enable', 'bulk_enable_documents', self.require_perm('documents:select')(self.bulk_enable_documents), methods=["POST"])
+        self.add_endpoint('/api/data/bulk-disable', 'bulk_disable_documents', self.require_perm('documents:select')(self.bulk_disable_documents), methods=["POST"])
+        self.add_endpoint('/api/data/stats', 'get_data_stats', self.require_perm('documents:view')(self.get_data_stats), methods=["GET"])
 
         # Data uploader endpoints
         logger.info("Adding data uploader API endpoints")
@@ -2017,9 +2207,34 @@ class FlaskAppWrapper(object):
             self.add_endpoint('/login', 'login', self.login, methods=['GET', 'POST'])
             self.add_endpoint('/logout', 'logout', self.logout)
             self.add_endpoint('/auth/user', 'get_user', self.get_user, methods=['GET'])
+            self.add_endpoint('/api/permissions', 'get_permissions', self.get_permissions, methods=['GET'])
+            self.add_endpoint('/api/permissions/check', 'check_permission', self.check_permission_endpoint, methods=['POST'])
+
             
             if self.sso_enabled:
                 self.add_endpoint('/redirect', 'sso_callback', self.sso_callback)
+
+    def _set_user_session(self, email: str, name: str, username: str, user_id: str = '', auth_method: str = 'sso', roles: list = None):
+        """Set user session with well-defined structure."""
+        session['user'] = {
+            'email': email,
+            'name': name,
+            'username': username,
+            'id': user_id
+        }
+        session['logged_in'] = True
+        session['auth_method'] = auth_method
+        session['roles'] = roles if roles is not None else []
+
+    def _get_session_user_email(self) -> str:
+        """Get user email from session. Returns empty string if not logged in."""
+        if not session.get('logged_in'):
+            return ''
+        return session['user']['email']
+
+    def _get_session_roles(self) -> list:
+        """Get user roles from session. Returns empty list if not logged in."""
+        return session.get('roles', [])
 
     def _setup_sso(self):
         """Initialize OAuth client for SSO using OpenID Connect"""
@@ -2075,36 +2290,50 @@ class FlaskAppWrapper(object):
             password = request.form.get('password')
             
             if check_credentials(username, password, self.salt, self.app.config['ACCOUNTS_FOLDER']):
-                session['user'] = {
-                    'email': username,
-                    'name': username,
-                    'username': username
-                }
-                session['logged_in'] = True
-                session['auth_method'] = 'basic'
+                self._set_user_session(
+                    email=username,
+                    name=username,
+                    username=username,
+                    auth_method='basic',
+                    roles=[]
+                )
                 logger.info(f"Basic auth login successful for user: {username}")
                 return redirect(url_for('index'))
             else:
                 flash('Invalid credentials')
         
         # Render login page with available auth methods
-        return render_template('login.html', 
+        return render_template('landing.html', 
                              sso_enabled=self.sso_enabled, 
                              basic_auth_enabled=self.basic_auth_enabled)
 
     def logout(self):
         """Unified logout endpoint for all auth methods"""
         auth_method = session.get('auth_method', 'unknown')
+        user_email = self._get_session_user_email() or 'unknown'
+        user_roles = session.get('roles', [])
+        
+        # Clear all session data including roles
         session.pop('user', None)
         session.pop('logged_in', None)
         session.pop('auth_method', None)
+        session.pop('roles', None)
         
-        logger.info(f"User logged out (method: {auth_method})")
+        # Log logout event
+        log_authentication_event(
+            user=user_email,
+            event_type='logout',
+            success=True,
+            method=auth_method,
+            details=f"Previous roles: {user_roles}"
+        )
+        
+        logger.info(f"User {user_email} logged out (method: {auth_method})")
         flash('You have been logged out successfully')
         return redirect(url_for('landing'))
 
     def sso_callback(self):
-        """Handle OAuth callback from SSO provider"""
+        """Handle OAuth callback from SSO provider with RBAC role extraction"""
         if not self.sso_enabled or not self.oauth:
             return jsonify({'error': 'SSO not enabled'}), 400
         
@@ -2118,59 +2347,211 @@ class FlaskAppWrapper(object):
                 # If userinfo is not in token, fetch it
                 user_info = self.oauth.sso.userinfo(token=token)
             
-            # Store user information in session (normalized structure)
-            session['user'] = {
-                'email': user_info.get('email', ''),
-                'name': user_info.get('name', user_info.get('preferred_username', '')),
-                'username': user_info.get('preferred_username', user_info.get('email', '')),
-                'id': user_info.get('sub', '')
-            }
-            session['logged_in'] = True
-            session['auth_method'] = 'sso'
+            user_email = user_info.get('email', user_info.get('preferred_username', 'unknown'))
             
-            logger.info(f"SSO login successful for user: {user_info.get('email')}")
+            # Extract roles from JWT token using RBAC module
+            # This handles role validation and default role assignment
+            user_roles = get_user_roles(token, user_email)
+            
+            # Store user information in session (normalized structure)
+            self._set_user_session(
+                email=user_info.get('email', ''),
+                name=user_info.get('name', user_info.get('preferred_username', '')),
+                username=user_info.get('preferred_username', user_info.get('email', '')),
+                user_id=user_info.get('sub', ''),
+                auth_method='sso',
+                roles=user_roles
+            )
+            
+            # Log successful authentication
+            log_authentication_event(
+                user=user_email,
+                event_type='login',
+                success=True,
+                method='sso',
+                details=f"Roles: {user_roles}"
+            )
+            
+            logger.info(f"SSO login successful for user: {user_email} with roles: {user_roles}")
             
             # Redirect to main page
             return redirect(url_for('index'))
             
         except Exception as e:
             logger.error(f"SSO callback error: {str(e)}")
+            log_authentication_event(
+                user='unknown',
+                event_type='login',
+                success=False,
+                method='sso',
+                details=str(e)
+            )
             flash(f"Authentication failed: {str(e)}")
             return redirect(url_for('login'))
 
     def get_user(self):
-        """API endpoint to get current user information"""
+        """API endpoint to get current user information including roles and permissions"""
         if session.get('logged_in'):
             user = session.get('user', {})
+            roles = session.get('roles', [])
+            
+            # Get permission context for the frontend
+            permissions = get_permission_context()
+            
             return jsonify({
                 'logged_in': True,
                 'email': user.get('email', ''),
                 'name': user.get('name', ''),
                 'auth_method': session.get('auth_method', 'unknown'),
-                'auth_enabled': self.auth_enabled
+                'auth_enabled': self.auth_enabled,
+                'roles': roles,
+                'permissions': permissions
             })
         return jsonify({
             'logged_in': False,
-            'auth_enabled': self.auth_enabled
+            'auth_enabled': self.auth_enabled,
+            'roles': [],
+            'permissions': get_permission_context()
         })
 
     def require_auth(self, f):
-        """Decorator to require authentication for routes"""
+        """Decorator to require authentication for routes.
+        
+        When SSO is enabled and anonymous access is blocked (sso.allow_anonymous: false),
+        unauthenticated users are redirected to SSO login instead of getting a 401 error.
+        """
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not self.auth_enabled:
                 # If auth is not enabled, allow access
                 return f(*args, **kwargs)
             
+            # Debug logging for sandbox approval endpoints
+            if 'sandbox' in request.path:
+                logger.info(f"[SANDBOX AUTH DEBUG] Path: {request.path}, Method: {request.method}")
+                logger.info(f"[SANDBOX AUTH DEBUG] session.logged_in: {session.get('logged_in')}")
+                logger.info(f"[SANDBOX AUTH DEBUG] session keys: {list(session.keys())}")
+                logger.info(f"[SANDBOX AUTH DEBUG] cookies: {list(request.cookies.keys())}")
+            
             if not session.get('logged_in'):
-                # Return 401 Unauthorized response instead of redirecting
+                # Check if SSO is enabled and anonymous access is blocked
+                if self.sso_enabled:
+                    registry = get_registry()
+                    if not registry.allow_anonymous:
+                        # Log the redirect attempt
+                        log_authentication_event(
+                            user='anonymous',
+                            event_type='anonymous_redirect',
+                            success=False,
+                            method='web',
+                            details=f"path={request.path}, method={request.method}"
+                        )
+                        # Redirect to login page which will trigger SSO
+                        return redirect(url_for('login'))
+                
+                # Return 401 Unauthorized response for API requests
                 return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
             
             return f(*args, **kwargs)
         return decorated_function
 
+    def require_perm(self, permission: str):
+        """
+        Decorator to require authentication AND a specific permission for routes.
+        
+        This combines require_auth with permission checking. Use for routes
+        that need specific RBAC permissions (e.g., document uploads, config changes).
+        
+        Args:
+            permission: The permission string required (e.g., 'upload:documents')
+            
+        Returns:
+            Decorator function
+        """
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                # First check authentication
+                if not self.auth_enabled:
+                    return f(*args, **kwargs)
+                
+                if not session.get('logged_in'):
+                    if self.sso_enabled:
+                        registry = get_registry()
+                        if not registry.allow_anonymous:
+                            return redirect(url_for('login'))
+                    return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
+                
+                # Now check permission
+                roles = session.get('roles', [])
+                if not has_permission(permission, roles):
+                    user_email = session.get('user', {}).get('email', 'unknown')
+                    logger.warning(f"Permission denied: user {user_email} with roles {roles} lacks '{permission}'")
+                    from src.utils.rbac.audit import log_permission_check
+                    log_permission_check(
+                        permission=permission,
+                        granted=False,
+                        user=user_email,
+                        roles=roles,
+                        endpoint=request.path
+                    )
+                    return jsonify({
+                        'error': 'Forbidden',
+                        'message': f'Permission denied: requires {permission}',
+                        'required_permission': permission
+                    }), 403
+                
+                return f(*args, **kwargs)
+            return decorated_function
+        return decorator
+
     def health(self):
         return jsonify({"status": "OK"}), 200
+
+    def get_permissions(self):
+        """API endpoint to get current user's permissions"""
+        if not session.get('logged_in'):
+            return jsonify({
+                'logged_in': False,
+                'permissions': get_permission_context()
+            })
+        
+        permissions = get_permission_context()
+        return jsonify({
+            'logged_in': True,
+            'roles': session.get('roles', []),
+            'permissions': permissions
+        })
+    
+    def check_permission_endpoint(self):
+        """API endpoint to check if user has a specific permission"""
+        if not session.get('logged_in'):
+            return jsonify({
+                'error': 'Authentication required',
+                'has_permission': False
+            }), 401
+        
+        data = request.get_json()
+        if not data or 'permission' not in data:
+            return jsonify({
+                'error': 'Permission name required',
+                'has_permission': False
+            }), 400
+        
+        permission = data['permission']
+        roles = session.get('roles', [])
+        result = has_permission(permission, roles)
+        
+        # Get which roles would grant this permission
+        registry = get_registry()
+        roles_with_permission = registry.get_roles_with_permission(permission)
+        
+        return jsonify({
+            'permission': permission,
+            'has_permission': result,
+            'user_roles': roles,
+            'roles_with_permission': roles_with_permission
+        })
 
     def configs(self, **configs):
         for config, value in configs:
@@ -3713,6 +4094,224 @@ class FlaskAppWrapper(object):
         except Exception as e:
             logger.error(f"Error cancelling stream for conversation {conversation_id}: {str(e)}")
             return jsonify({'error': str(e)}), 500
+
+    # =========================================================================
+    # Sandbox Artifact Endpoints
+    # =========================================================================
+
+    def serve_sandbox_artifact(self, trace_id: str, filename: str):
+        """
+        Serve a sandbox-generated artifact file.
+
+        URL params:
+        - trace_id:  UUID of the agent trace that produced the file.
+        - filename:  Name of the file within that trace's artifact dir.
+
+        Files are stored under ``<DATA_PATH>/sandbox_artifacts/<trace_id>/``.
+        """
+        from src.interfaces.chat_app.sandbox_artifacts import serve_artifact
+
+        result = serve_artifact(self.data_path, trace_id, filename)
+        if isinstance(result, tuple) and len(result) == 3:
+            body, status, headers = result
+            if isinstance(body, (bytes, bytearray)):
+                return Response(body, status=status, headers=headers)
+            # JSON error dict
+            return jsonify(body), status
+        # Fallback for 2-tuple error returns
+        body, status = result
+        return jsonify(body), status
+
+    # =========================================================================
+    # Sandbox Approval Endpoints
+    # =========================================================================
+
+    def sandbox_get_approval(self, approval_id: str):
+        """
+        Get details of a sandbox approval request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with approval request details.
+        """
+        from src.utils.sandbox.approval import get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        return jsonify(request_obj.to_dict())
+
+    def sandbox_approve(self, approval_id: str):
+        """
+        Approve a sandbox execution request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with updated approval status.
+        """
+        from src.utils.sandbox.approval import resolve_approval, get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        # Get username from session user info
+        user_info = session.get('user', {})
+        username = user_info.get('username') or user_info.get('email', 'unknown')
+        updated = resolve_approval(approval_id, approved=True, resolved_by=username)
+
+        if not updated:
+            return jsonify({"error": "Failed to update approval"}), 500
+
+        logger.info(
+            "Sandbox execution approved: approval_id=%s by user=%s",
+            approval_id, username
+        )
+
+        return jsonify(updated.to_dict())
+
+    def sandbox_reject(self, approval_id: str):
+        """
+        Reject a sandbox execution request.
+
+        URL params:
+        - approval_id: UUID of the approval request.
+
+        Returns:
+            JSON with updated approval status.
+        """
+        from src.utils.sandbox.approval import resolve_approval, get_approval_request
+
+        request_obj = get_approval_request(approval_id)
+        if not request_obj:
+            return jsonify({"error": "Approval request not found"}), 404
+
+        # Get username from session user info
+        user_info = session.get('user', {})
+        username = user_info.get('username') or user_info.get('email', 'unknown')
+        updated = resolve_approval(approval_id, approved=False, resolved_by=username)
+
+        if not updated:
+            return jsonify({"error": "Failed to update approval"}), 500
+
+        logger.info(
+            "Sandbox execution rejected: approval_id=%s by user=%s",
+            approval_id, username
+        )
+
+        return jsonify(updated.to_dict())
+
+    def sandbox_pending_approvals(self):
+        """
+        Get all pending sandbox approval requests for the current conversation.
+
+        Query params:
+        - conversation_id: Optional. Filter by conversation ID.
+
+        Returns:
+            JSON with list of pending approval requests.
+        """
+        from src.utils.sandbox.approval import (
+            get_pending_approvals_for_conversation,
+        )
+
+        conversation_id = request.args.get('conversation_id', type=int)
+
+        if conversation_id:
+            pending = get_pending_approvals_for_conversation(conversation_id)
+        else:
+            # Return empty if no conversation specified
+            pending = []
+
+        return jsonify({
+            "pending": [req.to_dict() for req in pending],
+            "count": len(pending),
+        })
+
+    def sandbox_get_config(self):
+        """
+        Get the current sandbox configuration (approval mode, enabled status).
+
+        Returns:
+            JSON with sandbox configuration.
+        """
+        from src.utils.sandbox.config import get_sandbox_config
+
+        config = get_sandbox_config()
+
+        return jsonify({
+            "enabled": config.enabled,
+            "approval_mode": config.approval_mode.value,
+            "timeout": config.timeout,
+            "default_image": config.default_image,
+            "allowed_images": config.image_allowlist,
+        })
+
+    def sandbox_set_approval_mode(self):
+        """
+        Get or set the session-level sandbox approval mode.
+        
+        GET: Returns the current session approval mode preference.
+        POST: Sets the session approval mode preference.
+        
+        Request body (POST):
+            {
+                "mode": "auto" | "manual"
+            }
+            
+        Returns:
+            JSON with the current/updated approval mode preference.
+        """
+        from src.utils.sandbox.config import get_sandbox_config
+        
+        # Session key for storing user's approval mode preference
+        SESSION_KEY = "sandbox_approval_mode"
+        
+        if request.method == "GET":
+            # Get current session preference (or fallback to config default)
+            session_mode = session.get(SESSION_KEY)
+            config = get_sandbox_config()
+            
+            return jsonify({
+                "session_mode": session_mode,  # None means using deployment default
+                "effective_mode": session_mode or config.approval_mode.value,
+                "default_mode": config.approval_mode.value,
+            })
+        
+        # POST - set the approval mode
+        data = request.get_json() or {}
+        mode = data.get("mode", "").lower()
+        
+        if mode not in ("auto", "manual", "default"):
+            return jsonify({
+                "error": "Invalid mode. Must be 'auto', 'manual', or 'default'."
+            }), 400
+        
+        if mode == "default":
+            # Clear session override, use deployment config default
+            session.pop(SESSION_KEY, None)
+            config = get_sandbox_config()
+            return jsonify({
+                "session_mode": None,
+                "effective_mode": config.approval_mode.value,
+                "message": "Using deployment default approval mode",
+            })
+        
+        # Set session preference
+        session[SESSION_KEY] = mode
+        
+        logger.info("User set sandbox approval mode to: %s", mode)
+        
+        return jsonify({
+            "session_mode": mode,
+            "effective_mode": mode,
+            "message": f"Approval mode set to '{mode}' for this session",
+        })
 
     # =========================================================================
     # Data Viewer Endpoints

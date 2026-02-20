@@ -85,3 +85,4 @@ aiohttp==3.9.5
 nltk==3.9.1
 sentence-transformers==5.1.2
 rank_bm25==0.2.2
+docker==7.1.0

@@ -419,6 +419,11 @@ class TemplateManager:
 
         template_vars["app_version"] = get_git_version()
 
+        # Sandbox configuration
+        archi_config = context.config_manager.config.get("archi", {})
+        sandbox_config = archi_config.get("sandbox", {})
+        template_vars["sandbox_enabled"] = sandbox_config.get("enabled", False)
+
         # Compose template still expects optional lists
         template_vars.setdefault("prompt_files", [])
         template_vars.setdefault("rubrics", [])
