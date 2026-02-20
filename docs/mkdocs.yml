@@ -3,6 +3,7 @@ nav:
   - Home: index.md
   - Install: install.md
   - Quickstart: quickstart.md
+  - Secrets: secrets.md
   - User Guide: user_guide.md
   - Data Sources: data_sources.md
   - Services: services.md
@@ -13,6 +14,7 @@ nav:
   - API Reference: api_reference.md
   - Benchmarking: benchmarking.md
   - Advanced Setup: advanced_setup_deploy.md
+  - Adding Providers: adding_providers.md
   - Developer Guide: developer_guide.md
   - Troubleshooting: troubleshooting.md
 theme: readthedocs
