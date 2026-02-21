@@ -28,6 +28,9 @@ SMOKE_OLLAMA_MODEL="${SMOKE_OLLAMA_MODEL:-}"
 SMOKE_OLLAMA_URL="${SMOKE_OLLAMA_URL:-}"
 SMOKE_OLLAMA_HOST="${SMOKE_OLLAMA_HOST:-}"
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-900}"
+SMOKE_PROVIDER="${SMOKE_PROVIDER:-ollama}"
+SMOKE_VLLM_BASE_URL="${SMOKE_VLLM_BASE_URL:-http://localhost:8000/v1}"
+SMOKE_VLLM_MODEL="${SMOKE_VLLM_MODEL:-}"
 export USE_PODMAN
 
 ARCHI_DIR="${ARCHI_DIR:-${HOME}/.archi}"
@@ -100,8 +103,48 @@ if [[ ! -f "${CONFIG_DEST}" ]]; then
   CONFIG_DEST_CREATED=1
 fi
 cp "${CONFIG_SRC}" "${CONFIG_DEST}"
-if [[ -z "${SMOKE_OLLAMA_MODEL}" ]]; then
-  SMOKE_OLLAMA_MODEL="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
+
+if [[ "${SMOKE_PROVIDER,,}" == "vllm" ]]; then
+  info "Provider: vLLM — skipping Ollama setup"
+  if [[ -z "${SMOKE_VLLM_MODEL}" ]]; then
+    SMOKE_VLLM_MODEL="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
+import os
+import yaml
+
+config_dest = os.environ.get("CONFIG_DEST")
+with open(config_dest, "r", encoding="utf-8") as handle:
+    cfg = yaml.safe_load(handle) or {}
+vllm_cfg = ((cfg.get("archi") or {}).get("providers") or {}).get("vllm") or {}
+print(vllm_cfg.get("default_model", ""))
+PY
+)"
+  fi
+  # Inject vllm provider config into rendered config
+  CONFIG_DEST="${CONFIG_DEST}" SMOKE_VLLM_BASE_URL="${SMOKE_VLLM_BASE_URL}" \
+    SMOKE_VLLM_MODEL="${SMOKE_VLLM_MODEL}" python - <<'PY'
+import os
+import yaml
+
+config_dest = os.environ.get("CONFIG_DEST")
+vllm_url = os.environ.get("SMOKE_VLLM_BASE_URL", "http://localhost:8000/v1")
+vllm_model = os.environ.get("SMOKE_VLLM_MODEL", "")
+with open(config_dest, "r", encoding="utf-8") as handle:
+    cfg = yaml.safe_load(handle) or {}
+archi = cfg.setdefault("archi", {})
+providers = archi.setdefault("providers", {})
+vllm_cfg = providers.setdefault("vllm", {})
+vllm_cfg["enabled"] = True
+vllm_cfg["base_url"] = vllm_url
+if vllm_model:
+    vllm_cfg["default_model"] = vllm_model
+    vllm_cfg["models"] = [vllm_model]
+cfg["archi"] = archi
+with open(config_dest, "w", encoding="utf-8") as handle:
+    yaml.safe_dump(cfg, handle, sort_keys=False)
+PY
+else
+  if [[ -z "${SMOKE_OLLAMA_MODEL}" ]]; then
+    SMOKE_OLLAMA_MODEL="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
 import os
 import yaml
 
@@ -114,9 +157,9 @@ models = local_cfg.get("models") or []
 print(chat_cfg.get("default_model") or (models[0] if models else ""))
 PY
 )"
-fi
-if [[ -z "${SMOKE_OLLAMA_URL}" ]]; then
-  SMOKE_OLLAMA_URL="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
+  fi
+  if [[ -z "${SMOKE_OLLAMA_URL}" ]]; then
+    SMOKE_OLLAMA_URL="$(CONFIG_DEST="${CONFIG_DEST}" python - <<'PY'
 import os
 import yaml
 
@@ -227,6 +270,7 @@ if ! command -v ollama >/dev/null 2>&1; then
 fi
 info "Ensuring Ollama model '${SMOKE_OLLAMA_MODEL}' is available..."
 OLLAMA_HOST="${SMOKE_OLLAMA_URL}" ollama pull "${SMOKE_OLLAMA_MODEL}"
+fi
 
 DEPLOYMENT_DIR="${ARCHI_DIR}/archi-${DEPLOYMENT_NAME}"
 if [[ -d "${DEPLOYMENT_DIR}" ]]; then
@@ -258,6 +302,11 @@ fi
 if [[ -z "${DM_CATALOG_SEED_FILE:-}" ]]; then
   DM_CATALOG_SEED_FILE="$(pwd)/tests/smoke/seed.txt"
   export DM_CATALOG_SEED_FILE
+fi
+
+# When using vLLM, ensure vllm-server is in the services list
+if [[ "${SMOKE_PROVIDER,,}" == "vllm" && "${SERVICES}" != *"vllm-server"* ]]; then
+  SERVICES="${SERVICES},vllm-server"
 fi
 
 info "Launching deployment..."
@@ -425,6 +474,12 @@ print(models[0] if models else "")
 PY
 )"
 export BASE_URL
+export SMOKE_PROVIDER
+
+if [[ "${SMOKE_PROVIDER,,}" == "vllm" ]]; then
+  export VLLM_BASE_URL="${SMOKE_VLLM_BASE_URL}"
+  export VLLM_MODEL="${SMOKE_VLLM_MODEL}"
+fi
 
 info "Running combined smoke checks..."
 TIMEOUT_CMD=()

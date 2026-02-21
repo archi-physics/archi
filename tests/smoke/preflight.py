@@ -204,19 +204,25 @@ def _check_config_ollama(config_path: str, pipeline_name: str, ollama_model: str
 
 
 def main() -> None:
+    smoke_provider = os.getenv("SMOKE_PROVIDER", "ollama").lower()
+
     _wait_for_ingestion()
     _check_postgres()
     # ChromaDB removed - PostgreSQL with pgvector is the only supported backend
     _check_data_manager_catalog()
-    _check_ollama_model()
 
-    config_path = os.getenv("ARCHI_CONFIG_PATH")
-    pipeline_name = os.getenv("ARCHI_PIPELINE_NAME", "CMSCompOpsAgent")
-    ollama_model = os.getenv("OLLAMA_MODEL", "")
-    if config_path:
-        _check_config_ollama(config_path, pipeline_name, ollama_model)
+    if smoke_provider != "vllm":
+        _check_ollama_model()
+
+        config_path = os.getenv("ARCHI_CONFIG_PATH")
+        pipeline_name = os.getenv("ARCHI_PIPELINE_NAME", "CMSCompOpsAgent")
+        ollama_model = os.getenv("OLLAMA_MODEL", "")
+        if config_path:
+            _check_config_ollama(config_path, pipeline_name, ollama_model)
+        else:
+            _info("ARCHI_CONFIG_PATH not set; skipping config Ollama validation")
     else:
-        _info("ARCHI_CONFIG_PATH not set; skipping config Ollama validation")
+        _info("Provider is vLLM — skipping Ollama preflight checks")
 
     _info("Preflight checks passed")
 

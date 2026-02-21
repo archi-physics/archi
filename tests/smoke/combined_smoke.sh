@@ -5,6 +5,9 @@ set -euo pipefail
 # BASE_URL, DM_BASE_URL, OLLAMA_URL, OLLAMA_MODEL,
 # PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE,
 # ARCHI_CONFIG_PATH, ARCHI_CONFIG_NAME, ARCHI_PIPELINE_NAME, USE_PODMAN
+# SMOKE_PROVIDER  – set to "vllm" to run vLLM smoke checks instead of Ollama
+# VLLM_BASE_URL   – vLLM API base URL (default: http://localhost:8000/v1)
+# VLLM_MODEL      – expected model on vLLM server (optional)
 
 NAME="${1:-}"
 if [[ -z "${NAME}" ]]; then
@@ -23,8 +26,15 @@ export BASE_URL
 export DM_BASE_URL
 export OLLAMA_URL
 
+SMOKE_PROVIDER="${SMOKE_PROVIDER:-ollama}"
+
 info "Running preflight checks..."
 python3 tests/smoke/preflight.py
+
+if [[ "${SMOKE_PROVIDER,,}" == "vllm" ]]; then
+  info "Running vLLM smoke checks..."
+  python3 tests/smoke/vllm_smoke.py
+fi
 
 info "Running direct tool probes (chatbot container)..."
 tool="docker"

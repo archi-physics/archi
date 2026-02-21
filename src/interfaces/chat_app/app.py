@@ -79,7 +79,6 @@ def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider
     extra = {}
     if provider_type == ProviderType.LOCAL and cfg.get("mode"):
         extra["local_mode"] = cfg.get("mode")
-
     return ProviderConfig(
         provider_type=provider_type,
         enabled=cfg.get("enabled", True),

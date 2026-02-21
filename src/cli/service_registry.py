@@ -151,6 +151,17 @@ class ServiceRegistry:
                                     'services.redmine_mailbox.project']
         ))
 
+        # Compute services
+        self.register(ServiceDefinition(
+            name='vllm-server',
+            description='vLLM inference server for local GPU-accelerated LLM serving',
+            category='compute',
+            requires_image=False,
+            requires_volume=False,
+            default_host_port=8000,
+            default_container_port=8000,
+        ))
+
         self.register(ServiceDefinition(
             name='benchmarking',
             depends_on=['postgres'],

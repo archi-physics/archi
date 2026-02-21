@@ -426,6 +426,32 @@ class TemplateManager:
         if context.plan.get_service("grader").enabled:
             template_vars["rubrics"] = self._get_grader_rubrics(context.config_manager)
 
+        # Pass vLLM model name from provider config to compose template
+        vllm_cfg = context.config_manager.config.get("services", {}).get("chat_app", {}).get("providers", {}).get("vllm", {})
+        if vllm_cfg.get("default_model"):
+            template_vars["vllm_model"] = vllm_cfg["default_model"]
+        if vllm_cfg.get("tool_call_parser"):
+            template_vars["vllm_tool_parser"] = vllm_cfg["tool_call_parser"]
+
+        # Pass vLLM server configuration keys to compose template
+        if vllm_cfg.get("gpu_memory_utilization"):
+            template_vars["vllm_gpu_memory_utilization"] = vllm_cfg["gpu_memory_utilization"]
+        if vllm_cfg.get("max_model_len"):
+            template_vars["vllm_max_model_len"] = vllm_cfg["max_model_len"]
+        if vllm_cfg.get("tensor_parallel_size"):
+            template_vars["vllm_tensor_parallel_size"] = vllm_cfg["tensor_parallel_size"]
+        if vllm_cfg.get("dtype"):
+            template_vars["vllm_dtype"] = vllm_cfg["dtype"]
+        if vllm_cfg.get("quantization"):
+            template_vars["vllm_quantization"] = vllm_cfg["quantization"]
+        if "enforce_eager" in vllm_cfg:
+            template_vars["vllm_enforce_eager"] = vllm_cfg["enforce_eager"]
+        if vllm_cfg.get("max_num_seqs"):
+            template_vars["vllm_max_num_seqs"] = vllm_cfg["max_num_seqs"]
+        if "enable_prefix_caching" in vllm_cfg:
+            template_vars["vllm_enable_prefix_caching"] = vllm_cfg["enable_prefix_caching"]
+        template_vars["vllm_engine_args"] = vllm_cfg.get("engine_args", {})
+
         compose_template = self.env.get_template(BASE_COMPOSE_TEMPLATE)
         compose_rendered = compose_template.render(**template_vars)
 

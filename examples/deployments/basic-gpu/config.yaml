@@ -1,0 +1,57 @@
+# Basic configuration file for an Archi deployment
+# with a chat app interface, CMSCompOpsAgent pipeline, and
+# PostgreSQL with pgvector for document storage.
+# The LLM is a locally hosted VLLM instance on GPUs.
+#
+# This example demonstrates using local GPU resources with VLLM
+# in OpenAI-compatible mode with the CMSCompOpsAgent pipeline.
+#
+# Prerequisites:
+# - VLLM server running on localhost:8000 with a model loaded
+# - GPU(s) available on the host machine
+#
+# Run with:
+# archi create --name my-archi-gpu-agent --config examples/deployments/basic-gpu/agent-config.yaml --services chatbot --gpu-ids=all
+
+name: main-gpu-agent
+
+services:
+  chat_app:
+    pipeline: CMSCompOpsAgent
+    trained_on: "Documentation and guides"
+    port: 7861
+    external_port: 7861
+    providers:
+      vllm:
+        enabled: true
+        base_url: http://localhost:8000/v1
+        default_model: "Qwen/Qwen3-8B"
+  vectorstore:
+    backend: postgres  # PostgreSQL with pgvector (only supported backend)
+  data_manager:
+    port: 7872
+    external_port: 7872
+  postgres:
+    port: 5432
+    user: archi
+    database: archi-db
+    host: postgres
+
+data_manager:
+  sources:
+    links:
+      input_lists:
+        - config/source.list
+  embedding_name: HuggingFaceEmbeddings
+
+archi:
+  pipelines:
+    - CMSCompOpsAgent
+  pipeline_map:
+    CMSCompOpsAgent:
+      prompts:
+        required:
+          agent_prompt: config/main.prompt
+      models:
+        required:
+          agent_model: local/Qwen/Qwen3:8B
