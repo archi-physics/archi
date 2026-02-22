@@ -50,7 +50,7 @@ testpaths = ["tests/unit"]
 addopts = "-v --tb=short -m 'not slow'"  
 markers = [  
   "slow: marks tests as slow (excluded by default)",
-  "routesets(*names): mount predefined HTTP route sets that we want test e.g. twiki (default)"
+  "routesets(*names): mount predefined HTTP route sets that we want to test e.g. twiki (default)"
 ]
 
 [project.optional-dependencies]

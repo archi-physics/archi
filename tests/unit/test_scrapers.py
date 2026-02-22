@@ -45,13 +45,13 @@ def test_link_scraper_delay(http_router: OfflineRouter):
 
 @pytest.mark.routesets("twiki", "deep_wiki")
 def test_link_scraper_allowed_prefixes_and_sanitization(http_router: OfflineRouter):
+    # If w/o allowed path regexes, denied path regexes we should get all valid links (23 links)
     scraper = LinkScraper(
         allowed_path_regexes=[".*Crab.*", ".*CRAB3.*", ".*WorkBook.*"],
         denied_path_regexes=["LeftBar", "diff"],
         delay=0
     )
 
-    # If w/o allowed path regexes, denied path regexes we should get all links (23 links)
     scraped_resources = list(scraper.crawl_iter(
         "https://twiki.test/CMSPublic/SWGuide",
         max_pages=100,
