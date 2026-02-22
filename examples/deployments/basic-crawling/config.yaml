@@ -1,0 +1,49 @@
+# Basic configuration file for a Archi deployment
+# with a chat app interface, agent, and
+# PostgreSQL with pgvector for document storage.
+# The LLM is used through an existing Ollama server.
+#
+# run with:
+# archi create --name my-archi-agent --config examples/deployments/basic-agent/config.yaml --services chatbot --hostmode 
+
+name: my_archi
+
+services:
+  data_manager:
+    port: 7872
+  chat_app:
+    agent_class: CMSCompOpsAgent
+    agents_dir: examples/agents
+    default_provider: local
+    default_model: qwen3:32b
+    providers:
+      local:
+        enabled: true
+        base_url: http://submit76.mit.edu:7870 # make sure this matches your ollama server URL!
+        mode: ollama
+        default_model: "qwen3:32b" # make sure this matches a model you have downloaded locally with ollama
+        models:
+          - "qwen3:32b"
+    trained_on: "My data"
+    port: 7868
+    external_port: 7868
+  vectorstore:
+    backend: postgres # PostgreSQL with pgvector (only supported backend)
+
+data_manager:
+  sources:
+    links:
+      allowed_path_regexes:
+        - ".*CRAB3.*"
+        - ".*SWGuide.*"
+        - ".*WorkBook.*"
+        - ".*Crab.*"
+        - ".*Crab3.*"
+      denied_path_regexes:
+        - "LeftBarLeftBar"
+        - "diff"
+      base_source_depth: 2
+      max_pages: 1000
+      input_lists:
+        - examples/deployments/basic-crawling/twiki.seeds.list
+  embedding_name: HuggingFaceEmbeddings
