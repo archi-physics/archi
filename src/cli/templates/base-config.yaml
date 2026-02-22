@@ -194,6 +194,8 @@ data_manager:
     links:
       base_source_depth: {{ data_manager.sources.links.base_source_depth | default(1, true) }}
       max_pages: {{ data_manager.sources.links.max_pages | default(null, true) }}
+      allowed_path_regexes: {{ data_manager.sources.links.allowed_path_regexes | default([], true) }}
+      denied_path_regexes: {{ data_manager.sources.links.denied_path_regexes | default([], true) }}
       enabled: {{ data_manager.sources.links.enabled | default(true, true) }}
       visible: {{ data_manager.sources.links.visible | default(true, true) }}
       schedule: '{{ data_manager.sources.links.schedule | default("", true) }}'

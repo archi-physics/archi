@@ -1,9 +1,10 @@
 import requests
 import re
+import time
 
 from typing import Dict, Iterator, List, Optional
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin, urldefrag
+from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
 
 from src.data_manager.collectors.scrapers.scraped_resource import \
     ScrapedResource
@@ -20,12 +21,15 @@ class LinkScraper:
     owned by the scraper manager class. 
     """
 
-    def __init__(self, verify_urls: bool = True, enable_warnings: bool = True) -> None:
+    def __init__(self, verify_urls: bool = True, enable_warnings: bool = True, allowed_path_regexes: List[str] = [], denied_path_regexes: List[str] = [], delay: float = 0.5) -> None:
         self.verify_urls = verify_urls
         self.enable_warnings = enable_warnings
         # seen_urls tracks anything queued/visited; visited_urls tracks pages actually crawled.
         self.visited_urls = set()
         self.seen_urls = set()
+        self._allowed = [re.compile(rx) for rx in allowed_path_regexes]
+        self._denied = [re.compile(rx) for rx in denied_path_regexes]
+        self.delay = delay
     
     def _is_image_url(self, url: str) -> bool:
         """Check if URL points to an image file."""
@@ -229,6 +233,7 @@ class LinkScraper:
             logger.info(f"Crawling depth {depth + 1}/{max_depth}: {current_url}")
 
             try:
+                time.sleep(self.delay)
 
                 # grab the page content 
                 if not selenium_scrape: 
@@ -244,10 +249,12 @@ class LinkScraper:
                 # Mark as visited and store content
                 pages_visited += 1
                 new_links, resources = self.reap(response, current_url, selenium_scrape, browserclient)
+                current_path = urlparse(current_url).path or "/"
                 for resource in resources:
-                    if collect_page_data:
-                        self.page_data.append(resource)
-                    yield resource
+                    if self._is_allowed_path(current_path):
+                        if collect_page_data:
+                            self.page_data.append(resource)
+                        yield resource
                         
                 for link in new_links:
                     normalized_link = self._normalize_url(link)
@@ -290,6 +297,30 @@ class LinkScraper:
             return
         self.visited_urls.add(normalized)
         self.seen_urls.add(normalized)
+    
+    def _is_allowed_path(self, path: str) -> bool:
+        # Denied regexes take precedence
+        if any(rx.search(path) for rx in self._denied):
+            return False
+        if not self._allowed: # no allowed regexes, so everything is allowed
+            return True
+        # Must match at least one allowed regex
+        return any(rx.match(path) for rx in self._allowed)
+
+    def _unique(self, xs: List[str]) -> Iterator[str]: 
+        """Unique items while preserving order. Return a generator instead of a set to avoid unnecessary memory allocation."""
+        seen = set()
+        for x in xs: 
+            if x not in seen:
+                seen.add(x)
+                yield x
+
+    def _canonical_url(self, url: str) -> str:
+        """
+        Return a canonical URL by removing query strings and fragments. Drops specific parameters (e.g. ?rev=, ?version=, ?skin=) and reconstructs the URL using only scheme, host, and path.
+        """
+        p = urlparse(url)
+        return urlunparse((p.scheme, p.netloc, p.path, "", "", ""))
 
     def get_links_with_same_hostname(self, url: str, page_data: ScrapedResource):
         """Return all links on the page that share the same hostname as `url`. For now does not support PDFs"""
@@ -307,8 +338,13 @@ class LinkScraper:
         for tag in a_tags:
             full = urljoin(base_url, tag["href"])
             normalized = self._normalize_url(full)
+            _, link_netloc, link_path, *_ = urlparse(normalized)
             if not normalized:
                 continue
-            if urlparse(normalized).netloc == base_hostname:
-                links.add(normalized)
-        return list(links)
+            if link_netloc == base_hostname:
+                if "twiki" in base_hostname and self._is_allowed_path(link_path):
+                        canonicalized_url = self._canonical_url(normalized)
+                        links.add(canonicalized_url)
+                else:
+                    links.add(normalized)
+        return list(self._unique(links))
