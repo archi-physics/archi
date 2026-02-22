@@ -1,7 +1,8 @@
-import requests
+import random
 import re
 import time
 
+import requests
 from typing import Dict, Iterator, List, Optional
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin, urldefrag, urlunparse
@@ -12,6 +13,16 @@ from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Browser-like defaults to reduce firewall/WAF blocks (e.g. institutional sites that drop bot User-Agents).
+DEFAULT_HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
 class LinkScraper:
     """
     Single scraper for all our link needs that handles Selenium and requests.
@@ -21,7 +32,15 @@ class LinkScraper:
     owned by the scraper manager class. 
     """
 
-    def __init__(self, verify_urls: bool = True, enable_warnings: bool = True, allowed_path_regexes: List[str] = [], denied_path_regexes: List[str] = [], delay: float = 0.5) -> None:
+    def __init__(
+        self,
+        verify_urls: bool = True,
+        enable_warnings: bool = True,
+        allowed_path_regexes: List[str] = [],
+        denied_path_regexes: List[str] = [],
+        delay: float = 0.5,
+        delay_jitter: float = 0.3,
+    ) -> None:
         self.verify_urls = verify_urls
         self.enable_warnings = enable_warnings
         # seen_urls tracks anything queued/visited; visited_urls tracks pages actually crawled.
@@ -30,6 +49,8 @@ class LinkScraper:
         self._allowed = [re.compile(rx) for rx in allowed_path_regexes]
         self._denied = [re.compile(rx) for rx in denied_path_regexes]
         self.delay = delay
+        self.delay_jitter = max(0.0, delay_jitter)
+        self._headers = dict(DEFAULT_HTTP_HEADERS)
     
     def _is_image_url(self, url: str) -> bool:
         """Check if URL points to an image file."""
@@ -200,6 +221,7 @@ class LinkScraper:
 
         elif not selenium_scrape and browserclient is not None: # use browser client for auth but scrape with http request
             session = requests.Session()
+            session.headers.update(self._headers)
             cookies = browserclient.authenticate(normalized_start_url)
             if cookies is not None:
                 for cookie_args in cookies:
@@ -213,6 +235,7 @@ class LinkScraper:
 
         else: # pure html no browser client needed
             session = requests.Session()
+            session.headers.update(self._headers)
 
         while to_visit and depth < max_depth:
             if max_pages is not None and pages_visited >= max_pages:
@@ -233,7 +256,11 @@ class LinkScraper:
             logger.info(f"Crawling depth {depth + 1}/{max_depth}: {current_url}")
 
             try:
-                time.sleep(self.delay)
+                sleep_time = max(
+                    0.0,
+                    self.delay + random.uniform(-self.delay_jitter, self.delay_jitter),
+                )
+                time.sleep(sleep_time)
 
                 # grab the page content 
                 if not selenium_scrape: 
