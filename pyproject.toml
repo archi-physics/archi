@@ -53,5 +53,15 @@ markers = [
   "routesets(*names): mount predefined HTTP route sets that we want test e.g. twiki (default)"
 ]
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+  "requests-mock>=1.11"
+]
+
+dev = [
+  "watchfiles>=0.21"
+]
+
 [project.urls]
 "Homepage" = "https://github.com/archi-physics/archi"
