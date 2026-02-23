@@ -112,11 +112,19 @@ class BaseReActAgent:
                 resolved_messages = list(messages) if final else [messages[-1]]
             else:
                 resolved_messages = [messages]
+        resolved_metadata = dict(metadata or {})
+        if memory:
+            try:
+                tool_inputs_by_id = memory.tool_inputs_by_id()
+                if tool_inputs_by_id:
+                    resolved_metadata.setdefault("tool_inputs_by_id", tool_inputs_by_id)
+            except Exception as exc:
+                logger.debug("Failed to attach tool_inputs_by_id to metadata: %s", exc)
         return PipelineOutput(
             answer=answer,
             source_documents=documents,
             messages=resolved_messages,
-            metadata=metadata or {},
+            metadata=resolved_metadata,
             final=final,
         )
 
@@ -315,6 +323,12 @@ class BaseReActAgent:
                 response_metadata = getattr(message, "response_metadata", None)
                 if response_metadata:
                     last_response_metadata = response_metadata
+
+                if self.active_memory:
+                    try:
+                        self.active_memory.record_tool_calls_from_message(message)
+                    except Exception as exc:
+                        logger.debug("Failed to record tool calls from stream message: %s", exc)
                 
                 # Track all non-chunk messages
                 if "chunk" not in msg_class:
@@ -559,6 +573,12 @@ class BaseReActAgent:
                 response_metadata = getattr(message, "response_metadata", None)
                 if response_metadata:
                     last_response_metadata = response_metadata
+
+                if self.active_memory:
+                    try:
+                        self.active_memory.record_tool_calls_from_message(message)
+                    except Exception as exc:
+                        logger.debug("Failed to record tool calls from async stream message: %s", exc)
                 
                 # Track all non-chunk messages
                 if "chunk" not in msg_class:
@@ -1030,6 +1050,16 @@ class BaseReActAgent:
             # fallback to explicit record + note
             memory.record(stage, docs)
             memory.note(f"{stage} returned {len(list(docs))} document(s).")
+
+    def _store_tool_input(self, tool_name: str, tool_input: Any) -> None:
+        """Store runtime tool input so streamed tool ids can be backfilled with arguments."""
+        memory = self.active_memory
+        if not memory:
+            return
+        try:
+            memory.record_tool_input(tool_name, tool_input)
+        except Exception as exc:
+            logger.debug("Failed to record tool input for %s: %s", tool_name, exc)
 
     def _prepare_inputs(self, history: Any, **kwargs) -> Dict[str, Any]:
         """Create list of messages using LangChain's formatting."""

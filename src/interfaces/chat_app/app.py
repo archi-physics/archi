@@ -1575,7 +1575,13 @@ class ChatWrapper:
             current = tool_calls_by_id.get(tool_call_id, {})
             current_name = current.get("tool_name", "unknown")
             current_args = current.get("tool_args", {})
-            merged_name = tool_name if isinstance(tool_name, str) and tool_name.strip() else current_name
+            merged_name = (
+                tool_name
+                if isinstance(tool_name, str)
+                and tool_name.strip()
+                and tool_name.strip().lower() != "unknown"
+                else current_name
+            )
             merged_args = tool_args if not _is_empty_tool_args(tool_args) else current_args
             tool_calls_by_id[tool_call_id] = {
                 "tool_name": merged_name or "unknown",
@@ -1657,6 +1663,7 @@ class ChatWrapper:
                     if output.metadata:
                         memory_args_by_id = output.metadata.get("tool_inputs_by_id", {}) or {}
                     raw_args_by_id: Dict[str, Any] = {}
+                    raw_name_by_id: Dict[str, str] = {}
                     if tool_message is not None:
                         try:
                             additional = getattr(tool_message, "additional_kwargs", {}) or {}
@@ -1666,6 +1673,7 @@ class ChatWrapper:
                                     continue
                                 raw_id = raw_call.get("id")
                                 function_obj = raw_call.get("function") or {}
+                                raw_name = function_obj.get("name")
                                 raw_arguments = function_obj.get("arguments")
                                 parsed_args: Any = None
                                 if isinstance(raw_arguments, str) and raw_arguments.strip():
@@ -1677,6 +1685,28 @@ class ChatWrapper:
                                     parsed_args = raw_arguments
                                 if raw_id and parsed_args is not None:
                                     raw_args_by_id[raw_id] = parsed_args
+                                if raw_id and isinstance(raw_name, str) and raw_name.strip():
+                                    raw_name_by_id[raw_id] = raw_name.strip()
+
+                            # Newer OpenAI/LangChain payloads may carry partial tool calls here.
+                            for chunk in getattr(tool_message, "tool_call_chunks", []) or []:
+                                if not isinstance(chunk, dict):
+                                    continue
+                                chunk_id = chunk.get("id")
+                                chunk_name = chunk.get("name")
+                                chunk_args = chunk.get("args")
+                                parsed_chunk_args: Any = None
+                                if isinstance(chunk_args, str) and chunk_args.strip():
+                                    try:
+                                        parsed_chunk_args = json.loads(chunk_args)
+                                    except Exception:
+                                        parsed_chunk_args = {"_raw_arguments": chunk_args}
+                                elif isinstance(chunk_args, dict):
+                                    parsed_chunk_args = chunk_args
+                                if chunk_id and parsed_chunk_args is not None:
+                                    raw_args_by_id[chunk_id] = parsed_chunk_args
+                                if chunk_id and isinstance(chunk_name, str) and chunk_name.strip():
+                                    raw_name_by_id[chunk_id] = chunk_name.strip()
                         except Exception:
                             pass
                     if tool_calls:
@@ -1690,6 +1720,8 @@ class ChatWrapper:
                                 if isinstance(fallback, dict):
                                     tool_args = fallback.get("tool_input", tool_args)
                             tool_name = tool_call.get("name", "unknown")
+                            if (not tool_name or str(tool_name).strip().lower() == "unknown") and tool_call_id in raw_name_by_id:
+                                tool_name = raw_name_by_id[tool_call_id]
                             if (not tool_name) and isinstance(memory_args_by_id.get(tool_call_id), dict):
                                 tool_name = memory_args_by_id[tool_call_id].get("tool_name", "unknown")
                             if (not tool_call_id) and (not _has_meaningful_tool_payload(tool_name, tool_args)):

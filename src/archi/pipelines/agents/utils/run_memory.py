@@ -94,6 +94,7 @@ class RunMemory:
         """Extract tool calls from an LLM message and persist inputs by id."""
         tool_calls = getattr(message, "tool_calls", None) or []
         raw_args_by_id: Dict[str, Any] = {}
+        raw_name_by_id: Dict[str, str] = {}
 
         additional = getattr(message, "additional_kwargs", {}) or {}
         raw_tool_calls = additional.get("tool_calls") or []
@@ -102,10 +103,26 @@ class RunMemory:
                 continue
             raw_id = raw_call.get("id")
             function_obj = raw_call.get("function") or {}
+            raw_name = function_obj.get("name")
             raw_arguments = function_obj.get("arguments")
             parsed = self._parse_tool_arguments(raw_arguments)
             if raw_id and parsed is not None:
                 raw_args_by_id[raw_id] = parsed
+            if raw_id and isinstance(raw_name, str) and raw_name.strip():
+                raw_name_by_id[raw_id] = raw_name.strip()
+
+        # Newer streaming payloads may expose incremental tool chunks separately.
+        tool_call_chunks = getattr(message, "tool_call_chunks", None) or []
+        for chunk in tool_call_chunks:
+            if not isinstance(chunk, dict):
+                continue
+            chunk_id = chunk.get("id")
+            chunk_name = chunk.get("name")
+            chunk_args = self._parse_tool_arguments(chunk.get("args"))
+            if chunk_id and chunk_args is not None:
+                raw_args_by_id[chunk_id] = chunk_args
+            if chunk_id and isinstance(chunk_name, str) and chunk_name.strip():
+                raw_name_by_id[chunk_id] = chunk_name.strip()
 
         for call in tool_calls:
             if not isinstance(call, dict):
@@ -117,6 +134,8 @@ class RunMemory:
             if tool_args in (None, "", {}, []):
                 tool_args = raw_args_by_id.get(tool_call_id, tool_args)
             tool_name = call.get("name", "unknown")
+            if (not tool_name or str(tool_name).strip().lower() == "unknown") and tool_call_id in raw_name_by_id:
+                tool_name = raw_name_by_id[tool_call_id]
             tool_args = self.resolve_tool_input(tool_call_id, tool_name, tool_args)
             self.record_tool_call(tool_call_id, tool_name, tool_args)
 

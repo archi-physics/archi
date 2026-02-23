@@ -63,6 +63,7 @@ pyyaml==6.0.2
 protobuf==4.25.8
 jira==3.8.0
 spacy==3.8.7
+typer==0.15.4
 qwen-vl-utils==0.0.11
 rapidfuzz==3.13.0
 selenium==4.32.0
