@@ -52,12 +52,14 @@ def _ensure_providers_registered() -> None:
     from src.archi.providers.gemini_provider import GeminiProvider
     from src.archi.providers.openrouter_provider import OpenRouterProvider
     from src.archi.providers.local_provider import LocalProvider
-    
+    from src.archi.providers.vllm_provider import VLLMProvider
+
     register_provider(ProviderType.OPENAI, OpenAIProvider)
     register_provider(ProviderType.ANTHROPIC, AnthropicProvider)
     register_provider(ProviderType.GEMINI, GeminiProvider)
     register_provider(ProviderType.OPENROUTER, OpenRouterProvider)
     register_provider(ProviderType.LOCAL, LocalProvider)
+    register_provider(ProviderType.VLLM, VLLMProvider)
 
 
 def get_provider(
@@ -140,7 +142,7 @@ def get_provider_by_name(name: str, **kwargs) -> BaseProvider:
         "openrouter": ProviderType.OPENROUTER,
         "local": ProviderType.LOCAL,
         "ollama": ProviderType.LOCAL,
-        "vllm": ProviderType.LOCAL,
+        "vllm": ProviderType.VLLM,
     }
     
     provider_type = name_map.get(name_lower)

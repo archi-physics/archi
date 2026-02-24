@@ -46,6 +46,14 @@ class PersistenceService:
             metadata_dict = self._normalise_metadata(metadata)
             if not metadata_dict:
                 raise ValueError("Refusing to persist empty metadata payload")
+        else:
+            metadata_dict = {}
+
+        # Ensure catalog size_bytes reflects actual persisted file size for all source types.
+        try:
+            metadata_dict["size_bytes"] = str(file_path.stat().st_size)
+        except OSError as exc:
+            logger.warning("Could not stat resource file %s for size_bytes: %s", file_path, exc)
 
         try:
             relative_path = file_path.relative_to(self.data_path).as_posix()

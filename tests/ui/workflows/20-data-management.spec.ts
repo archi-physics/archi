@@ -90,10 +90,30 @@ test.describe('Data Viewer Document Management', () => {
               suffix: 'html',
               ingested_at: '2026-01-30T08:00:00Z',
               size_bytes: 1024
+            },
+            {
+              hash: 'doc4',
+              display_name: 'private-sso.html',
+              url: 'https://private.example/sso/page',
+              source_type: 'sso',
+              enabled: true,
+              suffix: 'html',
+              ingested_at: '2026-01-30T07:00:00Z',
+              size_bytes: 900
+            },
+            {
+              hash: 'doc5',
+              display_name: 'unknown-source-doc',
+              url: '/unknown/doc',
+              source_type: 'unknown_source',
+              enabled: true,
+              suffix: 'txt',
+              ingested_at: '2026-01-30T06:00:00Z',
+              size_bytes: 512
             }
           ],
-          total: 3,
-          enabled_count: 2,
+          total: 5,
+          enabled_count: 4,
           limit: 500,
           offset: 0
         }
@@ -107,7 +127,16 @@ test.describe('Data Viewer Document Management', () => {
           total_documents: 3,
           total_chunks: 9,
           total_size_bytes: 7168,
-          last_updated: '2026-01-30T12:00:00Z'
+          last_updated: '2026-01-30T12:00:00Z',
+          status_counts: { pending: 1, embedding: 0, embedded: 2, failed: 0 },
+          ingestion_in_progress: true,
+          by_source_type: {
+            local_files: { total: 1, enabled: 1, disabled: 0 },
+            git: { total: 1, enabled: 1, disabled: 0 },
+            web: { total: 1, enabled: 0, disabled: 1 },
+            sso: { total: 1, enabled: 1, disabled: 0 },
+            unknown_source: { total: 1, enabled: 1, disabled: 0 }
+          }
         }
       });
     });

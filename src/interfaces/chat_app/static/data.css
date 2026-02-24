@@ -207,6 +207,16 @@
   border-color: var(--accent-color, #58a6ff);
 }
 
+.list-status {
+  min-height: 18px;
+  color: var(--text-muted, #6e7681);
+  font-size: 12px;
+}
+
+.list-status.error {
+  color: #f85149;
+}
+
 /* Document List */
 .document-list {
   flex: 1;

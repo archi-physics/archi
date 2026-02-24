@@ -10,6 +10,8 @@ nav:
   - Agents & Tools: agents_tools.md
   - Configuration: configuration.md
   - CLI Reference: cli_reference.md
+  - Advanced Setup and Deployment: advanced_setup_deploy.md
+  - vLLM Provider: vllm.md
   - API Reference: api_reference.md
   - Benchmarking: benchmarking.md
   - Advanced Setup: advanced_setup_deploy.md

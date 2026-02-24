@@ -38,7 +38,7 @@ class DataViewerService:
         source_type: Optional[str] = None,
         search: Optional[str] = None,
         enabled_filter: Optional[str] = None,
-        limit: int = 100,
+        limit: Optional[int] = 100, # chat passes None (all docs); default 100 in case called in other contexts to prevent document overload...
         offset: int = 0,
     ) -> Dict[str, Any]:
         """

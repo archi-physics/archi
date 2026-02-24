@@ -26,16 +26,21 @@ class FileTree {
    * @returns {{ localFiles: Object, webPages: Object, tickets: Array, gitRepos: Object }}
    */
   buildTrees(documents) {
+    const explicitTypes = new Set(['local_files', 'web', 'ticket', 'git', 'sso']);
     const localFiles = documents.filter(d => d.source_type === 'local_files');
     const webPages = documents.filter(d => d.source_type === 'web');
     const tickets = documents.filter(d => d.source_type === 'ticket');
     const gitFiles = documents.filter(d => d.source_type === 'git');
+    const ssoPages = documents.filter(d => d.source_type === 'sso');
+    const otherSources = documents.filter(d => !explicitTypes.has(d.source_type));
     
     return {
       localFiles: this.buildFileTree(localFiles),
       webPages: this.buildDomainTree(webPages),
       tickets: tickets,
-      gitRepos: this.buildGitRepoTree(gitFiles)
+      gitRepos: this.buildGitRepoTree(gitFiles),
+      ssoPages: this.buildDomainTree(ssoPages),
+      otherSources: otherSources
     };
   }
 
@@ -302,11 +307,12 @@ class FileTree {
 
   /**
    * Render a complete source category
-   * @param {string} type - 'local_files', 'web', 'ticket', or 'git'
+   * @param {string} type - 'local_files', 'web', 'ticket', 'git', 'sso', or 'other'
    * @param {Object} tree - Tree structure for local/web/git, or array for tickets
    * @param {string} selectedHash - Currently selected document hash
+   * @param {Object} options - Rendering options
    */
-  renderCategory(type, tree, selectedHash = null) {
+  renderCategory(type, tree, selectedHash = null, options = {}) {
     const configs = {
       'local_files': { 
         icon: this.icons.folder, 
@@ -327,12 +333,24 @@ class FileTree {
         icon: this.icons.git, 
         label: 'Git Repos',
         emptyMessage: 'No git repositories ingested'
+      },
+      'sso': {
+        icon: this.icons.globe,
+        label: 'SSO Pages',
+        emptyMessage: 'No SSO pages ingested'
+      },
+      'other': {
+        icon: this.icons.file,
+        label: 'Other Sources',
+        emptyMessage: 'No other sources ingested'
       }
     };
     
     const config = configs[type];
-    const isTicket = type === 'ticket';
-    const count = isTicket ? tree.length : this.countFiles(tree);
+    const isFlatList = type === 'ticket' || type === 'other';
+    const loadedCount = isFlatList ? tree.length : this.countFiles(tree);
+    const count = Number.isFinite(options.countOverride) ? options.countOverride : loadedCount;
+    const showHydrating = Boolean(options.hydrating) && loadedCount < count;
     
     if (count === 0) {
       return ''; // Don't render empty categories
@@ -342,10 +360,18 @@ class FileTree {
     const isExpanded = this.isExpanded(categoryPath, 0);
     
     let contentHtml;
-    if (isTicket) {
-      contentHtml = this.renderTicketList(tree, selectedHash);
+    if (isFlatList) {
+      contentHtml = this.renderFlatList(tree, selectedHash, type);
     } else {
       contentHtml = this.renderTreeNode(tree, type, 1, selectedHash);
+    }
+
+    if (!contentHtml) {
+      if (showHydrating) {
+        contentHtml = '<div class="tree-empty">Loading documents...</div>';
+      } else {
+        contentHtml = `<div class="tree-empty">${config.emptyMessage}</div>`;
+      }
     }
     
     return `
@@ -450,6 +476,35 @@ class FileTree {
           ${this.icons.ticket}
           <span class="tree-file-name" title="${this.escapeAttr(ticket.display_name)}">
             ${this.escapeHtml(ticket.display_name)}
+          </span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /**
+   * Render flat list for categories without hierarchy
+   */
+  renderFlatList(documents, selectedHash = null, type = 'other') {
+    if (!documents || documents.length === 0) {
+      return '<div class="tree-empty">No documents</div>';
+    }
+
+    const icon = type === 'ticket' ? this.icons.ticket : this.icons.file;
+    const sorted = documents.slice().sort((a, b) =>
+      (a.display_name || '').localeCompare(b.display_name || '')
+    );
+
+    return sorted.map((doc) => {
+      const isSelected = doc.hash === selectedHash;
+      const name = doc.display_name || doc.url || doc.hash;
+      return `
+        <div class="tree-file ${type} ${isSelected ? 'selected' : ''}"
+             data-hash="${doc.hash}"
+             onclick="fileTree.selectFile('${doc.hash}')">
+          ${icon}
+          <span class="tree-file-name" title="${this.escapeAttr(name)}">
+            ${this.escapeHtml(name)}
           </span>
         </div>
       `;

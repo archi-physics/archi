@@ -21,6 +21,7 @@ docs/site
 setup.sh
 .env
 configs/
+config/
 build/
 src/cli/utils/_repository_info.py
 openspec/specs/

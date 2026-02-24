@@ -17,6 +17,11 @@ class DataViewer {
     this.searchQuery = '';
     this.filterType = 'all';
     this.showChunks = false; // Toggle for chunk view
+    this.stats = null;
+    this.totalDocuments = 0;
+    this.pageSize = 500;
+    this.hydrationInProgress = false;
+    this._loadVersion = 0;
     
     // Initialize modules
     this.fileTree = new FileTree({
@@ -92,24 +97,78 @@ class DataViewer {
       listEl.innerHTML = '<div class="loading-state"><div class="spinner"></div><span>Loading documents...</span></div>';
     }
     
+    const loadVersion = ++this._loadVersion;
+    this.documents = [];
+    this.totalDocuments = 0;
+    this.hydrationInProgress = false;
+    this.updateListStatus();
+
     try {
-      const params = new URLSearchParams();
-      if (this.conversationId) {
-        params.set('conversation_id', this.conversationId);
-      }
-      // Request all documents up to the max limit
-      params.set('limit', '500');
-      
-      const response = await fetch(`/api/data/documents?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to load documents');
-      
-      const data = await response.json();
-      this.documents = data.documents || [];
+      const firstPage = await this.fetchDocumentPage(this.pageSize, 0);
+      if (loadVersion !== this._loadVersion) return;
+
+      this.totalDocuments = firstPage.total || 0;
+      this.mergeDocuments(firstPage.documents || []);
       this.renderDocuments();
+      this.updateListStatus();
+
+      if (firstPage.has_more) {
+        this.hydrationInProgress = true;
+        this.updateListStatus();
+        await this.hydrateRemainingPages(firstPage.next_offset || this.documents.length, loadVersion);
+      }
     } catch (error) {
       console.error('Error loading documents:', error);
       this.showError('Failed to load documents. Please try again.');
+      this.updateListStatus('Failed to load documents');
+    } finally {
+      if (loadVersion === this._loadVersion) {
+        this.hydrationInProgress = false;
+        this.updateListStatus();
+      }
     }
+  }
+
+  async fetchDocumentPage(limit, offset) {
+    const params = new URLSearchParams();
+    if (this.conversationId) {
+      params.set('conversation_id', this.conversationId);
+    }
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
+
+    const response = await fetch(`/api/data/documents?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to load documents');
+    return response.json();
+  }
+
+  async hydrateRemainingPages(startOffset, loadVersion) {
+    let nextOffset = startOffset;
+
+    while (nextOffset != null && loadVersion === this._loadVersion) {
+      const page = await this.fetchDocumentPage(this.pageSize, nextOffset);
+      if (loadVersion !== this._loadVersion) return;
+
+      this.mergeDocuments(page.documents || []);
+      this.totalDocuments = page.total || this.totalDocuments;
+      this.renderDocuments();
+      this.updateListStatus();
+
+      if (!page.has_more) break;
+      nextOffset = page.next_offset;
+    }
+  }
+
+  mergeDocuments(newDocuments) {
+    if (!Array.isArray(newDocuments) || newDocuments.length === 0) return;
+
+    const byHash = new Map(this.documents.map((doc) => [doc.hash, doc]));
+    for (const doc of newDocuments) {
+      if (doc && doc.hash) {
+        byHash.set(doc.hash, doc);
+      }
+    }
+    this.documents = Array.from(byHash.values());
   }
 
   /**
@@ -126,7 +185,10 @@ class DataViewer {
       if (!response.ok) return;
       
       const stats = await response.json();
+      this.stats = stats;
       this.renderStats(stats);
+      this.renderDocuments();
+      this.updateListStatus();
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -164,6 +226,32 @@ class DataViewer {
     const filtered = this.filterDocuments(this.documents);
     
     if (filtered.length === 0) {
+      if (!this.searchQuery && this.filterType !== 'all') {
+        const authoritativeCount = this.getCategoryCount(this.filterType);
+        if (typeof authoritativeCount === 'number' && authoritativeCount > 0) {
+          const emptyTrees = this.fileTree.buildTrees([]);
+          const treeByType = {
+            local_files: emptyTrees.localFiles,
+            git: emptyTrees.gitRepos,
+            web: emptyTrees.webPages,
+            ticket: emptyTrees.tickets,
+            sso: emptyTrees.ssoPages,
+            other: emptyTrees.otherSources,
+          };
+          listEl.innerHTML = this.fileTree.renderCategory(
+            this.filterType,
+            treeByType[this.filterType],
+            this.selectedDocument?.hash,
+            {
+              countOverride: authoritativeCount,
+              hydrating: this.hydrationInProgress,
+            }
+          );
+          this.updateListStatus();
+          return;
+        }
+      }
+
       listEl.innerHTML = `
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -175,20 +263,59 @@ class DataViewer {
           <span>${this.searchQuery ? 'No documents match your search' : 'No documents ingested yet'}</span>
         </div>
       `;
+      this.updateListStatus();
       return;
     }
     
     // Build trees
     const trees = this.fileTree.buildTrees(filtered);
     
-    // Render each category
+    // Render categories
+    const categories = this.filterType === 'all'
+      ? ['local_files', 'git', 'web', 'ticket', 'sso', 'other']
+      : [this.filterType];
+
+    const loadingCategories = this.getLoadingCategories();
     let html = '';
-    html += this.fileTree.renderCategory('local_files', trees.localFiles, this.selectedDocument?.hash);
-    html += this.fileTree.renderCategory('git', trees.gitRepos, this.selectedDocument?.hash);
-    html += this.fileTree.renderCategory('web', trees.webPages, this.selectedDocument?.hash);
-    html += this.fileTree.renderCategory('ticket', trees.tickets, this.selectedDocument?.hash);
+    if (categories.includes('local_files')) {
+      html += this.fileTree.renderCategory('local_files', trees.localFiles, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('local_files'),
+        hydrating: loadingCategories.has('local_files'),
+      });
+    }
+    if (categories.includes('git')) {
+      html += this.fileTree.renderCategory('git', trees.gitRepos, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('git'),
+        hydrating: loadingCategories.has('git'),
+      });
+    }
+    if (categories.includes('web')) {
+      html += this.fileTree.renderCategory('web', trees.webPages, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('web'),
+        hydrating: loadingCategories.has('web'),
+      });
+    }
+    if (categories.includes('ticket')) {
+      html += this.fileTree.renderCategory('ticket', trees.tickets, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('ticket'),
+        hydrating: loadingCategories.has('ticket'),
+      });
+    }
+    if (categories.includes('sso')) {
+      html += this.fileTree.renderCategory('sso', trees.ssoPages, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('sso'),
+        hydrating: loadingCategories.has('sso'),
+      });
+    }
+    if (categories.includes('other')) {
+      html += this.fileTree.renderCategory('other', trees.otherSources, this.selectedDocument?.hash, {
+        countOverride: this.getCategoryCount('other'),
+        hydrating: loadingCategories.has('other'),
+      });
+    }
     
     listEl.innerHTML = html || '<div class="empty-state"><span>No documents to display</span></div>';
+    this.updateListStatus();
   }
 
   /**
@@ -197,7 +324,8 @@ class DataViewer {
   filterDocuments(documents) {
     return documents.filter(doc => {
       // Type filter
-      if (this.filterType !== 'all' && doc.source_type !== this.filterType) {
+      const docCategory = this.getCategoryForSourceType(doc.source_type);
+      if (this.filterType !== 'all' && docCategory !== this.filterType) {
         return false;
       }
       
@@ -217,6 +345,134 @@ class DataViewer {
       
       return true;
     });
+  }
+
+  getCategoryCount(sourceType) {
+    // During active search, category counts should reflect visible matches.
+    if (this.searchQuery) {
+      return undefined;
+    }
+    const bySource = this.stats?.by_source_type || {};
+    if (sourceType === 'other') {
+      let total = 0;
+      let found = false;
+      for (const [rawType, counts] of Object.entries(bySource)) {
+        if (this.getCategoryForSourceType(rawType) === 'other' && typeof counts?.total === 'number') {
+          total += counts.total;
+          found = true;
+        }
+      }
+      return found ? total : undefined;
+    }
+
+    const sourceStats = bySource[sourceType];
+    if (!sourceStats || typeof sourceStats.total !== 'number') return undefined;
+    return sourceStats.total;
+  }
+
+  getLoadingCategories() {
+    const loading = new Set();
+    if (!this.hydrationInProgress) return loading;
+    if (this.searchQuery) return loading;
+
+    const loadedCounts = this.documents.reduce((acc, doc) => {
+      const category = this.getCategoryForSourceType(doc?.source_type);
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+
+    const categories = ['local_files', 'git', 'web', 'ticket', 'sso', 'other'];
+    for (const category of categories) {
+      const totalForCategory = this.getCategoryCount(category);
+      if (typeof totalForCategory === 'number' && (loadedCounts[category] || 0) < totalForCategory) {
+        loading.add(category);
+      }
+    }
+    return loading;
+  }
+
+  getCategoryForSourceType(sourceType) {
+    const explicit = new Set(['local_files', 'git', 'web', 'ticket', 'sso']);
+    return explicit.has(sourceType) ? sourceType : 'other';
+  }
+
+  updateListStatus(errorText = '') {
+    const statusEl = document.getElementById('list-status');
+    if (!statusEl) return;
+
+    if (errorText) {
+      statusEl.textContent = errorText;
+      statusEl.classList.add('error');
+      return;
+    }
+
+    statusEl.classList.remove('error');
+    const loaded = this.documents.length;
+    const total = this.totalDocuments || this.stats?.total_documents || loaded;
+    const ingestionSuffix = this.getIngestionStatusSuffix();
+
+    if (total === 0) {
+      statusEl.textContent = '';
+      return;
+    }
+
+    if (this.searchQuery) {
+      const filteredCount = this.filterDocuments(this.documents).length;
+      statusEl.textContent = `Showing ${filteredCount} matching documents (${loaded} loaded of ${total} total)${ingestionSuffix}`;
+      return;
+    }
+
+    if (loaded < total || this.hydrationInProgress) {
+      statusEl.textContent = `Showing ${loaded} of ${total} documents (loading remaining...)${ingestionSuffix}`;
+      return;
+    }
+
+    statusEl.textContent = `Showing all ${total} documents${ingestionSuffix}`;
+  }
+
+  getIngestionStatusSuffix() {
+    const statusCounts = this.stats?.status_counts;
+    if (statusCounts) {
+      const collecting = Number(statusCounts.pending || 0);
+      const embedding = Number(statusCounts.embedding || 0);
+      const parts = [];
+
+      if (collecting > 0) {
+        parts.push('data collection ongoing');
+      }
+      if (embedding > 0) {
+        const leftToEmbed = collecting + embedding;
+        if (Number.isFinite(leftToEmbed) && leftToEmbed > 0) {
+          const noun = leftToEmbed === 1 ? 'document' : 'documents';
+          parts.push(`${leftToEmbed} ${noun} left to embed`);
+        } else {
+          parts.push('embedding in progress');
+        }
+      }
+
+      if (parts.length > 0) {
+        return ` (${parts.join(', ')})`;
+      }
+      return '';
+    }
+
+    // Fallback for partial stats payloads
+    const hasPending = this.documents.some((doc) => doc?.ingestion_status === 'pending');
+    const hasEmbedding = this.documents.some((doc) => doc?.ingestion_status === 'embedding');
+    const fallbackParts = [];
+
+    if (hasPending) {
+      fallbackParts.push('data collection ongoing');
+    }
+    if (hasEmbedding) {
+      fallbackParts.push('embedding in progress');
+    }
+
+    if (fallbackParts.length > 0) {
+      return ` (${fallbackParts.join(', ')})`;
+    }
+
+    return '';
   }
 
   /**
@@ -254,7 +510,8 @@ class DataViewer {
     const sourceNames = {
       'local_files': 'Local File',
       'web': 'Web Page',
-      'ticket': 'Ticket'
+      'ticket': 'Ticket',
+      'sso': 'SSO Page'
     };
     
     const fields = {
@@ -404,6 +661,7 @@ class DataViewer {
     this.fileTree.expandAll(trees.localFiles, 'category-local_files');
     this.fileTree.expandAll(trees.gitRepos, 'category-git');
     this.fileTree.expandAll(trees.webPages, 'category-web');
+    this.fileTree.expandAll(trees.ssoPages, 'category-sso');
     this.renderDocuments();
   }
 
@@ -415,6 +673,7 @@ class DataViewer {
     this.fileTree.collapseAll(trees.localFiles, 'category-local_files');
     this.fileTree.collapseAll(trees.gitRepos, 'category-git');
     this.fileTree.collapseAll(trees.webPages, 'category-web');
+    this.fileTree.collapseAll(trees.ssoPages, 'category-sso');
     this.renderDocuments();
   }
 

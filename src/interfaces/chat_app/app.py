@@ -79,7 +79,6 @@ def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider
     extra = {}
     if provider_type == ProviderType.LOCAL and cfg.get("mode"):
         extra["local_mode"] = cfg.get("mode")
-
     return ProviderConfig(
         provider_type=provider_type,
         enabled=cfg.get("enabled", True),
@@ -2163,8 +2162,10 @@ class FlaskAppWrapper(object):
                 return f(*args, **kwargs)
             
             if not session.get('logged_in'):
-                # Return 401 Unauthorized response instead of redirecting
-                return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
+                if request.path.startswith('/api/'):
+                    return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
+                else:   
+                    return redirect(url_for('login'))
             
             return f(*args, **kwargs)
         return decorated_function
@@ -3732,11 +3733,12 @@ class FlaskAppWrapper(object):
         - source_type: Optional. Filter by "local", "web", "ticket", or "all".
         - search: Optional. Search query for display_name and url.
         - enabled: Optional. Filter by "all", "enabled", or "disabled".
-        - limit: Optional. Max results (default 100).
+        - limit: Optional. Max results (default 100), or "all" for full retrieval.
         - offset: Optional. Pagination offset (default 0).
 
         Returns:
-            JSON with documents list, total, enabled_count, limit, offset
+            JSON with documents list, total, enabled_count, limit, offset,
+            has_more, next_offset
         """
         try:
             conversation_id = request.args.get('conversation_id')  # Optional now
@@ -3744,11 +3746,16 @@ class FlaskAppWrapper(object):
             source_type = request.args.get('source_type', 'all')
             search = request.args.get('search', '')
             enabled_filter = request.args.get('enabled', 'all')
-            limit = request.args.get('limit', 100, type=int)
+            limit_param = request.args.get('limit', '100')
             offset = request.args.get('offset', 0, type=int)
-
-            # Clamp limit
-            limit = max(1, min(limit, 500))
+            limit = None
+            if str(limit_param).lower() != 'all':
+                try:
+                    parsed_limit = int(limit_param)
+                except (TypeError, ValueError):
+                    return jsonify({'error': 'limit must be an integer or "all"'}), 400
+                # Clamp paged requests to keep payloads bounded
+                limit = max(1, min(parsed_limit, 500))
 
             result = self.chat.data_viewer.list_documents(
                 conversation_id=conversation_id,

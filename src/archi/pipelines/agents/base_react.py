@@ -5,11 +5,12 @@ import uuid
 
 from langchain.agents import create_agent
 from langchain_core.documents import Document
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 try:
     from langchain_core.messages import BaseMessageChunk
 except ImportError:
     BaseMessageChunk = None
+from langgraph.errors import GraphRecursionError
 from langgraph.graph.state import CompiledStateGraph
 
 from src.archi.pipelines.agents.utils.prompt_utils import read_prompt
@@ -30,6 +31,7 @@ class BaseReActAgent:
     BaseReActAgent provides a foundational structure for building pipeline classes that
     process user queries using configurable language models and prompts.
     """
+    DEFAULT_RECURSION_LIMIT = 50
 
     def __init__(
         self,
@@ -231,13 +233,28 @@ class BaseReActAgent:
         if self.agent is None:
             self.refresh_agent(force=True)
         logger.debug("Agent refreshed, invoking now")
-        answer_output = self.agent.invoke(agent_inputs, {"recursion_limit": 50})
-        logger.debug("Agent invocation completed")
-        logger.debug(answer_output)
-        messages = self._extract_messages(answer_output)
-        metadata = self._metadata_from_agent_output(answer_output)
-        output = self._build_output_from_messages(messages, metadata=metadata)
-        return output
+        recursion_limit = self._recursion_limit()
+        try:
+            answer_output = self.agent.invoke(agent_inputs, {"recursion_limit": recursion_limit})
+            logger.debug("Agent invocation completed")
+            logger.debug(answer_output)
+            messages = self._extract_messages(answer_output)
+            metadata = self._metadata_from_agent_output(answer_output)
+            output = self._build_output_from_messages(messages, metadata=metadata)
+            return output
+        except GraphRecursionError as exc:
+            logger.warning(
+                "Recursion limit hit for %s (limit=%s): %s",
+                self.__class__.__name__,
+                recursion_limit,
+                exc,
+            )
+            return self._handle_recursion_limit_error(
+                error=exc,
+                recursion_limit=recursion_limit,
+                latest_messages=[],
+                agent_inputs=agent_inputs,
+            )
 
     def stream(self, **kwargs) -> Iterator[PipelineOutput]:
         """Stream agent updates synchronously with structured trace events."""
@@ -245,8 +262,10 @@ class BaseReActAgent:
         agent_inputs = self._prepare_agent_inputs(**kwargs)
         if self.agent is None:
             self.refresh_agent(force=True)
+        recursion_limit = self._recursion_limit()
 
         all_messages: List[BaseMessage] = []  # Accumulated full messages
+        latest_messages: List[BaseMessage] = []
         accumulated_content = ""  # Accumulated raw content from streaming
         emitted_tool_starts: Set[str] = set()
         
@@ -257,125 +276,160 @@ class BaseReActAgent:
         last_visible_content = ""  # Last visible content emitted (without thinking)
         last_response_metadata: Optional[Dict[str, Any]] = None
         
-        for event in self.agent.stream(agent_inputs, stream_mode="messages"):
+        try:
+            for event in self.agent.stream(
+                agent_inputs,
+                stream_mode="messages",
+                config={"recursion_limit": recursion_limit},
+            ):
 
-            messages = self._extract_messages(event)
-            if not messages:
-                continue
+                messages = self._extract_messages(event)
+                if not messages:
+                    continue
 
-            message = messages[-1]
-            msg_type = str(getattr(message, "type", "")).lower()
-            msg_class = type(message).__name__.lower()
+                latest_messages = list(messages)
+                message = messages[-1]
+                msg_type = str(getattr(message, "type", "")).lower()
+                msg_class = type(message).__name__.lower()
 
-            response_metadata = getattr(message, "response_metadata", None)
-            if response_metadata:
-                last_response_metadata = response_metadata
-            
-            # Track all non-chunk messages
-            if "chunk" not in msg_class:
-                all_messages.extend(messages)
+                response_metadata = getattr(message, "response_metadata", None)
+                if response_metadata:
+                    last_response_metadata = response_metadata
+                
+                # Track all non-chunk messages
+                if "chunk" not in msg_class:
+                    all_messages.extend(messages)
 
-            # Detect tool call start (AIMessage with tool_calls)
-            if hasattr(message, "tool_calls") and message.tool_calls:
-                logger.debug("Received stream event type=%s: %s", type(event).__name__, str(event)[:1000])
-                new_tool_call = False
-                for tc in message.tool_calls:
-                    tc_id = tc.get("id", "")
-                    if tc_id and tc_id not in emitted_tool_starts:
-                        emitted_tool_starts.add(tc_id)
-                        new_tool_call = True
-                if new_tool_call:
-                    # End thinking phase if active before tool execution
-                    if thinking_step_id is not None:
-                        duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
-                        yield self.finalize_output(
-                            answer="",
-                            memory=self.active_memory,
-                            messages=[],
-                            metadata={
-                                "event_type": "thinking_end",
-                                "step_id": thinking_step_id,
-                                "duration_ms": duration_ms,
-                                "thinking_content": accumulated_thinking,
-                            },
-                            final=False,
-                        )
-                        thinking_step_id = None
-                        thinking_start_time = None
-                        accumulated_thinking = ""
-                    
-                    yield self.finalize_output(
-                        answer="",
-                        memory=self.active_memory,
-                        messages=[message],
-                        metadata={"event_type": "tool_start"},
-                        final=False,
-                    )
-
-            # Detect tool result (ToolMessage with tool_call_id)
-            tool_call_id = getattr(message, "tool_call_id", None)
-            if tool_call_id:
-                logger.debug("Received stream event type=%s: %s", type(event).__name__, str(event)[:1000])
-                yield self.finalize_output(
-                    answer="",
-                    memory=self.active_memory,
-                    messages=[message],
-                    metadata={
-                        "event_type": "tool_output",
-                    },
-                    final=False,
-                )
-
-            # AI content streaming - accumulate content from chunks
-            if msg_type in {"ai", "assistant"} or "ai" in msg_class:
-                if not getattr(message, "tool_calls", None):
-                    content = self._message_content(message)
-                    additional_kwargs = getattr(message, "additional_kwargs", None) or {}
-                    reasoning_content = additional_kwargs.get("reasoning_content", "")
-                    if content or reasoning_content:
-                        # Start thinking phase if not already active
-                        if thinking_step_id is None:
-                            thinking_step_id = str(uuid.uuid4())
-                            thinking_start_time = time.time()
+                # Detect tool call start (AIMessage with tool_calls)
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    logger.debug("Received stream event type=%s: %s", type(event).__name__, str(event)[:1000])
+                    new_tool_call = False
+                    for tc in message.tool_calls:
+                        tc_id = tc.get("id", "")
+                        if tc_id and tc_id not in emitted_tool_starts:
+                            emitted_tool_starts.add(tc_id)
+                            new_tool_call = True
+                    if new_tool_call:
+                        # End thinking phase if active before tool execution
+                        if thinking_step_id is not None:
+                            duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
                             yield self.finalize_output(
                                 answer="",
                                 memory=self.active_memory,
                                 messages=[],
                                 metadata={
-                                    "event_type": "thinking_start",
+                                    "event_type": "thinking_end",
                                     "step_id": thinking_step_id,
+                                    "duration_ms": duration_ms,
+                                    "thinking_content": accumulated_thinking,
                                 },
                                 final=False,
                             )
+                            thinking_step_id = None
+                            thinking_start_time = None
+                            accumulated_thinking = ""
                         
-                        if content:
-                            # For chunks, content is delta; for full messages, content is cumulative
-                            if "chunk" in msg_class:
-                                accumulated_content += content
-                            else:
-                                # Full message - use its content directly
-                                accumulated_content = content
+                        yield self.finalize_output(
+                            answer="",
+                            memory=self.active_memory,
+                            messages=[message],
+                            metadata={"event_type": "tool_start"},
+                            final=False,
+                        )
 
-                        if reasoning_content:
-                            # Ollama sends thinking as deltas, so accumulate
-                            accumulated_thinking += reasoning_content
-                            visible_content = accumulated_content
-                        else:
-                            # Parse thinking vs visible content
-                            visible_content, thinking_content = self._parse_thinking_content(accumulated_content)
-                            if not accumulated_thinking:
-                                accumulated_thinking = thinking_content
-                        
-                        # Only emit if visible content changed
-                        if visible_content != last_visible_content:
-                            last_visible_content = visible_content
-                            yield self.finalize_output(
-                                answer=visible_content,
-                                memory=self.active_memory,
-                                messages=[message],
-                                metadata={"event_type": "text"},
-                                final=False,
-                            )
+                # Detect tool result (ToolMessage with tool_call_id)
+                tool_call_id = getattr(message, "tool_call_id", None)
+                if tool_call_id:
+                    logger.debug("Received stream event type=%s: %s", type(event).__name__, str(event)[:1000])
+                    yield self.finalize_output(
+                        answer="",
+                        memory=self.active_memory,
+                        messages=[message],
+                        metadata={
+                            "event_type": "tool_output",
+                        },
+                        final=False,
+                    )
+
+                # AI content streaming - accumulate content from chunks
+                if msg_type in {"ai", "assistant"} or "ai" in msg_class:
+                    if not getattr(message, "tool_calls", None):
+                        content = self._message_content(message)
+                        additional_kwargs = getattr(message, "additional_kwargs", None) or {}
+                        reasoning_content = additional_kwargs.get("reasoning_content", "")
+                        if content or reasoning_content:
+                            # Start thinking phase if not already active
+                            if thinking_step_id is None:
+                                thinking_step_id = str(uuid.uuid4())
+                                thinking_start_time = time.time()
+                                yield self.finalize_output(
+                                    answer="",
+                                    memory=self.active_memory,
+                                    messages=[],
+                                    metadata={
+                                        "event_type": "thinking_start",
+                                        "step_id": thinking_step_id,
+                                    },
+                                    final=False,
+                                )
+                            
+                            if content:
+                                # For chunks, content is delta; for full messages, content is cumulative
+                                if "chunk" in msg_class:
+                                    accumulated_content += content
+                                else:
+                                    # Full message - use its content directly
+                                    accumulated_content = content
+
+                            if reasoning_content:
+                                # Ollama sends thinking as deltas, so accumulate
+                                accumulated_thinking += reasoning_content
+                                visible_content = accumulated_content
+                            else:
+                                # Parse thinking vs visible content
+                                visible_content, thinking_content = self._parse_thinking_content(accumulated_content)
+                                if not accumulated_thinking:
+                                    accumulated_thinking = thinking_content
+                            
+                            # Only emit if visible content changed
+                            if visible_content != last_visible_content:
+                                last_visible_content = visible_content
+                                yield self.finalize_output(
+                                    answer=visible_content,
+                                    memory=self.active_memory,
+                                    messages=[message],
+                                    metadata={"event_type": "text"},
+                                    final=False,
+                                )
+        except GraphRecursionError as exc:
+            logger.warning(
+                "Recursion limit hit during stream for %s (limit=%s): %s",
+                self.__class__.__name__,
+                recursion_limit,
+                exc,
+            )
+            if thinking_step_id is not None:
+                duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
+                yield self.finalize_output(
+                    answer="",
+                    memory=self.active_memory,
+                    messages=[],
+                    metadata={
+                        "event_type": "thinking_end",
+                        "step_id": thinking_step_id,
+                        "duration_ms": duration_ms,
+                        "thinking_content": accumulated_thinking,
+                    },
+                    final=False,
+                )
+            recursion_output = self._handle_recursion_limit_error(
+                error=exc,
+                recursion_limit=recursion_limit,
+                latest_messages=all_messages or latest_messages,
+                agent_inputs=agent_inputs,
+            )
+            yield recursion_output
+            return
         
         # Final output
         logger.debug("Stream finished. accumulated_content='%s', all_messages count=%d", 
@@ -449,8 +503,10 @@ class BaseReActAgent:
         agent_inputs = self._prepare_agent_inputs(**kwargs)
         if self.agent is None:
             self.refresh_agent(force=True)
+        recursion_limit = self._recursion_limit()
 
         all_messages: List[BaseMessage] = []
+        latest_messages: List[BaseMessage] = []
         accumulated_content = ""
         emitted_tool_starts: Set[str] = set()
         
@@ -461,117 +517,152 @@ class BaseReActAgent:
         last_visible_content = ""  # Last visible content emitted (without thinking)
         last_response_metadata: Optional[Dict[str, Any]] = None
         
-        async for event in self.agent.astream(agent_inputs, stream_mode="messages"):
-            messages = self._extract_messages(event)
-            if not messages:
-                continue
+        try:
+            async for event in self.agent.astream(
+                agent_inputs,
+                stream_mode="messages",
+                config={"recursion_limit": recursion_limit},
+            ):
+                messages = self._extract_messages(event)
+                if not messages:
+                    continue
 
-            message = messages[-1]
-            msg_type = str(getattr(message, "type", "")).lower()
-            msg_class = type(message).__name__.lower()
-            
-            response_metadata = getattr(message, "response_metadata", None)
-            if response_metadata:
-                last_response_metadata = response_metadata
-            
-            # Track all non-chunk messages
-            if "chunk" not in msg_class:
-                all_messages.extend(messages)
+                latest_messages = list(messages)
+                message = messages[-1]
+                msg_type = str(getattr(message, "type", "")).lower()
+                msg_class = type(message).__name__.lower()
+                
+                response_metadata = getattr(message, "response_metadata", None)
+                if response_metadata:
+                    last_response_metadata = response_metadata
+                
+                # Track all non-chunk messages
+                if "chunk" not in msg_class:
+                    all_messages.extend(messages)
 
-            # Detect tool call start
-            if hasattr(message, "tool_calls") and message.tool_calls:
-                new_tool_call = False
-                for tc in message.tool_calls:
-                    tc_id = tc.get("id", "")
-                    if tc_id and tc_id not in emitted_tool_starts:
-                        emitted_tool_starts.add(tc_id)
-                        new_tool_call = True
-                if new_tool_call:
-                    # End thinking phase if active before tool execution
-                    if thinking_step_id is not None:
-                        duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
-                        yield self.finalize_output(
-                            answer="",
-                            memory=self.active_memory,
-                            messages=[],
-                            metadata={
-                                "event_type": "thinking_end",
-                                "step_id": thinking_step_id,
-                                "duration_ms": duration_ms,
-                                "thinking_content": accumulated_thinking,
-                            },
-                            final=False,
-                        )
-                        thinking_step_id = None
-                        thinking_start_time = None
-                        accumulated_thinking = ""
-                    
-                    yield self.finalize_output(
-                        answer="",
-                        messages=[message],
-                        metadata={"event_type": "tool_start"},
-                        final=False,
-                    )
-
-            # Detect tool result
-            tool_call_id = getattr(message, "tool_call_id", None)
-            if tool_call_id:
-                yield self.finalize_output(
-                    answer="",
-                    messages=[message],
-                    metadata={
-                        "event_type": "tool_output",
-                    },
-                    final=False,
-                )
-
-            # AI content streaming - accumulate content from chunks
-            if msg_type in {"ai", "assistant"} or "ai" in msg_class:
-                if not getattr(message, "tool_calls", None):
-                    content = self._message_content(message)
-                    additional_kwargs = getattr(message, "additional_kwargs", None) or {}
-                    reasoning_content = additional_kwargs.get("reasoning_content", "")
-                    if content or reasoning_content:
-                        # Start thinking phase if not already active
-                        if thinking_step_id is None:
-                            thinking_step_id = str(uuid.uuid4())
-                            thinking_start_time = time.time()
+                # Detect tool call start
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    new_tool_call = False
+                    for tc in message.tool_calls:
+                        tc_id = tc.get("id", "")
+                        if tc_id and tc_id not in emitted_tool_starts:
+                            emitted_tool_starts.add(tc_id)
+                            new_tool_call = True
+                    if new_tool_call:
+                        # End thinking phase if active before tool execution
+                        if thinking_step_id is not None:
+                            duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
                             yield self.finalize_output(
                                 answer="",
                                 memory=self.active_memory,
                                 messages=[],
                                 metadata={
-                                    "event_type": "thinking_start",
+                                    "event_type": "thinking_end",
                                     "step_id": thinking_step_id,
+                                    "duration_ms": duration_ms,
+                                    "thinking_content": accumulated_thinking,
                                 },
                                 final=False,
                             )
+                            thinking_step_id = None
+                            thinking_start_time = None
+                            accumulated_thinking = ""
                         
-                        if content:
-                            if "chunk" in msg_class:
-                                accumulated_content += content
-                            else:
-                                accumulated_content = content
+                        yield self.finalize_output(
+                            answer="",
+                            messages=[message],
+                            metadata={"event_type": "tool_start"},
+                            final=False,
+                        )
 
-                        if reasoning_content:
-                            # Ollama sends thinking as deltas, so accumulate
-                            accumulated_thinking += reasoning_content
-                            visible_content = accumulated_content
-                        else:
-                            # Parse thinking vs visible content
-                            visible_content, thinking_content = self._parse_thinking_content(accumulated_content)
-                            if not accumulated_thinking:
-                                accumulated_thinking = thinking_content
-                        
-                        # Only emit if visible content changed
-                        if visible_content != last_visible_content:
-                            last_visible_content = visible_content
-                            yield self.finalize_output(
-                                answer=visible_content,
-                                messages=[message],
-                                metadata={"event_type": "text"},
-                                final=False,
-                            )
+                # Detect tool result
+                tool_call_id = getattr(message, "tool_call_id", None)
+                if tool_call_id:
+                    yield self.finalize_output(
+                        answer="",
+                        messages=[message],
+                        metadata={
+                            "event_type": "tool_output",
+                        },
+                        final=False,
+                    )
+
+                # AI content streaming - accumulate content from chunks
+                if msg_type in {"ai", "assistant"} or "ai" in msg_class:
+                    if not getattr(message, "tool_calls", None):
+                        content = self._message_content(message)
+                        additional_kwargs = getattr(message, "additional_kwargs", None) or {}
+                        reasoning_content = additional_kwargs.get("reasoning_content", "")
+                        if content or reasoning_content:
+                            # Start thinking phase if not already active
+                            if thinking_step_id is None:
+                                thinking_step_id = str(uuid.uuid4())
+                                thinking_start_time = time.time()
+                                yield self.finalize_output(
+                                    answer="",
+                                    memory=self.active_memory,
+                                    messages=[],
+                                    metadata={
+                                        "event_type": "thinking_start",
+                                        "step_id": thinking_step_id,
+                                    },
+                                    final=False,
+                                )
+                            
+                            if content:
+                                if "chunk" in msg_class:
+                                    accumulated_content += content
+                                else:
+                                    accumulated_content = content
+
+                            if reasoning_content:
+                                # Ollama sends thinking as deltas, so accumulate
+                                accumulated_thinking += reasoning_content
+                                visible_content = accumulated_content
+                            else:
+                                # Parse thinking vs visible content
+                                visible_content, thinking_content = self._parse_thinking_content(accumulated_content)
+                                if not accumulated_thinking:
+                                    accumulated_thinking = thinking_content
+                            
+                            # Only emit if visible content changed
+                            if visible_content != last_visible_content:
+                                last_visible_content = visible_content
+                                yield self.finalize_output(
+                                    answer=visible_content,
+                                    messages=[message],
+                                    metadata={"event_type": "text"},
+                                    final=False,
+                                )
+        except GraphRecursionError as exc:
+            logger.warning(
+                "Recursion limit hit during async stream for %s (limit=%s): %s",
+                self.__class__.__name__,
+                recursion_limit,
+                exc,
+            )
+            if thinking_step_id is not None:
+                duration_ms = int((time.time() - thinking_start_time) * 1000) if thinking_start_time else 0
+                yield self.finalize_output(
+                    answer="",
+                    memory=self.active_memory,
+                    messages=[],
+                    metadata={
+                        "event_type": "thinking_end",
+                        "step_id": thinking_step_id,
+                        "duration_ms": duration_ms,
+                        "thinking_content": accumulated_thinking,
+                    },
+                    final=False,
+                )
+            recursion_output = await self._handle_recursion_limit_error_async(
+                error=exc,
+                recursion_limit=recursion_limit,
+                latest_messages=all_messages or latest_messages,
+                agent_inputs=agent_inputs,
+            )
+            yield recursion_output
+            return
         
         # Final output
         logger.debug("Async stream finished. accumulated_content='%s', all_messages count=%d", 
@@ -950,6 +1041,62 @@ class BaseReActAgent:
             if content:
                 snippet = content if len(content) <= 200 else f"{content[:197]}..."
                 memory.note(f"Latest user message: {snippet}")
+
+        # --- Token trimming based on model context window ---
+        try:
+            if hasattr(self.agent_llm, "get_num_tokens_from_messages"):
+
+                context_window = self._get_model_context_window()
+                # Guard against None or invalid values
+                if not isinstance(context_window, int) or context_window <= 0:
+                    logger.debug(
+                    "Invalid context window (%s), skipping trimming.",
+                    context_window,
+                    )
+                    return {"messages": history_messages}
+
+                safety_margin = int(context_window * 0.15)
+                max_prompt_tokens = context_window - safety_margin
+
+                logger.debug("Model: %s", getattr(self.agent_llm, "model", "unknown"))
+                logger.debug("Context window: %d", context_window)
+                logger.debug("Prompt token budget: %d", max_prompt_tokens)
+
+                token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                # Soft compression phase
+                compression_round = 0
+                while token_count >= max_prompt_tokens and len(history_messages) > 1:
+                    compression_round += 1
+                    logger.debug("Compression round %d triggered.", compression_round)
+
+                    history_messages = self._compress_history(history_messages)
+                    token_count = self.agent_llm.get_num_tokens_from_messages(
+                        history_messages
+                    )
+
+                    # Prevent infinite compression loop
+                    if compression_round > 3:
+                        logger.warning("Exceeded max compression rounds.")
+                        break
+
+                   # Hard safeguard: crop if still too large
+                if token_count >= max_prompt_tokens:
+                    logger.warning("History still exceeds token limit (%d >= %d). Forcibly cropping.",token_count,max_prompt_tokens,)
+                    keep_last_n = 4
+                    history_messages = history_messages[-keep_last_n:]
+                    token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                    # --- Brutal safeguard: truncate content ---
+                    while (token_count >= max_prompt_tokens and len(history_messages) > 1):
+                        history_messages.pop(0)
+                        token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                logger.debug("Final trimmed token count: %d", token_count)
+
+        except Exception as e:
+            logger.debug("Token trimming skipped: %s", e)
+
         return {"messages": history_messages}
 
     def _metadata_from_agent_output(self, answer_output: Dict[str, Any]) -> Dict[str, Any]:
@@ -1000,6 +1147,92 @@ class BaseReActAgent:
             content = f"{content[:397]}..."
         return f"{role}: {content}"
 
+
+    def _get_model_context_window(self) -> Optional[int]:
+        """
+        Retrieve context_window from the configured provider + model
+        using the provider abstraction layer.
+        """
+        try:
+            if not self.default_provider or not self.default_model:
+                return None
+
+            from src.archi.providers import get_provider
+
+            # Get provider instance (no reconstruction hacks)
+            provider = get_provider(self.default_provider)
+
+            if not provider:
+                return None
+
+            model_info = provider.get_model_info(self.default_model)
+            if model_info:
+                return model_info.context_window
+
+        except Exception as e:
+            logger.debug("Could not determine context window: %s", e)
+
+        return None
+
+    def _compress_history(self, history_messages):
+        """
+        Compress older conversation messages into a summary.
+        Keeps the last few messages intact.
+        """
+
+        keep_last_n = 4
+
+        if len(history_messages) <= keep_last_n:
+            return history_messages
+
+        recent = history_messages[-keep_last_n:]
+        older = history_messages[:-keep_last_n]
+
+        if not older:
+            return history_messages
+
+        # Only summarize half of older messages to avoid overflow
+        chunk_size = max(1, len(older) // 2)
+        chunk = older[:chunk_size]
+
+        summary = self._summarize_messages(chunk)
+        summary_message = AIMessage(content="Summary of earlier conversation:\n" + summary)
+        return [summary_message] + older[chunk_size:] + recent
+
+
+    def _summarize_messages(self, messages):
+
+        texts = []
+        for m in messages:
+            content = self._message_content(m)
+            if content:
+                texts.append(content)
+
+        combined_text = "\n".join(texts)
+
+        if not combined_text.strip():
+            return "Previous conversation summarized."
+
+        try:
+            response = self.agent_llm.invoke([
+                SystemMessage(
+                    content="Summarize the following conversation concisely, "
+                            "preserving important facts and decisions."
+                ),
+                HumanMessage(content=combined_text),
+            ])
+
+            if isinstance(response, BaseMessage):
+                return self._message_content(response)
+
+            return str(response)
+
+        except Exception as e:
+            logger.warning("Summarization failed: %s", e)
+            return "Earlier conversation summarized due to length constraints."
+
+
+
     def _build_output_from_messages(
         self,
         messages: Sequence[BaseMessage],
@@ -1020,3 +1253,246 @@ class BaseReActAgent:
             metadata=safe_metadata,
             final=final,
         )
+
+    def _recursion_limit(self) -> int:
+        """Read and validate recursion limit from config."""
+        value = None
+        if isinstance(self.pipeline_config, dict):
+            value = self.pipeline_config.get("recursion_limit")
+        if value is None and isinstance(self.config, dict):
+            services_cfg = self.config.get("services", {})
+            if isinstance(services_cfg, dict):
+                chat_cfg = services_cfg.get("chat_app", {})
+                if isinstance(chat_cfg, dict):
+                    value = chat_cfg.get("recursion_limit")
+        if value is None:
+            value = self.DEFAULT_RECURSION_LIMIT
+        try:
+            limit = int(value)
+            if limit <= 0:
+                raise ValueError("recursion_limit must be positive")
+            logger.info("Using recursion_limit=%s for %s", limit, self.__class__.__name__)
+            return limit
+        except Exception:
+            logger.warning(
+                "Invalid recursion_limit '%s' for %s; using default %s",
+                value,
+                self.__class__.__name__,
+                self.DEFAULT_RECURSION_LIMIT,
+            )
+            return self.DEFAULT_RECURSION_LIMIT
+
+    def _last_user_message_content(self, messages: Sequence[BaseMessage]) -> Optional[str]:
+        """Extract content of the most recent user/human message."""
+        for msg in reversed(list(messages or [])):
+            role = getattr(msg, "type", "").lower()
+            if role in ("human", "user"):
+                return self._message_content(msg)
+        return None
+
+    def _recursion_metadata(self, recursion_limit: int, error: Exception) -> Dict[str, Any]:
+        metadata: Dict[str, Any] = {
+            "event_type": "final",
+            "recursion_exhausted": True,
+            "recursion_limit": recursion_limit,
+            "error": str(error),
+        }
+        last_node = getattr(error, "node", None) or getattr(error, "step", None)
+        if last_node:
+            metadata["last_node"] = last_node
+        return metadata
+
+    def _handle_recursion_limit_error(
+        self,
+        *,
+        error: Exception,
+        recursion_limit: int,
+        latest_messages: Sequence[BaseMessage],
+        agent_inputs: Optional[Dict[str, Any]] = None,
+    ) -> PipelineOutput:
+        """Build a best-effort response after recursion exhaustion."""
+        metadata = self._recursion_metadata(recursion_limit, error)
+        wrap_message = self._generate_wrap_up_message(
+            recursion_limit=recursion_limit,
+            error=error,
+            latest_messages=latest_messages,
+            agent_inputs=agent_inputs,
+        )
+        messages: List[BaseMessage] = list(latest_messages) if latest_messages else []
+        if wrap_message:
+            messages.append(wrap_message)
+        else:
+            messages.append(
+                AIMessage(
+                    content=(
+                        f"Recursion limit {recursion_limit} reached. "
+                        "No additional summary could be generated."
+                    )
+                )
+            )
+        return self.finalize_output(
+            answer=self._message_content(messages[-1]),
+            memory=self.active_memory,
+            messages=messages,
+            metadata=metadata,
+            final=True,
+        )
+
+    async def _handle_recursion_limit_error_async(
+        self,
+        *,
+        error: Exception,
+        recursion_limit: int,
+        latest_messages: Sequence[BaseMessage],
+        agent_inputs: Optional[Dict[str, Any]] = None,
+    ) -> PipelineOutput:
+        """Async wrapper to build a best-effort response after recursion exhaustion."""
+        metadata = self._recursion_metadata(recursion_limit, error)
+        wrap_message = await self._generate_wrap_up_message_async(
+            recursion_limit=recursion_limit,
+            error=error,
+            latest_messages=latest_messages,
+            agent_inputs=agent_inputs,
+        )
+        messages: List[BaseMessage] = list(latest_messages) if latest_messages else []
+        if wrap_message:
+            messages.append(wrap_message)
+        else:
+            messages.append(
+                AIMessage(
+                    content=(
+                        f"Recursion limit {recursion_limit} reached. "
+                        "No additional summary could be generated."
+                    )
+                )
+            )
+        return self.finalize_output(
+            answer=self._message_content(messages[-1]),
+            memory=self.active_memory,
+            messages=messages,
+            metadata=metadata,
+            final=True,
+        )
+
+    def _generate_wrap_up_message(
+        self,
+        *,
+        recursion_limit: int,
+        error: Exception,
+        latest_messages: Sequence[BaseMessage],
+        agent_inputs: Optional[Dict[str, Any]],
+    ) -> Optional[BaseMessage]:
+        """Perform a single LLM-only wrap-up to summarize steps and answer."""
+        prompt = self._build_wrap_up_prompt(recursion_limit, error, latest_messages, agent_inputs)
+        try:
+            response = self.agent_llm.invoke(
+                [
+                    SystemMessage(content=prompt),
+                    HumanMessage(content="Provide the final response now."),
+                ]
+            )
+            if isinstance(response, BaseMessage):
+                return response
+            return AIMessage(content=str(response))
+        except Exception as exc:
+            logger.error("Failed to generate wrap-up message after recursion limit: %s", exc)
+            return AIMessage(
+                content=(
+                    f"Recursion limit {recursion_limit} reached and wrap-up generation failed: {exc}"
+                )
+            )
+
+    async def _generate_wrap_up_message_async(
+        self,
+        *,
+        recursion_limit: int,
+        error: Exception,
+        latest_messages: Sequence[BaseMessage],
+        agent_inputs: Optional[Dict[str, Any]],
+    ) -> Optional[BaseMessage]:
+        """Async LLM-only wrap-up to summarize steps and answer."""
+        prompt = self._build_wrap_up_prompt(recursion_limit, error, latest_messages, agent_inputs)
+        try:
+            if hasattr(self.agent_llm, "ainvoke"):
+                response = await self.agent_llm.ainvoke(
+                    [
+                        SystemMessage(content=prompt),
+                        HumanMessage(content="Provide the final response now."),
+                    ]
+                )
+            else:
+                response = self.agent_llm.invoke(
+                    [
+                        SystemMessage(content=prompt),
+                        HumanMessage(content="Provide the final response now."),
+                    ]
+                )
+            if isinstance(response, BaseMessage):
+                return response
+            return AIMessage(content=str(response))
+        except Exception as exc:
+            logger.error("Failed to generate async wrap-up message after recursion limit: %s", exc)
+            return AIMessage(
+                content=(
+                    f"Recursion limit {recursion_limit} reached and wrap-up generation failed: {exc}"
+                )
+            )
+
+    def _build_wrap_up_prompt(
+        self,
+        recursion_limit: int,
+        error: Exception,
+        latest_messages: Sequence[BaseMessage],
+        agent_inputs: Optional[Dict[str, Any]],
+    ) -> str:
+        """Construct a concise wrap-up prompt using gathered context."""
+        messages = list(latest_messages or [])
+        input_messages = []
+        if agent_inputs and isinstance(agent_inputs, dict):
+            input_messages = agent_inputs.get("messages") or []
+        user_question = self._last_user_message_content(messages or input_messages) or "Unavailable"
+
+        conversation_snippets = []
+        for msg in messages[-6:]:
+            conversation_snippets.append(f"- {self._format_message(msg)}")
+
+        memory = self.active_memory
+        notes = memory.intermediate_steps() if memory else []
+        document_summaries: List[str] = []
+        if memory:
+            for doc in memory.unique_documents()[:5]:
+                metadata = doc.metadata or {}
+                location = (
+                    metadata.get("path")
+                    or metadata.get("source")
+                    or metadata.get("document_id")
+                    or "document"
+                )
+                snippet = (doc.page_content or "")[:400]
+                document_summaries.append(f"- {location}: {snippet}")
+
+        prompt_sections: List[str] = [
+            (
+                "You are finalizing an interrupted ReAct agent run. The graph hit its recursion limit "
+                f"({recursion_limit}) and can no longer call tools. Provide one concise wrap-up response: "
+                "summarize what was attempted, cite retrieved evidence briefly, and answer the user's request "
+                "as best as possible. Do NOT call tools."
+            ),
+            f"User request or latest message:\n{user_question}",
+        ]
+        if conversation_snippets:
+            prompt_sections.append("Recent conversation (latest last):\n" + "\n".join(conversation_snippets))
+        if notes:
+            prompt_sections.append("Notes / steps recorded:\n" + "\n".join(f"- {n}" for n in notes))
+        if document_summaries:
+            prompt_sections.append("Retrieved documents (truncated):\n" + "\n".join(document_summaries))
+        error_text = str(error) if error else ""
+        if error_text:
+            prompt_sections.append(f"Error detail: {error_text}")
+        prompt_sections.append(
+            "Respond with:\n"
+            "1) Brief summary of what was attempted.\n"
+            "2) Best possible answer using the above context.\n"
+            f"3) Explicitly note that the run stopped after hitting the recursion limit {recursion_limit}."
+        )
+        return "\n\n".join(prompt_sections)

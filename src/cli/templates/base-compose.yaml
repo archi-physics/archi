@@ -118,12 +118,18 @@ services:
       args:
         APP_VERSION: {{ app_version }}
     container_name: {{ chatbot_container_name }}
-    {% if postgres_enabled -%}
+    {% if postgres_enabled or vllm_server_enabled -%}
     depends_on:
+      {% if postgres_enabled -%}
       postgres:
         condition: service_healthy
       config-seed:
         condition: service_completed_successfully
+      {% endif -%}
+      {% if vllm_server_enabled -%}
+      vllm-server:
+        condition: service_healthy
+      {% endif %}
     {% endif -%}
     environment:
       PGHOST: {{ 'localhost' if host_mode else 'postgres' }}
@@ -134,6 +140,9 @@ services:
       VERBOSITY: {{ verbosity }}
       # Allow overriding Ollama host via env so containers can reach host daemon
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      {% if vllm_server_enabled -%}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://{{ 'localhost' if host_mode else 'vllm-server' }}:8000/v1}
+      {% endif %}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -547,6 +556,81 @@ services:
       {%- endfor %}
     {%- endif %}
     {%- endif %}
+  {%- endif %}
+
+  {% if vllm_server_enabled -%}
+  vllm-server:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-server-{{ name }}
+    {% if not host_mode -%}
+    ports:
+      - "8000:8000"
+    {% endif -%}
+    environment:
+      NCCL_P2P_DISABLE: "1"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        SHM_SIZE=$$(df /dev/shm | awk 'NR==2 {print $$2}')
+        if [ "$$SHM_SIZE" -lt 1048576 ] 2>/dev/null; then
+          echo "WARNING: /dev/shm is $$(( $$SHM_SIZE / 1024 ))MB — less than 1GB. Use ipc: host or increase shm_size for stable multi-GPU inference."
+        fi
+        exec python3 -m vllm.entrypoints.openai.api_server \
+          --model "{{ vllm_model | default('Qwen/Qwen2.5-7B-Instruct-1M') }}" \
+          --enable-auto-tool-choice \
+          --tool-call-parser "{{ vllm_tool_parser | default('hermes') }}" \
+          {% if vllm_gpu_memory_utilization is defined %}--gpu-memory-utilization {{ vllm_gpu_memory_utilization }} {% endif %}\
+          {% if vllm_max_model_len is defined %}--max-model-len {{ vllm_max_model_len }} {% endif %}\
+          {% if vllm_tensor_parallel_size is defined %}--tensor-parallel-size {{ vllm_tensor_parallel_size }} {% endif %}\
+          {% if vllm_dtype is defined %}--dtype {{ vllm_dtype }} {% endif %}\
+          {% if vllm_quantization is defined %}--quantization {{ vllm_quantization }} {% endif %}\
+          {% if vllm_enforce_eager is defined and vllm_enforce_eager %}--enforce-eager {% endif %}\
+          {% if vllm_max_num_seqs is defined %}--max-num-seqs {{ vllm_max_num_seqs }} {% endif %}\
+          {% if vllm_enable_prefix_caching is defined and not vllm_enable_prefix_caching %}--no-enable-prefix-caching {% endif %}\
+          {% for key, val in vllm_engine_args.items() %}{% if val != '' %}--{{ key }} {{ val }} {% else %}--{{ key }} {% endif %}{% endfor %}
+
+    ipc: host
+    {% if host_mode -%}
+    network_mode: host
+    {% endif -%}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack: 67108864
+    {% if not use_podman -%}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    {% endif %}
+    {% if use_podman -%}
+    security_opt:
+      - label:disable
+    devices:
+    {%- if gpu_ids == "all" %}
+      - "nvidia.com/gpu=all"
+    {%- else %}
+      {%- for gpu_id in gpu_ids %}
+      - "nvidia.com/gpu={{ gpu_id }}"
+      {%- endfor %}
+    {%- endif %}
+    {%- endif %}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/v1/models || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    logging:
+      options:
+        max-size: 10m
+    restart: always
   {%- endif %}
 
   {% if benchmarking_enabled -%}

@@ -557,6 +557,25 @@ class PostgresCatalogService:
                 chunk_row = cur.fetchone()
                 total_chunks = chunk_row["count"]
 
+                # Ingestion status counts
+                cur.execute("""
+                    SELECT ingestion_status, COUNT(*) as count
+                    FROM documents
+                    WHERE NOT is_deleted
+                    GROUP BY ingestion_status
+                """)
+                status_rows = cur.fetchall()
+                status_counts = {
+                    "pending": 0,
+                    "embedding": 0,
+                    "embedded": 0,
+                    "failed": 0,
+                }
+                for sr in status_rows:
+                    key = sr["ingestion_status"]
+                    if key in status_counts:
+                        status_counts[key] = sr["count"]
+
                 # By source type
                 cur.execute("""
                     SELECT source_type, COUNT(*) as count 
@@ -593,6 +612,8 @@ class PostgresCatalogService:
             "disabled_documents": disabled_count,
             "total_size_bytes": total_size_bytes,
             "by_source_type": by_source_type,
+            "status_counts": status_counts,
+            "ingestion_in_progress": (status_counts["pending"] + status_counts["embedding"]) > 0,
             "last_sync": last_sync,
         }
 
@@ -602,55 +623,75 @@ class PostgresCatalogService:
         source_type: Optional[str] = None,
         search: Optional[str] = None,
         enabled_filter: Optional[str] = None,
-        limit: int = 100,
+        limit: Optional[int] = 100,
         offset: int = 0,
     ) -> Dict[str, Any]:
-        """List documents with optional filtering."""
-        selection_state = self.get_selection_state(conversation_id) if conversation_id else {}
-
-        where_clauses = ["NOT is_deleted"]
+        """List documents with optional filtering and pagination."""
+        where_clauses = ["NOT d.is_deleted"]
         params: List[Any] = []
 
+        join_clause = ""
+        enabled_expr = "TRUE"
+        if conversation_id:
+            join_clause = (
+                "LEFT JOIN conversation_doc_overrides o "
+                "ON o.document_hash = d.resource_hash AND o.conversation_id = %s"
+            )
+            params.append(int(conversation_id))
+            enabled_expr = "COALESCE(o.enabled, TRUE)"
+
         if source_type and source_type != "all":
-            where_clauses.append("source_type = %s")
+            where_clauses.append("d.source_type = %s")
             params.append(source_type)
 
         if search:
             like = f"%{search}%"
-            where_clauses.append("(display_name ILIKE %s OR url ILIKE %s)")
+            where_clauses.append("(d.display_name ILIKE %s OR d.url ILIKE %s)")
             params.extend([like, like])
 
-        sql = f"""
-            SELECT * FROM documents
-            WHERE {" AND ".join(where_clauses)}
-            ORDER BY COALESCE(ingested_at, file_modified_at, created_at) DESC NULLS LAST
-        """
+        base_where_sql = " AND ".join(where_clauses)
+        filtered_where_clauses = list(where_clauses)
+        if enabled_filter == "enabled":
+            filtered_where_clauses.append(enabled_expr)
+        elif enabled_filter == "disabled":
+            filtered_where_clauses.append(f"NOT {enabled_expr}")
+        where_sql = " AND ".join(filtered_where_clauses)
+        base_from = f"FROM documents d {join_clause}"
+
+        query_params = list(params)
+        count_sql = f"SELECT COUNT(*) as count {base_from} WHERE {where_sql}"
+
+        enabled_count_sql = (
+            f"SELECT COUNT(*) as count {base_from} "
+            f"WHERE {base_where_sql} AND {enabled_expr}"
+        )
+
+        data_sql = (
+            f"SELECT d.*, {enabled_expr} AS enabled "
+            f"{base_from} "
+            f"WHERE {where_sql} "
+            "ORDER BY COALESCE(d.ingested_at, d.file_modified_at, d.created_at) DESC NULLS LAST, d.resource_hash ASC"
+        )
+
+        if limit is not None:
+            data_sql += " LIMIT %s OFFSET %s"
+            query_params.extend([limit, offset])
 
         with self._connect() as conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                # Get total
-                count_sql = f"SELECT COUNT(*) as count FROM documents WHERE {' AND '.join(where_clauses)}"
                 cur.execute(count_sql, params)
                 total = cur.fetchone()["count"]
 
-                cur.execute(sql, params)
+                cur.execute(enabled_count_sql, params)
+                enabled_count = cur.fetchone()["count"]
+
+                cur.execute(data_sql, query_params)
                 rows = cur.fetchall()
 
-        all_docs = []
-        enabled_count = 0
+        documents = []
         for row in rows:
-            doc_hash = row["resource_hash"]
-            is_enabled = selection_state.get(doc_hash, True)
-            if is_enabled:
-                enabled_count += 1
-
-            if enabled_filter == "enabled" and not is_enabled:
-                continue
-            if enabled_filter == "disabled" and is_enabled:
-                continue
-
-            all_docs.append({
-                "hash": doc_hash,
+            documents.append({
+                "hash": row["resource_hash"],
                 "display_name": row["display_name"],
                 "source_type": row["source_type"],
                 "url": row["url"],
@@ -659,17 +700,21 @@ class PostgresCatalogService:
                 "ingested_at": row["ingested_at"].isoformat() if row["ingested_at"] else None,
                 "ingestion_status": row.get("ingestion_status", "pending"),
                 "ingestion_error": row.get("ingestion_error"),
-                "enabled": is_enabled,
+                "enabled": bool(row.get("enabled", True)),
             })
 
-        paginated = all_docs[offset:offset + limit]
+        effective_limit = total if limit is None else limit
+        has_more = False if limit is None else (offset + len(documents) < total)
+        next_offset = None if not has_more else offset + len(documents)
 
         return {
-            "documents": paginated,
-            "total": len(all_docs) if enabled_filter else total,
+            "documents": documents,
+            "total": total,
             "enabled_count": enabled_count,
-            "limit": limit,
+            "limit": effective_limit,
             "offset": offset,
+            "has_more": has_more,
+            "next_offset": next_offset,
         }
 
     def update_ingestion_status(
