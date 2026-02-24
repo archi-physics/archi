@@ -1041,6 +1041,62 @@ class BaseReActAgent:
             if content:
                 snippet = content if len(content) <= 200 else f"{content[:197]}..."
                 memory.note(f"Latest user message: {snippet}")
+
+        # --- Token trimming based on model context window ---
+        try:
+            if hasattr(self.agent_llm, "get_num_tokens_from_messages"):
+
+                context_window = self._get_model_context_window()
+                # Guard against None or invalid values
+                if not isinstance(context_window, int) or context_window <= 0:
+                    logger.debug(
+                    "Invalid context window (%s), skipping trimming.",
+                    context_window,
+                    )
+                    return {"messages": history_messages}
+
+                safety_margin = int(context_window * 0.15)
+                max_prompt_tokens = context_window - safety_margin
+
+                logger.debug("Model: %s", getattr(self.agent_llm, "model", "unknown"))
+                logger.debug("Context window: %d", context_window)
+                logger.debug("Prompt token budget: %d", max_prompt_tokens)
+
+                token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                # Soft compression phase
+                compression_round = 0
+                while token_count >= max_prompt_tokens and len(history_messages) > 1:
+                    compression_round += 1
+                    logger.debug("Compression round %d triggered.", compression_round)
+
+                    history_messages = self._compress_history(history_messages)
+                    token_count = self.agent_llm.get_num_tokens_from_messages(
+                        history_messages
+                    )
+
+                    # Prevent infinite compression loop
+                    if compression_round > 3:
+                        logger.warning("Exceeded max compression rounds.")
+                        break
+
+                   # Hard safeguard: crop if still too large
+                if token_count >= max_prompt_tokens:
+                    logger.warning("History still exceeds token limit (%d >= %d). Forcibly cropping.",token_count,max_prompt_tokens,)
+                    keep_last_n = 4
+                    history_messages = history_messages[-keep_last_n:]
+                    token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                    # --- Brutal safeguard: truncate content ---
+                    while (token_count >= max_prompt_tokens and len(history_messages) > 1):
+                        history_messages.pop(0)
+                        token_count = self.agent_llm.get_num_tokens_from_messages(history_messages)
+
+                logger.debug("Final trimmed token count: %d", token_count)
+
+        except Exception as e:
+            logger.debug("Token trimming skipped: %s", e)
+
         return {"messages": history_messages}
 
     def _metadata_from_agent_output(self, answer_output: Dict[str, Any]) -> Dict[str, Any]:
@@ -1090,6 +1146,92 @@ class BaseReActAgent:
         if len(content) > 400:
             content = f"{content[:397]}..."
         return f"{role}: {content}"
+
+
+    def _get_model_context_window(self) -> Optional[int]:
+        """
+        Retrieve context_window from the configured provider + model
+        using the provider abstraction layer.
+        """
+        try:
+            if not self.default_provider or not self.default_model:
+                return None
+
+            from src.archi.providers import get_provider
+
+            # Get provider instance (no reconstruction hacks)
+            provider = get_provider(self.default_provider)
+
+            if not provider:
+                return None
+
+            model_info = provider.get_model_info(self.default_model)
+            if model_info:
+                return model_info.context_window
+
+        except Exception as e:
+            logger.debug("Could not determine context window: %s", e)
+
+        return None
+
+    def _compress_history(self, history_messages):
+        """
+        Compress older conversation messages into a summary.
+        Keeps the last few messages intact.
+        """
+
+        keep_last_n = 4
+
+        if len(history_messages) <= keep_last_n:
+            return history_messages
+
+        recent = history_messages[-keep_last_n:]
+        older = history_messages[:-keep_last_n]
+
+        if not older:
+            return history_messages
+
+        # Only summarize half of older messages to avoid overflow
+        chunk_size = max(1, len(older) // 2)
+        chunk = older[:chunk_size]
+
+        summary = self._summarize_messages(chunk)
+        summary_message = AIMessage(content="Summary of earlier conversation:\n" + summary)
+        return [summary_message] + older[chunk_size:] + recent
+
+
+    def _summarize_messages(self, messages):
+
+        texts = []
+        for m in messages:
+            content = self._message_content(m)
+            if content:
+                texts.append(content)
+
+        combined_text = "\n".join(texts)
+
+        if not combined_text.strip():
+            return "Previous conversation summarized."
+
+        try:
+            response = self.agent_llm.invoke([
+                SystemMessage(
+                    content="Summarize the following conversation concisely, "
+                            "preserving important facts and decisions."
+                ),
+                HumanMessage(content=combined_text),
+            ])
+
+            if isinstance(response, BaseMessage):
+                return self._message_content(response)
+
+            return str(response)
+
+        except Exception as e:
+            logger.warning("Summarization failed: %s", e)
+            return "Earlier conversation summarized due to length constraints."
+
+
 
     def _build_output_from_messages(
         self,
