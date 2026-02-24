@@ -12,7 +12,6 @@ nav:
   - CLI Reference: cli_reference.md
   - Advanced Setup and Deployment: advanced_setup_deploy.md
   - vLLM Provider: vllm.md
-  - Adding Providers: adding_providers.md
   - API Reference: api_reference.md
   - Benchmarking: benchmarking.md
   - Advanced Setup: advanced_setup_deploy.md
