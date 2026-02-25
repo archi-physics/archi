@@ -214,20 +214,20 @@
 <h2 id="configuration">Configuration</h2>
 <pre><code class="language-yaml">services:
   benchmarking:
+    agent_class: CMSCompOpsAgent
+    agent_md_file: examples/agents/cms-comp-ops.md
+    provider: local
+    model: qwen3:32b
+    ollama_url: http://host.containers.internal:7870
     queries_path: examples/benchmarking/queries.json
     out_dir: bench_out
     modes:
       - &quot;RAGAS&quot;
       - &quot;SOURCES&quot;
-    timeout: 180
-    batch_size: 10
     mode_settings:
       sources:
         default_match_field: [&quot;file_name&quot;]
       ragas_settings:
-        provider: OpenAI
-        evaluation_model_settings:
-          model_name: gpt-4o
         embedding_model: OpenAI
 </code></pre>
 <table>
@@ -239,6 +239,31 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>agent_class</code></td>
+<td>—</td>
+<td>Pipeline/agent class to run for benchmark questions</td>
+</tr>
+<tr>
+<td><code>agent_md_file</code></td>
+<td>—</td>
+<td>Path to a single agent markdown file</td>
+</tr>
+<tr>
+<td><code>provider</code></td>
+<td>—</td>
+<td>Provider used for benchmark question answering</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>—</td>
+<td>Model used for benchmark question answering</td>
+</tr>
+<tr>
+<td><code>ollama_url</code></td>
+<td>—</td>
+<td>Ollama base URL when <code>provider: local</code></td>
+</tr>
 <tr>
 <td><code>queries_path</code></td>
 <td>—</td>
@@ -255,17 +280,19 @@
 <td>List of evaluation modes (<code>RAGAS</code>, <code>SOURCES</code>)</td>
 </tr>
 <tr>
-<td><code>timeout</code></td>
+<td><code>mode_settings.ragas_settings.timeout</code></td>
 <td><code>180</code></td>
 <td>Max seconds per QA pair for RAGAS evaluation</td>
 </tr>
 <tr>
-<td><code>batch_size</code></td>
+<td><code>mode_settings.ragas_settings.batch_size</code></td>
 <td>Ragas default</td>
 <td>Number of QA pairs to evaluate at once</td>
 </tr>
 </tbody>
 </table>
+<p><code>archi evaluate</code> now requires benchmark runtime fields under <code>services.benchmarking</code>.
+<code>services.chat_app</code> fields are not used for benchmark runtime configuration.</p>
 <h3 id="ragas-settings">RAGAS Settings</h3>
 <table>
 <thead>
@@ -275,18 +302,6 @@
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>provider</code></td>
-<td>One of: <code>OpenAI</code>, <code>HuggingFace</code>, <code>Ollama</code>, <code>Anthropic</code></td>
-</tr>
-<tr>
-<td><code>evaluation_model_settings.model_name</code></td>
-<td>LangChain model name for evaluation</td>
-</tr>
-<tr>
-<td><code>evaluation_model_settings.base_url</code></td>
-<td>For Ollama: address of the running server</td>
-</tr>
 <tr>
 <td><code>embedding_model</code></td>
 <td><code>OpenAI</code> or <code>HuggingFace</code></td>
