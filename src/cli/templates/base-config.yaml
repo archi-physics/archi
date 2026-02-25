@@ -12,6 +12,11 @@ global:
 
 services:
   benchmarking:
+    agent_class: {{ services.benchmarking.agent_class | default("", true) }}
+    agent_md_file: "{{ services.benchmarking.agent_md_file | default("", true) }}"
+    provider: {{ services.benchmarking.provider | default("", true) }}
+    model: {{ services.benchmarking.model | default("", true) }}
+    ollama_url: {{ services.benchmarking.ollama_url | default("", true) }}
     out_dir: {{ services.benchmarking.out_dir | default(".", true) }}
     queries_path: {{ services.benchmarking.queries_path | default("queries", true) }}
     modes:
@@ -26,21 +31,6 @@ services:
           {%- for metric in services.benchmarking.ragas_settings.enabled_metrics | default(["answer_relevancy", "faithfulness", "context_precision", "context_recall"]) %}
           - {{ metric }}
           {%- endfor %}
-        provider: {{ services.benchmarking.mode_settings.ragas_settings.provider | default("OpenAI", True)}} # supports OpenAI, Ollama, HuggingFace, and Anthropic
-        evaluation_model_settings:
-          {%- set provider = services.benchmarking.mode_settings.ragas_settings.provider | default("OpenAI") %}
-          {%- set default_models = {
-              "OpenAI": "gpt-4",
-              "Ollama": "gemma3",
-              "HuggingFace": "Qwen/Qwen2.5-7B-Instruct-1M",
-              "Anthropic": "claude-3-sonnet-20240229"
-          } %}
-          {%- if services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.model_name %}
-          model_name: {{ services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.model_name }}
-          {%- else %}
-          model_name: {{ default_models.get(provider, "gpt-4") }}
-          {%- endif %}
-          base_url: {{ services.benchmarking.mode_settings.ragas_settings.evaluation_model_settings.base_url | default("", True) }} # for Ollama support
         embedding_model: {{ services.benchmarking.mode_settings.ragas_settings.embedding_model | default("OpenAI", true) }}
         timeout: {{ services.benchmarking.mode_settings.ragas_settings.timeout | default(180, true) }}
         batch_size: {{ services.benchmarking.mode_settings.ragas_settings.batch_size | default(false, true) }}

@@ -40,6 +40,7 @@ class PipelineOutput:
     def extract_tool_calls(self) -> List[Dict[str, Any]]:
         """Return a normalized list of tool calls extracted from message history."""
         tool_results: Dict[str, Any] = {}
+        tool_inputs_by_id: Dict[str, Any] = self.metadata.get("tool_inputs_by_id", {}) if self.metadata else {}
         for msg in self.messages:
             tool_call_id = getattr(msg, "tool_call_id", None)
             if tool_call_id:
@@ -62,6 +63,12 @@ class PipelineOutput:
                         "id": tool_call_id,
                         "type": getattr(call, "type", None),
                     }
+                if tool_call_id and entry.get("args") in (None, "", {}, []):
+                    fallback = tool_inputs_by_id.get(tool_call_id, {})
+                    if isinstance(fallback, dict):
+                        entry["args"] = fallback.get("tool_input", entry.get("args"))
+                        if not entry.get("name"):
+                            entry["name"] = fallback.get("tool_name", entry.get("name"))
                 if tool_call_id and tool_call_id in tool_results:
                     entry["result"] = tool_results[tool_call_id]
                 tool_calls.append(entry)

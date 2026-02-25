@@ -58,38 +58,43 @@ See `examples/benchmarking/queries.json` for a complete example.
 ```yaml
 services:
   benchmarking:
+    agent_class: CMSCompOpsAgent
+    agent_md_file: examples/agents/cms-comp-ops.md
+    provider: local
+    model: qwen3:32b
+    ollama_url: http://host.containers.internal:7870
     queries_path: examples/benchmarking/queries.json
     out_dir: bench_out
     modes:
       - "RAGAS"
       - "SOURCES"
-    timeout: 180
-    batch_size: 10
     mode_settings:
       sources:
         default_match_field: ["file_name"]
       ragas_settings:
-        provider: OpenAI
-        evaluation_model_settings:
-          model_name: gpt-4o
         embedding_model: OpenAI
 ```
 
 | Key | Default | Description |
 |-----|---------|-------------|
+| `agent_class` | — | Pipeline/agent class to run for benchmark questions |
+| `agent_md_file` | — | Path to a single agent markdown file |
+| `provider` | — | Provider used for benchmark question answering |
+| `model` | — | Model used for benchmark question answering |
+| `ollama_url` | — | Ollama base URL when `provider: local` |
 | `queries_path` | — | Path to the queries JSON file |
 | `out_dir` | — | Output directory for results (must exist) |
 | `modes` | — | List of evaluation modes (`RAGAS`, `SOURCES`) |
-| `timeout` | `180` | Max seconds per QA pair for RAGAS evaluation |
-| `batch_size` | Ragas default | Number of QA pairs to evaluate at once |
+| `mode_settings.ragas_settings.timeout` | `180` | Max seconds per QA pair for RAGAS evaluation |
+| `mode_settings.ragas_settings.batch_size` | Ragas default | Number of QA pairs to evaluate at once |
+
+`archi evaluate` now requires benchmark runtime fields under `services.benchmarking`.
+`services.chat_app` fields are not used for benchmark runtime configuration.
 
 ### RAGAS Settings
 
 | Key | Description |
 |-----|-------------|
-| `provider` | One of: `OpenAI`, `HuggingFace`, `Ollama`, `Anthropic` |
-| `evaluation_model_settings.model_name` | LangChain model name for evaluation |
-| `evaluation_model_settings.base_url` | For Ollama: address of the running server |
 | `embedding_model` | `OpenAI` or `HuggingFace` |
 
 ---

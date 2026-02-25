@@ -116,7 +116,15 @@ class CMSCompOpsAgent(BaseReActAgent):
             "search_vectorstore_hybrid": {
                 "builder": self._build_vector_tool_placeholder,
                 "description": (
-                    "Hybrid search over the knowledge base that combines both lexical (BM25) and semantic (vector) search."
+                    "Hybrid search over the knowledge base that combines lexical (BM25) and semantic (vector) matching.\n"
+                    "Input must be a plain text query string.\n"
+                    "Query writing guidance:\n"
+                    "- Use one short, specific question or request (not a long keyword dump).\n"
+                    "- Keep only the most informative terms (about 3-8 keywords or a short sentence).\n"
+                    "- Do not repeat terms unless repetition is intentional for emphasis.\n"
+                    "- Avoid partial/trailing fragments (e.g., ending with a single character).\n"
+                    "- Include exact identifiers when known (component names, APIs, error strings), using quotes for multi-word phrases.\n"
+                    "- If results are weak, run a second query that is narrower (add identifiers) or broader (remove overly specific terms)."
                 ),
             },
             "mcp": {
@@ -146,6 +154,7 @@ class CMSCompOpsAgent(BaseReActAgent):
             self.catalog_service,
             description=description,
             store_docs=self._store_documents,
+            store_tool_input=getattr(self, "_store_tool_input", None),
         )
 
     def _build_metadata_search_tool(self) -> Callable:
@@ -154,6 +163,7 @@ class CMSCompOpsAgent(BaseReActAgent):
             self.catalog_service,
             description=description,
             store_docs=self._store_documents,
+            store_tool_input=getattr(self, "_store_tool_input", None),
         )
 
     def _build_metadata_schema_tool(self) -> Callable:
@@ -168,6 +178,7 @@ class CMSCompOpsAgent(BaseReActAgent):
         return create_document_fetch_tool(
             self.catalog_service,
             description=description,
+            store_tool_input=getattr(self, "_store_tool_input", None),
         )
 
     def _build_vector_tool_placeholder(self) -> List[Callable]:
@@ -233,5 +244,6 @@ class CMSCompOpsAgent(BaseReActAgent):
                 name="search_vectorstore_hybrid",
                 description=hybrid_description,
                 store_docs=self._store_documents,
+                store_tool_input=getattr(self, "_store_tool_input", None),
             )
         )

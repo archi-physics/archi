@@ -29,7 +29,7 @@ class RemoteCatalogClient:
         hostname: Optional[str] = None,
         port: int = 7871,
         external_port: Optional[int] = None,
-        timeout: float = 10.0,
+        timeout: float = 30.0,
         api_token: Optional[str] = None,
     ):
         host_mode_flag = self._resolve_host_mode(host_mode)
@@ -212,6 +212,7 @@ def create_file_search_tool(
     max_results: int = 3,
     window: int = 240,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[[str], str]:
     """Create a LangChain tool that performs keyword search in catalogued files."""
 
@@ -239,6 +240,22 @@ def create_file_search_tool(
     ) -> str:
         if not query.strip():
             return "Please provide a non-empty search query."
+        if store_tool_input:
+            try:
+                store_tool_input(
+                    name,
+                    {
+                        "query": query,
+                        "regex": regex,
+                        "case_sensitive": case_sensitive,
+                        "max_results_override": max_results_override,
+                        "max_matches_per_file": max_matches_per_file,
+                        "before": before,
+                        "after": after,
+                    },
+                )
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         hits: List[Dict[str, object]] = []
         docs: List[Document] = []
@@ -300,6 +317,7 @@ def create_metadata_search_tool(
     description: Optional[str] = None,
     max_results: int = 5,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[[str], str]:
     """Create a LangChain tool to search resource metadata catalogues."""
 
@@ -321,6 +339,11 @@ def create_metadata_search_tool(
     def _search_metadata(query: str) -> str:
         if not query.strip():
             return "Please provide a non-empty search query."
+        if store_tool_input:
+            try:
+                store_tool_input(name, {"query": query})
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         hits: List[Tuple[str, Path, Optional[Dict[str, object]], str]] = []
         docs: List[Document] = []
@@ -399,6 +422,7 @@ def create_document_fetch_tool(
     name: str = "fetch_catalog_document",
     description: Optional[str] = None,
     default_max_chars: int = 4000,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[..., str]:
     """Create a LangChain tool to fetch a full document by resource hash."""
 
@@ -416,6 +440,11 @@ def create_document_fetch_tool(
     def _fetch_document(resource_hash: str, max_chars: int = default_max_chars) -> str:
         if not resource_hash.strip():
             return "Please provide a non-empty resource hash."
+        if store_tool_input:
+            try:
+                store_tool_input(name, {"resource_hash": resource_hash, "max_chars": max_chars})
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         try:
             doc_payload = catalog.get_document(resource_hash.strip(), max_chars=max_chars) or {}

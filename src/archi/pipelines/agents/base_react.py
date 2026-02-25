@@ -18,7 +18,7 @@ from src.archi.pipelines.agents.utils.history_utils import infer_speaker
 from src.archi.providers import get_model
 from src.archi.providers.base import ProviderType
 from src.archi.utils.output_dataclass import PipelineOutput
-from src.archi.pipelines.agents.utils.document_memory import DocumentMemory
+from src.archi.pipelines.agents.utils.run_memory import RunMemory
 from src.archi.pipelines.agents.utils.mcp_utils import AsyncLoopThread
 from src.archi.pipelines.agents.tools import initialize_mcp_client
 from src.utils.logging import get_logger
@@ -53,7 +53,7 @@ class BaseReActAgent:
         self.selected_tool_names: List[str] = []
         if agent_spec is not None:
             self.selected_tool_names = list(getattr(agent_spec, "tools", []) or [])
-        self._active_memory: Optional[DocumentMemory] = None
+        self._active_memory: Optional[RunMemory] = None
         self._static_tools: Optional[List[Callable]] = None
         self._mcp_tools: Optional[List[Callable]] = None
         self._active_tools: List[Callable] = []
@@ -76,18 +76,18 @@ class BaseReActAgent:
         if self.agent_prompt is None:
             self.agent_prompt = self.prompts.get("agent_prompt")
 
-    def create_document_memory(self) -> DocumentMemory:
-        """Instantiate a fresh document memory for an agent run."""
-        return DocumentMemory()
+    def create_run_memory(self) -> RunMemory:
+        """Instantiate a fresh run memory for an agent run."""
+        return RunMemory()
 
-    def start_run_memory(self) -> DocumentMemory:
+    def start_run_memory(self) -> RunMemory:
         """Create and store the active memory for the current run."""
-        memory = self.create_document_memory()
+        memory = self.create_run_memory()
         self._active_memory = memory
         return memory
 
     @property
-    def active_memory(self) -> Optional[DocumentMemory]:
+    def active_memory(self) -> Optional[RunMemory]:
         """Return the memory currently associated with the run, if any."""
         return self._active_memory
 
@@ -95,7 +95,7 @@ class BaseReActAgent:
         self,
         *,
         answer: str,
-        memory: Optional[DocumentMemory] = None,
+        memory: Optional[RunMemory] = None,
         messages: Optional[Sequence[BaseMessage]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         final: bool = True,
@@ -112,11 +112,19 @@ class BaseReActAgent:
                 resolved_messages = list(messages) if final else [messages[-1]]
             else:
                 resolved_messages = [messages]
+        resolved_metadata = dict(metadata or {})
+        if memory:
+            try:
+                tool_inputs_by_id = memory.tool_inputs_by_id()
+                if tool_inputs_by_id:
+                    resolved_metadata.setdefault("tool_inputs_by_id", tool_inputs_by_id)
+            except Exception as exc:
+                logger.debug("Failed to attach tool_inputs_by_id to metadata: %s", exc)
         return PipelineOutput(
             answer=answer,
             source_documents=documents,
             messages=resolved_messages,
-            metadata=metadata or {},
+            metadata=resolved_metadata,
             final=final,
         )
 
@@ -186,8 +194,7 @@ class BaseReActAgent:
             msg_type = str(getattr(msg, "type", "")).lower()
             if msg_type not in {"ai", "assistant"} and "ai" not in type(msg).__name__.lower():
                 continue
-            response_metadata = getattr(msg, "response_metadata", None)
-            usage = self._extract_usage_from_metadata(response_metadata)
+            usage = self._extract_usage_from_message(msg)
             if usage:
                 total_prompt += usage.get("prompt_tokens", 0)
                 total_completion += usage.get("completion_tokens", 0)
@@ -201,6 +208,23 @@ class BaseReActAgent:
             "completion_tokens": total_completion,
             "total_tokens": total_prompt + total_completion,
         }
+
+    def _extract_usage_from_message(self, message: BaseMessage) -> Optional[Dict[str, int]]:
+        """Extract normalized usage from a single message or chunk."""
+        usage_metadata = getattr(message, "usage_metadata", None)
+        if isinstance(usage_metadata, dict):
+            prompt_tokens = usage_metadata.get("input_tokens", 0)
+            completion_tokens = usage_metadata.get("output_tokens", 0)
+            total_tokens = usage_metadata.get("total_tokens", prompt_tokens + completion_tokens)
+            if prompt_tokens or completion_tokens or total_tokens:
+                return {
+                    "prompt_tokens": int(prompt_tokens or 0),
+                    "completion_tokens": int(completion_tokens or 0),
+                    "total_tokens": int(total_tokens or 0),
+                }
+
+        response_metadata = getattr(message, "response_metadata", None)
+        return self._extract_usage_from_metadata(response_metadata)
 
     def _extract_model_from_messages(self, messages: List[BaseMessage]) -> Optional[str]:
         """Extract model name from the last AI message with response_metadata."""
@@ -265,6 +289,7 @@ class BaseReActAgent:
         recursion_limit = self._recursion_limit()
 
         all_messages: List[BaseMessage] = []  # Accumulated full messages
+        usage_messages: List[BaseMessage] = []  # Includes chunks with usage metadata
         latest_messages: List[BaseMessage] = []
         accumulated_content = ""  # Accumulated raw content from streaming
         emitted_tool_starts: Set[str] = set()
@@ -292,9 +317,18 @@ class BaseReActAgent:
                 msg_type = str(getattr(message, "type", "")).lower()
                 msg_class = type(message).__name__.lower()
 
+                if msg_type in {"ai", "assistant"} or "ai" in msg_class:
+                    usage_messages.append(message)
+
                 response_metadata = getattr(message, "response_metadata", None)
                 if response_metadata:
                     last_response_metadata = response_metadata
+
+                if self.active_memory:
+                    try:
+                        self.active_memory.record_tool_calls_from_message(message)
+                    except Exception as exc:
+                        logger.debug("Failed to record tool calls from stream message: %s", exc)
                 
                 # Track all non-chunk messages
                 if "chunk" not in msg_class:
@@ -470,7 +504,7 @@ class BaseReActAgent:
             final_answer, _ = self._parse_thinking_content(accumulated_content)
         
         # Extract usage and model info for final event
-        usage = self._extract_usage_from_messages(all_messages)
+        usage = self._extract_usage_from_messages(usage_messages or all_messages)
         model = self._extract_model_from_messages(all_messages)
         if usage is None:
             usage = self._extract_usage_from_metadata(last_response_metadata)
@@ -506,6 +540,7 @@ class BaseReActAgent:
         recursion_limit = self._recursion_limit()
 
         all_messages: List[BaseMessage] = []
+        usage_messages: List[BaseMessage] = []
         latest_messages: List[BaseMessage] = []
         accumulated_content = ""
         emitted_tool_starts: Set[str] = set()
@@ -531,10 +566,19 @@ class BaseReActAgent:
                 message = messages[-1]
                 msg_type = str(getattr(message, "type", "")).lower()
                 msg_class = type(message).__name__.lower()
+
+                if msg_type in {"ai", "assistant"} or "ai" in msg_class:
+                    usage_messages.append(message)
                 
                 response_metadata = getattr(message, "response_metadata", None)
                 if response_metadata:
                     last_response_metadata = response_metadata
+
+                if self.active_memory:
+                    try:
+                        self.active_memory.record_tool_calls_from_message(message)
+                    except Exception as exc:
+                        logger.debug("Failed to record tool calls from async stream message: %s", exc)
                 
                 # Track all non-chunk messages
                 if "chunk" not in msg_class:
@@ -702,7 +746,7 @@ class BaseReActAgent:
             final_answer, _ = self._parse_thinking_content(accumulated_content)
         
         # Extract usage and model info for final event
-        usage = self._extract_usage_from_messages(all_messages)
+        usage = self._extract_usage_from_messages(usage_messages or all_messages)
         model = self._extract_model_from_messages(all_messages)
         if usage is None:
             usage = self._extract_usage_from_metadata(last_response_metadata)
@@ -1007,6 +1051,16 @@ class BaseReActAgent:
             memory.record(stage, docs)
             memory.note(f"{stage} returned {len(list(docs))} document(s).")
 
+    def _store_tool_input(self, tool_name: str, tool_input: Any) -> None:
+        """Store runtime tool input so streamed tool ids can be backfilled with arguments."""
+        memory = self.active_memory
+        if not memory:
+            return
+        try:
+            memory.record_tool_input(tool_name, tool_input)
+        except Exception as exc:
+            logger.debug("Failed to record tool input for %s: %s", tool_name, exc)
+
     def _prepare_inputs(self, history: Any, **kwargs) -> Dict[str, Any]:
         """Create list of messages using LangChain's formatting."""
         history = history or []
@@ -1115,10 +1169,19 @@ class BaseReActAgent:
             return list(payload)
         if isinstance(payload, tuple) and payload and isinstance(payload[0], message_types):
             return [payload[0]]
+        if isinstance(payload, tuple) and len(payload) > 1 and isinstance(payload[1], message_types):
+            return [payload[1]]
+        if (
+            isinstance(payload, tuple)
+            and len(payload) > 1
+            and isinstance(payload[1], list)
+            and all(isinstance(msg, message_types) for msg in payload[1])
+        ):
+            return list(payload[1])
         def _messages_from_container(container: Any) -> List[BaseMessage]:
             if isinstance(container, dict):
                 messages = container.get("messages")
-                if isinstance(messages, list) and all(isinstance(msg, BaseMessage) for msg in messages):
+                if isinstance(messages, list) and all(isinstance(msg, message_types) for msg in messages):
                     return messages
             return []
 

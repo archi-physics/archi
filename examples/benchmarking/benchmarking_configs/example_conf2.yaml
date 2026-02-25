@@ -10,16 +10,11 @@ data_manager:
   embedding_name: OpenAIEmbeddings
 
 services:
-  chat_app:
-    agent_class: QAPipeline
-    agents_dir: examples/agents
-    default_provider: openai
-    default_model: gpt-4o
-    prompts:
-      condense_prompt: configs/prompts/condense.prompt
-      chat_prompt: configs/prompts/submit.prompt
-
   benchmarking:
+    agent_class: CMSCompOpsAgent
+    agent_md_file: examples/agents/cms-comp-ops.md
+    provider: openai
+    model: gpt-4o
     queries_path: configs/benchmarking/queries.json
     out_dir: bench_out
     modes:
