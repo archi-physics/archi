@@ -2104,86 +2104,44 @@ body {
   padding: var(--message-padding-y) var(--message-padding-x);
 }
 
-.ab-response {
+/* Each arm is a normal .message.assistant with an extra .ab-arm class */
+.ab-arm {
   flex: 1;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 500px;
+  min-width: 0; /* allow flex shrink */
 }
 
-.ab-response-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-color);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
+/* Remove default message max-width when inside AB comparison */
+.ab-comparison .ab-arm.message {
+  max-width: none;
 }
 
-.ab-response-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ab-response-label::before {
-  content: '';
-}
-
-.ab-response-content {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* Winner/Loser States */
-.ab-response-winner {
-  border: none;
-  background: transparent;
-  flex: none;
-  width: 100%;
-  max-width: var(--message-max-width);
-}
-
-.ab-comparison-resolved {
-  display: block;
-  gap: 0;
-}
-
-.ab-comparison-resolved .ab-response-winner {
-  padding: 0;
-}
-
-.ab-comparison-resolved .ab-response-winner .ab-response-content {
-  padding: 0;
-}
-
-.ab-response-loser {
-  display: none;
-}
-
-.ab-response-tie {
-  border-color: var(--text-tertiary);
-}
-
-.ab-winner-badge {
+/* A/B label badge */
+.ab-arm-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 2px 8px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
   background: var(--accent);
   color: white;
-  border-radius: 9999px;
+  border-radius: 50%;
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Tie state — dim both arms */
+.ab-arm-tie {
+  opacity: 0.6;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 768px) {
+  .ab-comparison {
+    flex-direction: column;
+    max-width: var(--message-max-width);
+  }
 }
 
 /* -----------------------------------------------------------------------------

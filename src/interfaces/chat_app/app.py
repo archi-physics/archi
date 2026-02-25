@@ -1423,10 +1423,12 @@ class ChatWrapper:
         """
         Stream a champion/challenger A/B comparison.
 
-        Yields interleaved NDJSON events tagged with ``arm: 'a'`` or ``arm: 'b'``.
+        Yields interleaved NDJSON events tagged with ``arm: 'a'`` or ``arm: 'b'``
+        in real-time as each arm's pipeline produces output.
         A final ``ab_meta`` event carries the comparison_id and variant mapping.
         """
-        import concurrent.futures
+        import queue
+        import threading
 
         if not self.ab_pool:
             yield {"type": "error", "message": "A/B pool not configured"}
@@ -1469,16 +1471,18 @@ class ChatWrapper:
             yield {"type": "error", "message": f"Failed to initialise A/B variants: {exc}"}
             return
 
-        # We'll collect the streaming results from both arms
-        arm_a_final_text = ""
-        arm_b_final_text = ""
-        arm_a_error = None
-        arm_b_error = None
+        # Shared queue for real-time interleaving
+        event_queue: queue.Queue = queue.Queue()
+        _SENTINEL = object()
 
-        def _collect_arm_events(arm_archi, arm_label):
-            """Run one arm's stream in a thread, collecting events."""
-            events = []
-            final_text = ""
+        # Track final text per arm (mutated by threads)
+        arm_results = {
+            "a": {"final_text": "", "error": None},
+            "b": {"final_text": "", "error": None},
+        }
+
+        def _stream_arm(arm_archi, arm_label):
+            """Run one arm's stream in a thread, pushing events to the shared queue."""
             try:
                 vs = self.archi.vs_connector.get_vectorstore()
                 for output in arm_archi.pipeline.stream(
@@ -1491,8 +1495,8 @@ class ChatWrapper:
                     event_type = output.metadata.get("event_type", "text") if output.metadata else "text"
                     text = output.answer or ""
                     if event_type == "text" and text:
-                        final_text = text
-                    events.append({
+                        arm_results[arm_label]["final_text"] = text
+                    event_queue.put({
                         "type": event_type,
                         "arm": arm_label,
                         "content": text,
@@ -1500,35 +1504,45 @@ class ChatWrapper:
                                      if k not in ("event_type",)} if output.metadata else {},
                     })
             except Exception as exc:
-                events.append({"type": "error", "arm": arm_label, "message": str(exc)})
-            return events, final_text
+                arm_results[arm_label]["error"] = str(exc)
+                event_queue.put({"type": "error", "arm": arm_label, "message": str(exc)})
+            finally:
+                event_queue.put(_SENTINEL)
 
-        # Stream both arms in parallel using threads
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            future_a = executor.submit(_collect_arm_events, archi_a, "a")
-            future_b = executor.submit(_collect_arm_events, archi_b, "b")
+        # Start both arms in parallel threads
+        thread_a = threading.Thread(target=_stream_arm, args=(archi_a, "a"), daemon=True)
+        thread_b = threading.Thread(target=_stream_arm, args=(archi_b, "b"), daemon=True)
+        thread_a.start()
+        thread_b.start()
 
-            events_a, arm_a_final_text = future_a.result()
-            events_b, arm_b_final_text = future_b.result()
+        # Drain the queue in real-time, yielding events as they arrive
+        finished_count = 0
+        while finished_count < 2:
+            item = event_queue.get()
+            if item is _SENTINEL:
+                finished_count += 1
+                continue
+            yield item
+
+        thread_a.join()
+        thread_b.join()
 
         # Check for errors
-        arm_a_error = next((e for e in events_a if e.get("type") == "error"), None)
-        arm_b_error = next((e for e in events_b if e.get("type") == "error"), None)
+        arm_a_error = arm_results["a"]["error"]
+        arm_b_error = arm_results["b"]["error"]
+        arm_a_final_text = arm_results["a"]["final_text"]
+        arm_b_final_text = arm_results["b"]["final_text"]
 
         if arm_a_error and arm_b_error:
-            yield {"type": "error", "message": "Both A/B arms failed", "arm_a_error": arm_a_error.get("message"), "arm_b_error": arm_b_error.get("message")}
+            yield {"type": "error", "message": "Both A/B arms failed",
+                   "arm_a_error": arm_a_error, "arm_b_error": arm_b_error}
             return
 
         if arm_a_error or arm_b_error:
-            # One arm failed — don't create comparison, just yield the error
-            yield {"type": "error", "message": "One A/B arm failed", "failed_arm": "a" if arm_a_error else "b", "error": (arm_a_error or arm_b_error).get("message")}
+            yield {"type": "error", "message": "One A/B arm failed",
+                   "failed_arm": "a" if arm_a_error else "b",
+                   "error": arm_a_error or arm_b_error}
             return
-
-        # Yield interleaved events
-        for event in events_a:
-            yield event
-        for event in events_b:
-            yield event
 
         # Store both responses as messages
         arm_a_mid = self._store_assistant_message(
@@ -1574,6 +1588,7 @@ class ChatWrapper:
         yield {
             "type": "ab_meta",
             "comparison_id": comparison_id,
+            "conversation_id": context.conversation_id,
             "arm_a_variant": arm_a_variant.name,
             "arm_b_variant": arm_b_variant.name,
             "is_champion_first": is_champion_first,

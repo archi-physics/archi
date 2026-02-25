@@ -19,8 +19,6 @@ const CONFIG = {
     SELECTED_PROVIDER: 'archi_selected_provider',
     SELECTED_MODEL: 'archi_selected_model',
     SELECTED_MODEL_CUSTOM: 'archi_selected_model_custom',
-    SELECTED_PROVIDER_B: 'archi_selected_provider_b',
-    SELECTED_MODEL_B: 'archi_selected_model_b',
   },
   ENDPOINTS: {
     STREAM: '/api/get_chat_response_stream',
@@ -29,7 +27,6 @@ const CONFIG = {
     LOAD_CONVERSATION: '/api/load_conversation',
     NEW_CONVERSATION: '/api/new_conversation',
     DELETE_CONVERSATION: '/api/delete_conversation',
-    AB_CREATE: '/api/ab/create',
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
     AB_POOL: '/api/ab/pool',
@@ -317,17 +314,6 @@ const API = {
   },
 
   // A/B Testing API methods
-  async createABComparison(data) {
-    return this.fetchJson(CONFIG.ENDPOINTS.AB_CREATE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...data,
-        client_id: this.clientId,
-      }),
-    });
-  },
-
   async submitABPreference(comparisonId, preference) {
     return this.fetchJson(CONFIG.ENDPOINTS.AB_PREFERENCE, {
       method: 'POST',
@@ -671,7 +657,7 @@ const UI = {
       inputField: document.querySelector('.input-field'),
       sendBtn: document.querySelector('.send-btn'),
       modelSelectA: null,
-      modelSelectB: document.querySelector('.model-select-b'),
+
       settingsBtn: document.querySelector('.settings-btn'),
       dataTab: document.getElementById('data-tab'),
       settingsModal: document.querySelector('.settings-modal'),
@@ -706,7 +692,7 @@ const UI = {
       // Provider selection elements
       providerSelect: document.getElementById('provider-select'),
       modelSelectPrimary: document.getElementById('model-select-primary'),
-      providerSelectB: document.getElementById('provider-select-b'),
+
       providerStatus: document.getElementById('provider-status'),
       customModelInput: document.getElementById('custom-model-input'),
       customModelRow: document.getElementById('custom-model-row'),
@@ -912,10 +898,7 @@ const UI = {
       Chat.handleCustomModelChange(e.target.value);
     });
 
-    this.elements.providerSelectB?.addEventListener('change', (e) => {
-      Chat.handleProviderBChange(e.target.value);
-    });
-    
+
     // Close modal on Escape
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.elements.settingsModal?.style.display !== 'none') {
@@ -1535,14 +1518,6 @@ const UI = {
       select.value = '';
     }
 
-    // Also populate provider B select for A/B testing
-    const selectB = this.elements.providerSelectB;
-    if (selectB) {
-      selectB.innerHTML = '<option value="">Same as primary</option>' +
-        enabledProviders
-          .map(p => `<option value="${Utils.escapeHtml(p.type)}">${Utils.escapeHtml(p.display_name)}</option>`)
-          .join('');
-    }
   },
 
   renderProviderModels(models, selectedModel = null, providerType = null) {
@@ -1577,29 +1552,7 @@ const UI = {
     }
   },
 
-  renderModelBOptions(models, selectedModel = null, providerType = null) {
-    const select = this.elements.modelSelectB;
-    if (!select) return;
 
-    if (!models || models.length === 0) {
-      select.innerHTML = '<option value="">No models available</option>';
-      return;
-    }
-
-    const options = models
-      .map(m => `<option value="${Utils.escapeHtml(m.id)}">${Utils.escapeHtml(m.display_name || m.name)}</option>`)
-      .join('');
-    const customOption = providerType === 'openrouter'
-      ? '<option value="__custom__">Custom model…</option>'
-      : '';
-    select.innerHTML = options + customOption;
-
-    if (selectedModel === '__custom__' && providerType === 'openrouter') {
-      select.value = '__custom__';
-    } else if (selectedModel && models.some(m => m.id === selectedModel)) {
-      select.value = selectedModel;
-    }
-  },
 
   updateProviderStatus(status, message) {
     const statusEl = this.elements.providerStatus;
@@ -1914,8 +1867,7 @@ const UI = {
   // =========================================================================
 
   updateABPoolUI(poolInfo) {
-    // When an A/B pool is configured server-side, hide manual provider-B selection
-    // and show a pool indicator in the AB settings area
+    // Show a pool indicator in the AB settings area
     if (this.elements.abModelGroup) {
       // Add a pool-mode banner inside the AB model group
       let poolBanner = this.elements.abModelGroup.querySelector('.ab-pool-banner');
@@ -1932,11 +1884,7 @@ const UI = {
           <span>Variants: <em>${Utils.escapeHtml(variantNames)}</em></span>
         </div>`;
 
-      // Hide provider-B manual selectors when pool is active
-      const providerBRow = this.elements.providerSelectB?.closest('.settings-row, .form-row, .ab-provider-b-row');
-      if (providerBRow) providerBRow.style.display = 'none';
-      const modelBRow = this.elements.modelSelectB?.closest('.settings-row, .form-row, .ab-model-b-row');
-      if (modelBRow) modelBRow.style.display = 'none';
+
     }
   },
 
@@ -2031,22 +1979,24 @@ const UI = {
             <div class="trace-content"></div>
           </div>` : '';
 
+    // Use normal message structure for each arm — looks like two regular chat messages side by side
+    const armHtml = (id, label) => `
+        <div class="message assistant ab-arm" data-id="${id}">
+          <div class="message-inner">
+            <div class="message-header">
+              <div class="message-avatar"><img class="assistant-logo" src="/static/images/archi-logo.png" alt="archi logo"></div>
+              <span class="message-sender">archi</span>
+              <span class="message-label ab-arm-label">${label}</span>
+            </div>
+            ${traceHtml(id)}
+            <div class="message-content"></div>
+          </div>
+        </div>`;
+
     const html = `
       <div class="ab-comparison" id="ab-comparison-active">
-        <div class="ab-response ab-response-a" data-id="${msgIdA}">
-          <div class="ab-response-header">
-            <span class="ab-response-label">Model A</span>
-          </div>
-          ${traceHtml(msgIdA)}
-          <div class="ab-response-content message-content"></div>
-        </div>
-        <div class="ab-response ab-response-b" data-id="${msgIdB}">
-          <div class="ab-response-header">
-            <span class="ab-response-label">Model B</span>
-          </div>
-          ${traceHtml(msgIdB)}
-          <div class="ab-response-content message-content"></div>
-        </div>
+        ${armHtml(msgIdA, 'Response A')}
+        ${armHtml(msgIdB, 'Response B')}
       </div>`;
 
     this.elements.messagesInner?.insertAdjacentHTML('beforeend', html);
@@ -2054,10 +2004,10 @@ const UI = {
   },
 
   updateABResponse(responseId, html, streaming = false) {
-    const container = document.querySelector(`.ab-response[data-id="${responseId}"]`);
+    const container = document.querySelector(`.ab-arm[data-id="${responseId}"], .ab-response[data-id="${responseId}"]`);
     if (!container) return;
 
-    const contentEl = container.querySelector('.ab-response-content');
+    const contentEl = container.querySelector('.message-content');
     if (contentEl) {
       contentEl.innerHTML = html;
       if (streaming) {
@@ -2073,15 +2023,19 @@ const UI = {
 
     const voteHtml = `
       <div class="ab-vote-container" data-comparison-id="${comparisonId}">
-        <div class="ab-vote-prompt">Which response was better?</div>
+        <div class="ab-vote-prompt">Which response do you prefer?</div>
         <div class="ab-vote-buttons">
           <button class="ab-vote-btn ab-vote-btn-a" data-vote="a">
-            <span class="ab-vote-icon">👍</span>
-            <span>Model A</span>
+            <span class="ab-vote-icon">👈</span>
+            <span>Response A</span>
+          </button>
+          <button class="ab-vote-btn ab-vote-btn-tie" data-vote="tie">
+            <span class="ab-vote-icon">🤝</span>
+            <span>Tie</span>
           </button>
           <button class="ab-vote-btn ab-vote-btn-b" data-vote="b">
-            <span class="ab-vote-icon">👍</span>
-            <span>Model B</span>
+            <span class="ab-vote-icon">👉</span>
+            <span>Response B</span>
           </button>
         </div>
       </div>`;
@@ -2107,46 +2061,35 @@ const UI = {
     const comparison = document.getElementById('ab-comparison-active');
     if (!comparison) return;
 
-    const responseA = comparison.querySelector('.ab-response-a');
-    const responseB = comparison.querySelector('.ab-response-b');
+    const arms = comparison.querySelectorAll('.ab-arm');
+    const armA = arms[0];
+    const armB = arms[1];
 
-    let winnerContent = '';
-    let winnerTrace = '';
-    if (preference === 'a') {
-      winnerContent = responseA?.querySelector('.ab-response-content')?.innerHTML || '';
-      winnerTrace = responseA?.querySelector('.trace-container')?.outerHTML || '';
-    } else if (preference === 'b') {
-      winnerContent = responseB?.querySelector('.ab-response-content')?.innerHTML || '';
-      winnerTrace = responseB?.querySelector('.trace-container')?.outerHTML || '';
-    } else {
-      // Tie - keep both visible but mark them
-      responseA?.classList.add('ab-response-tie');
-      responseB?.classList.add('ab-response-tie');
+    if (preference === 'tie') {
+      // Tie — dim both equally and add a badge
+      armA?.classList.add('ab-arm-tie');
+      armB?.classList.add('ab-arm-tie');
       comparison.removeAttribute('id');
       return;
     }
 
-    // Replace the entire comparison with a normal archi message (matching createMessageHTML format)
-    // Include the trace container from the winning response
-    const metaLabel = Chat.getEntryMetaLabel();
-    const metaHtml = metaLabel
-      ? `<div class="message-meta">${Utils.escapeHtml(metaLabel)}</div>`
-      : '';
+    // Winner/loser — collapse to single message
+    const winner = preference === 'a' ? armA : armB;
+    const loser = preference === 'a' ? armB : armA;
 
-    const normalMessage = `
-      <div class="message assistant" data-id="ab-winner-${Date.now()}">
-        <div class="message-inner">
-          <div class="message-header">
-            <div class="message-avatar">✦</div>
-            <span class="message-sender">archi</span>
-          </div>
-          ${winnerTrace}
-          <div class="message-content">${winnerContent}</div>
-          ${metaHtml}
-        </div>
-      </div>`;
+    if (winner) {
+      // Remove the AB label
+      winner.querySelector('.ab-arm-label')?.remove();
+      winner.classList.remove('ab-arm');
+    }
+    if (loser) {
+      loser.remove();
+    }
 
-    comparison.outerHTML = normalMessage;
+    // Unwrap from the comparison container
+    if (winner) {
+      comparison.outerHTML = winner.outerHTML;
+    }
   },
 
   removeABComparisonContainer() {
@@ -2933,7 +2876,7 @@ const Chat = {
     isStreaming: false,
     configs: [],
     // A/B Testing state
-    activeABComparison: null,  // { comparisonId, responseAId, responseBId, configAId, configBId, userPromptMid }
+    activeABComparison: null,  // { comparisonId, responseAId, responseBId, variantA, variantB }
     abVotePending: false,      // true when waiting for user vote
     abPool: null,              // null or { enabled, champion, variants: [...] } from /api/ab/pool
     // Trace state
@@ -2946,8 +2889,7 @@ const Chat = {
     selectedProvider: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER) || null,
     selectedModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL) || null,
     selectedCustomModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_CUSTOM) || null,
-    selectedProviderB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B) || null,
-    selectedModelB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_B) || null,
+
     agents: [],
     activeAgentName: null,
   },
@@ -3169,11 +3111,6 @@ const Chat = {
         }
       }
 
-      // Also update Model B options if provider B is same as primary
-      if (!this.state.selectedProviderB || this.state.selectedProviderB === providerType) {
-        UI.renderModelBOptions(models, this.state.selectedModelB, providerType);
-      }
-
       // Show connected status
       if (provider.enabled) {
         UI.updateProviderStatus('connected', `Connected to ${provider.display_name}`);
@@ -3246,27 +3183,6 @@ const Chat = {
     this.updateActiveModelLabel();
   },
 
-  async handleProviderBChange(providerType) {
-    this.state.selectedProviderB = providerType || null;
-    
-    if (providerType) {
-      localStorage.setItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B, providerType);
-      
-      // Load models for provider B
-      const provider = this.state.providers.find(p => p.type === providerType);
-      if (provider) {
-        UI.renderModelBOptions(provider.models || [], this.state.selectedModelB, providerType);
-      }
-    } else {
-      localStorage.removeItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B);
-      // Use primary provider's models
-      const primaryProvider = this.state.providers.find(p => p.type === this.state.selectedProvider);
-      if (primaryProvider) {
-        UI.renderModelBOptions(primaryProvider.models || [], this.state.selectedModelB, this.state.selectedProvider);
-      }
-    }
-  },
-
   getSelectedProviderAndModel() {
     const provider = this.state.selectedProvider || null;
     if (!provider) {
@@ -3276,21 +3192,6 @@ const Chat = {
       return { provider, model: this.state.selectedCustomModel || null };
     }
     return { provider, model: this.state.selectedModel };
-  },
-
-  getSelectedProviderAndModelB() {
-    const providerB = this.state.selectedProviderB || this.state.selectedProvider;
-    const modelB = UI.elements.modelSelectB?.value || this.state.selectedModelB;
-    if (!providerB) {
-      return { provider: null, model: null };
-    }
-    if (providerB === 'openrouter' && modelB === '__custom__') {
-      return { provider: providerB, model: this.state.selectedCustomModel || null };
-    }
-    return {
-      provider: providerB,
-      model: modelB,
-    };
   },
 
   // API Key Management
@@ -3459,13 +3360,12 @@ const Chat = {
     UI.setStreamingState(true);
     this.state.isStreaming = true;
 
-    // Determine which configs to use
+    // Determine which config to use
     const configA = UI.getSelectedConfig('A');
-    const configB = UI.getSelectedConfig('B') || configA;
     const isAB = UI.isABEnabled();
 
     if (isAB) {
-      await this.sendABMessage(text, configA, configB);
+      await this.sendABMessage(text, configA);
     } else {
       await this.sendSingleMessage(configA);
     }
@@ -3495,124 +3395,19 @@ const Chat = {
     }
   },
 
-  async sendABMessage(userText, configA, configB) {
-    // Route to pool-based path when server has a configured pool
-    if (this.state.abPool) {
-      await this.sendPoolABMessage(userText, configA);
-      return;
-    }
-
-    // Legacy path: manual provider A vs provider B selection
-        const selectedA = this.getSelectedProviderAndModel();
-        const selectedB = this.getSelectedProviderAndModelB();
-        if (selectedA.provider && !selectedA.model) {
-          UI.showToast('Please select a model for Provider A.');
-          this.state.isStreaming = false;
-          UI.setInputDisabled(false);
-          UI.setStreamingState(false);
-          return;
-        }
-        if (selectedB.provider && !selectedB.model) {
-          UI.showToast('Please select a model for Provider B.');
-          this.state.isStreaming = false;
-          UI.setInputDisabled(false);
-          UI.setStreamingState(false);
-          return;
-        }
-    // Randomize which config gets A vs B
-    const shuffled = Math.random() < 0.5;
-    const [actualConfigA, actualConfigB] = shuffled ? [configB, configA] : [configA, configB];
-
-    const msgIdA = `${Date.now()}-ab-a`;
-    const msgIdB = `${Date.now()}-ab-b`;
-
-    // Create side-by-side container
-    UI.addABComparisonContainer(msgIdA, msgIdB);
-
-    // Track streaming results
-    const results = {
-      a: { text: '', messageId: null, configId: null, error: null },
-      b: { text: '', messageId: null, configId: null, error: null },
-    };
-
-    try {
-      this.state.abortController = new AbortController();
-      // Stream both responses in parallel
-      await Promise.all([
-        this.streamABResponse(msgIdA, actualConfigA, results.a, selectedA.provider, selectedA.model),
-        this.streamABResponse(msgIdB, actualConfigB, results.b, selectedB.provider, selectedB.model),
-      ]);
-
-      // Check for errors
-      if (results.a.error || results.b.error) {
-        const errorMsg = results.a.error || results.b.error;
-        UI.showABError(errorMsg);
-        this.state.isStreaming = false;
-        UI.setInputDisabled(false);
-        UI.setStreamingState(false);
-        await this.loadConversations();
-        return;
-      }
-
-      // Get config IDs
-      const configAId = this.getConfigId(actualConfigA);
-      const configBId = this.getConfigId(actualConfigB);
-
-      // Create A/B comparison record
-      const response = await API.createABComparison({
-        conversation_id: this.state.conversationId,
-        user_prompt_mid: results.a.userPromptMid || results.b.userPromptMid,
-        response_a_mid: results.a.messageId,
-        response_b_mid: results.b.messageId,
-        config_a_id: configAId,
-        config_b_id: configBId,
-        is_config_a_first: !shuffled,
-      });
-
-      if (response?.comparison_id) {
-        this.state.activeABComparison = {
-          comparisonId: response.comparison_id,
-          responseAId: results.a.messageId,
-          responseBId: results.b.messageId,
-          responseAText: results.a.text,
-          responseBText: results.b.text,
-          configAId: configAId,
-          configBId: configBId,
-        };
-        this.state.abVotePending = true;
-
-        // Show vote buttons
-        UI.showABVoteButtons(response.comparison_id);
-      }
-
-    } catch (e) {
-      console.error('A/B comparison error:', e);
-      UI.showABError(e.message || 'Failed to create comparison');
+  async sendABMessage(userText, configA) {
+    if (!this.state.abPool) {
+      UI.showToast('A/B pool is not configured on the server. Cannot run comparison.');
       this.state.isStreaming = false;
       UI.setInputDisabled(false);
       UI.setStreamingState(false);
-      this.state.abortController = null;
-      await this.loadConversations();
       return;
     }
 
-    this.state.isStreaming = false;
-    UI.setStreamingState(false);
-    this.state.abortController = null;
-    // Keep input disabled until vote
-    await this.loadConversations();
-  },
-
-  /**
-   * Pool-based A/B comparison: streams both arms from a single server endpoint.
-   * The server selects champion vs random challenger, streams interleaved NDJSON events
-   * tagged with arm:'a'/'b', and emits an ab_meta event with the comparison_id.
-   */
-  async sendPoolABMessage(userText, configName) {
     const msgIdA = `${Date.now()}-ab-a`;
     const msgIdB = `${Date.now()}-ab-b`;
 
-    // Create side-by-side container
+    // Create side-by-side container using normal message styling
     UI.addABComparisonContainer(msgIdA, msgIdB);
 
     const armTexts = { a: '', b: '' };
@@ -3624,7 +3419,7 @@ const Chat = {
       for await (const event of API.streamABComparison(
         this.state.history,
         this.state.conversationId,
-        configName,
+        configA,
         this.state.abortController?.signal,
       )) {
         if (event.type === 'meta' && event.event === 'stream_started') {
@@ -3644,6 +3439,11 @@ const Chat = {
 
         if (event.type === 'ab_meta') {
           abMeta = event;
+          // Update conversation_id if server assigned one
+          if (event.conversation_id != null) {
+            this.state.conversationId = event.conversation_id;
+            Storage.setActiveConversationId(event.conversation_id);
+          }
           continue;
         }
 
@@ -3658,7 +3458,6 @@ const Chat = {
             UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
           }
         } else if (event.type === 'tool_start' || event.type === 'tool_output' || event.type === 'tool_end') {
-          // Forward trace events to the correct arm's container
           const showTrace = this.state.traceVerboseMode !== 'minimal';
           if (showTrace) {
             if (event.type === 'tool_start') UI.renderToolStart(targetId, event);
@@ -3675,14 +3474,10 @@ const Chat = {
             armTexts[arm] = content;
             UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
           }
-        } else if (event.type === 'final') {
-          const finalText = event.response || armTexts[arm];
-          armTexts[arm] = finalText;
-          UI.updateABResponse(targetId, Markdown.render(finalText), false);
         }
       }
 
-      // Finalize both arms
+      // Finalize both arms (remove streaming cursor)
       UI.updateABResponse(msgIdA, Markdown.render(armTexts.a), false);
       UI.updateABResponse(msgIdB, Markdown.render(armTexts.b), false);
 
@@ -3707,8 +3502,8 @@ const Chat = {
       }
 
     } catch (e) {
-      console.error('Pool A/B comparison error:', e);
-      UI.showABError(e.message || 'Failed to create pool comparison');
+      console.error('A/B comparison error:', e);
+      UI.showABError(e.message || 'Failed to create comparison');
       this.state.isStreaming = false;
       UI.setInputDisabled(false);
       UI.setStreamingState(false);
@@ -3724,117 +3519,6 @@ const Chat = {
     await this.loadConversations();
   },
 
-  async streamABResponse(elementId, configName, result, provider = null, model = null) {
-    let streamedText = '';
-    const showTrace = this.state.traceVerboseMode !== 'minimal';
-    const toolCalls = new Map(); // Track tool calls for this response
-
-    try {
-      for await (const event of API.streamResponse(
-        this.state.history,
-        this.state.conversationId,
-        configName,
-        this.state.abortController?.signal || null,
-        provider,
-        model
-      )) {
-        // Handle trace events
-        if (event.type === 'tool_start') {
-          toolCalls.set(event.tool_call_id, {
-            name: event.tool_name,
-            args: event.tool_args,
-            status: 'running',
-            output: null,
-            duration: null,
-          });
-          if (showTrace) {
-            UI.renderToolStart(elementId, event);
-          }
-        } else if (event.type === 'tool_output') {
-          const toolData = toolCalls.get(event.tool_call_id);
-          if (toolData) {
-            toolData.output = event.output;
-            toolData.status = 'success';
-          }
-          if (showTrace) {
-            UI.renderToolOutput(elementId, event);
-            UI.renderToolEnd(elementId, {
-              tool_call_id: event.tool_call_id,
-              status: 'success',
-            });
-          }
-        } else if (event.type === 'tool_end') {
-          const toolData = toolCalls.get(event.tool_call_id);
-          if (toolData) {
-            toolData.status = event.status;
-            toolData.duration = event.duration_ms;
-          }
-          if (showTrace) {
-            UI.renderToolEnd(elementId, event);
-          }
-        } else if (event.type === 'chunk') {
-          if (event.accumulated) {
-            streamedText = event.content || '';
-          } else {
-            streamedText += event.content || '';
-          }
-          UI.updateABResponse(elementId, Markdown.render(streamedText), true);
-        } else if (event.type === 'step' && event.step_type === 'agent') {
-          const content = event.content || '';
-          if (content) {
-            streamedText = content;
-            UI.updateABResponse(elementId, Markdown.render(streamedText), true);
-          }
-        } else if (event.type === 'final') {
-          const finalText = event.response || streamedText;
-          
-          // Finalize trace display
-          if (showTrace) {
-            UI.finalizeTrace(elementId, { toolCalls }, event);
-          }
-          
-          UI.updateABResponse(elementId, Markdown.render(finalText), false);
-
-          if (event.conversation_id != null) {
-            this.state.conversationId = event.conversation_id;
-            Storage.setActiveConversationId(event.conversation_id);
-          }
-
-          result.text = finalText;
-          result.messageId = event.message_id;
-          result.userPromptMid = event.user_message_id;
-
-          // Re-highlight code blocks
-          if (typeof hljs !== 'undefined') {
-            setTimeout(() => hljs.highlightAll(), 0);
-          }
-          return;
-        } else if (event.type === 'error') {
-          result.error = event.message || 'Stream error';
-          UI.updateABResponse(
-            elementId,
-            `<p style="color: var(--error-text);">${Utils.escapeHtml(result.error)}</p>`,
-            false
-          );
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('A/B stream error:', e);
-      result.error = e.message || 'Streaming failed';
-      UI.updateABResponse(
-        elementId,
-        `<p style="color: var(--error-text);">${Utils.escapeHtml(result.error)}</p>`,
-        false
-      );
-    }
-  },
-
-  getConfigId(configName) {
-    const config = this.state.configs.find((c) => c.name === configName);
-    return config?.id || null;
-  },
-
   async submitABPreference(preference) {
     if (!this.state.activeABComparison) return;
 
@@ -3845,11 +3529,16 @@ const Chat = {
       UI.markABWinner(preference);
       UI.hideABVoteButtons();
 
-      // Add the winning response to history for context
-      const winningText =
-        preference === 'b'
-          ? this.state.activeABComparison.responseBText
-          : this.state.activeABComparison.responseAText;
+      // Add the chosen response to history for context
+      let winningText;
+      if (preference === 'tie') {
+        // For ties, use response A (arbitrary)
+        winningText = this.state.activeABComparison.responseAText;
+      } else if (preference === 'b') {
+        winningText = this.state.activeABComparison.responseBText;
+      } else {
+        winningText = this.state.activeABComparison.responseAText;
+      }
       this.state.history.push(['archi', winningText]);
 
       // Clear A/B state
