@@ -2657,19 +2657,23 @@ body {
 .context-meter {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-color);
-  font-size: var(--text-xs);
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 11px;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+  cursor: default;
+}
+
+.context-meter:hover {
+  opacity: 0.9;
 }
 
 .meter-bar {
-  flex: 1;
-  max-width: 200px;
-  height: 6px;
+  flex: 0 0 80px;
+  height: 4px;
   background: var(--bg-primary);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -2677,13 +2681,15 @@ body {
   height: 100%;
   width: 0%;
   background: var(--accent);
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s ease;
 }
 
 .meter-label {
   color: var(--text-secondary);
   font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 /* -----------------------------------------------------------------------------
