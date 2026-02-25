@@ -30,7 +30,8 @@ class RemoteCatalogClient:
         hostname: Optional[str] = None,
         port: int = 7871,
         external_port: Optional[int] = None,
-        timeout: float = 10.0,
+        timeout: float = 30.0,
+        api_token: Optional[str] = None,
     ):
         host_mode_flag = self._resolve_host_mode(host_mode)
 
@@ -41,6 +42,9 @@ class RemoteCatalogClient:
             final_port = external_port if host_mode_flag and external_port else port
             self.base_url = f"http://{host}:{final_port}"
         self.timeout = timeout
+        self._headers: Dict[str, str] = {}
+        if api_token:
+            self._headers["Authorization"] = f"Bearer {api_token}"
 
     @classmethod
     def from_deployment_config(cls, config: Optional[Dict[str, object]]) -> "RemoteCatalogClient":
@@ -48,7 +52,8 @@ class RemoteCatalogClient:
         cfg = config or {}
         services_cfg = cfg.get("services", {}) if isinstance(cfg, dict) else {}
         data_manager_cfg = services_cfg.get("data_manager", {}) if isinstance(services_cfg, dict) else {}
-        auth_cfg = data_manager_cfg.get("auth", {}) if isinstance(data_manager_cfg, dict) else {}
+
+        api_token = read_secret("DM_API_TOKEN") or None
 
         return cls(
             base_url=data_manager_cfg.get("base_url"),
@@ -56,6 +61,7 @@ class RemoteCatalogClient:
             hostname=data_manager_cfg.get("hostname") or data_manager_cfg.get("host"),
             port=data_manager_cfg.get("port", 7871),
             external_port=data_manager_cfg.get("external_port"),
+            api_token=api_token,
         )
 
     @staticmethod
@@ -100,6 +106,7 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/search",
             params=params,
+            headers=self._headers,
             timeout=self.timeout,
         )
         resp.raise_for_status()
@@ -110,6 +117,7 @@ class RemoteCatalogClient:
         resp = requests.get(
             f"{self.base_url}/api/catalog/document/{resource_hash}",
             params={"max_chars": max_chars},
+            headers=self._headers,
             timeout=self.timeout,
         )
         if resp.status_code == 404:
@@ -120,6 +128,7 @@ class RemoteCatalogClient:
     def schema(self) -> Dict[str, object]:
         resp = requests.get(
             f"{self.base_url}/api/catalog/schema",
+            headers=self._headers,
             timeout=self.timeout,
         )
         resp.raise_for_status()
@@ -205,6 +214,7 @@ def create_file_search_tool(
     window: int = 240,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
     required_permission: Optional[str] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[[str], str]:
     """Create a LangChain tool that performs keyword search in catalogued files.
     
@@ -244,6 +254,22 @@ def create_file_search_tool(
     ) -> str:
         if not query.strip():
             return "Please provide a non-empty search query."
+        if store_tool_input:
+            try:
+                store_tool_input(
+                    name,
+                    {
+                        "query": query,
+                        "regex": regex,
+                        "case_sensitive": case_sensitive,
+                        "max_results_override": max_results_override,
+                        "max_matches_per_file": max_matches_per_file,
+                        "before": before,
+                        "after": after,
+                    },
+                )
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         hits: List[Dict[str, object]] = []
         docs: List[Document] = []
@@ -306,6 +332,7 @@ def create_metadata_search_tool(
     max_results: int = 5,
     store_docs: Optional[Callable[[str, Sequence[Path]], None]] = None,
     required_permission: Optional[str] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[[str], str]:
     """Create a LangChain tool to search resource metadata catalogues.
     
@@ -338,6 +365,11 @@ def create_metadata_search_tool(
     def _search_metadata(query: str) -> str:
         if not query.strip():
             return "Please provide a non-empty search query."
+        if store_tool_input:
+            try:
+                store_tool_input(name, {"query": query})
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         hits: List[Tuple[str, Path, Optional[Dict[str, object]], str]] = []
         docs: List[Document] = []
@@ -427,6 +459,7 @@ def create_document_fetch_tool(
     description: Optional[str] = None,
     default_max_chars: int = 4000,
     required_permission: Optional[str] = None,
+    store_tool_input: Optional[Callable[[str, object], None]] = None,
 ) -> Callable[..., str]:
     """Create a LangChain tool to fetch a full document by resource hash.
     
@@ -454,6 +487,11 @@ def create_document_fetch_tool(
     def _fetch_document(resource_hash: str, max_chars: int = default_max_chars) -> str:
         if not resource_hash.strip():
             return "Please provide a non-empty resource hash."
+        if store_tool_input:
+            try:
+                store_tool_input(name, {"resource_hash": resource_hash, "max_chars": max_chars})
+            except Exception:
+                logger.debug("Failed to store runtime input for tool '%s'", name, exc_info=True)
 
         try:
             doc_payload = catalog.get_document(resource_hash.strip(), max_chars=max_chars) or {}

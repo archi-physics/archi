@@ -4,7 +4,18 @@ services:
   postgres:
     port: 3456
   chat_app:
-    pipeline: CMSCompOpsAgent
+    agent_class: CMSCompOpsAgent
+    agents_dir: tests/pr_preview_config/agents
+    default_provider: local
+    default_model: qwen3:4b
+    providers:
+      local:
+        enabled: true
+        base_url: http://localhost:11434  # Ollama endpoint with scheme
+        mode: ollama
+        default_model: "qwen3:4b"
+        models:
+          - "qwen3:4b"
     port: 2786
     external_port: 2786
     trained_on: "Dummy data for preview"
@@ -35,22 +46,3 @@ data_manager:
     local_files:
       paths:
         - tests/smoke/seed.txt
-
-archi:
-  pipelines: ['CMSCompOpsAgent']
-  providers:
-    local:
-      enabled: true
-      base_url: http://localhost:7870  # Ollama endpoint with scheme
-      mode: ollama
-      default_model: "qwen3:32b"
-      models:
-        - "qwen3:32b"
-  pipeline_map:
-    CMSCompOpsAgent:
-      prompts:
-        required:
-          agent_prompt: tests/pr_preview_config/agent.prompt
-      models:
-        required:
-          agent_model: local/qwen3:32b

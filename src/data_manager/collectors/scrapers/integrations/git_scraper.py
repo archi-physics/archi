@@ -89,7 +89,7 @@ class GitScraper:
         self.git_token = read_secret("GIT_TOKEN")
         self._credentials_available = bool(self.git_username and self.git_token)
         if not self._credentials_available:
-            logger.info("No git credentials supplied; git scraping will not work for private repositories.")
+            logger.info("No git credentials supplied; will attempt public repo cloning.")
 
     def collect(self, git_urls: List[str]) -> List[ScrapedResource]:
         if not git_urls:
@@ -251,12 +251,18 @@ class GitScraper:
 
         repo_name = match.group(1)
 
-        if "gitlab" in url:
-            clone_from_url = url.replace("gitlab", f"{self.git_username}:{self.git_token}@gitlab")
-        elif "github" in url:
-            clone_from_url = url.replace("github", f"{self.git_username}:{self.git_token}@github")
+        # Only inject credentials if available (for private repos)
+        if self._credentials_available:
+            if "gitlab" in url:
+                clone_from_url = url.replace("gitlab", f"{self.git_username}:{self.git_token}@gitlab")
+            elif "github" in url:
+                clone_from_url = url.replace("github", f"{self.git_username}:{self.git_token}@github")
+            else:
+                # For other hosts, try without credentials
+                clone_from_url = url
         else:
-            raise ValueError(f"Unsupported git host in url {url}")
+            # No credentials - use URL as-is (for public repos)
+            clone_from_url = url
 
         branch_split = re.split(r"/(?:-/)?tree/", clone_from_url, maxsplit=1)
         if len(branch_split) > 1:

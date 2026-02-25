@@ -65,17 +65,6 @@ test.describe('Keyboard Navigation', () => {
     await expect(page.locator('.settings-modal, .modal')).not.toBeVisible();
   });
 
-  test.skip('Arrow keys navigate conversations', async ({ page }) => {
-    // TODO: This feature (keyboard navigation of conversation list) is not yet implemented
-    // The sidebar does not have a conversations tab - conversations are always visible
-    await page.goto('/chat');
-  });
-
-  test.skip('Ctrl+N creates new conversation (if implemented)', async ({ page }) => {
-    // TODO: Keyboard shortcut for new conversation is not implemented
-    await page.goto('/chat');
-  });
-
   test('focus trapping in modal', async ({ page }) => {
     await page.goto('/chat');
     
@@ -128,11 +117,6 @@ test.describe('Keyboard Navigation', () => {
     
     // Modal should open
     await expect(page.locator('.settings-modal, .modal')).toBeVisible();
-  });
-
-  test.skip('Space activates checkboxes', async ({ page }) => {
-    // TODO: A/B mode toggle is not present in the current settings UI
-    await page.goto('/chat');
   });
 
   test('tab order is logical', async ({ page }) => {

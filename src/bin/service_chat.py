@@ -27,11 +27,10 @@ def main():
     # Reload config from Postgres (runtime source of truth)
     config = get_full_config()
     chat_config = config["services"]["chat_app"]
-    archi_config = config["archi"]
     print(f"Starting Chat Service with (host, port): ({chat_config['host']}, {chat_config['port']})")
     print(f"Accessible externally at (host, port): ({chat_config['hostname']}, {chat_config['external_port']})")
 
-    generate_script(chat_config, archi_config)
+    generate_script(chat_config)
     app = FlaskAppWrapper(Flask(
         __name__,
         template_folder=chat_config["template_folder"],
@@ -40,7 +39,7 @@ def main():
     app.run(debug=True, use_reloader=False, port=chat_config["port"], host=chat_config["host"])
 
 
-def generate_script(chat_config, archi_config):
+def generate_script(chat_config):
     """
     This is not elegant but it creates the javascript file from the template using the config.yaml parameters
     """
@@ -49,7 +48,7 @@ def generate_script(chat_config, archi_config):
         template = f.read()
 
     filled_template = template.replace('XX-NUM-RESPONSES-XX', str(chat_config["num_responses_until_feedback"]))
-    filled_template = filled_template.replace('XX-TRAINED_ON-XX', str(archi_config["agent_description"]))
+    filled_template = filled_template.replace('XX-TRAINED_ON-XX', str(chat_config.get("trained_on", "")))
 
     script_file = os.path.join(chat_config["static_folder"], "script.js")
     with open(script_file, "w") as f:

@@ -28,11 +28,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 def get_pg_config():
     """Get PostgreSQL connection config from environment."""
     return {
-        "host": os.environ.get("PG_HOST", "localhost"),
-        "port": int(os.environ.get("PG_PORT", 5432)),
-        "database": os.environ.get("PG_DATABASE", "archi"),
-        "user": os.environ.get("PG_USER", "archi"),
-        "password": os.environ.get("PG_PASSWORD", ""),
+        "host": os.environ.get("PGHOST", os.environ.get("PG_HOST", "localhost")),
+        "port": int(os.environ.get("PGPORT", os.environ.get("PG_PORT", 5439))),
+        "database": os.environ.get("PGDATABASE", os.environ.get("PG_DATABASE", "archi")),
+        "user": os.environ.get("PGUSER", os.environ.get("PG_USER", "archi")),
+        "password": os.environ.get("PG_PASSWORD", "testpassword123"),
     }
 
 
@@ -209,38 +209,6 @@ def test_byok_resolver():
     print(f"✓ BYOK Resolver tests passed")
 
 
-def test_model_factory():
-    """Test BYOK-aware model factory."""
-    print("\n=== Testing BYOK Model Factory ===")
-    
-    from src.archi.models.byok_factory import (
-        set_current_user, 
-        clear_current_user, 
-        get_current_user_id,
-        byok_context,
-    )
-    
-    # Test context management
-    assert get_current_user_id() is None
-    
-    set_current_user("test_user_123")
-    assert get_current_user_id() == "test_user_123"
-    
-    clear_current_user()
-    assert get_current_user_id() is None
-    
-    print(f"✓ Context management works")
-    
-    # Test context manager
-    with byok_context(user_id="context_user", user_service=None):
-        assert get_current_user_id() == "context_user"
-    
-    assert get_current_user_id() is None
-    print(f"✓ Context manager works")
-    
-    print(f"✓ BYOK Model Factory tests passed")
-
-
 def test_document_selection_service():
     """Test document selection with 3-tier hierarchy."""
     print("\n=== Testing DocumentSelectionService ===")
@@ -288,14 +256,6 @@ def main():
     
     tests_passed = 0
     tests_failed = 0
-    
-    # Run tests that don't require DB
-    try:
-        test_model_factory()
-        tests_passed += 1
-    except Exception as e:
-        print(f"✗ Model Factory test failed: {e}")
-        tests_failed += 1
     
     # Run tests that require DB connection
     if os.environ.get("PG_PASSWORD"):

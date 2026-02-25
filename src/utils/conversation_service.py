@@ -132,8 +132,8 @@ class ConversationService:
                         m.conversation_id,
                         m.sender,
                         m.content,
-                        m.link,
-                        m.context,
+                        m.link or "",  # DB requires NOT NULL
+                        m.context or "",  # DB requires NOT NULL
                         m.ts or datetime.now(),
                         m.model_used,
                         m.pipeline_used,

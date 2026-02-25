@@ -2,6 +2,121 @@
 
 Below is all the information developers may need to get started contributing to the Archi project.
 
+## Architecture Overview
+
+Archi is a containerized RAG framework with these core components:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CLI (archi create)                     │
+│  Renders configs, builds images, launches containers     │
+└─────────────┬───────────────────────────────┬───────────┘
+              │                               │
+   ┌──────────▼──────────┐       ┌────────────▼──────────┐
+   │   Chat Service      │       │   Data Manager        │
+   │   (Flask, port 7861)│       │   (Flask, port 7871)  │
+   │   - ReAct agent     │       │   - Collectors        │
+   │   - Provider layer  │       │   - PersistenceService│
+   │   - Auth, BYOK      │       │   - VectorStoreManager│
+   └──────────┬──────────┘       └────────────┬──────────┘
+              │                               │
+   ┌──────────▼───────────────────────────────▼──────────┐
+   │              PostgreSQL (pgvector)                    │
+   │  Tables: resources, document_chunks, conversations,  │
+   │          conversation_metadata, feedback, timing,     │
+   │          agent_tool_calls, users, keys                │
+   └──────────────────────────────────────────────────────┘
+```
+
+Key source directories:
+
+| Directory | Purpose |
+|-----------|---------|
+| `src/archi/` | Core orchestration — agent base class, pipelines, providers |
+| `src/bin/` | Service entrypoints (Flask app factories) |
+| `src/cli/` | CLI commands, service/source registries, deployment manager |
+| `src/data_manager/` | Collectors, persistence, vectorstore indexing |
+| `src/interfaces/` | Flask blueprints for chat, uploader, data viewer |
+| `src/utils/` | Config loader, logging, shared utilities |
+
+## Provider Architecture
+
+All LLM providers extend `BaseProvider` (`src/archi/providers/base_provider.py`):
+
+```python
+class BaseProvider(ABC):
+    @abstractmethod
+    def get_model(self, model_name, **kwargs) -> BaseChatModel: ...
+    @abstractmethod
+    def get_embedding_model(self, model_name, **kwargs) -> Embeddings: ...
+    @abstractmethod
+    def list_models(self) -> list[str]: ...
+```
+
+Providers register themselves via `ProviderType` enum and are registered through `register_provider()`. Factory functions in `src/archi/providers/__init__.py`:
+
+- `get_provider(provider_type)` — returns a provider instance
+- `get_model(provider_type, model_name)` — returns a LangChain `BaseChatModel`
+- `get_provider_with_api_key(provider_type, api_key)` — for BYOK
+
+Built-in providers:
+
+| Provider | Module | Models |
+|----------|--------|--------|
+| `OpenAIProvider` | `openai_provider.py` | gpt-4o, gpt-4o-mini, etc. |
+| `AnthropicProvider` | `anthropic_provider.py` | claude-sonnet-4-20250514, claude-3.5-haiku, etc. |
+| `GeminiProvider` | `gemini_provider.py` | gemini-2.0-flash, gemini-2.5-pro, etc. |
+| `OpenRouterProvider` | `openrouter_provider.py` | Any model via OpenRouter API |
+| `LocalProvider` | `local_provider.py` | Ollama or OpenAI-compatible local models |
+
+### Adding a New Provider
+
+1. Create `src/archi/providers/my_provider.py` extending `BaseProvider`.
+2. Add an entry to the `ProviderType` enum.
+3. Call `register_provider(ProviderType.MY_PROVIDER, MyProvider)` to register it.
+4. Implement `get_model()`, `get_embedding_model()`, and `list_models()`.
+5. Add config keys under `services.chat_app.providers.my_provider`.
+
+## Agent & Pipeline Architecture
+
+The agent system is built around `BaseReActAgent` (`src/archi/archi.py`, ~975 lines):
+
+- Implements a ReAct (Reasoning + Acting) loop with tool calling
+- Manages conversation history, streaming, and tool execution
+- Loads agent specs from markdown files with YAML frontmatter
+
+`AgentSpec` (`src/archi/pipelines/agents/agent_spec.py`) is a dataclass:
+
+```python
+@dataclass
+class AgentSpec:
+    name: str
+    tools: list[str]
+    prompt: str
+    source_path: str
+```
+
+Agent specs are discovered via `list_agent_files()` and loaded via `load_agent_spec()`. The `select_agent_spec()` function picks the correct spec given a name.
+
+### Pipeline Classes
+
+- `CMSCompOpsAgent` — default ReAct agent with 6 built-in tools (search_local_files, search_metadata_index, list_metadata_schema, fetch_catalog_document, search_vectorstore_hybrid, mcp)
+- `QAPipeline` — simpler retrieval-augmented QA without tool calling
+
+### Adding a New Tool
+
+1. Define the tool function in the agent class or as a LangChain `@tool`.
+2. Register it in the tool mapping within the agent's `_build_tools()` method.
+3. Add the tool name to agent spec YAML frontmatter `tools` list.
+
+## Contribution Workflow
+
+1. **Branch**: Create a feature branch from `main` (e.g., `dev/my-feature`).
+2. **Develop**: Follow PEP 8, use `snake_case` for functions, `PascalCase` for classes.
+3. **Test**: Run smoke tests locally (see below).
+4. **Commit**: Use short, lowercase commit summaries (e.g., `add gemini provider`).
+5. **PR**: Include a brief summary, test results, and documentation impact. Link related issues.
+
 ## Editing Documentation
 
 Editing documentation requires the `mkdocs` Python package:
@@ -32,11 +147,11 @@ Always open a PR to merge documentation changes into `main`. Do not edit files d
 If you want the full CI-like smoke run (create deployment, wait for readiness, run checks, and clean up) you can use the shared runner:
 
 ```bash
-export Archi_DIR=~/.archi
+export ARCHI_DIR=~/.archi
 export DEPLOYMENT_NAME=local-smoke
-export USE_PODMAN=true
+export USE_PODMAN=false
 export SMOKE_FORCE_CREATE=true
-export SMOKE_OLLAMA_MODEL=gpt-oss:latest
+export SMOKE_OLLAMA_MODEL=qwen3:4b
 scripts/dev/run_smoke_preview.sh "${DEPLOYMENT_NAME}"
 ```
 
@@ -48,13 +163,13 @@ The shared runner performs these checks in order (ensuring the configured Ollama
 - Tool probes: catalog tools and vectorstore retriever (executed inside the chatbot container to match the agent runtime).
 - ReAct agent smoke: stream response and observe at least one tool call.
 
-The combined smoke workflow alone does not start A2rchi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):
+The combined smoke workflow alone does not start Archi for you. Start a deployment first, then run the checks (it validates Postgres, data-manager catalog, Ollama model availability, ReAct streaming, and direct tool probes inside the chatbot container):
 
 ```bash
 export Archi_CONFIG_PATH=~/.archi/archi-<deployment-name>/configs/<config-name>.yaml
 export Archi_CONFIG_NAME=<config-name>
 export Archi_PIPELINE_NAME=CMSCompOpsAgent
-export USE_PODMAN=true
+export USE_PODMAN=false
 export OLLAMA_MODEL=<ollama-model-name>
 export PGHOST=localhost
 export PGPORT=<postgres-port>
@@ -75,6 +190,44 @@ export FILE_SEARCH_QUERY="first linux server installation"
 export METADATA_SEARCH_QUERY="ppc.mit.edu"
 export VECTORSTORE_QUERY="cms"
 ```
+
+## CI / CD Architecture
+
+All CI workflows run on GitHub-hosted `ubuntu-latest` runners with Docker (not Podman).
+
+### PR Preview (`pr-preview.yml`)
+
+Every pull request triggers four parallel/sequential jobs:
+
+| Job | Runner | Purpose |
+|-----|--------|---------|
+| **lint** | `ubuntu-latest` | `black --check .` and `isort --check .` |
+| **unit-tests** | `ubuntu-latest` | `pytest tests/unit/ -v --tb=short` |
+| **build-base-images** | `ubuntu-latest` | Detects changes to base image inputs; builds if needed |
+| **preview** | `ubuntu-latest` | Smoke deployment + Playwright UI tests |
+
+The `preview` job:
+
+1. Installs Ollama and pulls `qwen3:4b` (~2.6GB).
+2. Builds and deploys the app via `archi create` with Docker.
+3. Runs integration smoke tests (`combined_smoke.sh`).
+4. Runs Playwright UI tests against `http://localhost:2786`.
+
+### Release (`test-and-build-tag.yml`)
+
+Manually dispatched; builds Docker base images, pushes to DockerHub, runs smoke tests, then tags and releases.
+
+### Publish Base Images (`publish-base-images.yml`)
+
+Triggered on push to `main`; rebuilds and pushes base images when requirements or Dockerfiles change.
+
+### Docker Layer Caching
+
+All workflows that build Docker images use `docker/setup-buildx-action` with `actions/cache` for layer caching, reducing rebuild times on cache hits.
+
+### Local Development
+
+For local smoke testing, Docker is the default container runtime (`USE_PODMAN=false`). To use Podman locally, set `USE_PODMAN=true` and use the `--podman` flag with `archi` CLI commands.
 
 ## Postgres Usage Overview
 
@@ -101,8 +254,8 @@ Archi loads different base images hosted on Docker Hub. The Python base image is
 
 Images are hosted at:
 
-- Python: <https://hub.docker.com/r/archi/archi-python-base>
-- PyTorch: <https://hub.docker.com/r/archi/archi-pytorch-base>
+- Python: <https://hub.docker.com/r/a2rchi/a2rchi-python-base>
+- PyTorch: <https://hub.docker.com/r/a2rchi/a2rchi-pytorch-base>
 
 To rebuild a base image, navigate to the relevant `base-xxx-image` directory under `src/cli/templates/dockerfiles/`. Each directory contains the Dockerfile, requirements, and license information.
 
@@ -119,7 +272,7 @@ cat requirements/gpu-requirementsHEADER.txt requirements/requirements-base.txt >
 Build the image:
 
 ```bash
-podman build -t archi/<image-name>:<tag> .
+podman build -t a2rchi/<image-name>:<tag> .
 ```
 
 After verifying the image, log in to Docker Hub (ask a senior developer for credentials):
@@ -131,7 +284,7 @@ podman login docker.io
 Push the image:
 
 ```bash
-podman push archi/<image-name>:<tag>
+podman push a2rchi/<image-name>:<tag>
 ```
 
 ## Data Ingestion Architecture
@@ -187,10 +340,21 @@ Because the manager defers to the catalog, any resource persisted through `Persi
 - Ingest or upload a new document and verify a new row appears in `resources`.
 - Verify `VectorStoreManager` can update the collection using the Postgres catalog.
 
-## Extending the stack
+## Extending the Stack
+
+### Adding a New Data Source
 
 When integrating a new source, create a collector under `data_manager/collectors`. Collectors should yield `Resource` objects. A new `Resource` subclass is only needed if the content type is not already represented (e.g., text, HTML, markdown, images, etc.), but it must implement the required methods described above.
 
 When integrating a new collector, ensure that any per-source configuration is encoded in the resource metadata so downstream consumers—such as the chat app—can honour it.
+
+### Adding a New Service
+
+1. Create a Flask blueprint under `src/interfaces/`.
+2. Register the service in `src/cli/service_registry.py` with its name, port, and dependencies.
+3. Add a service entrypoint in `src/bin/`.
+4. Add any service-specific config keys under `services.<name>` in the base config template.
+
+### Extending Embeddings or Storage
 
 When extending the embedding pipeline or storage schema, keep this flow in mind: collectors produce resources → `PersistenceService` writes files and updates the Postgres catalog → `VectorStoreManager` indexes embeddings in PostgreSQL. Keeping responsibilities narrowly scoped makes the ingestion stack easier to reason about and evolve.

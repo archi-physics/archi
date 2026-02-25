@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>archi - Upload Data</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Dropzone CSS (local copy) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='lib/dropzone.min.css') }}">
+  
+  <!-- App styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='upload.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/archi_notext.png') }}">
+</head>
+<body>
+  <div class="upload-app">
+    <!-- Header -->
+    <header class="upload-header">
+      <div class="header-left">
+        <a href="/data" class="back-link" title="Back to Data">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"></path>
+          </svg>
+          <span>Data</span>
+        </a>
+      </div>
+      <div class="header-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <h1>Upload Data</h1>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="refresh-btn" title="Refresh">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="upload-content">
+      <!-- Embedding Status Bar -->
+      <div class="embedding-status-bar" id="embedding-status-bar">
+        <div class="embedding-status-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span id="embedding-status-text">Loading status...</span>
+        </div>
+        <button class="btn btn-sm btn-primary" id="embed-btn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          <span>Process Documents</span>
+        </button>
+      </div>
+
+      <!-- Source Tabs -->
+      <div class="source-tabs">
+        <button class="source-tab active" data-source="files">
+          <div class="source-tab-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </div>
+          <div class="source-tab-text">
+            <span class="source-tab-name">Files</span>
+            <span class="source-tab-desc">Upload local files</span>
+          </div>
+        </button>
+        
+        <button class="source-tab" data-source="urls">
+          <div class="source-tab-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <div class="source-tab-text">
+            <span class="source-tab-name">URLs</span>
+            <span class="source-tab-desc">Scrape web pages</span>
+          </div>
+        </button>
+        
+        <button class="source-tab" data-source="git">
+          <div class="source-tab-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4"></circle>
+              <line x1="1.05" y1="12" x2="7" y2="12"></line>
+              <line x1="17.01" y1="12" x2="22.96" y2="12"></line>
+            </svg>
+          </div>
+          <div class="source-tab-text">
+            <span class="source-tab-name">Git Repos</span>
+            <span class="source-tab-desc">Clone & index</span>
+          </div>
+        </button>
+        
+        <button class="source-tab" data-source="jira">
+          <div class="source-tab-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+          </div>
+          <div class="source-tab-text">
+            <span class="source-tab-name">Jira</span>
+            <span class="source-tab-desc">Sync tickets</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Upload Panels -->
+      <div class="upload-panels">
+        <!-- Files Panel -->
+        <div class="upload-panel active" id="panel-files">
+          <form action="/api/upload/file" class="dropzone" id="file-dropzone" style="cursor: pointer;">
+            <div class="dz-message" style="pointer-events: none;">
+              <div class="dropzone-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </div>
+              <div class="dropzone-text">Drop files here or click to browse</div>
+              <div class="dropzone-hint">PDF, MD, TXT, DOCX, HTML, JSON, YAML, PY, JS, TS • Max 50 MB</div>
+            </div>
+          </form>
+
+          <div class="upload-queue" id="upload-queue">
+            <div class="upload-queue-header">
+              <span class="upload-queue-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                Upload Queue
+              </span>
+              <button class="btn-text" id="clear-queue-btn">Clear All</button>
+            </div>
+            <div class="upload-queue-list" id="upload-queue-list">
+              <div class="empty-queue-message">No files in queue</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- URLs Panel -->
+        <div class="upload-panel" id="panel-urls">
+          <div class="form-section">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label class="form-label">URL to Scrape</label>
+                <input type="url" class="form-input" id="url-input" placeholder="https://docs.example.com/guide">
+              </div>
+              <button class="btn btn-primary" id="add-url-btn">Add</button>
+            </div>
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="url-follow-links" checked>
+                <span>Follow links (crawl pages)</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="url-requires-sso">
+                <span>Requires SSO authentication</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Crawl Depth</label>
+              <select class="form-select" id="url-crawl-depth" style="width: 140px;">
+                <option value="1">1 level</option>
+                <option value="2" selected>2 levels</option>
+                <option value="3">3 levels</option>
+                <option value="5">5 levels</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Auto-sync Schedule</label>
+              <select class="form-select" id="links-schedule" style="width: 180px;">
+                <option value="disabled">Disabled</option>
+                <option value="hourly">Every hour</option>
+                <option value="every_6h">Every 6 hours</option>
+                <option value="daily">Every 24 hours</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="source-list">
+            <div class="source-list-header">
+              <span class="source-list-title">Queued URLs</span>
+              <button class="btn-text" id="scrape-urls-btn">Start Scraping</button>
+            </div>
+            <div class="source-list-items" id="url-queue">
+              <div class="empty-list-message">No URLs queued</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Git Panel -->
+        <div class="upload-panel" id="panel-git">
+          <div class="form-section">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label class="form-label">Repository URL</label>
+                <input type="url" class="form-input" id="git-url-input" placeholder="https://github.com/org/repo.git">
+              </div>
+              <button class="btn btn-primary" id="clone-repo-btn">Clone</button>
+            </div>
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="git-index-mkdocs" checked>
+                <span>Index MkDocs documentation</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="git-index-code" checked>
+                <span>Index code files (.py, .js, .ts, .md)</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="git-readme-only">
+                <span>Include only README files</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Auto-sync Schedule</label>
+              <select class="form-select" id="git-schedule" style="width: 180px;">
+                <option value="disabled">Disabled</option>
+                <option value="hourly">Every hour</option>
+                <option value="every_6h">Every 6 hours</option>
+                <option value="daily">Every 24 hours</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="source-list">
+            <div class="source-list-header">
+              <span class="source-list-title">Active Repositories</span>
+            </div>
+            <div class="source-list-items" id="git-repos-list">
+              <div class="loading-message">Loading repositories...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Jira Panel -->
+        <div class="upload-panel" id="panel-jira">
+          <div class="form-section">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Project Key</label>
+                <input type="text" class="form-input" id="jira-project-input" placeholder="PROJ" style="width: 120px;">
+              </div>
+              <button class="btn btn-primary" id="sync-jira-btn">Sync Project</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Auto-sync Schedule</label>
+              <select class="form-select" id="jira-schedule" style="width: 180px;">
+                <option value="disabled">Disabled</option>
+                <option value="hourly">Every hour</option>
+                <option value="every_6h">Every 6 hours</option>
+                <option value="daily">Every 24 hours</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="source-list">
+            <div class="source-list-header">
+              <span class="source-list-title">Synced Projects</span>
+            </div>
+            <div class="source-list-items" id="jira-projects-list">
+              <div class="loading-message">Loading projects...</div>
+            </div>
+          </div>
+
+          <div class="info-box" id="jira-config-info">
+            <div class="info-box-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <div class="info-box-content">
+              <strong>Jira Configuration</strong>
+              <p>Configure your Jira URL and credentials in <code>secrets/JIRA_PAT</code></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unified Ingestion Status Section -->
+      <div class="ingestion-status-section" id="ingestion-status-section">
+        <!-- Header bar: summary + actions -->
+        <div class="ingestion-header" id="ingestion-header">
+          <div class="ingestion-summary" id="ingestion-summary">
+            <span class="ingestion-summary-text" id="ingestion-summary-text">Loading status...</span>
+          </div>
+          <div class="ingestion-actions" id="ingestion-actions">
+            <button class="btn btn-sm btn-danger" id="retry-all-btn" style="display:none;">Retry All Failed</button>
+            <button class="btn-text" id="show-all-toggle" style="display:none;">Show all documents</button>
+          </div>
+        </div>
+
+        <!-- Detail panel: source groups (hidden when all synced) -->
+        <div class="ingestion-detail" id="ingestion-detail" style="display:none;">
+          <div class="ingestion-groups" id="ingestion-groups">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Full list mode (hidden by default) -->
+          <div class="ingestion-full-list" id="ingestion-full-list" style="display:none;">
+            <div class="ingestion-full-list-controls">
+              <div class="ingestion-filters" id="ingestion-filters">
+                <button class="status-filter-btn active" data-status="">All</button>
+                <button class="status-filter-btn" data-status="pending">
+                  <span class="status-dot pending"></span> Pending <span class="filter-count" id="count-pending">0</span>
+                </button>
+                <button class="status-filter-btn" data-status="failed">
+                  <span class="status-dot failed"></span> Failed <span class="filter-count" id="count-failed">0</span>
+                </button>
+                <button class="status-filter-btn" data-status="embedded">
+                  <span class="status-dot embedded"></span> Embedded <span class="filter-count" id="count-embedded">0</span>
+                </button>
+              </div>
+              <input type="text" class="form-input ingestion-search" id="doc-status-search" placeholder="Search documents...">
+            </div>
+            <div class="ingestion-table-wrapper">
+              <table class="ingestion-table" id="ingestion-table">
+                <thead>
+                  <tr>
+                    <th>Document</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ingestion-table-tbody">
+                  <tr class="empty-row"><td colspan="4">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="ingestion-pagination" id="ingestion-pagination">
+              <button class="btn btn-sm" id="doc-prev-btn" disabled>Previous</button>
+              <span class="pagination-info" id="pagination-info">Page 1</span>
+              <button class="btn btn-sm" id="doc-next-btn" disabled>Next</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dropzone JS (local copy) -->
+  <script src="{{ url_for('static', filename='lib/dropzone.min.js') }}"></script>
+  <script>
+    // Disable auto-discover immediately after Dropzone loads
+    Dropzone.autoDiscover = false;
+  </script>
+  
+  <!-- Theme init (must load before page renders) -->
+  <script src="{{ url_for('static', filename='modules/theme-init.js') }}"></script>
+  
+  <!-- Shared modules -->
+  <script src="{{ url_for('static', filename='modules/utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='modules/toast.js') }}"></script>
+  
+  <!-- Upload module -->
+  <script src="{{ url_for('static', filename='modules/upload.js') }}"></script>
+  <script>
+    // Initialize upload module
+    document.addEventListener('DOMContentLoaded', () => {
+      window.uploader = new DataUploader();
+    });
+  </script>
+</body>
+</html>

@@ -16,7 +16,7 @@ Builds the base Docker images locally.
   TAG                 Image tag to use; defaults to the project version from pyproject.toml.
 
 Options:
-  -i, --image NAME    Build only the specified image (e.g. archi/archi-python-base).
+  -i, --image NAME    Build only the specified image (e.g. a2rchi/a2rchi-python-base).
   -h, --help          Show this help message and exit.
 
 Set CONTAINER_RUNTIME=docker|podman to override the container CLI (defaults to docker).
@@ -103,7 +103,12 @@ fi
 for image in "${IMAGES_TO_BUILD[@]}"; do
   build_context="${IMAGE_DIRS[$image]}"
   echo "Building $image:$TAG from $build_context"
-  "$RUNTIME" build -t "$image:$TAG" -t "$image:latest" "$build_context"
+  "$RUNTIME" build \
+    -t "$image:$TAG" \
+    -t "$image:latest" \
+    -t "localhost/$image:$TAG" \
+    -t "localhost/$image:latest" \
+    "$build_context"
   echo "Tagged $image:latest"
 done
 

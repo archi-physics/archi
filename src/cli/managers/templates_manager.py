@@ -134,6 +134,7 @@ class TemplateManager:
     def _build_workflow(self, context: TemplateContext) -> List[Callable[[TemplateContext], None]]:
         stages: List[Callable[[TemplateContext], None]] = [
             self._stage_prompts,
+            self._stage_agents,
             self._stage_configs,
             self._stage_service_artifacts,
             self._stage_postgres_init,
@@ -151,8 +152,48 @@ class TemplateManager:
     def _stage_prompts(self, context: TemplateContext) -> None:
         # Copy default prompt templates (condense/, chat/, system/ structure)
         self._copy_default_prompts(context)
-        # Collect pipeline-specific prompt mappings
-        context.prompt_mappings = self._collect_prompt_mappings(context)
+        context.prompt_mappings = {}
+
+    def _stage_agents(self, context: TemplateContext) -> None:
+        config = context.config_manager.config or {}
+        dst_dir = context.base_dir / "data" / "agents"
+        services_cfg = config.get("services", {}) or {}
+
+        if context.benchmarking:
+            benchmark_cfg = services_cfg.get("benchmarking", {}) or {}
+            agent_md_file = benchmark_cfg.get("agent_md_file")
+            if not agent_md_file:
+                raise ValueError("Missing required services.benchmarking.agent_md_file in config.")
+            source_path = Path(str(agent_md_file)).expanduser()
+            config_path = Path(str(config.get("_config_path", ""))).expanduser()
+            if not source_path.is_absolute() and config_path:
+                candidate = (config_path.parent / source_path).resolve()
+                if candidate.exists():
+                    source_path = candidate
+            if not source_path.exists() or not source_path.is_file():
+                raise ValueError(f"Benchmark agent file not found: {source_path}")
+            if source_path.suffix.lower() != ".md":
+                raise ValueError(f"Benchmark agent file must be a .md file: {source_path}")
+            dst_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_path, dst_dir / source_path.name)
+            return
+
+        agents_dir = (services_cfg.get("chat_app") or {}).get("agents_dir")
+        if not agents_dir:
+            if dst_dir.exists() and any(p.suffix.lower() == ".md" for p in dst_dir.iterdir()):
+                return
+            raise ValueError("Missing required services.chat_app.agents_dir in config.")
+        src_dir = Path(agents_dir).expanduser()
+        if not src_dir.exists() or not src_dir.is_dir():
+            raise ValueError(f"Agents directory not found: {src_dir}")
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for agent_file in sorted(src_dir.iterdir()):
+            if agent_file.is_file() and agent_file.suffix.lower() == ".md":
+                shutil.copyfile(agent_file, dst_dir / agent_file.name)
+                copied += 1
+        if copied == 0:
+            raise ValueError(f"No agent markdown files found in {src_dir}")
 
     def _copy_default_prompts(self, context: TemplateContext) -> None:
         """Copy default prompt templates to deployment for PromptService."""
@@ -218,27 +259,7 @@ class TemplateManager:
 
     # prompt preparation
     def _collect_prompt_mappings(self, context: TemplateContext) -> Dict[str, Dict[str, str]]:
-        # Config-specified prompts go to data/prompts/ (same as default prompts)
-        prompts_path = context.base_dir / "data" / "prompts"
-        prompts_path.mkdir(parents=True, exist_ok=True)
-
-        configs = context.config_manager.get_configs()
-        prompt_mappings: Dict[str, Dict[str, str]] = {}
-        for config in configs:
-            name = config["name"]
-            config_path = config.get("_config_path")
-            config_dir = Path(config_path).expanduser().parent if config_path else None
-            pipeline_names = config.get("archi", {}).get("pipelines") or []
-            for pipeline_name in pipeline_names:
-                pipeline_config = config.get("archi", {}).get("pipeline_map", {}).get(pipeline_name, {})
-                prompts_config = pipeline_config.get("prompts", {})
-                prompt_mappings[name] = self._copy_pipeline_prompts(
-                    context.base_dir,
-                    prompts_config,
-                    config_dir=config_dir,
-                )
-
-        return prompt_mappings
+        return {}
 
     def _copy_pipeline_prompts(
         self,
@@ -286,29 +307,21 @@ class TemplateManager:
             name = archi_config["name"]
             updated_config = copy.deepcopy(archi_config)
 
-            prompt_mapping = context.prompt_mappings.get(name, {})
-            pipeline_names = updated_config.get("archi", {}).get("pipelines") or []
-
-            for pipeline_name in pipeline_names:
-                pipeline_config = (
-                    updated_config.get("archi", {}).get("pipeline_map", {}).get(pipeline_name, {})
-                )
-                prompts_config = pipeline_config.get("prompts", {})
-
-                for section_prompts in prompts_config.values():
-                    if not isinstance(section_prompts, dict):
-                        continue
-                    for prompt_key in list(section_prompts.keys()):
-                        if prompt_key in prompt_mapping:
-                            section_prompts[prompt_key] = prompt_mapping[prompt_key]
-                        else:
-                            logger.debug(
-                                f"Prompt key {prompt_key} not found in prepared prompts for config {name}"
-                            )
-
             if context.plan.host_mode:
                 updated_config["host_mode"] = context.plan.host_mode
                 self._apply_host_mode_port_overrides(updated_config)
+
+            services_cfg = updated_config.get("services", {})
+            for service_name in ("chat_app", "redmine_mailbox", "piazza"):
+                service_cfg = services_cfg.get(service_name)
+                if isinstance(service_cfg, dict):
+                    service_cfg["agents_dir"] = "/root/archi/agents"
+            if context.benchmarking:
+                benchmark_cfg = services_cfg.get("benchmarking")
+                if isinstance(benchmark_cfg, dict):
+                    agent_md_file = benchmark_cfg.get("agent_md_file")
+                    if agent_md_file:
+                        benchmark_cfg["agent_md_file"] = f"/root/archi/agents/{Path(str(agent_md_file)).name}"
 
             config_template = self.env.get_template(BASE_CONFIG_TEMPLATE)
             config_rendered = config_template.render(verbosity=context.plan.verbosity, **updated_config)
@@ -554,6 +567,7 @@ class TemplateManager:
 
     def _probe_port(self, port: int) -> Optional[str]:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 sock.bind(("0.0.0.0", port))
             except OSError as exc:

@@ -79,7 +79,7 @@ runs:
         WAIT_SLEEP: ${{ inputs.wait-sleep-seconds }}
         BASE_URL: ${{ inputs.base-url }}
         USE_PODMAN: ${{ inputs.use-podman }}
-        HOME: /var/lib/a2rchi
+        HOME: ${{ github.workspace }}
       run: |
         set -euo pipefail
         ./scripts/dev/run_smoke_preview.sh "${DEPLOYMENT_NAME}"

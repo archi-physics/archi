@@ -54,9 +54,11 @@ class FlaskAppWrapper:
         secret_key = read_secret("FLASK_UPLOADER_APP_SECRET_KEY") or secrets.token_hex(32)
         self.app.secret_key = secret_key
         self.app.config["SESSION_COOKIE_NAME"] = "uploader_session"
+        self.app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB upload limit
 
         self.auth_config = (self.services_config or {}).get("data_manager", {}).get("auth", {}) or {}
-        self.auth_enabled = bool(self.auth_config.get("enabled", True))
+        self.auth_enabled = bool(self.auth_config.get("enabled", False))
+        self.api_token = read_secret("DM_API_TOKEN") or None
         self.admin_users = {
             user.strip().lower()
             for user in (self.auth_config.get("admins") or [])
@@ -121,8 +123,11 @@ class FlaskAppWrapper:
                 return handler(*args, **kwargs)
             if session.get("admin_logged_in"):
                 return handler(*args, **kwargs)
-            if request.path.startswith("/api/"):
-                return handler(*args, **kwargs)
+            # Allow service-to-service calls authenticated via API token
+            if self.api_token:
+                auth_header = request.headers.get("Authorization", "")
+                if auth_header == f"Bearer {self.api_token}":
+                    return handler(*args, **kwargs)
             return redirect(url_for("login"))
 
         return wrapped
@@ -164,7 +169,7 @@ class FlaskAppWrapper:
         return redirect(url_for("login"))
 
     def health(self):
-        return jsonify({"status": "OK"}, 200)
+        return jsonify({"status": "OK"}), 200
 
     def index(self):
         return redirect(url_for("document_index"))
@@ -327,13 +332,14 @@ class FlaskAppWrapper:
             except Exception as exc:
                 logger.exception("Failed to upload URL: %s", exc)
                 added_to_urls = False
+                upload_error = str(exc)
 
             if added_to_urls:
                 logger.info("URL uploaded successfully")
                 self._notify_update()
                 return jsonify({"status": "ok"})
             else:
-                return jsonify({"error": "upload_failed", "detail": str(exc)}), 500
+                return jsonify({"error": "upload_failed", "detail": upload_error}), 500
         else:
             return jsonify({"error": "missing_url"}), 400
 

@@ -47,8 +47,6 @@ def cli():
 @click.option('--env-file', '-e', type=str, required=False, help="Path to .env file with secrets")
 @click.option('--services', '-s', callback=parse_services_option, 
               help="Comma-separated list of services")
-@click.option('--sources', '-src', callback=parse_sources_option,
-              help="Comma-separated list of data sources: git,sso,jira,redmine")
 @click.option('--podman', '-p', is_flag=True, help="Use Podman instead of Docker")
 @click.option('--gpu-ids', callback=parse_gpu_ids_option, help='GPU configuration: "all" or comma-separated IDs')
 @click.option('--tag', '-t', type=str, default="2000", help="Image tag for built containers")
@@ -56,7 +54,7 @@ def cli():
 @click.option('--verbosity', '-v', type=int, default=3, help="Logging verbosity level (0-4)")
 @click.option('--force', '-f', is_flag=True, help="Force deployment creation, overwriting existing deployment")
 @click.option('--dry', '--dry-run', is_flag=True, help="Validate configuration and show what would be created without actually deploying")
-def create(name: str, config_files: list, config_dir: str, env_file: str, services: list, sources: list, 
+def create(name: str, config_files: list, config_dir: str, env_file: str, services: list,
            force: bool, dry: bool, verbosity: int, **other_flags):
     """Create an ARCHI deployment with selected services and data sources."""
 
@@ -88,11 +86,6 @@ def create(name: str, config_files: list, config_dir: str, env_file: str, servic
         
         # Combine services and data sources for processing
         enabled_services = services.copy()
-        requested_sources = ['links']
-        requested_sources.extend([src for src in sources if src != 'links'])
-        requested_sources = list(dict.fromkeys(requested_sources))
-        
-        
         # Handle existing deployment
         base_dir = Path(ARCHI_DIR) / f"archi-{name}"
         handle_existing_deployment(base_dir, name, force, dry, other_flags.get('podman', False))
@@ -101,10 +94,11 @@ def create(name: str, config_files: list, config_dir: str, env_file: str, servic
         config_manager = ConfigurationManager(config_files,env)
         secrets_manager = SecretsManager(env_file, config_manager)
 
-        # Reconcile CLI-enabled and config-enabled/disabled sources
+        # Resolve enabled sources from config (no CLI source overrides).
+        # Keep links enabled by default.
         config_defined_sources = config_manager.get_enabled_sources()
         config_disabled_sources = config_manager.get_disabled_sources()
-        enabled_sources = list(dict.fromkeys(requested_sources + config_defined_sources))
+        enabled_sources = list(dict.fromkeys(["links"] + config_defined_sources))
         enabled_sources = [src for src in enabled_sources if src not in config_disabled_sources]
         enabled_sources = source_registry.resolve_dependencies(enabled_sources)
 
@@ -155,7 +149,12 @@ def create(name: str, config_files: list, config_dir: str, env_file: str, servic
         volume_manager = VolumeManager(compose_config.use_podman)
         volume_manager.create_required_volumes(compose_config, config_manager.config)
 
-        template_manager.prepare_deployment_files(compose_config, config_manager, secrets_manager, **other_flags)
+        template_manager.prepare_deployment_files(
+            compose_config,
+            config_manager,
+            secrets_manager,
+            **other_flags,
+        )
 
         # Host-side seeding removed; container config-seed handles schema + ingestion before services start.
         
@@ -468,15 +467,12 @@ def list_deployments():
 @click.option('--config-dir', '-cd', 'config_dir', type=str, help="Path to configs directory")
 @click.option('--env-file', '-e', type=str, required=False, help="Path to .env file with 'secrets")
 @click.option('--hostmode', 'host_mode', is_flag=True, help="Use host network mode")
-@click.option('--sources', '-src', callback=parse_sources_option,
-              help="Comma-separated list of data sources: git,sso,jira,redmine")
 @click.option('--podman', '-p', is_flag=True, help="Use Podman instead of Docker")
 @click.option('--gpu-ids', callback=parse_gpu_ids_option, help='GPU configuration: "all" or comma-separated IDs')
 @click.option('--force', '-f', is_flag=True, help="Force deployment creation, overwriting existing deployment")
 @click.option('--tag', '-t', type=str, default="2000", help="Image tag for built containers")
 @click.option('--verbosity', '-v', type=int, default=3, help="Logging verbosity level (0-4)")
-def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_mode: bool, sources: list, 
-             force: bool, verbosity: int, **other_flags):
+def evaluate(name: str, config_file: str, config_dir: str, env_file: str, force: bool, verbosity: int, **other_flags):
     """Create an ARCHI deployment with selected services and data sources."""
     if not (bool(config_file) ^ bool(config_dir)): 
         raise click.ClickException(f"Must specify only one of config files or config dir")
@@ -504,10 +500,6 @@ def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_m
         base_dir = Path(ARCHI_DIR) / f"archi-{name}"
         handle_existing_deployment(base_dir, name, force, False, other_flags.get('podman', False))
 
-        requested_sources = ['links']
-        requested_sources.extend([src for src in sources if src != 'links'])
-        requested_sources = list(dict.fromkeys(requested_sources))
-
         if base_dir.exists():
             raise click.ClickException(
                     f"Benchmarking runtime '{name}' already exists at {base_dir}"
@@ -519,10 +511,11 @@ def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_m
         # Services for benchmarking: PostgreSQL is required
         enabled_services = ["postgres", "benchmarking"]
 
-        # Reconcile CLI-enabled and config-enabled/disabled sources
+        # Resolve enabled sources from config (no CLI source overrides).
+        # Keep links enabled by default.
         config_defined_sources = config_manager.get_enabled_sources()
         config_disabled_sources = config_manager.get_disabled_sources()
-        enabled_sources = list(dict.fromkeys(requested_sources + config_defined_sources))
+        enabled_sources = list(dict.fromkeys(["links"] + config_defined_sources))
         enabled_sources = [src for src in enabled_sources if src not in config_disabled_sources]
         enabled_sources = source_registry.resolve_dependencies(enabled_sources)
 
@@ -543,7 +536,7 @@ def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_m
         other_flags['benchmarking'] = True
         other_flags['query_file'] = benchmarking_configs.get('queries_path', ".")
         other_flags['benchmarking_dest'] = os.path.abspath(benchmarking_configs.get('out_dir', '.'))
-        other_flags['host_mode'] = host_mode
+        other_flags['host_mode'] = other_flags.get('host_mode', False)
 
         compose_config = ServiceBuilder.build_compose_config(
                 name=name, verbosity=verbosity, base_dir=base_dir, 
@@ -560,7 +553,12 @@ def evaluate(name: str, config_file: str, config_dir: str, env_file: str, host_m
         volume_manager = VolumeManager(compose_config.use_podman)
         volume_manager.create_required_volumes(compose_config, config_manager.config)
         
-        template_manager.prepare_deployment_files(compose_config, config_manager, secrets_manager, **other_flags)
+        template_manager.prepare_deployment_files(
+            compose_config,
+            config_manager,
+            secrets_manager,
+            **other_flags,
+        )
 
         deployment_manager = DeploymentManager(compose_config.use_podman)
         deployment_manager.start_deployment(base_dir)

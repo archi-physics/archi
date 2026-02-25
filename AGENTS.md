@@ -42,7 +42,11 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - Shell scripts under `scripts/` and `tests/smoke/` use `bash` with `set -euo pipefail`.
 
 ## Testing Guidelines
-No testing is set up yet.
+- **Unit tests:** Run `pytest tests/unit/ -v --tb=short` (requires project dependencies: `pip install ".[all]"`).
+- **UI tests:** Run `npx playwright test` against a running deployment (set `BASE_URL` env var). Install with `npm ci && npx playwright install --with-deps chromium`.
+- **Smoke tests:** Run via `scripts/dev/run_smoke_preview.sh <name>`. Requires Ollama with a model pulled, Docker, and the archi CLI.
+- **Lint:** Run `black --check .` and `isort --check .` for formatting checks.
+- **CI:** All PR checks run on `ubuntu-latest` GitHub runners. PR CI includes lint, unit tests, smoke deployment, and Playwright UI tests.
 
 ## Commit & Pull Request Guidelines
 - Recent history uses short, lowercase summaries (e.g., `fix bug`, `split data manager...`); keep commits concise and descriptive.
@@ -51,3 +55,10 @@ No testing is set up yet.
 ## Agent Workflow
 - When changing user-facing behavior, CLI flags, configuration, or public APIs, update the relevant docs in `docs/` and/or `README.md` in the same change.
 - If no docs change is needed, note the reason briefly in the PR description or commit message.
+
+## Deployment & Validation Policy
+- **Match the real runtime path before debugging:** Verify which code path the running service imports (workspace source vs installed `site-packages`) and patch/reload the active path.
+- **Deployment assumptions must be explicit:** State which container/service is being validated (for example `chatbot-debug` and its dependent `postgres-debug` / `data-manager-debug`).
+- **Always validate behavior after changes:** Do not stop at code edits. Run at least one end-to-end check against the running deployment and confirm expected outputs in logs/trace/events.
+- **Use source-of-truth checks for trace bugs:** Validate both streamed events and persisted DB trace rows (for example `agent_traces.events`) when debugging tool-call rendering mismatches.
+- **Iterate until intent is confirmed:** If validation fails or is inconclusive, continue debugging and re-test after each fix until the observed behavior matches the requested goal.

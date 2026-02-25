@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from src.archi.pipelines.classic_pipelines.utils.prompt_utils import read_prompt
 from src.archi.pipelines.classic_pipelines.utils.prompt_validator import ValidatedPromptTemplate
@@ -23,12 +23,19 @@ class BasePipeline:
         self,
         config: Dict[str, Any],
         *args,
+        default_provider: Optional[str] = None,
+        default_model: Optional[str] = None,
+        prompt_overrides: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         self.config = config
-        self.archi_config = self.config["archi"]
-        self.dm_config = self.config["data_manager"]
-        self.pipeline_config = self.archi_config["pipeline_map"][self.__class__.__name__]
+        self.archi_config = self.config.get("archi") or {}
+        self.dm_config = self.config.get("data_manager", {})
+        pipeline_map = self.archi_config.get("pipeline_map", {}) if isinstance(self.archi_config, dict) else {}
+        self.pipeline_config = pipeline_map.get(self.__class__.__name__, {}) if isinstance(pipeline_map, dict) else {}
+        self.default_provider = default_provider
+        self.default_model = default_model
+        self.prompt_overrides = prompt_overrides or {}
         self._init_llms()
         self._init_prompts()
 
@@ -45,11 +52,22 @@ class BasePipeline:
     def _init_llms(self) -> None:
         """Initialise language models declared for the pipeline."""
 
-        models_config = self.pipeline_config.get("models", {})
+        models_config = self.pipeline_config.get("models", {}) if isinstance(self.pipeline_config, dict) else {}
         self.llms: Dict[str, Any] = {}
 
         all_models = dict(models_config.get("required", {}), **models_config.get("optional", {}))
         initialised_models: Dict[str, Any] = {}
+
+        if not all_models and self.default_provider and self.default_model:
+            model_ref = f"{self.default_provider}/{self.default_model}"
+            default_keys = self._default_model_keys()
+            if default_keys:
+                instance = get_model(self.default_provider, self.default_model)
+                for key in default_keys:
+                    self.llms[key] = instance
+            else:
+                self.llms["chat_model"] = get_model(self.default_provider, self.default_model)
+            return
 
         for model_name, model_class_name in all_models.items():
             if model_class_name in initialised_models:
@@ -79,10 +97,19 @@ class BasePipeline:
     def _init_prompts(self) -> None:
         """Initialise prompts defined in pipeline configuration."""
 
-        prompts_config = self.pipeline_config.get("prompts", {})
+        prompts_config = self.pipeline_config.get("prompts", {}) if isinstance(self.pipeline_config, dict) else {}
         required = prompts_config.get("required", {})
         optional = prompts_config.get("optional", {})
         all_prompts = {**optional, **required}
+
+        if self.prompt_overrides:
+            all_prompts.update({k: v for k, v in self.prompt_overrides.items() if v})
+
+        if not all_prompts:
+            defaults = self._default_prompt_paths()
+            if defaults:
+                required = defaults
+                all_prompts = defaults
 
         self.prompts: Dict[str, ValidatedPromptTemplate] = {}
         for name, path in all_prompts.items():
@@ -106,3 +133,18 @@ class BasePipeline:
                 name=name,
                 prompt_template=prompt_template,
             )
+
+    def _default_model_keys(self) -> List[str]:
+        return {
+            "QAPipeline": ["condense_model", "chat_model"],
+            "GradingPipeline": ["final_grade_model", "summary_model", "analysis_model"],
+            "ImageProcessingPipeline": ["image_processing_model"],
+        }.get(self.__class__.__name__, [])
+
+    def _default_prompt_paths(self) -> Dict[str, str]:
+        if self.__class__.__name__ == "QAPipeline":
+            return {
+                "condense_prompt": "/root/archi/data/prompts/condense/default.prompt",
+                "chat_prompt": "/root/archi/data/prompts/chat/default.prompt",
+            }
+        return {}
