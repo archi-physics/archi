@@ -219,6 +219,7 @@ class FlaskAppWrapper:
             entries.sort(key=_sort_key, reverse=True)
 
         sorted_sources = sorted(sources_index.items(), key=lambda x: x[0])
+        logger.info(f"Sources are {sorted_sources}")
         return render_template("document_index.html", sources_index=sorted_sources, source_status=source_status)
 
     def add_git_repo(self):
@@ -356,6 +357,7 @@ class FlaskAppWrapper:
         if schedule:
             try:
                 from croniter import croniter
+                logger.debug(f"Updating source {source} schedule to {schedule}")
 
                 croniter(schedule)
             except Exception as exc:
@@ -457,6 +459,7 @@ class FlaskAppWrapper:
                 else:
                     entry.pop("schedule", None)
             data[source] = entry
+            logger.debug(f"Updated source status with state {state}, last_run: {last_run}, schedule: {schedule}")
             self.status_file.parent.mkdir(parents=True, exist_ok=True)
             self.status_file.write_text(json.dumps(data))
         except Exception as exc:

@@ -4628,19 +4628,29 @@ class FlaskAppWrapper(object):
             sources = []
             seen_projects = set()
 
-            result = self.chat.data_viewer.list_documents(source_type='jira', limit=1000)
+            result = self.chat.data_viewer.list_documents(source_type='ticket', limit=1000)
+
             for doc in result.get('documents', []):
                 # Parse project key from display name or URL
                 display_name = doc.get('display_name', '')
+                url = doc.get('url', '')
                 # Jira documents often have display_name like "PROJECT-123: Title"
                 if display_name:
                     project_key = display_name.split('-')[0] if '-' in display_name else display_name
                     if project_key and project_key not in seen_projects:
                         seen_projects.add(project_key)
+                        logger.debug(f"Adding project key: {project_key}, display_name: {display_name}")
                         sources.append({
-                            'project_key': project_key,
-                            'name': project_key,
+                            'key': project_key,
+                            'name': url.split('-')[0] if '-' in url else url,
                         })
+
+            for project in sources:
+                project_key = project['key']
+                ticket_count = sum(1 for doc in result.get('documents', []) if doc.get('display_name', '').startswith(project_key + '-'))
+                project['ticket_count'] = ticket_count if ticket_count else 0
+                last_sync = max((doc['ingested_at'] for doc in result.get('documents', []) if project_key in doc.get('display_name', '')), default=None)
+                project['last_sync'] = last_sync if last_sync else None
 
             return jsonify({"sources": sources}), 200
 

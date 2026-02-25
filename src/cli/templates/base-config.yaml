@@ -216,9 +216,6 @@ data_manager:
             class: {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOScraper.class | default('CERNSSOScraper', true) }}
             kwargs:
               headless:  {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOScraper.kwargs.headless | default(true, true) }}
-    ticket:
-      enabled: {{ data_manager.sources.ticket.enabled | default(true, true) }}
-      visible: {{ data_manager.sources.ticket.visible | default(true, true) }}
     git:
       enabled: {{ data_manager.sources.git.enabled | default(true, true) }}
       visible: {{ data_manager.sources.git.visible | default(true, true) }}
