@@ -155,9 +155,11 @@ ORDER BY step_number ASC;
 SQL_INSERT_AB_COMPARISON = """
 INSERT INTO ab_comparisons (
     conversation_id, user_prompt_mid, response_a_mid, response_b_mid, 
-    model_a, pipeline_a, model_b, pipeline_b, is_config_a_first
+    model_a, pipeline_a, model_b, pipeline_b,
+    variant_a_name, variant_b_name, variant_a_meta, variant_b_meta,
+    is_config_a_first
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 RETURNING comparison_id;
 """
 
@@ -170,6 +172,7 @@ WHERE comparison_id = %s;
 SQL_GET_AB_COMPARISON = """
 SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
        model_a, pipeline_a, model_b, pipeline_b, 
+       variant_a_name, variant_b_name, variant_a_meta, variant_b_meta,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons
 WHERE comparison_id = %s;
@@ -178,6 +181,7 @@ WHERE comparison_id = %s;
 SQL_GET_PENDING_AB_COMPARISON = """
 SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
        model_a, pipeline_a, model_b, pipeline_b,
+       variant_a_name, variant_b_name, variant_a_meta, variant_b_meta,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons
 WHERE conversation_id = %s AND preference IS NULL
@@ -193,10 +197,38 @@ WHERE comparison_id = %s;
 SQL_GET_AB_COMPARISONS_BY_CONVERSATION = """
 SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
        model_a, pipeline_a, model_b, pipeline_b,
+       variant_a_name, variant_b_name, variant_a_meta, variant_b_meta,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons
 WHERE conversation_id = %s
 ORDER BY created_at ASC;
+"""
+
+# =============================================================================
+# A/B Variant Metrics Queries
+# =============================================================================
+
+SQL_UPSERT_VARIANT_METRIC = """
+INSERT INTO ab_variant_metrics (variant_name, wins, losses, ties, total_comparisons, last_updated)
+VALUES (%s, %s, %s, %s, %s, NOW())
+ON CONFLICT (variant_name) DO UPDATE
+SET wins = ab_variant_metrics.wins + EXCLUDED.wins,
+    losses = ab_variant_metrics.losses + EXCLUDED.losses,
+    ties = ab_variant_metrics.ties + EXCLUDED.ties,
+    total_comparisons = ab_variant_metrics.total_comparisons + EXCLUDED.total_comparisons,
+    last_updated = NOW();
+"""
+
+SQL_GET_ALL_VARIANT_METRICS = """
+SELECT variant_name, wins, losses, ties, total_comparisons, last_updated
+FROM ab_variant_metrics
+ORDER BY total_comparisons DESC;
+"""
+
+SQL_GET_VARIANT_METRIC = """
+SELECT variant_name, wins, losses, ties, total_comparisons, last_updated
+FROM ab_variant_metrics
+WHERE variant_name = %s;
 """
 
 # =============================================================================

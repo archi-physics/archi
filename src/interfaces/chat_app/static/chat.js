@@ -32,6 +32,9 @@ const CONFIG = {
     AB_CREATE: '/api/ab/create',
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
+    AB_POOL: '/api/ab/pool',
+    AB_COMPARE: '/api/ab/compare',
+    AB_METRICS: '/api/ab/metrics',
     TRACE_GET: '/api/trace',
     CANCEL_STREAM: '/api/cancel_stream',
     PROVIDERS: '/api/providers',
@@ -340,6 +343,77 @@ const API = {
   async getPendingABComparison(conversationId) {
     const url = `${CONFIG.ENDPOINTS.AB_PENDING}?conversation_id=${conversationId}&client_id=${encodeURIComponent(this.clientId)}`;
     return this.fetchJson(url);
+  },
+
+  // Pool-based A/B testing API methods
+  async getABPool() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL);
+  },
+
+  async getABMetrics() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_METRICS);
+  },
+
+  /**
+   * Stream a pool-based A/B comparison. Returns an async iterator of NDJSON events.
+   * Each event has an 'arm' field ('a' or 'b') plus 'type', 'content', etc.
+   */
+  async *streamABComparison(history, conversationId, configName, signal) {
+    const body = {
+      message: history[history.length - 1],
+      conversation_id: conversationId,
+      config_name: configName || null,
+      client_id: this.clientId,
+      client_sent_msg_ts: Date.now() / 1000,
+      client_timeout: CONFIG.STREAMING.TIMEOUT / 1000,
+    };
+
+    const response = await fetch(CONFIG.ENDPOINTS.AB_COMPARE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`A/B compare failed: ${response.status} ${errText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            yield JSON.parse(trimmed);
+          } catch (e) {
+            console.warn('Failed to parse A/B NDJSON line:', trimmed);
+          }
+        }
+      }
+      // Process remaining buffer
+      if (buffer.trim()) {
+        try {
+          yield JSON.parse(buffer.trim());
+        } catch (e) {
+          console.warn('Failed to parse final A/B NDJSON line:', buffer.trim());
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   },
 
   // Provider API methods
@@ -1839,6 +1913,33 @@ const UI = {
   // A/B Testing UI Methods
   // =========================================================================
 
+  updateABPoolUI(poolInfo) {
+    // When an A/B pool is configured server-side, hide manual provider-B selection
+    // and show a pool indicator in the AB settings area
+    if (this.elements.abModelGroup) {
+      // Add a pool-mode banner inside the AB model group
+      let poolBanner = this.elements.abModelGroup.querySelector('.ab-pool-banner');
+      if (!poolBanner) {
+        poolBanner = document.createElement('div');
+        poolBanner.className = 'ab-pool-banner';
+        this.elements.abModelGroup.prepend(poolBanner);
+      }
+      const variantNames = (poolInfo.variants || []).join(', ');
+      poolBanner.innerHTML = `
+        <div class="ab-pool-info">
+          <strong>Pool Mode Active</strong>
+          <span>Champion: <em>${Utils.escapeHtml(poolInfo.champion || '?')}</em></span>
+          <span>Variants: <em>${Utils.escapeHtml(variantNames)}</em></span>
+        </div>`;
+
+      // Hide provider-B manual selectors when pool is active
+      const providerBRow = this.elements.providerSelectB?.closest('.settings-row, .form-row, .ab-provider-b-row');
+      if (providerBRow) providerBRow.style.display = 'none';
+      const modelBRow = this.elements.modelSelectB?.closest('.settings-row, .form-row, .ab-model-b-row');
+      if (modelBRow) modelBRow.style.display = 'none';
+    }
+  },
+
   showABWarningModal(onConfirm, onCancel) {
     // Prevent duplicate modals
     if (document.getElementById('ab-warning-modal')) {
@@ -2834,6 +2935,7 @@ const Chat = {
     // A/B Testing state
     activeABComparison: null,  // { comparisonId, responseAId, responseBId, configAId, configBId, userPromptMid }
     abVotePending: false,      // true when waiting for user vote
+    abPool: null,              // null or { enabled, champion, variants: [...] } from /api/ab/pool
     // Trace state
     activeTrace: null,         // { traceId, events: [], toolCalls: Map<toolCallId, toolData> }
     traceVerboseMode: localStorage.getItem(CONFIG.STORAGE_KEYS.TRACE_VERBOSE_MODE) || 'normal', // 'minimal' | 'normal' | 'verbose'
@@ -2862,6 +2964,7 @@ const Chat = {
       this.loadPipelineDefaultModel(),
       this.loadApiKeyStatus(),
       this.loadAgents(),
+      this.loadABPool(),
     ]);
 
     // Update model label after all data is loaded (configs, providers, pipeline default)
@@ -2894,6 +2997,22 @@ const Chat = {
       this.updateActiveModelLabel();
     } catch (e) {
       console.error('Failed to load agents list:', e);
+    }
+  },
+
+  async loadABPool() {
+    try {
+      const data = await API.getABPool();
+      if (data?.enabled) {
+        this.state.abPool = data;
+        console.info('A/B pool loaded:', data.champion, '+ challengers:', data.variants);
+        UI.updateABPoolUI(data);
+      } else {
+        this.state.abPool = null;
+      }
+    } catch (e) {
+      console.warn('Failed to load A/B pool (pool mode disabled):', e);
+      this.state.abPool = null;
     }
   },
 
@@ -3377,6 +3496,13 @@ const Chat = {
   },
 
   async sendABMessage(userText, configA, configB) {
+    // Route to pool-based path when server has a configured pool
+    if (this.state.abPool) {
+      await this.sendPoolABMessage(userText, configA);
+      return;
+    }
+
+    // Legacy path: manual provider A vs provider B selection
         const selectedA = this.getSelectedProviderAndModel();
         const selectedB = this.getSelectedProviderAndModelB();
         if (selectedA.provider && !selectedA.model) {
@@ -3462,6 +3588,127 @@ const Chat = {
     } catch (e) {
       console.error('A/B comparison error:', e);
       UI.showABError(e.message || 'Failed to create comparison');
+      this.state.isStreaming = false;
+      UI.setInputDisabled(false);
+      UI.setStreamingState(false);
+      this.state.abortController = null;
+      await this.loadConversations();
+      return;
+    }
+
+    this.state.isStreaming = false;
+    UI.setStreamingState(false);
+    this.state.abortController = null;
+    // Keep input disabled until vote
+    await this.loadConversations();
+  },
+
+  /**
+   * Pool-based A/B comparison: streams both arms from a single server endpoint.
+   * The server selects champion vs random challenger, streams interleaved NDJSON events
+   * tagged with arm:'a'/'b', and emits an ab_meta event with the comparison_id.
+   */
+  async sendPoolABMessage(userText, configName) {
+    const msgIdA = `${Date.now()}-ab-a`;
+    const msgIdB = `${Date.now()}-ab-b`;
+
+    // Create side-by-side container
+    UI.addABComparisonContainer(msgIdA, msgIdB);
+
+    const armTexts = { a: '', b: '' };
+    let abMeta = null;
+
+    try {
+      this.state.abortController = new AbortController();
+
+      for await (const event of API.streamABComparison(
+        this.state.history,
+        this.state.conversationId,
+        configName,
+        this.state.abortController?.signal,
+      )) {
+        if (event.type === 'meta' && event.event === 'stream_started') {
+          continue; // padding event
+        }
+
+        if (event.type === 'error') {
+          const errMsg = event.message || 'A/B stream error';
+          UI.showABError(errMsg);
+          this.state.isStreaming = false;
+          UI.setInputDisabled(false);
+          UI.setStreamingState(false);
+          this.state.abortController = null;
+          await this.loadConversations();
+          return;
+        }
+
+        if (event.type === 'ab_meta') {
+          abMeta = event;
+          continue;
+        }
+
+        const arm = event.arm; // 'a' or 'b'
+        if (!arm) continue;
+        const targetId = arm === 'a' ? msgIdA : msgIdB;
+
+        if (event.type === 'text' || event.type === 'chunk') {
+          const content = event.content || '';
+          if (content) {
+            armTexts[arm] = content; // Server sends accumulated text
+            UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
+          }
+        } else if (event.type === 'tool_start' || event.type === 'tool_output' || event.type === 'tool_end') {
+          // Forward trace events to the correct arm's container
+          const showTrace = this.state.traceVerboseMode !== 'minimal';
+          if (showTrace) {
+            if (event.type === 'tool_start') UI.renderToolStart(targetId, event);
+            else if (event.type === 'tool_output') {
+              UI.renderToolOutput(targetId, event);
+              UI.renderToolEnd(targetId, { tool_call_id: event.tool_call_id, status: 'success' });
+            } else if (event.type === 'tool_end') {
+              UI.renderToolEnd(targetId, event);
+            }
+          }
+        } else if (event.type === 'step' && event.step_type === 'agent') {
+          const content = event.content || '';
+          if (content) {
+            armTexts[arm] = content;
+            UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
+          }
+        } else if (event.type === 'final') {
+          const finalText = event.response || armTexts[arm];
+          armTexts[arm] = finalText;
+          UI.updateABResponse(targetId, Markdown.render(finalText), false);
+        }
+      }
+
+      // Finalize both arms
+      UI.updateABResponse(msgIdA, Markdown.render(armTexts.a), false);
+      UI.updateABResponse(msgIdB, Markdown.render(armTexts.b), false);
+
+      // Set up voting if we got a comparison_id
+      if (abMeta?.comparison_id) {
+        this.state.activeABComparison = {
+          comparisonId: abMeta.comparison_id,
+          responseAId: abMeta.arm_a_message_id,
+          responseBId: abMeta.arm_b_message_id,
+          responseAText: armTexts.a,
+          responseBText: armTexts.b,
+          variantA: abMeta.arm_a_variant,
+          variantB: abMeta.arm_b_variant,
+        };
+        this.state.abVotePending = true;
+        UI.showABVoteButtons(abMeta.comparison_id);
+      }
+
+      // Highlight code
+      if (typeof hljs !== 'undefined') {
+        setTimeout(() => hljs.highlightAll(), 0);
+      }
+
+    } catch (e) {
+      console.error('Pool A/B comparison error:', e);
+      UI.showABError(e.message || 'Failed to create pool comparison');
       this.state.isStreaming = false;
       UI.setInputDisabled(false);
       UI.setStreamingState(false);

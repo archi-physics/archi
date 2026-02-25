@@ -2064,6 +2064,36 @@ body {
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
+   A/B Pool Banner
+   ----------------------------------------------------------------------------- */
+.ab-pool-banner {
+  background: var(--bg-secondary, #f0f4f8);
+  border: 1px solid var(--border-color, #d1d9e6);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.ab-pool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5a6a7a);
+}
+
+.ab-pool-info strong {
+  color: var(--text-primary, #1a2a3a);
+  font-size: 0.9rem;
+}
+
+.ab-pool-info em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--accent-color, #4a7eff);
+}
+
+/* -----------------------------------------------------------------------------
    A/B Comparison Container - Side-by-Side Layout
    ----------------------------------------------------------------------------- */
 .ab-comparison {

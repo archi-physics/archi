@@ -20,6 +20,9 @@ from src.utils.sql import (
     SQL_GET_PENDING_AB_COMPARISON,
     SQL_DELETE_AB_COMPARISON,
     SQL_GET_AB_COMPARISONS_BY_CONVERSATION,
+    SQL_UPSERT_VARIANT_METRIC,
+    SQL_GET_ALL_VARIANT_METRICS,
+    SQL_GET_VARIANT_METRIC,
 )
 
 
@@ -50,6 +53,10 @@ class ABComparison:
     pipeline_a: str = ""
     model_b: str = ""
     pipeline_b: str = ""
+    variant_a_name: Optional[str] = None
+    variant_b_name: Optional[str] = None
+    variant_a_meta: Optional[str] = None  # JSONB as string
+    variant_b_meta: Optional[str] = None  # JSONB as string
     is_config_a_first: bool = True  # Which response shown first in UI
     preference: Optional[str] = None  # 'a', 'b', 'tie', or None
     preference_ts: Optional[datetime] = None
@@ -267,6 +274,10 @@ class ConversationService:
         model_b: str,
         pipeline_b: str,
         is_config_a_first: bool = True,
+        variant_a_name: Optional[str] = None,
+        variant_b_name: Optional[str] = None,
+        variant_a_meta: Optional[str] = None,
+        variant_b_meta: Optional[str] = None,
     ) -> int:
         """
         Create a new A/B comparison.
@@ -281,6 +292,10 @@ class ConversationService:
             model_b: Model identifier for response B
             pipeline_b: Pipeline identifier for response B
             is_config_a_first: Whether response A shown first
+            variant_a_name: Pool variant name for arm A (optional)
+            variant_b_name: Pool variant name for arm B (optional)
+            variant_a_meta: JSONB string of variant A config snapshot (optional)
+            variant_b_meta: JSONB string of variant B config snapshot (optional)
             
         Returns:
             comparison_id
@@ -299,6 +314,10 @@ class ConversationService:
                         pipeline_a,
                         model_b,
                         pipeline_b,
+                        variant_a_name,
+                        variant_b_name,
+                        variant_a_meta,
+                        variant_b_meta,
                         is_config_a_first,
                     )
                 )
@@ -369,10 +388,14 @@ class ConversationService:
                     pipeline_a=row[6],
                     model_b=row[7],
                     pipeline_b=row[8],
-                    is_config_a_first=row[9],
-                    preference=row[10],
-                    preference_ts=row[11],
-                    created_at=row[12],
+                    variant_a_name=row[9],
+                    variant_b_name=row[10],
+                    variant_a_meta=row[11],
+                    variant_b_meta=row[12],
+                    is_config_a_first=row[13],
+                    preference=row[14],
+                    preference_ts=row[15],
+                    created_at=row[16],
                 )
         finally:
             self._release_connection(conn)
@@ -409,10 +432,14 @@ class ConversationService:
                     pipeline_a=row[6],
                     model_b=row[7],
                     pipeline_b=row[8],
-                    is_config_a_first=row[9],
-                    preference=row[10],
-                    preference_ts=row[11],
-                    created_at=row[12],
+                    variant_a_name=row[9],
+                    variant_b_name=row[10],
+                    variant_a_meta=row[11],
+                    variant_b_meta=row[12],
+                    is_config_a_first=row[13],
+                    preference=row[14],
+                    preference_ts=row[15],
+                    created_at=row[16],
                 )
         finally:
             self._release_connection(conn)
@@ -450,10 +477,14 @@ class ConversationService:
                         pipeline_a=row[6],
                         model_b=row[7],
                         pipeline_b=row[8],
-                        is_config_a_first=row[9],
-                        preference=row[10],
-                        preference_ts=row[11],
-                        created_at=row[12],
+                        variant_a_name=row[9],
+                        variant_b_name=row[10],
+                        variant_a_meta=row[11],
+                        variant_b_meta=row[12],
+                        is_config_a_first=row[13],
+                        preference=row[14],
+                        preference_ts=row[15],
+                        created_at=row[16],
                     )
                     for row in rows
                 ]
@@ -614,6 +645,69 @@ class ConversationService:
                         "pipeline": row[1],
                         "message_count": row[2],
                         "conversation_count": row[3],
+                    }
+                    for row in rows
+                ]
+        finally:
+            self._release_connection(conn)
+
+    # =========================================================================
+    # A/B Variant Metrics
+    # =========================================================================
+
+    def update_variant_metrics_for_preference(
+        self,
+        variant_a_name: str,
+        variant_b_name: str,
+        preference: str,
+    ) -> None:
+        """
+        Atomically update win/loss/tie counts for both variants after a vote.
+
+        Args:
+            variant_a_name: Name of variant in arm A
+            variant_b_name: Name of variant in arm B
+            preference: 'a', 'b', or 'tie'
+        """
+        if not variant_a_name or not variant_b_name:
+            return  # Not a pool-based comparison; skip metrics
+
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                if preference == "a":
+                    # A wins, B loses
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_a_name, 1, 0, 0, 1))
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_b_name, 0, 1, 0, 1))
+                elif preference == "b":
+                    # B wins, A loses
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_a_name, 0, 1, 0, 1))
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_b_name, 1, 0, 0, 1))
+                elif preference == "tie":
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_a_name, 0, 0, 1, 1))
+                    cur.execute(SQL_UPSERT_VARIANT_METRIC, (variant_b_name, 0, 0, 1, 1))
+                conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            self._release_connection(conn)
+
+    def get_all_variant_metrics(self) -> List[Dict[str, Any]]:
+        """Return all variant metrics rows."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(SQL_GET_ALL_VARIANT_METRICS)
+                rows = cur.fetchall()
+                return [
+                    {
+                        "variant_name": row[0],
+                        "wins": row[1],
+                        "losses": row[2],
+                        "ties": row[3],
+                        "total_comparisons": row[4],
+                        "last_updated": row[5].isoformat() if row[5] else None,
                     }
                     for row in rows
                 ]

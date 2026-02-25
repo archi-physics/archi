@@ -61,6 +61,7 @@ from src.utils.sql import (
 )
 from src.interfaces.chat_app.document_utils import *
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
+from src.utils.ab_testing import ABPool, ABVariant, ABPoolError, load_ab_pool
 
 
 logger = get_logger(__name__)
@@ -252,6 +253,18 @@ class ChatWrapper:
         # activate default config
         if self.default_config_name:
             self.update_config(config_name=self.default_config_name)
+
+        # A/B testing pool (loaded from config; None if not configured)
+        try:
+            self.ab_pool = load_ab_pool(self.config)
+        except ABPoolError as exc:
+            logger.error("Failed to load A/B testing pool: %s", exc)
+            self.ab_pool = None
+        if self.ab_pool:
+            logger.info(
+                "A/B pool active: %d variants, champion='%s'",
+                len(self.ab_pool.variants), self.ab_pool.champion_name,
+            )
 
     def update_config(self, config_name=None):
         """
@@ -701,12 +714,18 @@ class ChatWrapper:
                 'user_prompt_mid': row[2],
                 'response_a_mid': row[3],
                 'response_b_mid': row[4],
-                'config_a_id': row[5],
-                'config_b_id': row[6],
-                'is_config_a_first': row[7],
-                'preference': row[8],
-                'preference_ts': row[9].isoformat() if row[9] else None,
-                'created_at': row[10].isoformat() if row[10] else None,
+                'model_a': row[5],
+                'pipeline_a': row[6],
+                'model_b': row[7],
+                'pipeline_b': row[8],
+                'variant_a_name': row[9],
+                'variant_b_name': row[10],
+                'variant_a_meta': row[11],
+                'variant_b_meta': row[12],
+                'is_config_a_first': row[13],
+                'preference': row[14],
+                'preference_ts': row[15].isoformat() if row[15] else None,
+                'created_at': row[16].isoformat() if row[16] else None,
             }
         finally:
             cursor.close()
@@ -732,12 +751,18 @@ class ChatWrapper:
                 'user_prompt_mid': row[2],
                 'response_a_mid': row[3],
                 'response_b_mid': row[4],
-                'config_a_id': row[5],
-                'config_b_id': row[6],
-                'is_config_a_first': row[7],
-                'preference': row[8],
-                'preference_ts': row[9].isoformat() if row[9] else None,
-                'created_at': row[10].isoformat() if row[10] else None,
+                'model_a': row[5],
+                'pipeline_a': row[6],
+                'model_b': row[7],
+                'pipeline_b': row[8],
+                'variant_a_name': row[9],
+                'variant_b_name': row[10],
+                'variant_a_meta': row[11],
+                'variant_b_meta': row[12],
+                'is_config_a_first': row[13],
+                'preference': row[14],
+                'preference_ts': row[15].isoformat() if row[15] else None,
+                'created_at': row[16].isoformat() if row[16] else None,
             }
         finally:
             cursor.close()
@@ -782,12 +807,18 @@ class ChatWrapper:
                     'user_prompt_mid': row[2],
                     'response_a_mid': row[3],
                     'response_b_mid': row[4],
-                    'config_a_id': row[5],
-                    'config_b_id': row[6],
-                    'is_config_a_first': row[7],
-                    'preference': row[8],
-                    'preference_ts': row[9].isoformat() if row[9] else None,
-                    'created_at': row[10].isoformat() if row[10] else None,
+                    'model_a': row[5],
+                    'pipeline_a': row[6],
+                    'model_b': row[7],
+                    'pipeline_b': row[8],
+                    'variant_a_name': row[9],
+                    'variant_b_name': row[10],
+                    'variant_a_meta': row[11],
+                    'variant_b_meta': row[12],
+                    'is_config_a_first': row[13],
+                    'preference': row[14],
+                    'preference_ts': row[15].isoformat() if row[15] else None,
+                    'created_at': row[16].isoformat() if row[16] else None,
                 }
                 for row in rows
             ]
@@ -1264,6 +1295,57 @@ class ChatWrapper:
             logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
             raise
 
+    def _create_variant_archi(self, variant: "ABVariant") -> "archi":
+        """
+        Build a temporary archi instance configured for a specific A/B variant.
+
+        Falls back to the deployment defaults for any field the variant doesn't override.
+        """
+        chat_cfg = self.services_config.get("chat_app", {})
+        agents_dir = Path(chat_cfg.get("agents_dir", "/root/archi/agents"))
+
+        # Resolve agent spec
+        variant_agent_spec = self.agent_spec  # default
+        if variant.agent_spec:
+            try:
+                spec_path = agents_dir / variant.agent_spec
+                if not spec_path.exists():
+                    spec_path = Path(variant.agent_spec)
+                variant_agent_spec = load_agent_spec(spec_path)
+            except Exception as exc:
+                logger.warning(
+                    "Variant '%s': failed to load agent spec '%s', using default: %s",
+                    variant.name, variant.agent_spec, exc,
+                )
+
+        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        default_provider = variant.provider or chat_cfg.get("default_provider")
+        default_model = variant.model or chat_cfg.get("default_model")
+        prompt_overrides = chat_cfg.get("prompts", {})
+
+        variant_archi = archi(
+            pipeline=agent_class,
+            agent_spec=variant_agent_spec,
+            default_provider=default_provider,
+            default_model=default_model,
+            prompt_overrides=prompt_overrides,
+        )
+
+        # Apply retriever overrides if specified
+        if variant.num_documents_to_retrieve is not None and hasattr(variant_archi, 'pipeline'):
+            pipeline = variant_archi.pipeline
+            if hasattr(pipeline, 'pipeline_config'):
+                pipeline.pipeline_config['num_documents_to_retrieve'] = variant.num_documents_to_retrieve
+
+        if variant.recursion_limit is not None and hasattr(variant_archi, 'pipeline'):
+            pipeline = variant_archi.pipeline
+            if hasattr(pipeline, 'recursion_limit'):
+                pipeline.recursion_limit = variant.recursion_limit
+            elif hasattr(pipeline, 'pipeline_config'):
+                pipeline.pipeline_config['recursion_limit'] = variant.recursion_limit
+
+        return variant_archi
+
     def _prepare_chat_context(
         self,
         message: List[str],
@@ -1322,6 +1404,218 @@ class ChatWrapper:
         if max_chars and len(text) > max_chars:
             return text[: max_chars - 3].rstrip() + "..."
         return text
+
+    # =========================================================================
+    # Pool-based A/B Comparison Streaming
+    # =========================================================================
+
+    def stream_ab_comparison(
+        self,
+        message: List[str],
+        conversation_id: int | None,
+        client_id: str,
+        is_refresh: bool,
+        server_received_msg_ts: datetime,
+        client_sent_msg_ts: float,
+        client_timeout: float,
+        config_name: str,
+    ) -> Iterator[Dict[str, Any]]:
+        """
+        Stream a champion/challenger A/B comparison.
+
+        Yields interleaved NDJSON events tagged with ``arm: 'a'`` or ``arm: 'b'``.
+        A final ``ab_meta`` event carries the comparison_id and variant mapping.
+        """
+        import concurrent.futures
+
+        if not self.ab_pool:
+            yield {"type": "error", "message": "A/B pool not configured"}
+            return
+
+        # Sample matchup
+        arm_a_variant, arm_b_variant, is_champion_first = self.ab_pool.sample_matchup()
+        logger.info(
+            "A/B matchup: arm_a='%s' arm_b='%s' champion_first=%s",
+            arm_a_variant.name, arm_b_variant.name, is_champion_first,
+        )
+
+        # Prepare chat context (shared — same user message for both arms)
+        timestamps = self._init_timestamps()
+        context, error_code = self._prepare_chat_context(
+            message,
+            conversation_id,
+            client_id,
+            is_refresh,
+            server_received_msg_ts,
+            client_sent_msg_ts,
+            client_timeout,
+            timestamps,
+        )
+        if error_code is not None:
+            error_message = "server error; see chat logs for message"
+            if error_code == 408:
+                error_message = "client timeout"
+            elif error_code == 403:
+                error_message = "conversation not found"
+            yield {"type": "error", "status": error_code, "message": error_message}
+            return
+
+        # Build variant archis
+        try:
+            archi_a = self._create_variant_archi(arm_a_variant)
+            archi_b = self._create_variant_archi(arm_b_variant)
+        except Exception as exc:
+            logger.error("Failed to create variant pipelines: %s", exc)
+            yield {"type": "error", "message": f"Failed to initialise A/B variants: {exc}"}
+            return
+
+        # We'll collect the streaming results from both arms
+        arm_a_final_text = ""
+        arm_b_final_text = ""
+        arm_a_error = None
+        arm_b_error = None
+
+        def _collect_arm_events(arm_archi, arm_label):
+            """Run one arm's stream in a thread, collecting events."""
+            events = []
+            final_text = ""
+            try:
+                vs = self.archi.vs_connector.get_vectorstore()
+                for output in arm_archi.pipeline.stream(
+                    history=context.history,
+                    conversation_id=context.conversation_id,
+                    vectorstore=vs,
+                ):
+                    if not isinstance(output, PipelineOutput):
+                        continue
+                    event_type = output.metadata.get("event_type", "text") if output.metadata else "text"
+                    text = output.answer or ""
+                    if event_type == "text" and text:
+                        final_text = text
+                    events.append({
+                        "type": event_type,
+                        "arm": arm_label,
+                        "content": text,
+                        "metadata": {k: v for k, v in (output.metadata or {}).items()
+                                     if k not in ("event_type",)} if output.metadata else {},
+                    })
+            except Exception as exc:
+                events.append({"type": "error", "arm": arm_label, "message": str(exc)})
+            return events, final_text
+
+        # Stream both arms in parallel using threads
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_a = executor.submit(_collect_arm_events, archi_a, "a")
+            future_b = executor.submit(_collect_arm_events, archi_b, "b")
+
+            events_a, arm_a_final_text = future_a.result()
+            events_b, arm_b_final_text = future_b.result()
+
+        # Check for errors
+        arm_a_error = next((e for e in events_a if e.get("type") == "error"), None)
+        arm_b_error = next((e for e in events_b if e.get("type") == "error"), None)
+
+        if arm_a_error and arm_b_error:
+            yield {"type": "error", "message": "Both A/B arms failed", "arm_a_error": arm_a_error.get("message"), "arm_b_error": arm_b_error.get("message")}
+            return
+
+        if arm_a_error or arm_b_error:
+            # One arm failed — don't create comparison, just yield the error
+            yield {"type": "error", "message": "One A/B arm failed", "failed_arm": "a" if arm_a_error else "b", "error": (arm_a_error or arm_b_error).get("message")}
+            return
+
+        # Yield interleaved events
+        for event in events_a:
+            yield event
+        for event in events_b:
+            yield event
+
+        # Store both responses as messages
+        arm_a_mid = self._store_assistant_message(
+            context.conversation_id,
+            arm_a_final_text,
+            model_used=f"{arm_a_variant.provider or ''}/{arm_a_variant.model or ''}".strip("/"),
+            pipeline_used=self.current_pipeline_used,
+        )
+        arm_b_mid = self._store_assistant_message(
+            context.conversation_id,
+            arm_b_final_text,
+            model_used=f"{arm_b_variant.provider or ''}/{arm_b_variant.model or ''}".strip("/"),
+            pipeline_used=self.current_pipeline_used,
+        )
+
+        # Get user prompt message ID (the last user message)
+        user_prompt_mid = self._get_last_user_message_id(context.conversation_id)
+
+        # Create comparison record
+        try:
+            from src.utils.conversation_service import ConversationService
+            conv_service = ConversationService(connection_params=self.pg_config)
+            comparison_id = conv_service.create_ab_comparison(
+                conversation_id=context.conversation_id,
+                user_prompt_mid=user_prompt_mid or 0,
+                response_a_mid=arm_a_mid or 0,
+                response_b_mid=arm_b_mid or 0,
+                model_a=f"{arm_a_variant.provider or ''}/{arm_a_variant.model or ''}".strip("/"),
+                pipeline_a=self.current_pipeline_used or "",
+                model_b=f"{arm_b_variant.provider or ''}/{arm_b_variant.model or ''}".strip("/"),
+                pipeline_b=self.current_pipeline_used or "",
+                is_config_a_first=is_champion_first,
+                variant_a_name=arm_a_variant.name,
+                variant_b_name=arm_b_variant.name,
+                variant_a_meta=arm_a_variant.to_meta_json(),
+                variant_b_meta=arm_b_variant.to_meta_json(),
+            )
+        except Exception as exc:
+            logger.error("Failed to create A/B comparison record: %s", exc)
+            comparison_id = None
+
+        # Emit final metadata event
+        yield {
+            "type": "ab_meta",
+            "comparison_id": comparison_id,
+            "arm_a_variant": arm_a_variant.name,
+            "arm_b_variant": arm_b_variant.name,
+            "is_champion_first": is_champion_first,
+            "arm_a_message_id": arm_a_mid,
+            "arm_b_message_id": arm_b_mid,
+        }
+
+    def _store_assistant_message(self, conversation_id, content, model_used=None, pipeline_used=None):
+        """Store an assistant message and return the message_id."""
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            insert_tups = [
+                ("chat", conversation_id, "archi", content, None, None, datetime.now(), model_used, pipeline_used),
+            ]
+            psycopg2.extras.execute_values(cursor, SQL_INSERT_CONVO, insert_tups)
+            row = cursor.fetchone()
+            mid = row[0] if row else None
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return mid
+        except Exception as exc:
+            logger.error("Failed to store assistant message: %s", exc)
+            return None
+
+    def _get_last_user_message_id(self, conversation_id):
+        """Get the most recent user message_id for a conversation."""
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT message_id FROM conversations WHERE conversation_id = %s AND sender = 'User' ORDER BY ts DESC LIMIT 1",
+                (conversation_id,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            return row[0] if row else None
+        except Exception as exc:
+            logger.error("Failed to get user message id: %s", exc)
+            return None
 
     def _stream_events_from_output(
         self,
@@ -2126,6 +2420,9 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/ab/create', 'ab_create', self.require_auth(self.ab_create_comparison), methods=["POST"])
         self.add_endpoint('/api/ab/preference', 'ab_preference', self.require_auth(self.ab_submit_preference), methods=["POST"])
         self.add_endpoint('/api/ab/pending', 'ab_pending', self.require_auth(self.ab_get_pending), methods=["GET"])
+        self.add_endpoint('/api/ab/pool', 'ab_pool', self.require_auth(self.ab_get_pool), methods=["GET"])
+        self.add_endpoint('/api/ab/compare', 'ab_compare', self.require_auth(self.ab_compare_stream), methods=["POST"])
+        self.add_endpoint('/api/ab/metrics', 'ab_metrics', self.require_auth(self.ab_get_metrics), methods=["GET"])
 
         # Agent trace endpoints
         logger.info("Adding agent trace API endpoints")
@@ -3759,6 +4056,20 @@ class FlaskAppWrapper(object):
             # Update the preference
             self.chat.update_ab_preference(comparison_id, preference)
 
+            # Update variant-level aggregate metrics (pool-based comparisons only)
+            try:
+                comparison = self.chat.get_ab_comparison(comparison_id)
+                if comparison:
+                    va = comparison.get('variant_a_name')
+                    vb = comparison.get('variant_b_name')
+                    if va and vb:
+                        conv_service = ConversationService(connection_params=self.chat.pg_config)
+                        conv_service.update_variant_metrics_for_preference(va, vb, preference)
+                        logger.info(f"Updated variant metrics for {va} vs {vb}, preference={preference}")
+            except Exception as metrics_err:
+                # Metrics are best-effort; don't fail the preference submission
+                logger.warning(f"Failed to update variant metrics: {metrics_err}")
+
             return jsonify({
                 'success': True,
                 'comparison_id': comparison_id,
@@ -3800,6 +4111,89 @@ class FlaskAppWrapper(object):
 
         except Exception as e:
             logger.error(f"Error getting pending A/B comparison: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def ab_get_pool(self):
+        """
+        Get A/B testing pool configuration.
+
+        Returns:
+            JSON with pool info (enabled, champion, variant names) or enabled=false.
+        """
+        try:
+            pool = self.chat.ab_pool
+            if pool:
+                return jsonify({'success': True, **pool.pool_info()}), 200
+            else:
+                return jsonify({'success': True, 'enabled': False}), 200
+        except Exception as e:
+            logger.error(f"Error getting A/B pool: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def ab_compare_stream(self):
+        """
+        Stream a pool-based A/B comparison (champion vs challenger).
+
+        POST body:
+        - message: [sender, content] pair
+        - conversation_id: The conversation ID (optional)
+        - client_id: Client ID for authorization
+        - config_name: Config name (optional)
+
+        Returns:
+            NDJSON stream with arm-tagged events.
+        """
+        server_received_msg_ts = datetime.now()
+        request_data = self._parse_chat_request()
+
+        message = request_data["message"]
+        conversation_id = request_data["conversation_id"]
+        config_name = request_data["config_name"]
+        is_refresh = request_data["is_refresh"]
+        client_sent_msg_ts = request_data["client_sent_msg_ts"]
+        client_timeout = request_data["client_timeout"]
+        client_id = request_data["client_id"]
+
+        if not client_id:
+            return jsonify({"error": "client_id missing"}), 400
+
+        def _event_stream() -> Iterator[str]:
+            padding = " " * 2048
+            yield json.dumps({"type": "meta", "event": "stream_started", "padding": padding}) + "\n"
+            for event in self.chat.stream_ab_comparison(
+                message,
+                conversation_id,
+                client_id,
+                is_refresh,
+                server_received_msg_ts,
+                client_sent_msg_ts,
+                client_timeout,
+                config_name,
+            ):
+                yield json.dumps(event, default=str) + "\n"
+
+        headers = {
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity",
+            "Content-Type": "application/x-ndjson",
+        }
+        return Response(stream_with_context(_event_stream()), headers=headers)
+
+    def ab_get_metrics(self):
+        """
+        Get per-variant A/B testing metrics.
+
+        Returns:
+            JSON with variant metrics (wins, losses, ties, total).
+        """
+        try:
+            from src.utils.conversation_service import ConversationService
+            conv_service = ConversationService(connection_params=self.chat.pg_config)
+            metrics = conv_service.get_all_variant_metrics()
+            return jsonify({'success': True, 'metrics': metrics}), 200
+        except Exception as e:
+            logger.error(f"Error getting A/B metrics: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
     # =========================================================================
