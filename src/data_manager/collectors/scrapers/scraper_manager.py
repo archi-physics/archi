@@ -54,6 +54,10 @@ class ScraperManager:
 
         self.sso_enabled = bool(sso_config.get("enabled", False))
 
+        elog_config = sources_config.get("elog", {}) if isinstance(sources_config, dict) else {}
+        self.elog_config = elog_config if isinstance(elog_config, dict) else {}
+        self.elog_enabled = bool(self.elog_config.get("url"))
+
         self.data_path = Path(global_config["DATA_PATH"])
         self.input_lists = links_config.get("input_lists", [])
         self.git_dir = self.data_path / "git"
@@ -70,7 +74,7 @@ class ScraperManager:
         self, persistence: PersistenceService
     ) -> None:
         """Run the configured scrapers and persist their output."""
-        link_urls, git_urls, sso_urls = self._collect_urls_from_lists_by_type(self.input_lists)
+        link_urls, git_urls, sso_urls, elog_urls = self._collect_urls_from_lists_by_type(self.input_lists)
 
         if git_urls:
             self.git_enabled = True
@@ -81,6 +85,7 @@ class ScraperManager:
         self.collect_links(persistence, link_urls=link_urls)
         self.collect_sso(persistence, sso_urls=sso_urls)
         self.collect_git(persistence, git_urls=git_urls)
+        self.collect_elog(persistence, extra_urls=elog_urls)
 
         logger.info("Web scraping was completed successfully")
 
@@ -151,6 +156,34 @@ class ScraperManager:
         metadata = persistence.catalog.get_metadata_by_filter("source_type", source_type="sso", metadata_keys=["url"])
         catalog_urls = [m[1].get("url", "") for m in metadata]
         self.collect_sso(persistence, sso_urls=catalog_urls)
+
+    def collect_elog(self, persistence: PersistenceService, extra_urls: List[str] = []) -> int:
+        """Collect all entries from configured ELOG logbooks.
+
+        Sources:
+          - dedicated  ``elog:`` config section (url key)
+          - URLs auto-detected as ELOG from input_lists (passed via extra_urls)
+        """
+        from src.data_manager.collectors.scrapers.integrations.elog_scraper import ElogScraper
+        elog_dir = persistence.data_path / "websites"
+        elog_dir.mkdir(parents=True, exist_ok=True)
+
+        urls_to_scrape: List[str] = list(extra_urls)
+        if self.elog_enabled:
+            urls_to_scrape.append(self.elog_config.get("url"))
+
+        if not urls_to_scrape:
+            return 0
+
+        total = 0
+        for url in urls_to_scrape:
+            cfg = {**self.elog_config, "url": url}
+            scraper = ElogScraper(cfg)
+            for resource in scraper.iter_entries():
+                persistence.persist_resource(resource, elog_dir)
+                total += 1
+        logger.info(f"ELOG scraping complete: {total} entries collected")
+        return total
 
     def _collect_links_from_urls(
         self,
@@ -261,11 +294,12 @@ class ScraperManager:
 
         return urls
 
-    def _collect_urls_from_lists_by_type(self, input_lists: List[str]) -> tuple[List[str], List[str], List[str]]:
-        """All types of URLs are in the same input lists, separate them via prefixes"""
+    def _collect_urls_from_lists_by_type(self, input_lists: List[str]) -> tuple[List[str], List[str], List[str], List[str]]:
+        """All types of URLs are in the same input lists, separate them via prefixes or auto-detection."""
         link_urls: List[str] = []
-        git_urls: List[str] = []
-        sso_urls: List[str] = []
+        git_urls:  List[str] = []
+        sso_urls:  List[str] = []
+        elog_urls: List[str] = []
         for raw_url in self._collect_urls_from_lists(input_lists):
             if raw_url.startswith("git-"):
                 git_urls.append(raw_url.split("git-", 1)[1])
@@ -273,8 +307,23 @@ class ScraperManager:
             if raw_url.startswith("sso-"):
                 sso_urls.append(raw_url.split("sso-", 1)[1])
                 continue
+            if raw_url.startswith("elog-"):
+                elog_urls.append(raw_url.split("elog-", 1)[1])
+                continue
+            if self._is_elog_url(raw_url):
+                elog_urls.append(raw_url)
+                continue
             link_urls.append(raw_url)
-        return link_urls, git_urls, sso_urls
+        return link_urls, git_urls, sso_urls, elog_urls
+
+    @staticmethod
+    def _is_elog_url(url: str) -> bool:
+        """Return True if the URL looks like an ELOG logbook index (fallback heuristic).
+        Prefer the explicit 'elog-' prefix in input lists over this auto-detection.
+        """
+        from urllib.parse import urlparse
+        path = urlparse(url).path.lower()
+        return "/elog/" in path or "/elogs/" in path
     def _resolve_scraper(self):
         class_name = self.selenium_config.get("selenium_class")
         class_map = self.selenium_config.get("selenium_class_map", {})
