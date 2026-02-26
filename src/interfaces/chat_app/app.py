@@ -2182,9 +2182,9 @@ class FlaskAppWrapper(object):
 
         # Database viewer endpoints (admin only)
         logger.info("Adding database viewer API endpoints")
-        self.add_endpoint('/admin/database', 'database_viewer_page', self.require_auth(self.database_viewer_page))
-        self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_auth(self.list_database_tables), methods=["GET"])
-        self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_auth(self.run_database_query), methods=["POST"])
+        self.add_endpoint('/admin/database', 'database_viewer_page', self.require_perm('database:admin')(self.database_viewer_page))
+        self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_perm('database:admin')(self.list_database_tables), methods=["GET"])
+        self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_perm('database:admin')(self.run_database_query), methods=["POST"])
 
         # add unified auth endpoints
         if self.auth_enabled:
