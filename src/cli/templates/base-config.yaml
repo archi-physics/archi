@@ -69,16 +69,7 @@ services:
     skills_dir: "{{ services.chat_app.skills_dir | default('', true) }}"
     tools: {{ services.chat_app.tools | default({}, true) | tojson }}
     prompts: {{ services.chat_app.prompts | default({}, true) }}
-    providers:
-      local:
-        enabled: {{ services.chat_app.providers.local.enabled | default(true, true) }}
-        base_url: {{ services.chat_app.providers.local.base_url | default("http://localhost:11434", true) }}
-        mode: {{ services.chat_app.providers.local.mode | default("ollama", true) }}
-        default_model: {{ services.chat_app.providers.local.default_model | default("llama3.2", true) }}
-        models:
-          {%- for m in services.chat_app.providers.local.models | default(["llama3.2"]) %}
-          - {{ m }}
-          {%- endfor %}
+    providers: {{ services.chat_app.providers | default({"local": {"enabled": true, "base_url": "http://localhost:11434", "mode": "ollama", "default_model": "llama3.2", "models": ["llama3.2"]}}) | tojson }}
     trained_on: {{ services.chat_app.trained_on | default("No description provided.", true) }} # leaving for now for backwards compatibility can remove later
     port: {{ services.chat_app.port | default(7861, true) }}
     external_port: {{ services.chat_app.external_port | default(7861, true) }}

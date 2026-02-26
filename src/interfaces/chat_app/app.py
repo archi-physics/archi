@@ -89,6 +89,48 @@ def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider
         extra_kwargs=extra,
     )
 
+
+def _is_provider_enabled_in_config(config_payload: Dict[str, Any], provider_type: ProviderType) -> tuple[bool, Optional[str]]:
+    """
+    Return whether a provider is explicitly enabled by chat_app config.
+
+    Only explicit `enabled: false` inside `services.chat_app.providers.<provider>`
+    disables request-time overrides. Missing provider blocks remain allowed for
+    backward compatibility.
+    """
+    services_cfg = config_payload.get("services", {}) if isinstance(config_payload, dict) else {}
+    chat_cfg = services_cfg.get("chat_app", {}) if isinstance(services_cfg, dict) else {}
+    providers_cfg = chat_cfg.get("providers", {}) if isinstance(chat_cfg, dict) else {}
+    provider_cfg = providers_cfg.get(provider_type.value, {})
+
+    if isinstance(provider_cfg, dict) and provider_cfg.get("enabled") is False:
+        return False, f"Provider '{provider_type.value}' is disabled in services.chat_app.providers.{provider_type.value}.enabled"
+    return True, None
+
+
+def _validate_default_provider_enabled(config_payload: Dict[str, Any]) -> None:
+    """
+    Ensure services.chat_app.default_provider is not explicitly disabled.
+    """
+    services_cfg = config_payload.get("services", {}) if isinstance(config_payload, dict) else {}
+    chat_cfg = services_cfg.get("chat_app", {}) if isinstance(services_cfg, dict) else {}
+    default_provider = chat_cfg.get("default_provider")
+    if not default_provider:
+        return
+
+    try:
+        provider_type = ProviderType(str(default_provider).lower())
+    except ValueError:
+        # Existing provider-type validation paths handle unknown providers.
+        return
+
+    is_enabled, disabled_reason = _is_provider_enabled_in_config(config_payload, provider_type)
+    if not is_enabled:
+        raise ValueError(
+            f"services.chat_app.default_provider='{provider_type.value}' is invalid because it is disabled. "
+            f"{disabled_reason}"
+        )
+
 def _config_names():
     cfg = get_full_config()
     return [cfg.get("name", "default")]
@@ -226,6 +268,7 @@ class ChatWrapper:
         agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
         if not agent_class:
             raise ValueError("services.chat_app.agent_class must be configured.")
+        _validate_default_provider_enabled(self.config)
         default_provider = chat_cfg.get("default_provider")
         default_model = chat_cfg.get("default_model")
         prompt_overrides = chat_cfg.get("prompts", {})
@@ -297,6 +340,7 @@ class ChatWrapper:
         agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
         if not agent_class:
             raise ValueError("services.chat_app.agent_class must be configured.")
+        _validate_default_provider_enabled(config_payload)
 
         model_name = self._extract_model_name(config_payload)
         
@@ -1236,8 +1280,13 @@ class ChatWrapper:
         try:
             from src.archi.providers import get_provider
 
+            provider_type = ProviderType(provider)
+            is_enabled, disabled_reason = _is_provider_enabled_in_config(self.config, provider_type)
+            if not is_enabled:
+                raise ValueError(disabled_reason or f"Provider '{provider}' is disabled by configuration")
+
             # Build provider config from YAML so base_url/mode/default_model are respected
-            cfg = _build_provider_config_from_payload(self.config, ProviderType(provider))
+            cfg = _build_provider_config_from_payload(self.config, provider_type)
             provider_instance = get_provider(provider, config=cfg, use_cache=False) if cfg else get_provider(provider)
             if api_key:
                 provider_instance.set_api_key(api_key)
@@ -1609,6 +1658,9 @@ class ChatWrapper:
                         logger.info(f"Overrode pipeline LLM with {provider}/{model}")
                 except Exception as e:
                     logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
+                    if isinstance(e, ValueError):
+                        yield {"type": "error", "status": 400, "message": str(e)}
+                        return
                     yield {"type": "warning", "message": f"Using default model: {e}"}
             
             # Create trace for this streaming request

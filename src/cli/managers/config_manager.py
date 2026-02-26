@@ -171,6 +171,18 @@ class ConfigurationManager:
             if not list(agents_dir.glob("*.md")):
                 raise ValueError(f"agents_dir must contain at least one .md file: '{agents_dir}'")
 
+        # Guard against self-contradictory provider config:
+        # default_provider cannot be explicitly disabled in providers.<name>.enabled.
+        default_provider = str(chat_cfg.get("default_provider", "")).strip().lower()
+        providers_cfg = chat_cfg.get("providers", {}) or {}
+        default_provider_cfg = providers_cfg.get(default_provider, {}) if isinstance(providers_cfg, dict) else {}
+        if isinstance(default_provider_cfg, dict) and default_provider_cfg.get("enabled") is False:
+            raise ValueError(
+                "Invalid chat config: services.chat_app.default_provider "
+                f"'{default_provider}' is explicitly disabled via "
+                f"services.chat_app.providers.{default_provider}.enabled=false"
+            )
+
     def _validate_benchmarking_config(self, config: Dict[str, Any], services: List[str]) -> None:
         if not services or "benchmarking" not in services:
             return
