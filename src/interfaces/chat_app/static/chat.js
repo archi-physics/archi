@@ -1974,9 +1974,12 @@ const UI = {
             <div class="trace-header" onclick="UI.toggleTraceExpanded('${id}')">
               ${traceIconSvg}
               <span class="trace-label">Agent Activity</span>
+              <span class="trace-timer" data-start="${Date.now()}">0.0s</span>
               <span class="toggle-icon">▼</span>
             </div>
-            <div class="trace-content"></div>
+            <div class="trace-content">
+              <div class="step-timeline"></div>
+            </div>
           </div>` : '';
 
     // Use normal message structure for each arm — looks like two regular chat messages side by side
@@ -3456,6 +3459,12 @@ const Chat = {
           if (content) {
             armTexts[arm] = content; // Server sends accumulated text
             UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
+          }
+        } else if (event.type === 'thinking_start' || event.type === 'thinking_end') {
+          const showTrace = this.state.traceVerboseMode !== 'minimal';
+          if (showTrace) {
+            if (event.type === 'thinking_start') UI.renderThinkingStart(targetId, event);
+            else UI.renderThinkingEnd(targetId, event);
           }
         } else if (event.type === 'tool_start' || event.type === 'tool_output' || event.type === 'tool_end') {
           const showTrace = this.state.traceVerboseMode !== 'minimal';

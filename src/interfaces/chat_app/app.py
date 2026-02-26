@@ -1483,6 +1483,7 @@ class ChatWrapper:
 
         def _stream_arm(arm_archi, arm_label):
             """Run one arm's stream in a thread, pushing events to the shared queue."""
+            emitted_tool_ids = set()
             try:
                 vs = self.archi.vs_connector.get_vectorstore()
                 for output in arm_archi.pipeline.stream(
@@ -1492,17 +1493,124 @@ class ChatWrapper:
                 ):
                     if not isinstance(output, PipelineOutput):
                         continue
-                    event_type = output.metadata.get("event_type", "text") if output.metadata else "text"
+                    meta = output.metadata or {}
+                    event_type = meta.get("event_type", "text")
                     text = output.answer or ""
+
                     if event_type == "text" and text:
                         arm_results[arm_label]["final_text"] = text
-                    event_queue.put({
-                        "type": event_type,
-                        "arm": arm_label,
-                        "content": text,
-                        "metadata": {k: v for k, v in (output.metadata or {}).items()
-                                     if k not in ("event_type",)} if output.metadata else {},
-                    })
+                        event_queue.put({
+                            "type": "text",
+                            "arm": arm_label,
+                            "content": text,
+                        })
+
+                    elif event_type == "thinking_start":
+                        event_queue.put({
+                            "type": "thinking_start",
+                            "arm": arm_label,
+                            "step_id": meta.get("step_id", ""),
+                        })
+
+                    elif event_type == "thinking_end":
+                        # Emit tool_start for any new tools discovered during thinking
+                        tool_inputs = meta.get("tool_inputs_by_id", {})
+                        for tc_id, tc_info in tool_inputs.items():
+                            if tc_id not in emitted_tool_ids:
+                                emitted_tool_ids.add(tc_id)
+                                event_queue.put({
+                                    "type": "tool_start",
+                                    "arm": arm_label,
+                                    "tool_call_id": tc_id,
+                                    "tool_name": tc_info.get("tool_name", "unknown"),
+                                    "tool_args": tc_info.get("tool_input", {}),
+                                })
+                        event_queue.put({
+                            "type": "thinking_end",
+                            "arm": arm_label,
+                            "step_id": meta.get("step_id", ""),
+                            "duration_ms": meta.get("duration_ms"),
+                        })
+
+                    elif event_type == "tool_start":
+                        # Try tool_inputs_by_id from memory first
+                        tool_inputs = meta.get("tool_inputs_by_id", {})
+                        emitted_any = False
+                        for tc_id, tc_info in tool_inputs.items():
+                            if tc_id not in emitted_tool_ids:
+                                emitted_tool_ids.add(tc_id)
+                                emitted_any = True
+                                event_queue.put({
+                                    "type": "tool_start",
+                                    "arm": arm_label,
+                                    "tool_call_id": tc_id,
+                                    "tool_name": tc_info.get("tool_name", "unknown"),
+                                    "tool_args": tc_info.get("tool_input", {}),
+                                })
+                        # Fallback: extract from the AIMessage's tool_calls
+                        if not emitted_any:
+                            msg = output.messages[0] if output.messages else None
+                            tool_calls = getattr(msg, "tool_calls", None) or []
+                            for tc in tool_calls:
+                                tc_id = tc.get("id", "")
+                                if tc_id and tc_id not in emitted_tool_ids:
+                                    emitted_tool_ids.add(tc_id)
+                                    event_queue.put({
+                                        "type": "tool_start",
+                                        "arm": arm_label,
+                                        "tool_call_id": tc_id,
+                                        "tool_name": tc.get("name", "unknown"),
+                                        "tool_args": tc.get("args", {}),
+                                    })
+
+                    elif event_type == "tool_output":
+                        # Extract tool_call_id and content from the ToolMessage
+                        msg = output.messages[0] if output.messages else None
+                        output_tc_id = getattr(msg, "tool_call_id", None) if msg else None
+                        output_content = self._message_content(msg) if msg else ""
+
+                        # Emit tool_start for any tools not yet announced
+                        tool_inputs = meta.get("tool_inputs_by_id", {})
+                        for tc_id, tc_info in tool_inputs.items():
+                            if tc_id not in emitted_tool_ids:
+                                emitted_tool_ids.add(tc_id)
+                                event_queue.put({
+                                    "type": "tool_start",
+                                    "arm": arm_label,
+                                    "tool_call_id": tc_id,
+                                    "tool_name": tc_info.get("tool_name", "unknown"),
+                                    "tool_args": tc_info.get("tool_input", {}),
+                                })
+
+                        if output_tc_id:
+                            truncated = len(output_content) > 800
+                            event_queue.put({
+                                "type": "tool_output",
+                                "arm": arm_label,
+                                "tool_call_id": output_tc_id,
+                                "output": output_content[:800] if truncated else output_content,
+                                "truncated": truncated,
+                            })
+
+                    elif event_type == "tool_end":
+                        event_queue.put({
+                            "type": "tool_end",
+                            "arm": arm_label,
+                            "tool_call_id": meta.get("tool_call_id", ""),
+                            "status": meta.get("status", "success"),
+                        })
+
+                    elif event_type == "final":
+                        pass  # handled after loop
+
+                    else:
+                        # Unknown event type — pass through minimally
+                        event_queue.put({
+                            "type": event_type,
+                            "arm": arm_label,
+                            "content": text,
+                        })
+
             except Exception as exc:
                 arm_results[arm_label]["error"] = str(exc)
                 event_queue.put({"type": "error", "arm": arm_label, "message": str(exc)})
