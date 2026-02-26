@@ -58,6 +58,25 @@
 - [ ] 7.5 Verify backward compatibility — no `ab_testing` config section means existing behavior unchanged
 - [ ] 7.6 Test end-to-end: enable A/B, send message, receive two streams, vote, verify metrics updated
 
+## Phase 8: Code Redundancy Elimination
+
+Comprehensive audit-driven cleanup of duplicated logic in `app.py` and `chat.js`.
+
+### HIGH severity (bug-prone divergence risk)
+
+- [x] 8.1 Extract `_error_event(error_code)` static helper on `ChatWrapper` — replaces 3 identical error-code→message mappings in `stream()`, `stream_ab_comparison()`, and `get_chat_response()`
+- [x] 8.2 Extract `_ab_comparison_from_row(row)` static helper — replaces 3 identical 17-field positional row→dict mappings in `get_ab_comparison()`, `get_pending_ab_comparison()`, `get_ab_comparisons_by_conversation()`
+- [x] 8.3 Extract `_trace_from_row(row)` static helper — replaces 3 identical trace row→dict mappings in `get_agent_trace()`, `get_trace_by_message()`, `get_active_trace()` (subset)
+- [x] 8.4 Consolidate `agent_class` resolution — replace 5 inline `chat_cfg.get("agent_class") or chat_cfg.get("pipeline")` with `_get_agent_class_name()` on both `ChatWrapper` and `FlaskAppWrapper`
+
+### MEDIUM severity (maintenance burden)
+
+- [x] 8.5 Extract `_ndjson_response(event_iter)` on `FlaskAppWrapper` — replaces 2 identical NDJSON response wrappers in `get_chat_response_stream()` and `ab_compare_stream()`
+- [x] 8.6 Merge `_delete_git_repo()` and `_delete_jira_project()` into `_delete_source_documents(source_type, match_column, match_value)` with shared logic
+- [x] 8.7 Extract shared `_readNDJSON(response)` async generator in `chat.js` — replaces 2 NDJSON reader loops in `streamResponse` and `streamABComparison`; fixes latent bug where `streamResponse` doesn't flush final buffer
+- [x] 8.8 Merge `like()` and `dislike()` into `_toggle_reaction(reaction_type)` helper — 85% identical lock/cleanup/toggle logic
+- [x] 8.9 Dedup `format_links` score formatting — `_entry_html()` inner function reuses `_format_source_entry()` score logic
+
 ## Verification Checklist
 
 After implementation, verify:

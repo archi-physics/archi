@@ -216,6 +216,47 @@ const API = {
     return data;
   },
 
+  /**
+   * Shared NDJSON reader: reads a fetch Response body and yields parsed JSON objects.
+   * Properly flushes any remaining buffer content after the stream ends.
+   */
+  async *_readNDJSON(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            yield JSON.parse(trimmed);
+          } catch (e) {
+            console.warn('Failed to parse NDJSON line:', trimmed);
+          }
+        }
+      }
+      // Flush remaining buffer after stream ends
+      if (buffer.trim()) {
+        try {
+          yield JSON.parse(buffer.trim());
+        } catch (e) {
+          console.warn('Failed to parse final NDJSON line:', buffer.trim());
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
+
   async getConfigs() {
     return this.fetchJson(CONFIG.ENDPOINTS.CONFIGS);
   },
@@ -266,10 +307,10 @@ const API = {
         client_sent_msg_ts: Date.now(),
         client_timeout: CONFIG.STREAMING.TIMEOUT,
         client_id: this.clientId,
-        include_agent_steps: true,  // Required for streaming chunks
-        include_tool_steps: true,   // Enable tool step events for trace
-        provider: provider,  // Provider-based model selection
-        model: model,        // Model ID/name for the provider
+        include_agent_steps: true,
+        include_tool_steps: true,
+        provider: provider,
+        model: model,
       }),
       signal: signal,
     });
@@ -284,33 +325,7 @@ const API = {
       throw new Error(text || `Request failed (${response.status})`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          
-          try {
-            yield JSON.parse(trimmed);
-          } catch (e) {
-            console.error('Failed to parse stream event:', e);
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    yield* this._readNDJSON(response);
   },
 
   // A/B Testing API methods
@@ -366,40 +381,7 @@ const API = {
       throw new Error(`A/B compare failed: ${response.status} ${errText}`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          try {
-            yield JSON.parse(trimmed);
-          } catch (e) {
-            console.warn('Failed to parse A/B NDJSON line:', trimmed);
-          }
-        }
-      }
-      // Process remaining buffer
-      if (buffer.trim()) {
-        try {
-          yield JSON.parse(buffer.trim());
-        } catch (e) {
-          console.warn('Failed to parse final A/B NDJSON line:', buffer.trim());
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    yield* this._readNDJSON(response);
   },
 
   // Provider API methods

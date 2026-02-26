@@ -224,7 +224,7 @@ class ChatWrapper:
         if self.current_agent_path and self.current_agent_path.exists():
             self.current_agent_mtime = self.current_agent_path.stat().st_mtime
 
-        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        agent_class = self._get_agent_class_from_cfg(chat_cfg)
         if not agent_class:
             raise ValueError("services.chat_app.agent_class must be configured.")
         default_provider = chat_cfg.get("default_provider")
@@ -307,7 +307,7 @@ class ChatWrapper:
         if self.current_config_name == target_config_name and not agent_changed:
             return
 
-        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        agent_class = self._get_agent_class_from_cfg(chat_cfg)
         if not agent_class:
             raise ValueError("services.chat_app.agent_class must be configured.")
 
@@ -433,14 +433,9 @@ class ChatWrapper:
 
     @staticmethod
     def _format_source_entry(entry):
-        score = entry["score"]
+        score_str = ChatWrapper._format_score_str(entry["score"])
         link = entry["link"]
         display_name = entry["display"]
-
-        if score == -1.0 or score == "N/A":
-            score_str = ""
-        else:
-            score_str = f" ({score:.2f})"
 
         if link:
             return f"- [{display_name}]({link}){score_str}\n"
@@ -467,14 +462,9 @@ class ChatWrapper:
         '''
 
         def _entry_html(entry):
-            score = entry["score"]
+            score_str = ChatWrapper._format_score_str(entry["score"]).strip()
             link = entry["link"]
             display_name = entry["display"]
-
-            if score == -1.0 or score == "N/A":
-                score_str = ""
-            else:
-                score_str = f"({score:.2f})"
 
             if link:
                 reference_html = f"<a href=\"{link}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #66b3ff; text-decoration: none;\" onmouseover=\"this.style.textDecoration='underline'\" onmouseout=\"this.style.textDecoration='none'\">{display_name}</a>"
@@ -708,25 +698,7 @@ class ChatWrapper:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return {
-                'comparison_id': row[0],
-                'conversation_id': row[1],
-                'user_prompt_mid': row[2],
-                'response_a_mid': row[3],
-                'response_b_mid': row[4],
-                'model_a': row[5],
-                'pipeline_a': row[6],
-                'model_b': row[7],
-                'pipeline_b': row[8],
-                'variant_a_name': row[9],
-                'variant_b_name': row[10],
-                'variant_a_meta': row[11],
-                'variant_b_meta': row[12],
-                'is_config_a_first': row[13],
-                'preference': row[14],
-                'preference_ts': row[15].isoformat() if row[15] else None,
-                'created_at': row[16].isoformat() if row[16] else None,
-            }
+            return self._ab_comparison_from_row(row)
         finally:
             cursor.close()
             conn.close()
@@ -745,25 +717,7 @@ class ChatWrapper:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return {
-                'comparison_id': row[0],
-                'conversation_id': row[1],
-                'user_prompt_mid': row[2],
-                'response_a_mid': row[3],
-                'response_b_mid': row[4],
-                'model_a': row[5],
-                'pipeline_a': row[6],
-                'model_b': row[7],
-                'pipeline_b': row[8],
-                'variant_a_name': row[9],
-                'variant_b_name': row[10],
-                'variant_a_meta': row[11],
-                'variant_b_meta': row[12],
-                'is_config_a_first': row[13],
-                'preference': row[14],
-                'preference_ts': row[15].isoformat() if row[15] else None,
-                'created_at': row[16].isoformat() if row[16] else None,
-            }
+            return self._ab_comparison_from_row(row)
         finally:
             cursor.close()
             conn.close()
@@ -800,28 +754,7 @@ class ChatWrapper:
         try:
             cursor.execute(SQL_GET_AB_COMPARISONS_BY_CONVERSATION, (conversation_id,))
             rows = cursor.fetchall()
-            return [
-                {
-                    'comparison_id': row[0],
-                    'conversation_id': row[1],
-                    'user_prompt_mid': row[2],
-                    'response_a_mid': row[3],
-                    'response_b_mid': row[4],
-                    'model_a': row[5],
-                    'pipeline_a': row[6],
-                    'model_b': row[7],
-                    'pipeline_b': row[8],
-                    'variant_a_name': row[9],
-                    'variant_b_name': row[10],
-                    'variant_a_meta': row[11],
-                    'variant_b_meta': row[12],
-                    'is_config_a_first': row[13],
-                    'preference': row[14],
-                    'preference_ts': row[15].isoformat() if row[15] else None,
-                    'created_at': row[16].isoformat() if row[16] else None,
-                }
-                for row in rows
-            ]
+            return [self._ab_comparison_from_row(row) for row in rows]
         finally:
             cursor.close()
             conn.close()
@@ -906,24 +839,7 @@ class ChatWrapper:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return {
-                'trace_id': row[0],
-                'conversation_id': row[1],
-                'message_id': row[2],
-                'user_message_id': row[3],
-                'config_id': row[4],
-                'pipeline_name': row[5],
-                'events': row[6],  # Already JSON from JSONB
-                'started_at': row[7].isoformat() if row[7] else None,
-                'completed_at': row[8].isoformat() if row[8] else None,
-                'status': row[9],
-                'total_tool_calls': row[10],
-                'total_tokens_used': row[11],
-                'total_duration_ms': row[12],
-                'cancelled_by': row[13],
-                'cancellation_reason': row[14],
-                'created_at': row[15].isoformat() if row[15] else None,
-            }
+            return self._trace_from_row(row)
         finally:
             cursor.close()
             conn.close()
@@ -939,24 +855,7 @@ class ChatWrapper:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return {
-                'trace_id': row[0],
-                'conversation_id': row[1],
-                'message_id': row[2],
-                'user_message_id': row[3],
-                'config_id': row[4],
-                'pipeline_name': row[5],
-                'events': row[6],
-                'started_at': row[7].isoformat() if row[7] else None,
-                'completed_at': row[8].isoformat() if row[8] else None,
-                'status': row[9],
-                'total_tool_calls': row[10],
-                'total_tokens_used': row[11],
-                'total_duration_ms': row[12],
-                'cancelled_by': row[13],
-                'cancellation_reason': row[14],
-                'created_at': row[15].isoformat() if row[15] else None,
-            }
+            return self._trace_from_row(row)
         finally:
             cursor.close()
             conn.close()
@@ -972,17 +871,7 @@ class ChatWrapper:
             row = cursor.fetchone()
             if row is None:
                 return None
-            return {
-                'trace_id': row[0],
-                'conversation_id': row[1],
-                'message_id': row[2],
-                'user_message_id': row[3],
-                'config_id': row[4],
-                'pipeline_name': row[5],
-                'events': row[6],
-                'started_at': row[7].isoformat() if row[7] else None,
-                'status': row[8],
-            }
+            return self._trace_from_row(row)
         finally:
             cursor.close()
             conn.close()
@@ -1318,7 +1207,7 @@ class ChatWrapper:
                     variant.name, variant.agent_spec, exc,
                 )
 
-        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        agent_class = self._get_agent_class_from_cfg(chat_cfg)
         default_provider = variant.provider or chat_cfg.get("default_provider")
         default_model = variant.model or chat_cfg.get("default_model")
         prompt_overrides = chat_cfg.get("prompts", {})
@@ -1406,6 +1295,89 @@ class ChatWrapper:
         return text
 
     # =========================================================================
+    # Shared Helpers (deduplicated from multiple call-sites)
+    # =========================================================================
+
+    @staticmethod
+    def _error_event(error_code: int) -> Dict[str, Any]:
+        """Map an error code to a structured error event dict."""
+        if error_code == 408:
+            message = "client timeout"
+        elif error_code == 403:
+            message = "conversation not found"
+        else:
+            message = "server error; see chat logs for message"
+        return {"type": "error", "status": error_code, "message": message}
+
+    @staticmethod
+    def _ab_comparison_from_row(row) -> Dict[str, Any]:
+        """Convert a positional AB comparison DB row to a dict."""
+        return {
+            'comparison_id': row[0],
+            'conversation_id': row[1],
+            'user_prompt_mid': row[2],
+            'response_a_mid': row[3],
+            'response_b_mid': row[4],
+            'model_a': row[5],
+            'pipeline_a': row[6],
+            'model_b': row[7],
+            'pipeline_b': row[8],
+            'variant_a_name': row[9],
+            'variant_b_name': row[10],
+            'variant_a_meta': row[11],
+            'variant_b_meta': row[12],
+            'is_config_a_first': row[13],
+            'preference': row[14],
+            'preference_ts': row[15].isoformat() if row[15] else None,
+            'created_at': row[16].isoformat() if row[16] else None,
+        }
+
+    @staticmethod
+    def _trace_from_row(row) -> Dict[str, Any]:
+        """Convert a positional agent trace DB row to a dict.
+        
+        Handles both full rows (16 fields) and subset rows (9 fields from get_active_trace).
+        """
+        result = {
+            'trace_id': row[0],
+            'conversation_id': row[1],
+            'message_id': row[2],
+            'user_message_id': row[3],
+            'config_id': row[4],
+            'pipeline_name': row[5],
+            'events': row[6],
+            'started_at': row[7].isoformat() if row[7] else None,
+        }
+        if len(row) > 9:
+            # Full row from get_agent_trace / get_trace_by_message
+            result.update({
+                'completed_at': row[8].isoformat() if row[8] else None,
+                'status': row[9],
+                'total_tool_calls': row[10],
+                'total_tokens_used': row[11],
+                'total_duration_ms': row[12],
+                'cancelled_by': row[13],
+                'cancellation_reason': row[14],
+                'created_at': row[15].isoformat() if row[15] else None,
+            })
+        else:
+            # Subset row from get_active_trace
+            result['status'] = row[8]
+        return result
+
+    @staticmethod
+    def _get_agent_class_from_cfg(chat_cfg: dict) -> Optional[str]:
+        """Extract agent class name from a chat config dict."""
+        return chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+
+    @staticmethod
+    def _format_score_str(score) -> str:
+        """Format a source relevance score for display."""
+        if score == -1.0 or score == "N/A":
+            return ""
+        return f" ({score:.2f})"
+
+    # =========================================================================
     # Pool-based A/B Comparison Streaming
     # =========================================================================
 
@@ -1454,12 +1426,7 @@ class ChatWrapper:
             timestamps,
         )
         if error_code is not None:
-            error_message = "server error; see chat logs for message"
-            if error_code == 408:
-                error_message = "client timeout"
-            elif error_code == 403:
-                error_message = "conversation not found"
-            yield {"type": "error", "status": error_code, "message": error_message}
+            yield self._error_event(error_code)
             return
 
         # Build variant archis
@@ -1891,12 +1858,7 @@ class ChatWrapper:
                 timestamps,
             )
             if error_code is not None:
-                error_message = "server error; see chat logs for message"
-                if error_code == 408:
-                    error_message = "client timeout"
-                elif error_code == 403:
-                    error_message = "conversation not found"
-                yield {"type": "error", "status": error_code, "message": error_message}
+                yield self._error_event(error_code)
                 return
 
             requested_config = self._resolve_config_name(config_name)
@@ -2562,7 +2524,7 @@ class FlaskAppWrapper(object):
         """
         try:
             chat_cfg = self.config.get("services", {}).get("chat_app", {})
-            agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+            agent_class = ChatWrapper._get_agent_class_from_cfg(chat_cfg)
             provider = chat_cfg.get("default_provider")
             model = chat_cfg.get("default_model")
             model_name = f"{provider}/{model}" if provider and model else None
@@ -2581,9 +2543,25 @@ class FlaskAppWrapper(object):
         agents_dir = self.services_config.get("chat_app", {}).get("agents_dir") or "/root/archi/agents"
         return Path(agents_dir)
 
+    def _ndjson_response(self, event_iter) -> Response:
+        """Wrap an event iterator as an NDJSON streaming Response with standard headers."""
+        def _event_stream() -> Iterator[str]:
+            padding = " " * 2048
+            yield json.dumps({"type": "meta", "event": "stream_started", "padding": padding}) + "\n"
+            for event in event_iter:
+                yield json.dumps(event, default=str) + "\n"
+
+        headers = {
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Content-Encoding": "identity",
+            "Content-Type": "application/x-ndjson",
+        }
+        return Response(stream_with_context(_event_stream()), headers=headers)
+
     def _get_agent_class_name(self) -> Optional[str]:
         chat_cfg = self.services_config.get("chat_app", {})
-        return chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        return ChatWrapper._get_agent_class_from_cfg(chat_cfg)
 
     def _get_agent_tool_registry(self) -> List[str]:
         agent_class = self._get_agent_class_name()
@@ -2905,7 +2883,7 @@ class FlaskAppWrapper(object):
             config_payload = self.config
 
         chat_cfg = config_payload.get("services", {}).get("chat_app", {})
-        agent_class = chat_cfg.get("agent_class") or chat_cfg.get("pipeline")
+        agent_class = ChatWrapper._get_agent_class_from_cfg(chat_cfg)
         embedding_name = config_payload.get("data_manager", {}).get("embedding_name")
         sources = config_payload.get("data_manager", {}).get("sources", {})
         source_names = list(sources.keys()) if isinstance(sources, dict) else []
@@ -3293,13 +3271,8 @@ class FlaskAppWrapper(object):
 
         # handle errors
         if error_code is not None:
-            if error_code == 408:
-                output = jsonify({'error': 'client timeout'})
-            elif error_code == 403:
-                output = jsonify({'error': 'conversation not found'})
-            else:
-                output = jsonify({'error': 'server error; see chat logs for message'})
-            return output, error_code
+            err = ChatWrapper._error_event(error_code)
+            return jsonify({'error': err['message']}), error_code
 
         # compute timestamp at which message was returned to client
         timestamps['server_response_msg_ts'] = datetime.now()
@@ -3358,33 +3331,21 @@ class FlaskAppWrapper(object):
         if provider and 'provider_api_keys' in session:
             session_api_key = session.get('provider_api_keys', {}).get(provider.lower())
 
-        def _event_stream() -> Iterator[str]:
-            padding = " " * 2048
-            yield json.dumps({"type": "meta", "event": "stream_started", "padding": padding}) + "\n"
-            for event in self.chat.stream(
-                message,
-                conversation_id,
-                client_id,
-                is_refresh,
-                server_received_msg_ts,
-                client_sent_msg_ts,
-                client_timeout,
-                config_name,
-                include_agent_steps=include_agent_steps,
-                include_tool_steps=include_tool_steps,
-                provider=provider,
-                model=model,
-                provider_api_key=session_api_key,
-            ):
-                yield json.dumps(event, default=str) + "\n"
-
-        headers = {
-            "Cache-Control": "no-cache, no-transform",
-            "X-Accel-Buffering": "no",
-            "Content-Encoding": "identity",
-            "Content-Type": "application/x-ndjson",
-        }
-        return Response(stream_with_context(_event_stream()), headers=headers)
+        return self._ndjson_response(self.chat.stream(
+            message,
+            conversation_id,
+            client_id,
+            is_refresh,
+            server_received_msg_ts,
+            client_sent_msg_ts,
+            client_timeout,
+            config_name,
+            include_agent_steps=include_agent_steps,
+            include_tool_steps=include_tool_steps,
+            provider=provider,
+            model=model,
+            provider_api_key=session_api_key,
+        ))
 
     def landing(self):
         """Landing page for unauthenticated users"""
@@ -3403,115 +3364,62 @@ class FlaskAppWrapper(object):
     def terms(self):
         return render_template('terms.html')
 
-    def like(self):
+    def _with_feedback_lock(self, fn):
+        """Run fn() under the feedback lock with proper cleanup."""
         self.chat.lock.acquire()
         logger.info("Acquired lock file")
         try:
-            data = request.json
-            message_id = data.get('message_id')
-
-            if not message_id:
-                logger.warning("Like request missing message_id")
-                return jsonify({'error': 'message_id is required'}), 400
-
-            # Check current state for toggle behavior
-            current_reaction = self.chat.get_reaction_feedback(message_id)
-            
-            # Always delete existing reaction first
-            self.chat.delete_reaction_feedback(message_id)
-
-            # If already liked, just remove (toggle off) - don't re-add
-            if current_reaction == 'like':
-                response = {'message': 'Reaction removed', 'state': None}
-                return jsonify(response), 200
-
-            # Otherwise, add the like
-            feedback = {
-                "message_id"   : message_id,
-                "feedback"     : "like",
-                "feedback_ts"  : datetime.now(),
-                "feedback_msg" : None,
-                "incorrect"    : None,
-                "unhelpful"    : None,
-                "inappropriate": None,
-            }
-            self.chat.insert_feedback(feedback)
-
-            response = {'message': 'Liked', 'state': 'like'}
-            return jsonify(response), 200
-
+            return fn()
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")
             return jsonify({'error': str(e)}), 500
-
         finally:
             self.chat.lock.release()
             logger.info("Released lock file")
-
             if self.chat.cursor is not None:
                 self.chat.cursor.close()
             if self.chat.conn is not None:
                 self.chat.conn.close()
+
+    def _toggle_reaction(self, reaction_type):
+        """Shared like/dislike toggle: remove if already set, else insert."""
+        def _do():
+            data = request.json
+            message_id = data.get('message_id')
+            if not message_id:
+                logger.warning(f"{reaction_type.capitalize()} request missing message_id")
+                return jsonify({'error': 'message_id is required'}), 400
+
+            current_reaction = self.chat.get_reaction_feedback(message_id)
+            self.chat.delete_reaction_feedback(message_id)
+
+            if current_reaction == reaction_type:
+                return jsonify({'message': 'Reaction removed', 'state': None}), 200
+
+            feedback = {
+                "message_id"   : message_id,
+                "feedback"     : reaction_type,
+                "feedback_ts"  : datetime.now(),
+                "feedback_msg" : data.get('feedback_msg') if reaction_type == 'dislike' else None,
+                "incorrect"    : data.get('incorrect') if reaction_type == 'dislike' else None,
+                "unhelpful"    : data.get('unhelpful') if reaction_type == 'dislike' else None,
+                "inappropriate": data.get('inappropriate') if reaction_type == 'dislike' else None,
+            }
+            self.chat.insert_feedback(feedback)
+
+            label = reaction_type.capitalize() + ('d' if reaction_type == 'like' else 'd')
+            return jsonify({'message': label, 'state': reaction_type}), 200
+
+        return self._with_feedback_lock(_do)
+
+    def like(self):
+        return self._toggle_reaction('like')
 
     def dislike(self):
-        self.chat.lock.acquire()
-        logger.info("Acquired lock file")
-        try:
-            data = request.json
-            message_id = data.get('message_id')
-
-            if not message_id:
-                logger.warning("Dislike request missing message_id")
-                return jsonify({'error': 'message_id is required'}), 400
-
-            feedback_msg = data.get('feedback_msg')
-            incorrect = data.get('incorrect')
-            unhelpful = data.get('unhelpful')
-            inappropriate = data.get('inappropriate')
-
-            # Check current state for toggle behavior
-            current_reaction = self.chat.get_reaction_feedback(message_id)
-            
-            # Always delete existing reaction first
-            self.chat.delete_reaction_feedback(message_id)
-
-            # If already disliked, just remove (toggle off) - don't re-add
-            if current_reaction == 'dislike':
-                response = {'message': 'Reaction removed', 'state': None}
-                return jsonify(response), 200
-
-            # Otherwise, add the dislike
-            feedback = {
-                "message_id"   : message_id,
-                "feedback"     : "dislike",
-                "feedback_ts"  : datetime.now(),
-                "feedback_msg" : feedback_msg,
-                "incorrect"    : incorrect,
-                "unhelpful"    : unhelpful,
-                "inappropriate": inappropriate,
-            }
-            self.chat.insert_feedback(feedback)
-
-            response = {'message': 'Disliked', 'state': 'dislike'}
-            return jsonify(response), 200
-
-        except Exception as e:
-            logger.error(f"Request failed: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-
-        finally:
-            self.chat.lock.release()
-            logger.info("Released lock file")
-
-            if self.chat.cursor is not None:
-                self.chat.cursor.close()
-            if self.chat.conn is not None:
-                self.chat.conn.close()
+        return self._toggle_reaction('dislike')
 
     def text_feedback(self):
-        self.chat.lock.acquire()
-        logger.info("Acquired lock file for text feedback")
-        try:
+        def _do():
             data = request.json
             message_id = data.get('message_id')
             feedback_msg = (data.get('feedback_msg') or '').strip()
@@ -3535,22 +3443,9 @@ class FlaskAppWrapper(object):
                 "inappropriate": None,
             }
             self.chat.insert_feedback(feedback)
+            return jsonify({'message': 'Feedback submitted'}), 200
 
-            response = {'message': 'Feedback submitted'}
-            return jsonify(response), 200
-
-        except Exception as e:
-            logger.error(f"Request failed: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-
-        finally:
-            self.chat.lock.release()
-            logger.info("Released lock file")
-
-            if self.chat.cursor is not None:
-                self.chat.cursor.close()
-            if self.chat.conn is not None:
-                self.chat.conn.close()
+        return self._with_feedback_lock(_do)
 
     def list_conversations(self):
         """
@@ -3960,28 +3855,16 @@ class FlaskAppWrapper(object):
         if not client_id:
             return jsonify({"error": "client_id missing"}), 400
 
-        def _event_stream() -> Iterator[str]:
-            padding = " " * 2048
-            yield json.dumps({"type": "meta", "event": "stream_started", "padding": padding}) + "\n"
-            for event in self.chat.stream_ab_comparison(
-                message,
-                conversation_id,
-                client_id,
-                is_refresh,
-                server_received_msg_ts,
-                client_sent_msg_ts,
-                client_timeout,
-                config_name,
-            ):
-                yield json.dumps(event, default=str) + "\n"
-
-        headers = {
-            "Cache-Control": "no-cache, no-transform",
-            "X-Accel-Buffering": "no",
-            "Content-Encoding": "identity",
-            "Content-Type": "application/x-ndjson",
-        }
-        return Response(stream_with_context(_event_stream()), headers=headers)
+        return self._ndjson_response(self.chat.stream_ab_comparison(
+            message,
+            conversation_id,
+            client_id,
+            is_refresh,
+            server_received_msg_ts,
+            client_sent_msg_ts,
+            client_timeout,
+            config_name,
+        ))
 
     def ab_get_metrics(self):
         """
@@ -4500,6 +4383,49 @@ class FlaskAppWrapper(object):
             logger.error(f"Error cloning Git repo: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
+    def _delete_source_documents(self, source_type: str, where_clause: str, params: tuple, label: str):
+        """
+        Shared helper: mark documents as deleted and remove their chunks.
+
+        Args:
+            source_type: 'git' or 'jira'
+            where_clause: SQL WHERE fragment after 'source_type = %s AND NOT is_deleted AND'
+            params: bind-parameters for the WHERE clause
+            label: human-readable label for log/response messages
+        """
+        conn = psycopg2.connect(**self.chat.pg_config)
+        try:
+            with conn.cursor() as cursor:
+                # Get resource hashes of documents to delete
+                cursor.execute(
+                    f"SELECT resource_hash FROM documents WHERE source_type = %s AND NOT is_deleted AND {where_clause}",
+                    (source_type, *params),
+                )
+                hashes_to_delete = [row[0] for row in cursor.fetchall()]
+
+                if hashes_to_delete:
+                    cursor.execute(
+                        "DELETE FROM document_chunks WHERE metadata->>'resource_hash' = ANY(%s)",
+                        (hashes_to_delete,),
+                    )
+                    logger.info(f"Deleted {cursor.rowcount} chunks for {len(hashes_to_delete)} {source_type} documents")
+
+                cursor.execute(
+                    f"UPDATE documents SET is_deleted = TRUE, deleted_at = NOW() WHERE source_type = %s AND NOT is_deleted AND {where_clause}",
+                    (source_type, *params),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+
+            logger.info(f"Deleted {deleted_count} documents from {label}")
+            return jsonify({
+                "success": True,
+                "deleted_count": deleted_count,
+                "message": f"Removed {deleted_count} documents from {label}",
+            }), 200
+        finally:
+            conn.close()
+
     def _delete_git_repo(self):
         """
         Delete a Git repository and all its indexed documents.
@@ -4512,56 +4438,12 @@ class FlaskAppWrapper(object):
             if not repo_name:
                 return jsonify({"error": "missing_repo_name"}), 400
             
-            # Build a pattern to match the repo URL
-            # repo_name could be a URL (https://github.com/org/repo) or just a repo name (org/repo)
-            # URLs in database are like: https://github.com/pallets/click/blob/main/file.py
-            conn = psycopg2.connect(**self.chat.pg_config)
-            try:
-                with conn.cursor() as cursor:
-                    # First, get the resource hashes of documents to delete
-                    cursor.execute("""
-                        SELECT resource_hash FROM documents 
-                        WHERE source_type = 'git' 
-                          AND NOT is_deleted
-                          AND (
-                              url LIKE %s
-                              OR url LIKE %s
-                          )
-                    """, (f'{repo_name}/%', f'%/{repo_name}/%'))
-                    hashes_to_delete = [row[0] for row in cursor.fetchall()]
-                    
-                    if hashes_to_delete:
-                        # Delete chunks for these documents
-                        cursor.execute("""
-                            DELETE FROM document_chunks 
-                            WHERE metadata->>'resource_hash' = ANY(%s)
-                        """, (hashes_to_delete,))
-                        chunks_deleted = cursor.rowcount
-                        logger.info(f"Deleted {chunks_deleted} chunks for {len(hashes_to_delete)} documents")
-                    
-                    # Mark documents as deleted
-                    cursor.execute("""
-                        UPDATE documents 
-                        SET is_deleted = TRUE, deleted_at = NOW()
-                        WHERE source_type = 'git' 
-                          AND NOT is_deleted
-                          AND (
-                              url LIKE %s
-                              OR url LIKE %s
-                          )
-                    """, (f'{repo_name}/%', f'%/{repo_name}/%'))
-                    deleted_count = cursor.rowcount
-                    conn.commit()
-                    
-                logger.info(f"Deleted {deleted_count} documents from git repo: {repo_name}")
-                return jsonify({
-                    "success": True,
-                    "deleted_count": deleted_count,
-                    "message": f"Removed {deleted_count} documents from repository"
-                }), 200
-            finally:
-                conn.close()
-                
+            return self._delete_source_documents(
+                source_type='git',
+                where_clause='(url LIKE %s OR url LIKE %s)',
+                params=(f'{repo_name}/%', f'%/{repo_name}/%'),
+                label=f"git repo: {repo_name}",
+            )
         except Exception as e:
             logger.error(f"Error deleting Git repo: {str(e)}")
             return jsonify({"error": str(e)}), 500
@@ -5032,47 +4914,12 @@ class FlaskAppWrapper(object):
             if not project_key:
                 return jsonify({"error": "missing_project_key"}), 400
             
-            conn = psycopg2.connect(**self.chat.pg_config)
-            try:
-                with conn.cursor() as cursor:
-                    # First, get the resource hashes of documents to delete
-                    cursor.execute("""
-                        SELECT resource_hash FROM documents 
-                        WHERE source_type = 'jira' 
-                          AND NOT is_deleted
-                          AND display_name LIKE %s
-                    """, (f'{project_key}-%',))
-                    hashes_to_delete = [row[0] for row in cursor.fetchall()]
-                    
-                    if hashes_to_delete:
-                        # Delete chunks for these documents
-                        cursor.execute("""
-                            DELETE FROM document_chunks 
-                            WHERE metadata->>'resource_hash' = ANY(%s)
-                        """, (hashes_to_delete,))
-                        chunks_deleted = cursor.rowcount
-                        logger.info(f"Deleted {chunks_deleted} chunks for {len(hashes_to_delete)} Jira documents")
-                    
-                    # Mark documents from this Jira project as deleted
-                    cursor.execute("""
-                        UPDATE documents 
-                        SET is_deleted = TRUE, deleted_at = NOW()
-                        WHERE source_type = 'jira' 
-                          AND NOT is_deleted
-                          AND display_name LIKE %s
-                    """, (f'{project_key}-%',))
-                    deleted_count = cursor.rowcount
-                    conn.commit()
-                    
-                logger.info(f"Deleted {deleted_count} documents from Jira project: {project_key}")
-                return jsonify({
-                    "success": True,
-                    "deleted_count": deleted_count,
-                    "message": f"Removed {deleted_count} tickets from project {project_key}"
-                }), 200
-            finally:
-                conn.close()
-                
+            return self._delete_source_documents(
+                source_type='jira',
+                where_clause='display_name LIKE %s',
+                params=(f'{project_key}-%',),
+                label=f"Jira project: {project_key}",
+            )
         except Exception as e:
             logger.error(f"Error deleting Jira project: {str(e)}")
             return jsonify({"error": str(e)}), 500
