@@ -391,6 +391,29 @@ class BaseReActAgent:
                         content = self._message_content(message)
                         additional_kwargs = getattr(message, "additional_kwargs", None) or {}
                         reasoning_content = additional_kwargs.get("reasoning_content", "")
+
+                        # Detect empty AI chunks as implicit thinking activity.
+                        # Some LLM integrations (e.g. langchain-ollama <1.1) drop
+                        # the thinking/reasoning payload, producing chunks where
+                        # both content and reasoning_content are empty while the
+                        # model is still in its thinking phase.  We treat these as
+                        # a signal to start (or continue) the thinking indicator
+                        # so the UI stays responsive.
+                        if not content and not reasoning_content:
+                            if thinking_step_id is None and "chunk" in msg_class:
+                                thinking_step_id = str(uuid.uuid4())
+                                thinking_start_time = time.time()
+                                yield self.finalize_output(
+                                    answer="",
+                                    memory=self.active_memory,
+                                    messages=[],
+                                    metadata={
+                                        "event_type": "thinking_start",
+                                        "step_id": thinking_step_id,
+                                    },
+                                    final=False,
+                                )
+
                         if content or reasoning_content:
                             # Start thinking phase if not already active
                             if thinking_step_id is None:
@@ -637,6 +660,23 @@ class BaseReActAgent:
                         content = self._message_content(message)
                         additional_kwargs = getattr(message, "additional_kwargs", None) or {}
                         reasoning_content = additional_kwargs.get("reasoning_content", "")
+
+                        # Detect empty AI chunks as implicit thinking activity.
+                        if not content and not reasoning_content:
+                            if thinking_step_id is None and "chunk" in msg_class:
+                                thinking_step_id = str(uuid.uuid4())
+                                thinking_start_time = time.time()
+                                yield self.finalize_output(
+                                    answer="",
+                                    memory=self.active_memory,
+                                    messages=[],
+                                    metadata={
+                                        "event_type": "thinking_start",
+                                        "step_id": thinking_step_id,
+                                    },
+                                    final=False,
+                                )
+
                         if content or reasoning_content:
                             # Start thinking phase if not already active
                             if thinking_step_id is None:
