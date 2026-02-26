@@ -54,8 +54,8 @@ from src.utils.sql import (
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK, SQL_DELETE_REACTION_FEEDBACK,
     SQL_GET_REACTION_FEEDBACK,
-    SQL_INSERT_AB_COMPARISON, SQL_UPDATE_AB_PREFERENCE, SQL_GET_AB_COMPARISON,
-    SQL_GET_PENDING_AB_COMPARISON, SQL_DELETE_AB_COMPARISON, SQL_GET_AB_COMPARISONS_BY_CONVERSATION,
+    SQL_UPDATE_AB_PREFERENCE, SQL_GET_AB_COMPARISON,
+    SQL_GET_PENDING_AB_COMPARISON,
     SQL_CREATE_AGENT_TRACE, SQL_UPDATE_AGENT_TRACE, SQL_GET_AGENT_TRACE,
     SQL_GET_TRACE_BY_MESSAGE, SQL_GET_ACTIVE_TRACE, SQL_CANCEL_ACTIVE_TRACES,
 )
@@ -620,47 +620,6 @@ class ChatWrapper:
     # A/B Comparison Methods
     # =========================================================================
 
-    def create_ab_comparison(
-        self,
-        conversation_id: int,
-        user_prompt_mid: int,
-        response_a_mid: int,
-        response_b_mid: int,
-        config_a_id: int,
-        config_b_id: int,
-        is_config_a_first: bool,
-    ) -> int:
-        """
-        Create an A/B comparison record linking two responses to the same user prompt.
-        
-        Args:
-            conversation_id: The conversation this comparison belongs to
-            user_prompt_mid: Message ID of the user's question
-            response_a_mid: Message ID of response A
-            response_b_mid: Message ID of response B
-            config_a_id: Config ID used for response A
-            config_b_id: Config ID used for response B
-            is_config_a_first: True if config A was the "first" config before randomization
-            
-        Returns:
-            The comparison_id of the newly created record
-        """
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                SQL_INSERT_AB_COMPARISON,
-                (conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
-                 config_a_id, config_b_id, is_config_a_first)
-            )
-            comparison_id = cursor.fetchone()[0]
-            conn.commit()
-            logger.info(f"Created A/B comparison {comparison_id} for conversation {conversation_id}")
-            return comparison_id
-        finally:
-            cursor.close()
-            conn.close()
-
     def update_ab_preference(self, comparison_id: int, preference: str) -> None:
         """
         Record user's preference for an A/B comparison.
@@ -719,43 +678,6 @@ class ChatWrapper:
             if row is None:
                 return None
             return self._ab_comparison_from_row(row)
-        finally:
-            cursor.close()
-            conn.close()
-
-    def delete_ab_comparison(self, comparison_id: int) -> bool:
-        """
-        Delete an A/B comparison (e.g., on abort/failure).
-        
-        Returns:
-            True if a record was deleted, False otherwise
-        """
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(SQL_DELETE_AB_COMPARISON, (comparison_id,))
-            deleted = cursor.rowcount > 0
-            conn.commit()
-            if deleted:
-                logger.info(f"Deleted A/B comparison {comparison_id}")
-            return deleted
-        finally:
-            cursor.close()
-            conn.close()
-
-    def get_ab_comparisons_by_conversation(self, conversation_id: int) -> List[Dict[str, Any]]:
-        """
-        Get all A/B comparisons for a conversation.
-        
-        Returns:
-            List of comparison dicts
-        """
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(SQL_GET_AB_COMPARISONS_BY_CONVERSATION, (conversation_id,))
-            rows = cursor.fetchall()
-            return [self._ab_comparison_from_row(row) for row in rows]
         finally:
             cursor.close()
             conn.close()
@@ -2240,7 +2162,6 @@ class FlaskAppWrapper(object):
 
         # A/B testing endpoints
         logger.info("Adding A/B testing API endpoints")
-        self.add_endpoint('/api/ab/create', 'ab_create', self.require_auth(self.ab_create_comparison), methods=["POST"])
         self.add_endpoint('/api/ab/preference', 'ab_preference', self.require_auth(self.ab_submit_preference), methods=["POST"])
         self.add_endpoint('/api/ab/pending', 'ab_pending', self.require_auth(self.ab_get_pending), methods=["GET"])
         self.add_endpoint('/api/ab/pool', 'ab_pool', self.require_auth(self.ab_get_pool), methods=["GET"])
@@ -3713,74 +3634,6 @@ class FlaskAppWrapper(object):
     # =========================================================================
     # A/B Testing API Endpoints
     # =========================================================================
-
-    def ab_create_comparison(self):
-        """
-        Create a new A/B comparison record linking two responses.
-
-        POST body:
-        - conversation_id: The conversation ID
-        - user_prompt_mid: Message ID of the user's question
-        - response_a_mid: Message ID of response A
-        - response_b_mid: Message ID of response B
-        - config_a_id: Config ID used for response A
-        - config_b_id: Config ID used for response B
-        - is_config_a_first: True if config A was the "first" config before randomization
-        - client_id: Client ID for authorization
-
-        Returns:
-            JSON with comparison_id
-        """
-        try:
-            data = request.json
-            conversation_id = data.get('conversation_id')
-            user_prompt_mid = data.get('user_prompt_mid')
-            response_a_mid = data.get('response_a_mid')
-            response_b_mid = data.get('response_b_mid')
-            config_a_id = data.get('config_a_id')
-            config_b_id = data.get('config_b_id')
-            is_config_a_first = data.get('is_config_a_first', True)
-            client_id = data.get('client_id')
-
-            # Validate required fields
-            missing = []
-            if not conversation_id:
-                missing.append('conversation_id')
-            if not user_prompt_mid:
-                missing.append('user_prompt_mid')
-            if not response_a_mid:
-                missing.append('response_a_mid')
-            if not response_b_mid:
-                missing.append('response_b_mid')
-            if not config_a_id:
-                missing.append('config_a_id')
-            if not config_b_id:
-                missing.append('config_b_id')
-            if not client_id:
-                missing.append('client_id')
-
-            if missing:
-                return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
-
-            # Create the comparison
-            comparison_id = self.chat.create_ab_comparison(
-                conversation_id=conversation_id,
-                user_prompt_mid=user_prompt_mid,
-                response_a_mid=response_a_mid,
-                response_b_mid=response_b_mid,
-                config_a_id=config_a_id,
-                config_b_id=config_b_id,
-                is_config_a_first=is_config_a_first,
-            )
-
-            return jsonify({
-                'success': True,
-                'comparison_id': comparison_id,
-            }), 200
-
-        except Exception as e:
-            logger.error(f"Error creating A/B comparison: {str(e)}")
-            return jsonify({'error': str(e)}), 500
 
     def ab_submit_preference(self):
         """
