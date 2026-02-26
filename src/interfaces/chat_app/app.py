@@ -265,6 +265,7 @@ class ChatWrapper:
                 "A/B pool active: %d variants, champion='%s'",
                 len(self.ab_pool.variants), self.ab_pool.champion_name,
             )
+            self._prewarm_ab_models()
 
     def update_config(self, config_name=None):
         """
@@ -1184,6 +1185,46 @@ class ChatWrapper:
             logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
             raise
 
+    def _prewarm_ab_models(self):
+        """Pre-load all A/B variant models into Ollama so they're warm for comparisons."""
+        import threading
+        chat_cfg = self.services_config.get("chat_app", {})
+        providers_cfg = chat_cfg.get("providers", {})
+        local_cfg = providers_cfg.get("local", {})
+        base_url = local_cfg.get("base_url")
+        if not base_url:
+            return  # not using local/Ollama
+
+        seen_models = set()
+        models_to_warm = []
+        for variant in self.ab_pool.variants:
+            model = variant.model
+            provider = variant.provider or chat_cfg.get("default_provider")
+            if provider == "local" and model and model not in seen_models:
+                seen_models.add(model)
+                models_to_warm.append(model)
+
+        if not models_to_warm:
+            return
+
+        def _warm(model_name):
+            import requests as _requests
+            try:
+                logger.info("Pre-warming Ollama model '%s' at %s ...", model_name, base_url)
+                resp = _requests.post(
+                    f"{base_url}/api/generate",
+                    json={"model": model_name, "prompt": "", "keep_alive": "24h", "stream": False},
+                    timeout=300,
+                )
+                logger.info("Pre-warm '%s': HTTP %s", model_name, resp.status_code)
+            except Exception as exc:
+                logger.warning("Pre-warm '%s' failed: %s", model_name, exc)
+
+        threads = [threading.Thread(target=_warm, args=(m,), daemon=True) for m in models_to_warm]
+        for t in threads:
+            t.start()
+        logger.info("Started pre-warming %d model(s) in background: %s", len(models_to_warm), models_to_warm)
+
     def _create_variant_archi(self, variant: "ABVariant") -> "archi":
         """
         Build a temporary archi instance configured for a specific A/B variant.
@@ -1450,16 +1491,30 @@ class ChatWrapper:
 
         def _stream_arm(arm_archi, arm_label):
             """Run one arm's stream in a thread, pushing events to the shared queue."""
+            import time as _time
             from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
             formatter = PipelineEventFormatter(message_content_fn=self._message_content)
+            t0 = _time.monotonic()
+            first_event_logged = False
             try:
+                logger.info("A/B arm '%s' thread started (t+0.0s)", arm_label)
                 vs = self.archi.vs_connector.get_vectorstore()
+                logger.info(
+                    "A/B arm '%s' vectorstore ready (t+%.1fs)",
+                    arm_label, _time.monotonic() - t0,
+                )
                 for output in arm_archi.pipeline.stream(
                     history=context.history,
                     conversation_id=context.conversation_id,
                     vectorstore=vs,
                 ):
                     for event in formatter.process(output):
+                        if not first_event_logged:
+                            logger.info(
+                                "A/B arm '%s' first event (t+%.1fs): type=%s",
+                                arm_label, _time.monotonic() - t0, event.get("type"),
+                            )
+                            first_event_logged = True
                         event["arm"] = arm_label
                         if event["type"] == "text":
                             arm_results[arm_label]["final_text"] = event["content"]
@@ -1468,6 +1523,10 @@ class ChatWrapper:
                 arm_results[arm_label]["error"] = str(exc)
                 event_queue.put({"type": "error", "arm": arm_label, "message": str(exc)})
             finally:
+                logger.info(
+                    "A/B arm '%s' finished (t+%.1fs)",
+                    arm_label, _time.monotonic() - t0,
+                )
                 event_queue.put(_SENTINEL)
 
         # Start both arms in parallel threads
