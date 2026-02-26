@@ -99,6 +99,31 @@ services:
           scope: {{ services.chat_app.auth.sso.client_kwargs.scope | default("openid profile email", true) }}
       basic:
         enabled: {{ services.chat_app.auth.basic.enabled | default(false, true) }}
+  {%- if services.ab_testing is defined and services.ab_testing.enabled | default(false) %}
+  ab_testing:
+    enabled: true
+    pool:
+      champion: {{ services.ab_testing.pool.champion }}
+      variants:
+        {%- for v in services.ab_testing.pool.variants %}
+        - name: {{ v.name }}
+          {%- if v.agent_spec is defined %}
+          agent_spec: "{{ v.agent_spec }}"
+          {%- endif %}
+          {%- if v.provider is defined %}
+          provider: {{ v.provider }}
+          {%- endif %}
+          {%- if v.model is defined %}
+          model: "{{ v.model }}"
+          {%- endif %}
+          {%- if v.num_documents_to_retrieve is defined %}
+          num_documents_to_retrieve: {{ v.num_documents_to_retrieve }}
+          {%- endif %}
+          {%- if v.recursion_limit is defined %}
+          recursion_limit: {{ v.recursion_limit }}
+          {%- endif %}
+        {%- endfor %}
+  {%- endif %}
   data_manager:
     auth:
       enabled: {{ services.data_manager.auth.enabled | default(false) }}

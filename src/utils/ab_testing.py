@@ -78,29 +78,46 @@ class ABPool:
         """
         Build an ABPool from the ``ab_testing`` config dict.
 
+        Expected structure::
+
+            ab_testing:
+              enabled: true
+              pool:
+                champion: "variant-name"
+                variants:
+                  - name: variant-name
+                    provider: local
+                    model: "qwen3:32b"
+                  - name: other-variant
+                    model: "gpt-oss:120b"
+
         Raises ABPoolError on validation failures.
         """
         if not isinstance(ab_config, dict):
             raise ABPoolError("ab_testing config must be a mapping.")
 
-        champion_name = ab_config.get("champion")
-        if not champion_name or not isinstance(champion_name, str):
-            raise ABPoolError("ab_testing.champion must be a non-empty string.")
+        pool_config = ab_config.get("pool")
+        if not pool_config or not isinstance(pool_config, dict):
+            raise ABPoolError("ab_testing.pool must be a mapping with 'champion' and 'variants'.")
 
-        pool_list = ab_config.get("pool")
-        if not pool_list or not isinstance(pool_list, list):
-            raise ABPoolError("ab_testing.pool must be a non-empty list of variants.")
+        champion_name = pool_config.get("champion")
+        if not champion_name or not isinstance(champion_name, str):
+            raise ABPoolError("ab_testing.pool.champion must be a non-empty string.")
+
+        variant_list = pool_config.get("variants")
+        if not variant_list or not isinstance(variant_list, list):
+            raise ABPoolError("ab_testing.pool.variants must be a non-empty list of variants.")
 
         variants: List[ABVariant] = []
         seen_names: set = set()
-        for idx, entry in enumerate(pool_list):
+        for idx, entry in enumerate(variant_list):
             if not isinstance(entry, dict):
-                raise ABPoolError(f"ab_testing.pool[{idx}] must be a mapping.")
+                raise ABPoolError(f"ab_testing.pool.variants[{idx}] must be a mapping.")
             name = entry.get("name")
             if not name or not isinstance(name, str):
-                raise ABPoolError(f"ab_testing.pool[{idx}] must include a string 'name'.")
+                raise ABPoolError(f"ab_testing.pool.variants[{idx}] must include a string 'name'.")
             if name in seen_names:
-                raise ABPoolError(f"Duplicate variant name '{name}' in ab_testing.pool.")
+                raise ABPoolError(f"Duplicate variant name '{name}' in ab_testing.pool.variants.")
             seen_names.add(name)
 
             variants.append(ABVariant(
@@ -119,7 +136,7 @@ class ABPool:
             )
 
         if len(variants) < 2:
-            raise ABPoolError("ab_testing.pool must contain at least 2 variants for A/B comparison.")
+            raise ABPoolError("ab_testing.pool.variants must contain at least 2 variants for A/B comparison.")
 
         logger.info(
             "Loaded A/B pool: %d variants, champion='%s'",
@@ -174,9 +191,17 @@ def load_ab_pool(config: Dict[str, Any]) -> Optional[ABPool]:
     """
     Load the A/B pool from the full config dict.
 
+    Looks for ab_testing config at:
+      - config["ab_testing"]  (top-level)
+      - config["services"]["ab_testing"]  (under services)
+
     Returns None if ab_testing is not configured or disabled.
     """
     ab_config = config.get("ab_testing")
+    if not ab_config or not isinstance(ab_config, dict):
+        # Try under services (the key lives there in deployed configs)
+        services = config.get("services") or {}
+        ab_config = services.get("ab_testing")
     if not ab_config or not isinstance(ab_config, dict):
         return None
     if not ab_config.get("enabled", False):

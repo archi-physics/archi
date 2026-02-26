@@ -1544,6 +1544,25 @@ class ChatWrapper:
                    "error": arm_a_error or arm_b_error}
             return
 
+        # Store user message first (normal chat stores it inline, AB must do so explicitly)
+        user_prompt_mid = None
+        if not is_refresh:
+            try:
+                conn = psycopg2.connect(**self.pg_config)
+                cursor = conn.cursor()
+                insert_tups = [
+                    ("chat", context.conversation_id, context.sender, context.content,
+                     "", "", datetime.now(), None, None),
+                ]
+                psycopg2.extras.execute_values(cursor, SQL_INSERT_CONVO, insert_tups)
+                row = cursor.fetchone()
+                user_prompt_mid = row[0] if row else None
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as exc:
+                logger.error("Failed to store user message: %s", exc)
+
         # Store both responses as messages
         arm_a_mid = self._store_assistant_message(
             context.conversation_id,
@@ -1558,31 +1577,34 @@ class ChatWrapper:
             pipeline_used=self.current_pipeline_used,
         )
 
-        # Get user prompt message ID (the last user message)
-        user_prompt_mid = self._get_last_user_message_id(context.conversation_id)
+        # Get user prompt message ID if not already stored above
+        if not user_prompt_mid:
+            user_prompt_mid = self._get_last_user_message_id(context.conversation_id)
 
-        # Create comparison record
-        try:
-            from src.utils.conversation_service import ConversationService
-            conv_service = ConversationService(connection_params=self.pg_config)
-            comparison_id = conv_service.create_ab_comparison(
-                conversation_id=context.conversation_id,
-                user_prompt_mid=user_prompt_mid or 0,
-                response_a_mid=arm_a_mid or 0,
-                response_b_mid=arm_b_mid or 0,
-                model_a=f"{arm_a_variant.provider or ''}/{arm_a_variant.model or ''}".strip("/"),
-                pipeline_a=self.current_pipeline_used or "",
-                model_b=f"{arm_b_variant.provider or ''}/{arm_b_variant.model or ''}".strip("/"),
-                pipeline_b=self.current_pipeline_used or "",
-                is_config_a_first=is_champion_first,
-                variant_a_name=arm_a_variant.name,
-                variant_b_name=arm_b_variant.name,
-                variant_a_meta=arm_a_variant.to_meta_json(),
-                variant_b_meta=arm_b_variant.to_meta_json(),
-            )
-        except Exception as exc:
-            logger.error("Failed to create A/B comparison record: %s", exc)
-            comparison_id = None
+        # Create comparison record (skip if we have no valid message IDs)
+        comparison_id = None
+        if user_prompt_mid and arm_a_mid and arm_b_mid:
+            try:
+                from src.utils.conversation_service import ConversationService
+                conv_service = ConversationService(connection_params=self.pg_config)
+                comparison_id = conv_service.create_ab_comparison(
+                    conversation_id=context.conversation_id,
+                    user_prompt_mid=user_prompt_mid,
+                    response_a_mid=arm_a_mid,
+                    response_b_mid=arm_b_mid,
+                    model_a=f"{arm_a_variant.provider or ''}/{arm_a_variant.model or ''}".strip("/"),
+                    pipeline_a=self.current_pipeline_used or "",
+                    model_b=f"{arm_b_variant.provider or ''}/{arm_b_variant.model or ''}".strip("/"),
+                    pipeline_b=self.current_pipeline_used or "",
+                    is_config_a_first=is_champion_first,
+                    variant_a_name=arm_a_variant.name,
+                    variant_b_name=arm_b_variant.name,
+                    variant_a_meta=arm_a_variant.to_meta_json(),
+                    variant_b_meta=arm_b_variant.to_meta_json(),
+                )
+            except Exception as exc:
+                logger.error("Failed to create A/B comparison record: %s", exc)
+                comparison_id = None
 
         # Emit final metadata event
         yield {
@@ -1602,7 +1624,7 @@ class ChatWrapper:
             conn = psycopg2.connect(**self.pg_config)
             cursor = conn.cursor()
             insert_tups = [
-                ("chat", conversation_id, "archi", content, None, None, datetime.now(), model_used, pipeline_used),
+                ("chat", conversation_id, "archi", content, "", "", datetime.now(), model_used, pipeline_used),
             ]
             psycopg2.extras.execute_values(cursor, SQL_INSERT_CONVO, insert_tups)
             row = cursor.fetchone()
@@ -4073,6 +4095,7 @@ class FlaskAppWrapper(object):
 
             # Update variant-level aggregate metrics (pool-based comparisons only)
             try:
+                from src.utils.conversation_service import ConversationService
                 comparison = self.chat.get_ab_comparison(comparison_id)
                 if comparison:
                     va = comparison.get('variant_a_name')

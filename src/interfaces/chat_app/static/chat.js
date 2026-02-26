@@ -346,12 +346,12 @@ const API = {
    */
   async *streamABComparison(history, conversationId, configName, signal) {
     const body = {
-      message: history[history.length - 1],
+      last_message: history.slice(-1),
       conversation_id: conversationId,
       config_name: configName || null,
       client_id: this.clientId,
-      client_sent_msg_ts: Date.now() / 1000,
-      client_timeout: CONFIG.STREAMING.TIMEOUT / 1000,
+      client_sent_msg_ts: Date.now(),
+      client_timeout: CONFIG.STREAMING.TIMEOUT,
     };
 
     const response = await fetch(CONFIG.ENDPOINTS.AB_COMPARE, {
