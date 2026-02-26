@@ -1483,7 +1483,8 @@ class ChatWrapper:
 
         def _stream_arm(arm_archi, arm_label):
             """Run one arm's stream in a thread, pushing events to the shared queue."""
-            emitted_tool_ids = set()
+            from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
+            formatter = PipelineEventFormatter(message_content_fn=self._message_content)
             try:
                 vs = self.archi.vs_connector.get_vectorstore()
                 for output in arm_archi.pipeline.stream(
@@ -1491,126 +1492,11 @@ class ChatWrapper:
                     conversation_id=context.conversation_id,
                     vectorstore=vs,
                 ):
-                    if not isinstance(output, PipelineOutput):
-                        continue
-                    meta = output.metadata or {}
-                    event_type = meta.get("event_type", "text")
-                    text = output.answer or ""
-
-                    if event_type == "text" and text:
-                        arm_results[arm_label]["final_text"] = text
-                        event_queue.put({
-                            "type": "text",
-                            "arm": arm_label,
-                            "content": text,
-                        })
-
-                    elif event_type == "thinking_start":
-                        event_queue.put({
-                            "type": "thinking_start",
-                            "arm": arm_label,
-                            "step_id": meta.get("step_id", ""),
-                        })
-
-                    elif event_type == "thinking_end":
-                        # Emit tool_start for any new tools discovered during thinking
-                        tool_inputs = meta.get("tool_inputs_by_id", {})
-                        for tc_id, tc_info in tool_inputs.items():
-                            if tc_id not in emitted_tool_ids:
-                                emitted_tool_ids.add(tc_id)
-                                event_queue.put({
-                                    "type": "tool_start",
-                                    "arm": arm_label,
-                                    "tool_call_id": tc_id,
-                                    "tool_name": tc_info.get("tool_name", "unknown"),
-                                    "tool_args": tc_info.get("tool_input", {}),
-                                })
-                        event_queue.put({
-                            "type": "thinking_end",
-                            "arm": arm_label,
-                            "step_id": meta.get("step_id", ""),
-                            "duration_ms": meta.get("duration_ms"),
-                        })
-
-                    elif event_type == "tool_start":
-                        # Try tool_inputs_by_id from memory first
-                        tool_inputs = meta.get("tool_inputs_by_id", {})
-                        emitted_any = False
-                        for tc_id, tc_info in tool_inputs.items():
-                            if tc_id not in emitted_tool_ids:
-                                emitted_tool_ids.add(tc_id)
-                                emitted_any = True
-                                event_queue.put({
-                                    "type": "tool_start",
-                                    "arm": arm_label,
-                                    "tool_call_id": tc_id,
-                                    "tool_name": tc_info.get("tool_name", "unknown"),
-                                    "tool_args": tc_info.get("tool_input", {}),
-                                })
-                        # Fallback: extract from the AIMessage's tool_calls
-                        if not emitted_any:
-                            msg = output.messages[0] if output.messages else None
-                            tool_calls = getattr(msg, "tool_calls", None) or []
-                            for tc in tool_calls:
-                                tc_id = tc.get("id", "")
-                                if tc_id and tc_id not in emitted_tool_ids:
-                                    emitted_tool_ids.add(tc_id)
-                                    event_queue.put({
-                                        "type": "tool_start",
-                                        "arm": arm_label,
-                                        "tool_call_id": tc_id,
-                                        "tool_name": tc.get("name", "unknown"),
-                                        "tool_args": tc.get("args", {}),
-                                    })
-
-                    elif event_type == "tool_output":
-                        # Extract tool_call_id and content from the ToolMessage
-                        msg = output.messages[0] if output.messages else None
-                        output_tc_id = getattr(msg, "tool_call_id", None) if msg else None
-                        output_content = self._message_content(msg) if msg else ""
-
-                        # Emit tool_start for any tools not yet announced
-                        tool_inputs = meta.get("tool_inputs_by_id", {})
-                        for tc_id, tc_info in tool_inputs.items():
-                            if tc_id not in emitted_tool_ids:
-                                emitted_tool_ids.add(tc_id)
-                                event_queue.put({
-                                    "type": "tool_start",
-                                    "arm": arm_label,
-                                    "tool_call_id": tc_id,
-                                    "tool_name": tc_info.get("tool_name", "unknown"),
-                                    "tool_args": tc_info.get("tool_input", {}),
-                                })
-
-                        if output_tc_id:
-                            truncated = len(output_content) > 800
-                            event_queue.put({
-                                "type": "tool_output",
-                                "arm": arm_label,
-                                "tool_call_id": output_tc_id,
-                                "output": output_content[:800] if truncated else output_content,
-                                "truncated": truncated,
-                            })
-
-                    elif event_type == "tool_end":
-                        event_queue.put({
-                            "type": "tool_end",
-                            "arm": arm_label,
-                            "tool_call_id": meta.get("tool_call_id", ""),
-                            "status": meta.get("status", "success"),
-                        })
-
-                    elif event_type == "final":
-                        pass  # handled after loop
-
-                    else:
-                        # Unknown event type — pass through minimally
-                        event_queue.put({
-                            "type": event_type,
-                            "arm": arm_label,
-                            "content": text,
-                        })
-
+                    for event in formatter.process(output):
+                        event["arm"] = arm_label
+                        if event["type"] == "text":
+                            arm_results[arm_label]["final_text"] = event["content"]
+                        event_queue.put(event)
             except Exception as exc:
                 arm_results[arm_label]["error"] = str(exc)
                 event_queue.put({"type": "error", "arm": arm_label, "message": str(exc)})
@@ -1983,49 +1869,15 @@ class ChatWrapper:
         timestamps = self._init_timestamps()
         context = None
         last_output = None
+        from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
+        formatter = PipelineEventFormatter(
+            message_content_fn=self._message_content,
+            max_step_chars=max_step_chars,
+        )
         last_streamed_text = ""
         trace_id = None
         trace_events: List[Dict[str, Any]] = []
-        tool_call_count = 0
         stream_start_time = time.time()
-        emitted_tool_call_ids = set()
-        emitted_tool_start_ids = set()
-        pending_tool_call_ids: List[str] = []
-        tool_calls_by_id: Dict[str, Dict[str, Any]] = {}
-        synthetic_tool_counter = 0
-
-        def _next_tool_call_id(tool_name: str) -> str:
-            nonlocal synthetic_tool_counter
-            synthetic_tool_counter += 1
-            safe_name = re.sub(r"[^a-zA-Z0-9_]+", "_", (tool_name or "unknown")).strip("_") or "unknown"
-            return f"synthetic_tool_{synthetic_tool_counter}_{safe_name}"
-
-        def _is_empty_tool_args(tool_args: Any) -> bool:
-            return tool_args in (None, "", {}, [])
-
-        def _has_meaningful_tool_payload(tool_name: Any, tool_args: Any) -> bool:
-            if isinstance(tool_name, str) and tool_name.strip() and tool_name.strip().lower() != "unknown":
-                return True
-            return not _is_empty_tool_args(tool_args)
-
-        def _remember_tool_call(tool_call_id: str, tool_name: Any, tool_args: Any) -> None:
-            if not tool_call_id:
-                return
-            current = tool_calls_by_id.get(tool_call_id, {})
-            current_name = current.get("tool_name", "unknown")
-            current_args = current.get("tool_args", {})
-            merged_name = (
-                tool_name
-                if isinstance(tool_name, str)
-                and tool_name.strip()
-                and tool_name.strip().lower() != "unknown"
-                else current_name
-            )
-            merged_args = tool_args if not _is_empty_tool_args(tool_args) else current_args
-            tool_calls_by_id[tool_call_id] = {
-                "tool_name": merged_name or "unknown",
-                "tool_args": merged_args,
-            }
 
         try:
             context, error_code = self._prepare_chat_context(
@@ -2089,219 +1941,15 @@ class ChatWrapper:
                     return
                 last_output = output
                 
-                # Extract event_type from metadata (new structured events from BaseReActAgent)
+                # Use shared event formatter for structured event types
                 event_type = output.metadata.get("event_type", "text") if output.metadata else "text"
                 timestamp = datetime.now(timezone.utc).isoformat()
-                
-                # Handle different event types
-                if event_type == "tool_start":
-                    tool_messages = getattr(output, "messages", []) or []
-                    tool_message = tool_messages[0] if tool_messages else None
-                    tool_calls = getattr(tool_message, "tool_calls", None) if tool_message else None
-                    memory_args_by_id = {}
-                    if output.metadata:
-                        memory_args_by_id = output.metadata.get("tool_inputs_by_id", {}) or {}
-                    raw_args_by_id: Dict[str, Any] = {}
-                    raw_name_by_id: Dict[str, str] = {}
-                    if tool_message is not None:
-                        try:
-                            additional = getattr(tool_message, "additional_kwargs", {}) or {}
-                            raw_tool_calls = additional.get("tool_calls") or []
-                            for raw_call in raw_tool_calls:
-                                if not isinstance(raw_call, dict):
-                                    continue
-                                raw_id = raw_call.get("id")
-                                function_obj = raw_call.get("function") or {}
-                                raw_name = function_obj.get("name")
-                                raw_arguments = function_obj.get("arguments")
-                                parsed_args: Any = None
-                                if isinstance(raw_arguments, str) and raw_arguments.strip():
-                                    try:
-                                        parsed_args = json.loads(raw_arguments)
-                                    except Exception:
-                                        parsed_args = {"_raw_arguments": raw_arguments}
-                                elif isinstance(raw_arguments, dict):
-                                    parsed_args = raw_arguments
-                                if raw_id and parsed_args is not None:
-                                    raw_args_by_id[raw_id] = parsed_args
-                                if raw_id and isinstance(raw_name, str) and raw_name.strip():
-                                    raw_name_by_id[raw_id] = raw_name.strip()
 
-                            # Newer OpenAI/LangChain payloads may carry partial tool calls here.
-                            for chunk in getattr(tool_message, "tool_call_chunks", []) or []:
-                                if not isinstance(chunk, dict):
-                                    continue
-                                chunk_id = chunk.get("id")
-                                chunk_name = chunk.get("name")
-                                chunk_args = chunk.get("args")
-                                parsed_chunk_args: Any = None
-                                if isinstance(chunk_args, str) and chunk_args.strip():
-                                    try:
-                                        parsed_chunk_args = json.loads(chunk_args)
-                                    except Exception:
-                                        parsed_chunk_args = {"_raw_arguments": chunk_args}
-                                elif isinstance(chunk_args, dict):
-                                    parsed_chunk_args = chunk_args
-                                if chunk_id and parsed_chunk_args is not None:
-                                    raw_args_by_id[chunk_id] = parsed_chunk_args
-                                if chunk_id and isinstance(chunk_name, str) and chunk_name.strip():
-                                    raw_name_by_id[chunk_id] = chunk_name.strip()
-                        except Exception:
-                            pass
-                    if tool_calls:
-                        for tool_call in tool_calls:
-                            tool_call_id = tool_call.get("id", "")
-                            tool_args = tool_call.get("args", {})
-                            if _is_empty_tool_args(tool_args):
-                                tool_args = raw_args_by_id.get(tool_call_id, tool_args)
-                            if _is_empty_tool_args(tool_args):
-                                fallback = memory_args_by_id.get(tool_call_id, {})
-                                if isinstance(fallback, dict):
-                                    tool_args = fallback.get("tool_input", tool_args)
-                            tool_name = tool_call.get("name", "unknown")
-                            if (not tool_name or str(tool_name).strip().lower() == "unknown") and tool_call_id in raw_name_by_id:
-                                tool_name = raw_name_by_id[tool_call_id]
-                            if (not tool_name) and isinstance(memory_args_by_id.get(tool_call_id), dict):
-                                tool_name = memory_args_by_id[tool_call_id].get("tool_name", "unknown")
-                            if (not tool_call_id) and (not _has_meaningful_tool_payload(tool_name, tool_args)):
-                                continue
-                            if not tool_call_id:
-                                tool_call_id = _next_tool_call_id(tool_name)
-                            _remember_tool_call(tool_call_id, tool_name, tool_args)
-                            if tool_call_id in emitted_tool_call_ids:
-                                continue
-                            emitted_tool_call_ids.add(tool_call_id)
-                            pending_tool_call_ids.append(tool_call_id)
-                            tool_call_count += 1
-                    elif memory_args_by_id:
-                        for memory_id, memory_call in memory_args_by_id.items():
-                            if not isinstance(memory_call, dict):
-                                continue
-                            tool_name = memory_call.get("tool_name", "unknown")
-                            tool_args = memory_call.get("tool_input", {})
-                            if not _has_meaningful_tool_payload(tool_name, tool_args):
-                                continue
-                            tool_call_id = memory_id or _next_tool_call_id(tool_name)
-                            if tool_call_id in emitted_tool_call_ids:
-                                continue
-                            emitted_tool_call_ids.add(tool_call_id)
-                            pending_tool_call_ids.append(tool_call_id)
-                            _remember_tool_call(tool_call_id, tool_name, tool_args)
-                            tool_call_count += 1
-                        
-                elif event_type == "tool_output":
-                    tool_messages = getattr(output, "messages", []) or []
-                    tool_message = tool_messages[0] if tool_messages else None
-                    tool_output = self._message_content(tool_message) if tool_message else ""
-                    truncated = len(tool_output) > max_step_chars
-                    full_length = len(tool_output) if truncated else None
-                    display_output = self._truncate_text(tool_output, max_step_chars)
-                    
-                    output_tool_call_id = getattr(tool_message, "tool_call_id", "") if tool_message else ""
-                    if not output_tool_call_id and pending_tool_call_ids:
-                        output_tool_call_id = pending_tool_call_ids.pop(0)
-                    elif output_tool_call_id in pending_tool_call_ids:
-                        pending_tool_call_ids.remove(output_tool_call_id)
-
-                    # Emit tool_start once, immediately before first output for stable ordering.
-                    if output_tool_call_id and output_tool_call_id not in emitted_tool_start_ids:
-                        memory_args_by_id = output.metadata.get("tool_inputs_by_id", {}) if output.metadata else {}
-                        fallback = memory_args_by_id.get(output_tool_call_id, {})
-                        fallback_name = "unknown"
-                        fallback_args: Any = {}
-                        if isinstance(fallback, dict):
-                            fallback_name = fallback.get("tool_name", "unknown")
-                            fallback_args = fallback.get("tool_input", {})
-                        _remember_tool_call(output_tool_call_id, fallback_name, fallback_args)
-                        call_info = tool_calls_by_id.get(output_tool_call_id, {})
-                        start_event = {
-                            "type": "tool_start",
-                            "tool_call_id": output_tool_call_id,
-                            "tool_name": call_info.get("tool_name", "unknown"),
-                            "tool_args": call_info.get("tool_args", {}),
-                            "timestamp": timestamp,
-                            "conversation_id": context.conversation_id,
-                        }
-                        trace_events.append(start_event)
-                        emitted_tool_start_ids.add(output_tool_call_id)
-                        if include_tool_steps:
-                            yield start_event
-
-                    trace_event = {
-                        "type": "tool_output",
-                        "tool_call_id": output_tool_call_id,
-                        "output": display_output,
-                        "truncated": truncated,
-                        "full_length": full_length,
-                        "timestamp": timestamp,
-                        "conversation_id": context.conversation_id,
-                    }
-                    trace_events.append(trace_event)
-                    if include_tool_steps:
-                        yield trace_event
-                        
-                elif event_type == "tool_end":
-                    trace_event = {
-                        "type": "tool_end",
-                        "tool_call_id": output.metadata.get("tool_call_id", ""),
-                        "status": output.metadata.get("status", "success"),
-                        "duration_ms": output.metadata.get("duration_ms"),
-                        "timestamp": timestamp,
-                        "conversation_id": context.conversation_id,
-                    }
-                    trace_events.append(trace_event)
-                    if include_tool_steps:
-                        yield trace_event
-                        
-                elif event_type == "thinking_start":
-                    trace_event = {
-                        "type": "thinking_start",
-                        "step_id": output.metadata.get("step_id", ""),
-                        "timestamp": timestamp,
-                        "conversation_id": context.conversation_id,
-                    }
-                    trace_events.append(trace_event)
-                    if include_tool_steps:
-                        yield trace_event
-                        
-                elif event_type == "thinking_end":
-                    thinking_content = output.metadata.get("thinking_content", "")
-                    trace_event = {
-                        "type": "thinking_end",
-                        "step_id": output.metadata.get("step_id", ""),
-                        "duration_ms": output.metadata.get("duration_ms"),
-                        "thinking_content": thinking_content,
-                        "timestamp": timestamp,
-                        "conversation_id": context.conversation_id,
-                    }
-                    trace_events.append(trace_event)
-                    if include_tool_steps:
-                        yield trace_event
-                        
-                elif event_type == "text":
-                    # Stream text content
-                    content = getattr(output, "answer", "") or ""
-                    if content and include_agent_steps:
-                        last_streamed_text = content
-                        yield {
-                            "type": "chunk",
-                            "content": content,
-                            "accumulated": True,
-                            "conversation_id": context.conversation_id,
-                        }
-                    # Record text event in trace
-                    if content:
-                        trace_events.append({
-                            "type": "text",
-                            "content": content,
-                            "timestamp": timestamp,
-                        })
-                        
-                elif event_type == "final":
-                    # Final event handled below after loop
-                    pass
-                else:
-                    # Fallback: legacy event handling for non-agent pipelines
+                if event_type == "final":
+                    pass  # handled after the loop
+                elif event_type not in ("tool_start", "tool_output", "tool_end",
+                                        "thinking_start", "thinking_end", "text"):
+                    # Legacy fallback for non-agent pipelines
                     if getattr(output, "final", False):
                         continue
                     for event in self._stream_events_from_output(
@@ -2312,7 +1960,6 @@ class ChatWrapper:
                         max_chars=max_step_chars,
                     ):
                         yield event
-
                     if include_agent_steps:
                         content = getattr(output, "answer", "") or ""
                         if content:
@@ -2328,6 +1975,30 @@ class ChatWrapper:
                                     "content": delta[i:i + chunk_size],
                                     "conversation_id": context.conversation_id,
                                 }
+                else:
+                    # Formatter handles tool_start/output/end, thinking, text
+                    for event in formatter.process(output):
+                        event["timestamp"] = timestamp
+                        event["conversation_id"] = context.conversation_id
+                        if event["type"] == "text":
+                            # Map to "chunk" type for backward compat with JS client
+                            if include_agent_steps:
+                                last_streamed_text = event["content"]
+                                yield {
+                                    "type": "chunk",
+                                    "content": event["content"],
+                                    "accumulated": True,
+                                    "conversation_id": context.conversation_id,
+                                }
+                            trace_events.append({
+                                "type": "text",
+                                "content": event["content"],
+                                "timestamp": timestamp,
+                            })
+                        else:
+                            trace_events.append(event)
+                            if include_tool_steps:
+                                yield event
 
             timestamps["chain_finished_ts"] = datetime.now()
 
@@ -2342,20 +2013,6 @@ class ChatWrapper:
                     )
                 yield {"type": "error", "status": 500, "message": "server error; see chat logs for message"}
                 return
-
-                # For providers like gpt-5, streamed tool chunks may carry empty args while
-                # the final AI message contains full tool arguments. Backfill before final.
-                try:
-                    final_tool_calls = last_output.extract_tool_calls() if hasattr(last_output, "extract_tool_calls") else []
-                    for tc in final_tool_calls:
-                        tool_call_id = tc.get("id", "")
-                        tool_name = tc.get("name", "unknown")
-                        tool_args = tc.get("args", {})
-                        if not tool_call_id or _is_empty_tool_args(tool_args):
-                            continue
-                        _remember_tool_call(tool_call_id, tool_name, tool_args)
-                except Exception:
-                    pass
                 
             # keep track of total number of queries and log this amount
             self.number_of_queries += 1
@@ -2406,7 +2063,7 @@ class ChatWrapper:
                     events=trace_events,
                     status='completed',
                     message_id=message_ids[-1] if message_ids else None,
-                    total_tool_calls=tool_call_count,
+                    total_tool_calls=formatter.tool_call_count,
                     total_duration_ms=total_duration_ms,
                 )
 
@@ -2432,7 +2089,7 @@ class ChatWrapper:
                     trace_id=trace_id,
                     events=trace_events,
                     status='cancelled',
-                    total_tool_calls=tool_call_count,
+                    total_tool_calls=formatter.tool_call_count,
                     total_duration_ms=total_duration_ms,
                     cancelled_by='user',
                     cancellation_reason='Stream cancelled by client',

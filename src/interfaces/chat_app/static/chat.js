@@ -3460,29 +3460,14 @@ const Chat = {
             armTexts[arm] = content; // Server sends accumulated text
             UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
           }
-        } else if (event.type === 'thinking_start' || event.type === 'thinking_end') {
-          const showTrace = this.state.traceVerboseMode !== 'minimal';
-          if (showTrace) {
-            if (event.type === 'thinking_start') UI.renderThinkingStart(targetId, event);
-            else UI.renderThinkingEnd(targetId, event);
-          }
-        } else if (event.type === 'tool_start' || event.type === 'tool_output' || event.type === 'tool_end') {
-          const showTrace = this.state.traceVerboseMode !== 'minimal';
-          if (showTrace) {
-            if (event.type === 'tool_start') UI.renderToolStart(targetId, event);
-            else if (event.type === 'tool_output') {
-              UI.renderToolOutput(targetId, event);
-              UI.renderToolEnd(targetId, { tool_call_id: event.tool_call_id, status: 'success' });
-            } else if (event.type === 'tool_end') {
-              UI.renderToolEnd(targetId, event);
-            }
-          }
         } else if (event.type === 'step' && event.step_type === 'agent') {
           const content = event.content || '';
           if (content) {
             armTexts[arm] = content;
             UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
           }
+        } else {
+          this._renderStreamEvent(targetId, event);
         }
       }
 
@@ -3581,6 +3566,34 @@ const Chat = {
     UI.showToast('A/B comparison skipped');
   },
 
+  /**
+   * Dispatch a single streaming event to the appropriate UI renderer.
+   * Shared between regular streaming and A/B comparison streaming so that
+   * tool/thinking rendering logic is defined in exactly one place.
+   */
+  _renderStreamEvent(messageId, event) {
+    const showTrace = this.state.traceVerboseMode !== 'minimal';
+    if (!showTrace) return;
+    switch (event.type) {
+      case 'tool_start':
+        UI.renderToolStart(messageId, event);
+        break;
+      case 'tool_output':
+        UI.renderToolOutput(messageId, event);
+        UI.renderToolEnd(messageId, { tool_call_id: event.tool_call_id, status: 'success' });
+        break;
+      case 'tool_end':
+        UI.renderToolEnd(messageId, event);
+        break;
+      case 'thinking_start':
+        UI.renderThinkingStart(messageId, event);
+        break;
+      case 'thinking_end':
+        UI.renderThinkingEnd(messageId, event);
+        break;
+    }
+  },
+
   async streamResponse(messageId, configName) {
     let streamedText = '';
     
@@ -3638,9 +3651,7 @@ const Chat = {
             duration: null,
           });
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolStart(messageId, event);
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'tool_output') {
           const toolData = this.state.activeTrace.toolCalls.get(event.tool_call_id);
           if (toolData) {
@@ -3648,13 +3659,7 @@ const Chat = {
             toolData.status = 'success';
           }
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolOutput(messageId, event);
-            UI.renderToolEnd(messageId, {
-              tool_call_id: event.tool_call_id,
-              status: 'success',
-            });
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'tool_end') {
           const toolData = this.state.activeTrace.toolCalls.get(event.tool_call_id);
           if (toolData) {
@@ -3662,19 +3667,10 @@ const Chat = {
             toolData.duration = event.duration_ms;
           }
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolEnd(messageId, event);
-          }
-        } else if (event.type === 'thinking_start') {
+          this._renderStreamEvent(messageId, event);
+        } else if (event.type === 'thinking_start' || event.type === 'thinking_end') {
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderThinkingStart(messageId, event);
-          }
-        } else if (event.type === 'thinking_end') {
-          this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderThinkingEnd(messageId, event);
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'chunk') {
           // Chunks may be accumulated or delta content
           if (event.accumulated) {
