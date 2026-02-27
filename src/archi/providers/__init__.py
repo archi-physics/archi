@@ -247,11 +247,16 @@ def get_model(provider_type: str | ProviderType, model_name: str, provider_confi
         if "mode" in provider_config and "local_mode" not in extra_kwargs:
             extra_kwargs["local_mode"] = provider_config.get("mode")
 
-    provider_type_enum = (
-        ProviderType(provider_type.lower())
-        if isinstance(provider_type, str)
-        else provider_type
-    )
+    if isinstance(provider_type, str):
+        try:
+            provider_type_enum = ProviderType(provider_type.lower())
+        except ValueError as exc:
+            valid_types = ", ".join(t.value for t in ProviderType)
+            message = f"Invalid provider type '{provider_type}'. Must be one of: {valid_types}"
+            logger.error(message)
+            raise ValueError(message) from exc
+    else:
+        provider_type_enum = provider_type
 
     config = ProviderConfig(
         provider_type=provider_type_enum,

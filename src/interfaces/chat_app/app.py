@@ -1662,11 +1662,12 @@ class ChatWrapper:
                         if hasattr(self.archi.pipeline, 'refresh_agent'):
                             self.archi.pipeline.refresh_agent(force=True)
                         logger.info(f"Overrode pipeline LLM with {provider}/{model}")
+                except ValueError as e:
+                    logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
+                    yield {"type": "error", "status": 400, "message": str(e)}
+                    return
                 except Exception as e:
                     logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
-                    if isinstance(e, ValueError):
-                        yield {"type": "error", "status": 400, "message": str(e)}
-                        return
                     yield {"type": "warning", "message": f"Using default model: {e}"}
             
             # Create trace for this streaming request
