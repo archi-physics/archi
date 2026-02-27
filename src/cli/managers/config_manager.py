@@ -171,6 +171,31 @@ class ConfigurationManager:
             if not list(agents_dir.glob("*.md")):
                 raise ValueError(f"agents_dir must contain at least one .md file: '{agents_dir}'")
 
+        # Guard against self-contradictory provider config:
+        # default_provider cannot be explicitly disabled in providers.<name>.enabled.
+        default_provider = str(chat_cfg.get("default_provider", "")).strip().lower()
+        providers_cfg = chat_cfg.get("providers", {}) or {}
+        default_provider_cfg = providers_cfg.get(default_provider, {}) if isinstance(providers_cfg, dict) else {}
+        if isinstance(default_provider_cfg, dict) and default_provider_cfg.get("enabled") is False:
+            raise ValueError(
+                "Invalid chat config: services.chat_app.default_provider "
+                f"'{default_provider}' is explicitly disabled via "
+                f"services.chat_app.providers.{default_provider}.enabled=false"
+            )
+
+        timeout_path = "services.chat_app.client_timeout_seconds"
+        timeout_raw = chat_cfg.get("client_timeout_seconds", 600)
+        if isinstance(timeout_raw, bool):
+            raise ValueError(f"Invalid field: '{timeout_path}' must be a positive number of seconds")
+        try:
+            timeout_value = float(timeout_raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"Invalid field: '{timeout_path}' must be a positive number of seconds")
+        if timeout_value <= 0:
+            raise ValueError(f"Invalid field: '{timeout_path}' must be > 0")
+        if timeout_value > 86400:
+            raise ValueError(f"Invalid field: '{timeout_path}' must be <= 86400 seconds")
+
     def _validate_benchmarking_config(self, config: Dict[str, Any], services: List[str]) -> None:
         if not services or "benchmarking" not in services:
             return

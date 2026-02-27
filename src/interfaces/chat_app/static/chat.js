@@ -54,11 +54,14 @@ const CONFIG = {
     TEXT_FEEDBACK: '/api/text_feedback',
   },
   STREAMING: {
-    TIMEOUT: 300000, // 5 minutes
+    TIMEOUT: 600000, // 10 minutes
   },
   TRACE: {
     MAX_TOOL_OUTPUT_PREVIEW: 500,
     AUTO_COLLAPSE_TOOL_COUNT: 5,
+  },
+  MESSAGES: {
+    CLIENT_TIMEOUT: "client timeout; the agent wasn't able to find satisfactory information to respond to the query within the time limit set by the administrator.",
   },
 };
 
@@ -692,6 +695,14 @@ const UI = {
       modelSelectPrimary: document.getElementById('model-select-primary'),
 
       providerStatus: document.getElementById('provider-status'),
+      // User profile elements
+      userProfileWidget: document.getElementById('user-profile-widget'),
+      userDisplayName: document.getElementById('user-display-name'),
+      userEmail: document.getElementById('user-email'),
+      userRolesToggle: document.getElementById('user-roles-toggle'),
+      userRolesPanel: document.getElementById('user-roles-panel'),
+      userRolesList: document.getElementById('user-roles-list'),
+      userLogoutBtn: document.getElementById('user-logout-btn'),
       customModelInput: document.getElementById('custom-model-input'),
       customModelRow: document.getElementById('custom-model-row'),
       activeModelLabel: document.getElementById('active-model-label'),
@@ -914,6 +925,20 @@ const UI = {
       Chat.handleCustomModelChange(e.target.value);
     });
 
+    // User profile widget interactions
+    this.elements.userRolesToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleUserRolesPanel();
+    });
+
+    this.elements.userProfileWidget?.addEventListener('click', () => {
+      this.toggleUserRolesPanel();
+    });
+
+    this.elements.userLogoutBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.href = '/logout';
+    });
 
     // Close modal on Escape
     document.addEventListener('keydown', (e) => {
@@ -1000,6 +1025,85 @@ const UI = {
     if (this.elements.agentInfoModal) {
       this.elements.agentInfoModal.style.display = 'none';
     }
+  },
+
+  toggleUserRolesPanel() {
+    this.elements.userProfileWidget?.classList.toggle('expanded');
+  },
+
+  async loadUserProfile() {
+    try {
+      const response = await fetch('/auth/user');
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      
+      if (!data.logged_in) {
+        // User not logged in, hide the widget
+        if (this.elements.userProfileWidget) {
+          this.elements.userProfileWidget.style.display = 'none';
+        }
+        return;
+      }
+      
+      // Show the widget
+      if (this.elements.userProfileWidget) {
+        this.elements.userProfileWidget.style.display = 'block';
+      }
+      
+      // Extract name from email (before @)
+      const email = data.email || 'User';
+      const displayName = email.split('@')[0];
+      
+      // Update user info
+      if (this.elements.userDisplayName) {
+        this.elements.userDisplayName.textContent = displayName;
+      }
+      if (this.elements.userEmail) {
+        this.elements.userEmail.textContent = email;
+      }
+      
+      // Render roles
+      this.renderUserRoles(data.roles || []);
+      
+    } catch (e) {
+      console.error('Failed to load user profile:', e);
+      // Hide widget on error
+      if (this.elements.userProfileWidget) {
+        this.elements.userProfileWidget.style.display = 'none';
+      }
+    }
+  },
+
+  renderUserRoles(roles) {
+    if (!this.elements.userRolesList) return;
+    
+    if (!roles || roles.length === 0) {
+      this.elements.userRolesList.innerHTML = '<p style="color: var(--text-tertiary); font-size: var(--text-xs); padding: 0 4px;">No roles assigned</p>';
+      return;
+    }
+    
+    const getRoleClass = (role) => {
+      if (role.includes('admin')) return 'role-admin';
+      if (role.includes('expert')) return 'role-expert';
+      return '';
+    };
+    
+    const roleIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>`;
+    
+    this.elements.userRolesList.innerHTML = roles
+      .map(role => `
+        <div class="user-role-badge ${getRoleClass(role)}">
+          ${roleIcon}
+          ${Utils.escapeHtml(role)}
+        </div>
+      `)
+      .join('');
   },
 
   async loadAgentInfo() {
@@ -2426,9 +2530,9 @@ const UI = {
           </button>
         </div>
         <div class="trace-content">
-          <div class="context-meter" style="display: none;">
-            <div class="meter-bar"><div class="meter-fill"></div></div>
-            <span class="meter-label">Calculating...</span>
+          <div class="context-meter" style="display: none;" title="LLM token usage for this response. Prompt = tokens sent to the model; Completion = tokens generated back.">
+            <div class="meter-bar" title="Context window usage"><div class="meter-fill"></div></div>
+            <span class="meter-label"></span>
           </div>
           <div class="step-timeline"></div>
         </div>
@@ -2709,6 +2813,7 @@ const UI = {
     
     if (label) {
       label.textContent = `${promptTokens.toLocaleString()} prompt + ${completionTokens.toLocaleString()} completion = ${totalTokens.toLocaleString()} tokens`;
+      label.title = `Prompt tokens (sent to LLM): ${promptTokens.toLocaleString()}\nCompletion tokens (generated by LLM): ${completionTokens.toLocaleString()}\nTotal: ${totalTokens.toLocaleString()}\nContext window: ${contextWindow.toLocaleString()}`;
     }
   },
 
@@ -2802,9 +2907,9 @@ const UI = {
           </button>
         </div>
         <div class="trace-content">
-          <div class="context-meter" style="display: none;">
-            <div class="meter-bar"><div class="meter-fill"></div></div>
-            <span class="meter-label">Calculating...</span>
+          <div class="context-meter" style="display: none;" title="LLM token usage for this response. Prompt = tokens sent to the model; Completion = tokens generated back.">
+            <div class="meter-bar" title="Context window usage"><div class="meter-fill"></div></div>
+            <span class="meter-label"></span>
           </div>
           <div class="step-timeline"></div>
         </div>
@@ -3189,6 +3294,7 @@ const Chat = {
       this.loadProviders(),
       this.loadPipelineDefaultModel(),
       this.loadApiKeyStatus(),
+      UI.loadUserProfile(),
       this.loadAgents(),
       this.loadABPool(),
     ]);
@@ -3207,6 +3313,10 @@ const Chat = {
     try {
       const data = await API.getConfigs();
       this.state.configs = data?.options || [];
+      const timeoutMs = Number(data?.client_timeout_ms);
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        CONFIG.STREAMING.TIMEOUT = timeoutMs;
+      }
       UI.renderConfigs(this.state.configs);
     } catch (e) {
       console.error('Failed to load configs:', e);
@@ -4049,7 +4159,7 @@ const Chat = {
       if (e.name === 'AbortError') {
         UI.updateMessage(messageId, {
           html: timedOut
-            ? '<p class="cancelled-notice"><em>Response timed out</em></p>'
+            ? `<p class="cancelled-notice"><em>${Utils.escapeHtml(CONFIG.MESSAGES.CLIENT_TIMEOUT)}</em></p>`
             : streamedText 
               ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
               : '<p class="cancelled-notice"><em>Response cancelled</em></p>',

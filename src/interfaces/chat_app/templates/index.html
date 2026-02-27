@@ -41,6 +41,43 @@
         </button>
       </div>
       <div class="conversation-list"></div>
+      
+      <!-- User Profile Widget (bottom of sidebar) -->
+      <div class="user-profile-widget" id="user-profile-widget">
+        <div class="user-profile-content">
+          <div class="user-avatar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-info">
+            <div class="user-name" id="user-display-name">Loading...</div>
+            <div class="user-email" id="user-email">...</div>
+          </div>
+          <button class="user-roles-toggle" id="user-roles-toggle" title="View roles" aria-label="View roles">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="user-roles-panel" id="user-roles-panel">
+          <div class="user-roles-header">Your Roles</div>
+          <div class="user-roles-list" id="user-roles-list">
+            <!-- Roles will be populated by JavaScript -->
+          </div>
+          <div class="user-roles-footer">
+            <button class="user-logout-btn" id="user-logout-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Header -->
@@ -134,19 +171,19 @@
               </svg>
               <span>Models</span>
             </button>
-            <button class="settings-nav-item" data-section="api-keys" aria-selected="false">
+            <!-- <button class="settings-nav-item" data-section="api-keys" aria-selected="false">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
               </svg>
               <span>API Keys</span>
-            </button>
-            <button class="settings-nav-item" data-section="advanced" aria-selected="false">
+            </button> -->
+            <!-- <button class="settings-nav-item" data-section="advanced" aria-selected="false">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
               </svg>
               <span>Advanced</span>
-            </button>
+            </button> -->
             <button class="settings-nav-item" data-section="display" aria-selected="false">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="4"></circle>
@@ -197,7 +234,7 @@
             </section>
             
             <!-- API Keys Section -->
-            <section class="settings-section" id="settings-api-keys" aria-labelledby="api-keys-heading" hidden>
+            <!-- <section class="settings-section" id="settings-api-keys" aria-labelledby="api-keys-heading" hidden>
               <h4 class="settings-section-title" id="api-keys-heading">API Keys</h4>
               <p class="settings-description">Configure API keys for providers. Keys are stored securely in your browser session and are never logged or sent to our servers.</p>
               
@@ -206,11 +243,11 @@
                   <div class="api-key-loading">Loading...</div>
                 </div>
               </div>
-            </section>
+            </section> -->
             
             <!-- Advanced Section -->
-            <section class="settings-section" id="settings-advanced" aria-labelledby="advanced-heading" hidden>
-              <h4 class="settings-section-title" id="advanced-heading">Advanced Settings</h4>
+            <!-- <section class="settings-section" id="settings-advanced" aria-labelledby="advanced-heading" hidden>
+              <h4 class="settings-section-title" id="advanced-heading">Advanced Settings</h4> -->
               
               <!-- A/B Testing Pool Editor (admin only — hidden until loadABPool confirms admin) -->
               <div id="ab-settings-section" style="display: none;">
@@ -235,7 +272,7 @@
               </div>
               
               <!-- Agent Transparency -->
-              <div class="settings-group settings-group-bordered">
+              <!-- <div class="settings-group settings-group-bordered">
                 <span class="settings-label" id="transparency-label">Agent Transparency</span>
                 <p class="settings-description">Control how much detail to show about agent tool calls and reasoning.</p>
                 <div class="settings-radio-group trace-verbose-options" role="radiogroup" aria-labelledby="transparency-label">
@@ -265,7 +302,7 @@
                   </label>
                 </div>
               </div>
-            </section>
+            </section> -->
 
             <!-- Display Section -->
             <section class="settings-section" id="settings-display" aria-labelledby="display-heading" hidden>

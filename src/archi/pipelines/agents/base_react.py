@@ -13,7 +13,7 @@ except ImportError:
 from langgraph.errors import GraphRecursionError
 from langgraph.graph.state import CompiledStateGraph
 
-from src.archi.pipelines.agents.utils.prompt_utils import read_prompt
+from src.archi.pipelines.agents.utils.prompt_utils import get_role_context, read_prompt
 from src.archi.pipelines.agents.utils.history_utils import infer_speaker
 from src.archi.providers import get_model
 from src.archi.providers.base import ProviderType
@@ -24,7 +24,6 @@ from src.archi.pipelines.agents.tools import initialize_mcp_client
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 class BaseReActAgent:
     """
@@ -1010,8 +1009,20 @@ class BaseReActAgent:
             self._active_middleware = list(middleware)
         return self.agent
 
+    def _build_system_prompt(self) -> str:
+        """
+        Build the full system prompt, appending role context if enabled.
+        
+        Role context is appended when SSO auth with auth_roles is configured
+        and pass_descriptions_to_agent is set to true.
+        """
+        base_prompt = self.agent_prompt or ""
+        role_context = get_role_context()
+        return base_prompt + role_context
+
     def _create_agent(self, tools: Sequence[Callable], middleware: Sequence[Callable]) -> CompiledStateGraph:
         """Create the LangGraph agent with the specified LLM, tools, and system prompt."""
+        system_prompt = self._build_system_prompt()
         logger.debug("Creating agent %s with:", self.__class__.__name__)
         logger.debug("%d tools", len(tools))
         logger.debug("%d middleware components", len(middleware))
@@ -1019,7 +1030,7 @@ class BaseReActAgent:
             model=self.agent_llm,
             tools=tools,
             middleware=middleware,
-            system_prompt=self.agent_prompt,
+            system_prompt=system_prompt,
         )
 
     def _build_static_tools(self) -> List[Callable]:

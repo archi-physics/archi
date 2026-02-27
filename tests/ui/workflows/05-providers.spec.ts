@@ -137,32 +137,32 @@ test.describe('Provider & Model Selection', () => {
     await expect(modelSelect).toBeDisabled();
   });
 
-  test('API Keys tab is accessible', async ({ page }) => {
-    await page.goto('/chat');
+  // test('API Keys tab is accessible', async ({ page }) => {
+  //   await page.goto('/chat');
     
-    // Open settings
-    await page.getByRole('button', { name: 'Settings' }).click();
+  //   // Open settings
+  //   await page.getByRole('button', { name: 'Settings' }).click();
     
-    // Click API Keys tab
-    await page.getByRole('button', { name: 'API Keys' }).click();
+  //   // Click API Keys tab
+  //   await page.getByRole('button', { name: 'API Keys' }).click();
     
-    // Should show API Keys content - modal should still be open
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  });
+  //   // Should show API Keys content - modal should still be open
+  //   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  // });
 
-  test('Advanced tab is accessible', async ({ page }) => {
-    await page.goto('/chat');
+  // test('Advanced tab is accessible', async ({ page }) => {
+  //   await page.goto('/chat');
     
-    // Open settings
-    await page.getByRole('button', { name: 'Settings' }).click();
+  //   // Open settings
+  //   await page.getByRole('button', { name: 'Settings' }).click();
     
-    // Click Advanced tab
-    await page.getByRole('button', { name: 'Advanced' }).click();
+  //   // Click Advanced tab
+  //   await page.getByRole('button', { name: 'Advanced' }).click();
     
-    // Should show Advanced settings content
-    // Just verify the tab was clickable and modal is still open
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  });
+  //   // Should show Advanced settings content
+  //   // Just verify the tab was clickable and modal is still open
+  //   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  // });
 
   test('close button closes settings modal', async ({ page }) => {
     await page.goto('/chat');

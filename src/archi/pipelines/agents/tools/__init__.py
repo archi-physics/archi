@@ -1,3 +1,4 @@
+from .base import check_tool_permission, require_tool_permission
 from .local_files import (
     create_document_fetch_tool,
     create_file_search_tool,
@@ -14,6 +15,8 @@ from .monit_opensearch import (
 )
 
 __all__ = [
+    "check_tool_permission",
+    "require_tool_permission",
     "create_document_fetch_tool",
     "create_file_search_tool",
     "create_metadata_search_tool",

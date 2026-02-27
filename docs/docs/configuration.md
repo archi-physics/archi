@@ -50,6 +50,7 @@ The main chat interface.
 | `agents_dir` | string | — | Path to agent markdown files |
 | `default_provider` | string | `local` | Default LLM provider |
 | `default_model` | string | `llama3.2` | Default model |
+| `client_timeout_seconds` | number | `600` | Chat request/stream timeout in seconds (sent to frontend as ms) |
 | `tools` | dict | `{}` | Agent-class-specific tool settings (for example `tools.monit.url`) |
 | `trained_on` | string | — | Description shown in the chat UI |
 | `hostname` | string | `localhost` | Public hostname for the chat interface |

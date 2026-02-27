@@ -35,6 +35,29 @@ _PROVIDER_REGISTRY: Dict[ProviderType, Type[BaseProvider]] = {}
 # Cached provider instances
 _PROVIDER_INSTANCES: Dict[ProviderType, BaseProvider] = {}
 
+_DEFAULT_API_KEY_ENV_BY_PROVIDER: Dict[ProviderType, str] = {
+    ProviderType.OPENAI: "OPENAI_API_KEY",
+    ProviderType.ANTHROPIC: "ANTHROPIC_API_KEY",
+    ProviderType.GEMINI: "GEMINI_API_KEY",
+    ProviderType.OPENROUTER: "OPENROUTER_API_KEY",
+}
+
+
+def _ensure_provider_config_api_key_env(
+    provider_type: ProviderType,
+    config: Optional[ProviderConfig],
+) -> Optional[ProviderConfig]:
+    """
+    Fill missing api_key_env on custom ProviderConfig.
+
+    Passing a custom config should not disable environment-based API key loading.
+    """
+    if config is None:
+        return None
+    if not getattr(config, "api_key_env", None):
+        config.api_key_env = _DEFAULT_API_KEY_ENV_BY_PROVIDER.get(provider_type, "")
+    return config
+
 
 def register_provider(provider_type: ProviderType, provider_class: Type[BaseProvider]) -> None:
     """Register a provider class for a provider type."""
@@ -94,6 +117,8 @@ def get_provider(
     if provider_type not in _PROVIDER_REGISTRY:
         raise ValueError(f"No provider registered for type: {provider_type}")
     
+    config = _ensure_provider_config_api_key_env(provider_type, config)
+
     # Return cached instance if available and no custom config
     if use_cache and config is None and provider_type in _PROVIDER_INSTANCES:
         return _PROVIDER_INSTANCES[provider_type]
@@ -222,15 +247,27 @@ def get_model(provider_type: str | ProviderType, model_name: str, provider_confi
         if "mode" in provider_config and "local_mode" not in extra_kwargs:
             extra_kwargs["local_mode"] = provider_config.get("mode")
 
+    if isinstance(provider_type, str):
+        try:
+            provider_type_enum = ProviderType(provider_type.lower())
+        except ValueError as exc:
+            valid_types = ", ".join(t.value for t in ProviderType)
+            message = f"Invalid provider type '{provider_type}'. Must be one of: {valid_types}"
+            logger.error(message)
+            raise ValueError(message) from exc
+    else:
+        provider_type_enum = provider_type
+
     config = ProviderConfig(
-        provider_type=provider_type,
+        provider_type=provider_type_enum,
+        api_key_env=_DEFAULT_API_KEY_ENV_BY_PROVIDER.get(provider_type_enum, ""),
         base_url=provider_config.get("base_url", None) if isinstance(provider_config, dict) else None,
         enabled=True,
         models=provider_config.get("models", []) if isinstance(provider_config, dict) else [],
         default_model=provider_config.get("default_model", None) if isinstance(provider_config, dict) else None,
         extra_kwargs=extra_kwargs,
     )
-    provider = get_provider(provider_type,config)
+    provider = get_provider(provider_type_enum, config)
     return provider.get_chat_model(model_name, **kwargs)
 
 
