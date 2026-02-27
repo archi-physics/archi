@@ -62,6 +62,19 @@ from src.utils.sql import (
 from src.interfaces.chat_app.document_utils import *
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
 
+# RBAC imports for role-based access control
+from src.utils.rbac import (
+    Permission,
+    get_registry,
+    get_user_roles,
+    has_permission,
+    require_permission,
+    require_any_permission,
+    require_authenticated,
+)
+from src.utils.rbac.permissions import get_permission_context
+from src.utils.rbac.audit import log_authentication_event
+
 
 logger = get_logger(__name__)
 
@@ -2158,7 +2171,8 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/terms', 'terms', self.require_auth(self.terms))
         self.add_endpoint('/api/like', 'like', self.require_auth(self.like),  methods=["POST"])
         self.add_endpoint('/api/dislike', 'dislike', self.require_auth(self.dislike),  methods=["POST"])
-        self.add_endpoint('/api/update_config', 'update_config', self.require_auth(self.update_config), methods=["POST"])
+        # Config modification requires config:modify permission (archi-expert or archi-admins)
+        self.add_endpoint('/api/update_config', 'update_config', self.require_perm(Permission.Config.MODIFY)(self.update_config), methods=["POST"])
         self.add_endpoint('/api/get_configs', 'get_configs', self.require_auth(self.get_configs), methods=["GET"])
         self.add_endpoint('/api/text_feedback', 'text_feedback', self.require_auth(self.text_feedback), methods=["POST"])
 
@@ -2199,40 +2213,42 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/agents/active', 'set_active_agent', self.require_auth(self.set_active_agent), methods=["POST"])
 
         # Data viewer endpoints
+        # View data page and list documents - requires documents:view permission
+        # Enable/disable documents - requires documents:select permission
         logger.info("Adding data viewer API endpoints")
-        self.add_endpoint('/data', 'data_viewer', self.require_auth(self.data_viewer_page))
-        self.add_endpoint('/api/data/documents', 'list_data_documents', self.require_auth(self.list_data_documents), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/content', 'get_data_document_content', self.require_auth(self.get_data_document_content), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/chunks', 'get_data_document_chunks', self.require_auth(self.get_data_document_chunks), methods=["GET"])
-        self.add_endpoint('/api/data/documents/<document_hash>/enable', 'enable_data_document', self.require_auth(self.enable_data_document), methods=["POST"])
-        self.add_endpoint('/api/data/documents/<document_hash>/disable', 'disable_data_document', self.require_auth(self.disable_data_document), methods=["POST"])
-        self.add_endpoint('/api/data/bulk-enable', 'bulk_enable_documents', self.require_auth(self.bulk_enable_documents), methods=["POST"])
-        self.add_endpoint('/api/data/bulk-disable', 'bulk_disable_documents', self.require_auth(self.bulk_disable_documents), methods=["POST"])
-        self.add_endpoint('/api/data/stats', 'get_data_stats', self.require_auth(self.get_data_stats), methods=["GET"])
+        self.add_endpoint('/data', 'data_viewer', self.require_perm(Permission.Documents.VIEW)(self.data_viewer_page))
+        self.add_endpoint('/api/data/documents', 'list_data_documents', self.require_perm(Permission.Documents.VIEW)(self.list_data_documents), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/content', 'get_data_document_content', self.require_perm(Permission.Documents.VIEW)(self.get_data_document_content), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/chunks', 'get_data_document_chunks', self.require_perm(Permission.Documents.VIEW)(self.get_data_document_chunks), methods=["GET"])
+        self.add_endpoint('/api/data/documents/<document_hash>/enable', 'enable_data_document', self.require_perm(Permission.Documents.SELECT)(self.enable_data_document), methods=["POST"])
+        self.add_endpoint('/api/data/documents/<document_hash>/disable', 'disable_data_document', self.require_perm(Permission.Documents.SELECT)(self.disable_data_document), methods=["POST"])
+        self.add_endpoint('/api/data/bulk-enable', 'bulk_enable_documents', self.require_perm(Permission.Documents.SELECT)(self.bulk_enable_documents), methods=["POST"])
+        self.add_endpoint('/api/data/bulk-disable', 'bulk_disable_documents', self.require_perm(Permission.Documents.SELECT)(self.bulk_disable_documents), methods=["POST"])
+        self.add_endpoint('/api/data/stats', 'get_data_stats', self.require_perm(Permission.Documents.VIEW)(self.get_data_stats), methods=["GET"])
 
         # Data uploader endpoints
         logger.info("Adding data uploader API endpoints")
-        self.add_endpoint('/upload', 'upload_page', self.require_auth(self.upload_page))
-        self.add_endpoint('/api/upload/file', 'upload_file', self.require_auth(self.upload_file), methods=["POST"])
-        self.add_endpoint('/api/upload/url', 'upload_url', self.require_auth(self.upload_url), methods=["POST"])
-        self.add_endpoint('/api/upload/git', 'upload_git', self.require_auth(self.upload_git), methods=["POST", "DELETE"])
-        self.add_endpoint('/api/upload/git/refresh', 'refresh_git', self.require_auth(self.refresh_git), methods=["POST"])
-        self.add_endpoint('/api/upload/jira', 'upload_jira', self.require_auth(self.upload_jira), methods=["POST"])
-        self.add_endpoint('/api/upload/embed', 'trigger_embedding', self.require_auth(self.trigger_embedding), methods=["POST"])
-        self.add_endpoint('/api/upload/status', 'get_embedding_status', self.require_auth(self.get_embedding_status), methods=["GET"])
-        self.add_endpoint('/api/upload/documents', 'list_upload_documents', self.require_auth(self.list_upload_documents), methods=["GET"])
-        self.add_endpoint('/api/upload/documents/grouped', 'list_upload_documents_grouped', self.require_auth(self.list_upload_documents_grouped), methods=["GET"])
-        self.add_endpoint('/api/upload/documents/<document_hash>/retry', 'retry_document', self.require_auth(self.retry_document), methods=["POST"])
-        self.add_endpoint('/api/upload/documents/retry-all-failed', 'retry_all_failed', self.require_auth(self.retry_all_failed), methods=["POST"])
-        self.add_endpoint('/api/sources/git', 'list_git_sources', self.require_auth(self.list_git_sources), methods=["GET"])
-        self.add_endpoint('/api/sources/jira', 'list_jira_sources', self.require_auth(self.list_jira_sources), methods=["GET", "DELETE"])
-        self.add_endpoint('/api/sources/schedules', 'source_schedules', self.require_auth(self.source_schedules_dispatch), methods=["GET", "PUT"])
+        self.add_endpoint('/upload', 'upload_page', self.require_perm(Permission.Upload.PAGE)(self.upload_page))
+        self.add_endpoint('/api/upload/file', 'upload_file', self.require_perm(Permission.Upload.FILE)(self.upload_file), methods=["POST"])
+        self.add_endpoint('/api/upload/url', 'upload_url', self.require_perm(Permission.Upload.URL)(self.upload_url), methods=["POST"])
+        self.add_endpoint('/api/upload/git', 'upload_git', self.require_perm(Permission.Upload.GIT)(self.upload_git), methods=["POST", "DELETE"])
+        self.add_endpoint('/api/upload/git/refresh', 'refresh_git', self.require_perm(Permission.Upload.GIT)(self.refresh_git), methods=["POST"])
+        self.add_endpoint('/api/upload/jira', 'upload_jira', self.require_perm(Permission.Upload.JIRA)(self.upload_jira), methods=["POST"])
+        self.add_endpoint('/api/upload/embed', 'trigger_embedding', self.require_perm(Permission.Upload.EMBED)(self.trigger_embedding), methods=["POST"])
+        self.add_endpoint('/api/upload/status', 'get_embedding_status', self.require_perm(Permission.Upload.EMBED)(self.get_embedding_status), methods=["GET"])
+        self.add_endpoint('/api/upload/documents', 'list_upload_documents', self.require_perm(Permission.Documents.VIEW)(self.list_upload_documents), methods=["GET"])
+        self.add_endpoint('/api/upload/documents/grouped', 'list_upload_documents_grouped', self.require_perm(Permission.Documents.VIEW)(self.list_upload_documents_grouped), methods=["GET"])
+        self.add_endpoint('/api/upload/documents/<document_hash>/retry', 'retry_document', self.require_perm(Permission.Documents.SELECT)(self.retry_document), methods=["POST"])
+        self.add_endpoint('/api/upload/documents/retry-all-failed', 'retry_all_failed', self.require_perm(Permission.Documents.SELECT)(self.retry_all_failed), methods=["POST"])
+        self.add_endpoint('/api/sources/git', 'list_git_sources', self.require_perm(Permission.Sources.VIEW)(self.list_git_sources), methods=["GET"])
+        self.add_endpoint('/api/sources/jira', 'list_jira_sources', self.require_perm(Permission.Sources.VIEW)(self.list_jira_sources), methods=["GET", "DELETE"])
+        self.add_endpoint('/api/sources/schedules', 'source_schedules', self.require_perm(Permission.Sources.SELECT)(self.source_schedules_dispatch), methods=["GET", "PUT"])
 
         # Database viewer endpoints (admin only)
         logger.info("Adding database viewer API endpoints")
-        self.add_endpoint('/admin/database', 'database_viewer_page', self.require_auth(self.database_viewer_page))
-        self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_auth(self.list_database_tables), methods=["GET"])
-        self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_auth(self.run_database_query), methods=["POST"])
+        self.add_endpoint('/admin/database', 'database_viewer_page', self.require_perm(Permission.Admin.DATABASE)(self.database_viewer_page))
+        self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_perm(Permission.Admin.DATABASE)(self.list_database_tables), methods=["GET"])
+        self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_perm(Permission.Admin.DATABASE)(self.run_database_query), methods=["POST"])
 
         # add unified auth endpoints
         if self.auth_enabled:
@@ -2240,9 +2256,34 @@ class FlaskAppWrapper(object):
             self.add_endpoint('/login', 'login', self.login, methods=['GET', 'POST'])
             self.add_endpoint('/logout', 'logout', self.logout)
             self.add_endpoint('/auth/user', 'get_user', self.get_user, methods=['GET'])
+            self.add_endpoint('/api/permissions', 'get_permissions', self.get_permissions, methods=['GET'])
+            self.add_endpoint('/api/permissions/check', 'check_permission', self.check_permission_endpoint, methods=['POST'])
+
             
             if self.sso_enabled:
                 self.add_endpoint('/redirect', 'sso_callback', self.sso_callback)
+
+    def _set_user_session(self, email: str, name: str, username: str, user_id: str = '', auth_method: str = 'sso', roles: list = None):
+        """Set user session with well-defined structure."""
+        session['user'] = {
+            'email': email,
+            'name': name,
+            'username': username,
+            'id': user_id
+        }
+        session['logged_in'] = True
+        session['auth_method'] = auth_method
+        session['roles'] = roles if roles is not None else []
+
+    def _get_session_user_email(self) -> str:
+        """Get user email from session. Returns empty string if not logged in."""
+        if not session.get('logged_in'):
+            return ''
+        return session['user']['email']
+
+    def _get_session_roles(self) -> list:
+        """Get user roles from session. Returns empty list if not logged in."""
+        return session.get('roles', [])
 
     def _setup_sso(self):
         """Initialize OAuth client for SSO using OpenID Connect"""
@@ -2298,36 +2339,50 @@ class FlaskAppWrapper(object):
             password = request.form.get('password')
             
             if check_credentials(username, password, self.salt, self.app.config['ACCOUNTS_FOLDER']):
-                session['user'] = {
-                    'email': username,
-                    'name': username,
-                    'username': username
-                }
-                session['logged_in'] = True
-                session['auth_method'] = 'basic'
+                self._set_user_session(
+                    email=username,
+                    name=username,
+                    username=username,
+                    auth_method='basic',
+                    roles=[]
+                )
                 logger.info(f"Basic auth login successful for user: {username}")
                 return redirect(url_for('index'))
             else:
                 flash('Invalid credentials')
         
         # Render login page with available auth methods
-        return render_template('login.html', 
+        return render_template('landing.html', 
                              sso_enabled=self.sso_enabled, 
                              basic_auth_enabled=self.basic_auth_enabled)
 
     def logout(self):
         """Unified logout endpoint for all auth methods"""
         auth_method = session.get('auth_method', 'unknown')
+        user_email = self._get_session_user_email() or 'unknown'
+        user_roles = session.get('roles', [])
+        
+        # Clear all session data including roles
         session.pop('user', None)
         session.pop('logged_in', None)
         session.pop('auth_method', None)
+        session.pop('roles', None)
         
-        logger.info(f"User logged out (method: {auth_method})")
+        # Log logout event
+        log_authentication_event(
+            user=user_email,
+            event_type='logout',
+            success=True,
+            method=auth_method,
+            details=f"Previous roles: {user_roles}"
+        )
+        
+        logger.info(f"User {user_email} logged out (method: {auth_method})")
         flash('You have been logged out successfully')
         return redirect(url_for('landing'))
 
     def sso_callback(self):
-        """Handle OAuth callback from SSO provider"""
+        """Handle OAuth callback from SSO provider with RBAC role extraction"""
         if not self.sso_enabled or not self.oauth:
             return jsonify({'error': 'SSO not enabled'}), 400
         
@@ -2341,44 +2396,79 @@ class FlaskAppWrapper(object):
                 # If userinfo is not in token, fetch it
                 user_info = self.oauth.sso.userinfo(token=token)
             
-            # Store user information in session (normalized structure)
-            session['user'] = {
-                'email': user_info.get('email', ''),
-                'name': user_info.get('name', user_info.get('preferred_username', '')),
-                'username': user_info.get('preferred_username', user_info.get('email', '')),
-                'id': user_info.get('sub', '')
-            }
-            session['logged_in'] = True
-            session['auth_method'] = 'sso'
+            user_email = user_info.get('email', user_info.get('preferred_username', 'unknown'))
             
-            logger.info(f"SSO login successful for user: {user_info.get('email')}")
+            # Extract roles from JWT token using RBAC module
+            # This handles role validation and default role assignment
+            user_roles = get_user_roles(token, user_email)
+            
+            # Store user information in session (normalized structure)
+            self._set_user_session(
+                email=user_info.get('email', ''),
+                name=user_info.get('name', user_info.get('preferred_username', '')),
+                username=user_info.get('preferred_username', user_info.get('email', '')),
+                user_id=user_info.get('sub', ''),
+                auth_method='sso',
+                roles=user_roles
+            )
+            
+            # Log successful authentication
+            log_authentication_event(
+                user=user_email,
+                event_type='login',
+                success=True,
+                method='sso',
+                details=f"Roles: {user_roles}"
+            )
+            
+            logger.info(f"SSO login successful for user: {user_email} with roles: {user_roles}")
             
             # Redirect to main page
             return redirect(url_for('index'))
             
         except Exception as e:
             logger.error(f"SSO callback error: {str(e)}")
+            log_authentication_event(
+                user='unknown',
+                event_type='login',
+                success=False,
+                method='sso',
+                details=str(e)
+            )
             flash(f"Authentication failed: {str(e)}")
             return redirect(url_for('login'))
 
     def get_user(self):
-        """API endpoint to get current user information"""
+        """API endpoint to get current user information including roles and permissions"""
         if session.get('logged_in'):
             user = session.get('user', {})
+            roles = session.get('roles', [])
+            
+            # Get permission context for the frontend
+            permissions = get_permission_context()
+            
             return jsonify({
                 'logged_in': True,
                 'email': user.get('email', ''),
                 'name': user.get('name', ''),
                 'auth_method': session.get('auth_method', 'unknown'),
-                'auth_enabled': self.auth_enabled
+                'auth_enabled': self.auth_enabled,
+                'roles': roles,
+                'permissions': permissions
             })
         return jsonify({
             'logged_in': False,
-            'auth_enabled': self.auth_enabled
+            'auth_enabled': self.auth_enabled,
+            'roles': [],
+            'permissions': get_permission_context()
         })
 
     def require_auth(self, f):
-        """Decorator to require authentication for routes"""
+        """Decorator to require authentication for routes.
+        
+        When SSO is enabled and anonymous access is blocked (sso.allow_anonymous: false),
+        unauthenticated users are redirected to SSO login instead of getting a 401 error.
+        """
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not self.auth_enabled:
@@ -2386,6 +2476,23 @@ class FlaskAppWrapper(object):
                 return f(*args, **kwargs)
             
             if not session.get('logged_in'):
+                # Check if SSO is enabled and anonymous access is blocked
+                if self.sso_enabled:
+                    registry = get_registry()
+                    if not registry.allow_anonymous:
+                        # Log the redirect attempt
+                        log_authentication_event(
+                            user='anonymous',
+                            event_type='anonymous_redirect',
+                            success=False,
+                            method='web',
+                            details=f"path={request.path}, method={request.method}"
+                        )
+                        # Redirect to login page which will trigger SSO
+                        return redirect(url_for('login'))
+                
+                # Return 401 Unauthorized response for API requests
+                return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
                 if request.path.startswith('/api/'):
                     return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
                 else:   
@@ -2394,8 +2501,103 @@ class FlaskAppWrapper(object):
             return f(*args, **kwargs)
         return decorated_function
 
+    def require_perm(self, permission: str):
+        """
+        Decorator to require authentication AND a specific permission for routes.
+        
+        This combines require_auth with permission checking. Use for routes
+        that need specific RBAC permissions (e.g., document uploads, config changes).
+        
+        Args:
+            permission: The permission string required (e.g., 'upload:documents')
+            
+        Returns:
+            Decorator function
+        """
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                # First check authentication
+                if not self.auth_enabled:
+                    return f(*args, **kwargs)
+                
+                if not session.get('logged_in'):
+                    if self.sso_enabled:
+                        registry = get_registry()
+                        if not registry.allow_anonymous:
+                            return redirect(url_for('login'))
+                    return jsonify({'error': 'Unauthorized', 'message': 'Authentication required'}), 401
+                
+                # Now check permission
+                roles = session.get('roles', [])
+                if not has_permission(permission, roles):
+                    user_email = session.get('user', {}).get('email', 'unknown')
+                    logger.warning(f"Permission denied: user {user_email} with roles {roles} lacks '{permission}'")
+                    from src.utils.rbac.audit import log_permission_check
+                    log_permission_check(
+                        permission=permission,
+                        granted=False,
+                        user=user_email,
+                        roles=roles,
+                        endpoint=request.path
+                    )
+                    return jsonify({
+                        'error': 'Forbidden',
+                        'message': f'Permission denied: requires {permission}',
+                        'required_permission': permission
+                    }), 403
+                
+                return f(*args, **kwargs)
+            return decorated_function
+        return decorator
+
     def health(self):
         return jsonify({"status": "OK"}), 200
+
+    def get_permissions(self):
+        """API endpoint to get current user's permissions"""
+        if not session.get('logged_in'):
+            return jsonify({
+                'logged_in': False,
+                'permissions': get_permission_context()
+            })
+        
+        permissions = get_permission_context()
+        return jsonify({
+            'logged_in': True,
+            'roles': session.get('roles', []),
+            'permissions': permissions
+        })
+    
+    def check_permission_endpoint(self):
+        """API endpoint to check if user has a specific permission"""
+        if not session.get('logged_in'):
+            return jsonify({
+                'error': 'Authentication required',
+                'has_permission': False
+            }), 401
+        
+        data = request.get_json()
+        if not data or 'permission' not in data:
+            return jsonify({
+                'error': 'Permission name required',
+                'has_permission': False
+            }), 400
+        
+        permission = data['permission']
+        roles = session.get('roles', [])
+        result = has_permission(permission, roles)
+        
+        # Get which roles would grant this permission
+        registry = get_registry()
+        roles_with_permission = registry.get_roles_with_permission(permission)
+        
+        return jsonify({
+            'permission': permission,
+            'has_permission': result,
+            'user_roles': roles,
+            'roles_with_permission': roles_with_permission
+        })
 
     def configs(self, **configs):
         for config, value in configs:

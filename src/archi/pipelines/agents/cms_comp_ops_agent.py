@@ -13,6 +13,7 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_search_tool,
     create_metadata_schema_tool,
     create_retriever_tool,
+    initialize_mcp_client,
     RemoteCatalogClient,
     MONITOpenSearchClient,
     create_monit_opensearch_search_tool,
