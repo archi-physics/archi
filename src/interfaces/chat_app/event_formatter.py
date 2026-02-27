@@ -227,8 +227,7 @@ class PipelineEventFormatter:
                 self.tool_call_count += 1
 
         # Deferred – don't yield anything here
-        return
-        yield  # type: ignore[misc]  # makes this a generator function
+        return ()
 
     def _on_tool_output(self, output: PipelineOutput, meta: dict) -> Iterator[Dict[str, Any]]:
         """Emit deferred tool_start (if needed) then tool_output."""
@@ -304,8 +303,7 @@ class PipelineEventFormatter:
 
     def _on_final(self, _output: PipelineOutput, _meta: dict) -> Iterator[Dict[str, Any]]:
         # Callers handle finalization themselves
-        return
-        yield  # type: ignore[misc]
+        return ()
 
     def _on_unknown(self, output: PipelineOutput, _meta: dict, event_type: str) -> Iterator[Dict[str, Any]]:
         """Fallback for unrecognised event types."""

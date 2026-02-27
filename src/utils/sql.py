@@ -225,11 +225,6 @@ FROM ab_variant_metrics
 ORDER BY total_comparisons DESC;
 """
 
-SQL_GET_VARIANT_METRIC = """
-SELECT variant_name, wins, losses, ties, total_comparisons, last_updated
-FROM ab_variant_metrics
-WHERE variant_name = %s;
-"""
 
 # =============================================================================
 # Agent Trace Queries

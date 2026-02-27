@@ -54,14 +54,14 @@ from src.utils.sql import (
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK, SQL_DELETE_REACTION_FEEDBACK,
     SQL_GET_REACTION_FEEDBACK,
-    SQL_UPDATE_AB_PREFERENCE, SQL_GET_AB_COMPARISON,
-    SQL_GET_PENDING_AB_COMPARISON,
     SQL_CREATE_AGENT_TRACE, SQL_UPDATE_AGENT_TRACE, SQL_GET_AGENT_TRACE,
     SQL_GET_TRACE_BY_MESSAGE, SQL_GET_ACTIVE_TRACE, SQL_CANCEL_ACTIVE_TRACES,
 )
 from src.interfaces.chat_app.document_utils import *
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
 from src.utils.ab_testing import ABPool, ABVariant, ABPoolError, load_ab_pool
+from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
+from src.utils.conversation_service import ConversationService
 
 
 logger = get_logger(__name__)
@@ -202,6 +202,9 @@ class ChatWrapper:
         # initialize data viewer service for per-chat document selection
         self.data_viewer = DataViewerService(data_path=self.data_path, pg_config=self.pg_config)
 
+        # shared conversation service for A/B comparisons & metrics
+        self.conv_service = ConversationService(connection_params=self.pg_config)
+
         self.conn = None
         self.cursor = None
 
@@ -265,7 +268,6 @@ class ChatWrapper:
                 "A/B pool active: %d variants, champion='%s'",
                 len(self.ab_pool.variants), self.ab_pool.champion_name,
             )
-            self._prewarm_ab_models()
 
     def update_config(self, config_name=None):
         """
@@ -620,67 +622,6 @@ class ChatWrapper:
     # A/B Comparison Methods
     # =========================================================================
 
-    def update_ab_preference(self, comparison_id: int, preference: str) -> None:
-        """
-        Record user's preference for an A/B comparison.
-        
-        Args:
-            comparison_id: The comparison to update
-            preference: 'a', 'b', or 'tie'
-        """
-        if preference not in ('a', 'b', 'tie'):
-            raise ValueError(f"Invalid preference: {preference}")
-            
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                SQL_UPDATE_AB_PREFERENCE,
-                (preference, datetime.now(), comparison_id)
-            )
-            conn.commit()
-            logger.info(f"Updated A/B comparison {comparison_id} with preference '{preference}'")
-        finally:
-            cursor.close()
-            conn.close()
-
-    def get_ab_comparison(self, comparison_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get an A/B comparison by ID.
-        
-        Returns:
-            Dict with comparison data or None if not found
-        """
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(SQL_GET_AB_COMPARISON, (comparison_id,))
-            row = cursor.fetchone()
-            if row is None:
-                return None
-            return self._ab_comparison_from_row(row)
-        finally:
-            cursor.close()
-            conn.close()
-
-    def get_pending_ab_comparison(self, conversation_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get the most recent incomplete A/B comparison for a conversation.
-        
-        Returns:
-            Dict with comparison data or None if no pending comparison
-        """
-        conn = psycopg2.connect(**self.pg_config)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(SQL_GET_PENDING_AB_COMPARISON, (conversation_id,))
-            row = cursor.fetchone()
-            if row is None:
-                return None
-            return self._ab_comparison_from_row(row)
-        finally:
-            cursor.close()
-            conn.close()
 
     # =========================================================================
     # Agent Trace Methods
@@ -1107,46 +1048,6 @@ class ChatWrapper:
             logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
             raise
 
-    def _prewarm_ab_models(self):
-        """Pre-load all A/B variant models into Ollama so they're warm for comparisons."""
-        import threading
-        chat_cfg = self.services_config.get("chat_app", {})
-        providers_cfg = chat_cfg.get("providers", {})
-        local_cfg = providers_cfg.get("local", {})
-        base_url = local_cfg.get("base_url")
-        if not base_url:
-            return  # not using local/Ollama
-
-        seen_models = set()
-        models_to_warm = []
-        for variant in self.ab_pool.variants:
-            model = variant.model
-            provider = variant.provider or chat_cfg.get("default_provider")
-            if provider == "local" and model and model not in seen_models:
-                seen_models.add(model)
-                models_to_warm.append(model)
-
-        if not models_to_warm:
-            return
-
-        def _warm(model_name):
-            import requests as _requests
-            try:
-                logger.info("Pre-warming Ollama model '%s' at %s ...", model_name, base_url)
-                resp = _requests.post(
-                    f"{base_url}/api/generate",
-                    json={"model": model_name, "prompt": "", "keep_alive": "24h", "stream": False},
-                    timeout=300,
-                )
-                logger.info("Pre-warm '%s': HTTP %s", model_name, resp.status_code)
-            except Exception as exc:
-                logger.warning("Pre-warm '%s' failed: %s", model_name, exc)
-
-        threads = [threading.Thread(target=_warm, args=(m,), daemon=True) for m in models_to_warm]
-        for t in threads:
-            t.start()
-        logger.info("Started pre-warming %d model(s) in background: %s", len(models_to_warm), models_to_warm)
-
     def _create_variant_archi(self, variant: "ABVariant") -> "archi":
         """
         Build a temporary archi instance configured for a specific A/B variant.
@@ -1201,7 +1102,7 @@ class ChatWrapper:
     def _prepare_chat_context(
         self,
         message: List[str],
-        conversation_id: int | None,
+        conversation_id: Optional[str],
         client_id: str,
         is_refresh: bool,
         server_received_msg_ts: datetime,
@@ -1273,29 +1174,6 @@ class ChatWrapper:
         return {"type": "error", "status": error_code, "message": message}
 
     @staticmethod
-    def _ab_comparison_from_row(row) -> Dict[str, Any]:
-        """Convert a positional AB comparison DB row to a dict."""
-        return {
-            'comparison_id': row[0],
-            'conversation_id': row[1],
-            'user_prompt_mid': row[2],
-            'response_a_mid': row[3],
-            'response_b_mid': row[4],
-            'model_a': row[5],
-            'pipeline_a': row[6],
-            'model_b': row[7],
-            'pipeline_b': row[8],
-            'variant_a_name': row[9],
-            'variant_b_name': row[10],
-            'variant_a_meta': row[11],
-            'variant_b_meta': row[12],
-            'is_config_a_first': row[13],
-            'preference': row[14],
-            'preference_ts': row[15].isoformat() if row[15] else None,
-            'created_at': row[16].isoformat() if row[16] else None,
-        }
-
-    @staticmethod
     def _trace_from_row(row) -> Dict[str, Any]:
         """Convert a positional agent trace DB row to a dict.
         
@@ -1347,7 +1225,7 @@ class ChatWrapper:
     def stream_ab_comparison(
         self,
         message: List[str],
-        conversation_id: int | None,
+        conversation_id: Optional[str],
         client_id: str,
         is_refresh: bool,
         server_received_msg_ts: datetime,
@@ -1405,7 +1283,11 @@ class ChatWrapper:
         event_queue: queue.Queue = queue.Queue()
         _SENTINEL = object()
 
-        # Track final text per arm (mutated by threads)
+        # Track final text per arm (mutated by threads).
+        # Thread-safety note: each thread writes to its own key ("a" or "b")
+        # which is safe under CPython's GIL.  The "final_text" value relies on
+        # PipelineEventFormatter yielding *accumulated* content (not deltas);
+        # the last write per arm is therefore the complete response text.
         arm_results = {
             "a": {"final_text": "", "error": None},
             "b": {"final_text": "", "error": None},
@@ -1414,7 +1296,6 @@ class ChatWrapper:
         def _stream_arm(arm_archi, arm_label):
             """Run one arm's stream in a thread, pushing events to the shared queue."""
             import time as _time
-            from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
             formatter = PipelineEventFormatter(message_content_fn=self._message_content)
             t0 = _time.monotonic()
             first_event_logged = False
@@ -1527,9 +1408,7 @@ class ChatWrapper:
         comparison_id = None
         if user_prompt_mid and arm_a_mid and arm_b_mid:
             try:
-                from src.utils.conversation_service import ConversationService
-                conv_service = ConversationService(connection_params=self.pg_config)
-                comparison_id = conv_service.create_ab_comparison(
+                comparison_id = self.conv_service.create_ab_comparison(
                     conversation_id=context.conversation_id,
                     user_prompt_mid=user_prompt_mid,
                     response_a_mid=arm_a_mid,
@@ -1585,7 +1464,7 @@ class ChatWrapper:
             conn = psycopg2.connect(**self.pg_config)
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT message_id FROM conversations WHERE conversation_id = %s AND sender = 'User' ORDER BY ts DESC LIMIT 1",
+                "SELECT message_id FROM conversations WHERE conversation_id = %s AND LOWER(sender) = 'user' ORDER BY ts DESC LIMIT 1",
                 (conversation_id,),
             )
             row = cursor.fetchone()
@@ -1738,7 +1617,7 @@ class ChatWrapper:
 
         return output, message_ids
 
-    def __call__(self, message: List[str], conversation_id: int|None, client_id: str, is_refresh: bool, server_received_msg_ts: datetime,  client_sent_msg_ts: float, client_timeout: float, config_name: str):
+    def __call__(self, message: List[str], conversation_id: Optional[str], client_id: str, is_refresh: bool, server_received_msg_ts: datetime,  client_sent_msg_ts: float, client_timeout: float, config_name: str):
         """
         Execute the chat functionality.
         """
@@ -1799,7 +1678,7 @@ class ChatWrapper:
     def stream(
         self,
         message: List[str],
-        conversation_id: int | None,
+        conversation_id: Optional[str],
         client_id: str,
         is_refresh: bool,
         server_received_msg_ts: datetime,
@@ -1817,7 +1696,6 @@ class ChatWrapper:
         timestamps = self._init_timestamps()
         context = None
         last_output = None
-        from src.interfaces.chat_app.event_formatter import PipelineEventFormatter
         formatter = PipelineEventFormatter(
             message_content_fn=self._message_content,
             max_step_chars=max_step_chars,
@@ -3407,7 +3285,7 @@ class FlaskAppWrapper(object):
             }
             self.chat.insert_feedback(feedback)
 
-            label = reaction_type.capitalize() + ('d' if reaction_type == 'like' else 'd')
+            label = f"{reaction_type.capitalize()}d"
             return jsonify({'message': label, 'state': reaction_type}), 200
 
         return self._with_feedback_lock(_do)
@@ -3682,19 +3560,27 @@ class FlaskAppWrapper(object):
             if not client_id:
                 return jsonify({'error': 'client_id is required'}), 400
 
+            # Verify the comparison belongs to the requesting client
+            comparison = self.chat.conv_service.get_ab_comparison(comparison_id)
+            if not comparison:
+                return jsonify({'error': 'Comparison not found'}), 404
+            comp_conv_id = comparison.conversation_id if comparison else None
+            if comp_conv_id:
+                try:
+                    self.chat.query_conversation_history(comp_conv_id, client_id)
+                except ConversationAccessError:
+                    return jsonify({'error': 'Not authorized for this comparison'}), 403
+
             # Update the preference
-            self.chat.update_ab_preference(comparison_id, preference)
+            self.chat.conv_service.record_ab_preference(comparison_id, preference)
 
             # Update variant-level aggregate metrics (pool-based comparisons only)
             try:
-                from src.utils.conversation_service import ConversationService
-                comparison = self.chat.get_ab_comparison(comparison_id)
                 if comparison:
-                    va = comparison.get('variant_a_name')
-                    vb = comparison.get('variant_b_name')
+                    va = comparison.variant_a_name
+                    vb = comparison.variant_b_name
                     if va and vb:
-                        conv_service = ConversationService(connection_params=self.chat.pg_config)
-                        conv_service.update_variant_metrics_for_preference(va, vb, preference)
+                        self.chat.conv_service.update_variant_metrics_for_preference(va, vb, preference)
                         logger.info(f"Updated variant metrics for {va} vs {vb}, preference={preference}")
             except Exception as metrics_err:
                 # Metrics are best-effort; don't fail the preference submission
@@ -3732,11 +3618,12 @@ class FlaskAppWrapper(object):
             if not client_id:
                 return jsonify({'error': 'client_id is required'}), 400
 
-            comparison = self.chat.get_pending_ab_comparison(conversation_id)
+            comparison = self.chat.conv_service.get_pending_ab_comparison(conversation_id)
 
+            from dataclasses import asdict
             return jsonify({
                 'success': True,
-                'comparison': comparison,
+                'comparison': asdict(comparison) if comparison else None,
             }), 200
 
         except Exception as e:
@@ -3778,6 +3665,11 @@ class FlaskAppWrapper(object):
                 return jsonify({'error': 'champion is required'}), 400
             if not isinstance(variant_names, list) or len(variant_names) < 2:
                 return jsonify({'error': 'At least 2 variant names required'}), 400
+            # Validate all variant names are non-empty strings
+            for vn in variant_names:
+                if not isinstance(vn, str) or not vn.strip():
+                    return jsonify({'error': 'All variant names must be non-empty strings'}), 400
+
             if champion_name not in variant_names:
                 return jsonify({'error': 'Champion must be one of the variants'}), 400
 
@@ -3797,18 +3689,24 @@ class FlaskAppWrapper(object):
                 return jsonify({'error': f'Agent(s) not found: {", ".join(missing)}'}), 400
 
             # Build ABVariant list
+            # Note: pool changes are ephemeral (in-memory only) and will revert
+            # to config.yaml on server restart.
+            _chat_cfg = self.chat.services_config.get("chat_app", {})
+            default_provider = _chat_cfg.get("default_provider", "")
+            default_model = _chat_cfg.get("default_model", "")
             variants = []
             for name in variant_names:
                 path = spec_map[name]
                 variants.append(ABVariant(
                     name=name,
                     agent_spec=path.name,  # relative filename inside agents_dir
+                    provider=default_provider or None,
+                    model=default_model or None,
                 ))
 
             pool = ABPool(variants=variants, champion_name=champion_name)
             self.chat.ab_pool = pool
             logger.info("A/B pool updated via UI: champion='%s', variants=%s", champion_name, variant_names)
-            self.chat._prewarm_ab_models()
             return jsonify({'success': True, **pool.pool_info()}), 200
         except ABPoolError as exc:
             return jsonify({'error': str(exc)}), 400
@@ -3819,6 +3717,10 @@ class FlaskAppWrapper(object):
     def ab_disable_pool(self):
         """
         Disable (clear) the A/B testing pool. Admin only.
+
+        Note: Pool state is ephemeral (in-memory only). Changes made via the
+        UI will be lost on server restart. The pool reverts to whatever is
+        configured in config.yaml.
         """
         if not self._is_admin_request():
             return jsonify({'error': 'Admin access required'}), 403
@@ -3882,9 +3784,7 @@ class FlaskAppWrapper(object):
         if not self._is_admin_request():
             return jsonify({'error': 'Admin access required'}), 403
         try:
-            from src.utils.conversation_service import ConversationService
-            conv_service = ConversationService(connection_params=self.chat.pg_config)
-            metrics = conv_service.get_all_variant_metrics()
+            metrics = self.chat.conv_service.get_all_variant_metrics()
             return jsonify({'success': True, 'metrics': metrics}), 200
         except Exception as e:
             logger.error(f"Error getting A/B metrics: {str(e)}")

@@ -2244,7 +2244,7 @@ const UI = {
     const traceIconSvg = `<svg class="trace-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
     const traceHtml = (id) => showTrace ? `
           <div class="trace-container ab-trace-container" data-message-id="${id}">
-            <div class="trace-header" onclick="UI.toggleTraceExpanded('${id}')">
+            <div class="trace-header" data-trace-toggle="${id}">
               ${traceIconSvg}
               <span class="trace-label">Agent Activity</span>
               <span class="trace-timer" data-start="${Date.now()}">0.0s</span>
@@ -2276,6 +2276,13 @@ const UI = {
       </div>`;
 
     this.elements.messagesInner?.insertAdjacentHTML('beforeend', html);
+    // Bind trace toggle handlers (replacing inline onclick for CSP compliance)
+    document.querySelectorAll('[data-trace-toggle]').forEach(el => {
+      if (!el._traceToggleBound) {
+        el._traceToggleBound = true;
+        el.addEventListener('click', () => UI.toggleTraceExpanded(el.dataset.traceToggle));
+      }
+    });
     this.scrollToBottom();
   },
 
@@ -3167,6 +3174,7 @@ const Chat = {
     selectedCustomModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_CUSTOM) || null,
 
     agents: [],
+    allAgents: [],  // full list including ab_only variants, for pool editor
     activeAgentName: null,
   },
 
@@ -3834,6 +3842,12 @@ const Chat = {
   cancelPendingABComparison() {
     // Called when user disables A/B mode while vote is pending
     if (!this.state.abVotePending) return;
+
+    // Submit 'tie' as a skip preference so the comparison is resolved in the DB
+    if (this.state.activeABComparison?.comparisonId) {
+      API.submitABPreference(this.state.activeABComparison.comparisonId, 'tie')
+        .catch(e => console.warn('Failed to submit skip preference:', e));
+    }
 
     // Add response A to history as default
     if (this.state.activeABComparison?.responseAText) {

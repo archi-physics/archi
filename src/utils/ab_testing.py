@@ -65,6 +65,10 @@ class ABPool:
     """
 
     def __init__(self, variants: List[ABVariant], champion_name: str) -> None:
+        if len(variants) < 2:
+            raise ABPoolError("ABPool requires at least 2 variants for A/B comparison.")
+        if champion_name not in {v.name for v in variants}:
+            raise ABPoolError(f"Champion '{champion_name}' not found in variant list.")
         self.variants = variants
         self.champion_name = champion_name
         self._variant_map: Dict[str, ABVariant] = {v.name: v for v in variants}
@@ -162,6 +166,8 @@ class ABPool:
     def sample_challenger(self) -> ABVariant:
         """Return a random challenger (any variant that is not the champion)."""
         pool = self.challengers
+        if not pool:
+            raise ABPoolError("No challengers available (pool has only the champion).")
         return random.choice(pool)
 
     def sample_matchup(self) -> Tuple[ABVariant, ABVariant, bool]:
