@@ -31,6 +31,8 @@ class ScraperManager:
         git_config = sources_config.get("git", {}) if isinstance(sources_config, dict) else {}
         sso_config = sources_config.get("sso", {}) if isinstance(sources_config, dict) else {}
         self.base_depth = links_config.get('base_source_depth', 5)
+        self.allowed_path_regexes = links_config.get('allowed_path_regexes', [])
+        self.denied_path_regexes = links_config.get('denied_path_regexes', [])
         logger.debug(f"Using base depth of {self.base_depth} for weblist URLs")
 
         scraper_config = {}
@@ -44,6 +46,12 @@ class ScraperManager:
                 self.max_pages = int(raw_max_pages)
             except (TypeError, ValueError):
                 logger.warning(f"Invalid max_pages value {raw_max_pages}; ignoring.")
+        raw_delay = links_config.get("delay", self.config.get("delay", 60.0))
+        try:
+            self.delay = float(raw_delay)
+        except (TypeError, ValueError):
+            logger.warning(f"Invalid links.delay value {raw_delay}; using default 60.0 seconds.")
+            self.delay = 60.0
 
         self.links_enabled = True
         self.git_enabled = git_config.get("enabled", False) if isinstance(git_config, dict) else True
@@ -63,6 +71,9 @@ class ScraperManager:
         self.web_scraper = LinkScraper(
             verify_urls=self.config.get("verify_urls", False),  # Default to False for broader compatibility
             enable_warnings=self.config.get("enable_warnings", False),
+            allowed_path_regexes=self.allowed_path_regexes,
+            denied_path_regexes=self.denied_path_regexes,
+            delay=self.delay,
         )
         self._git_scraper: Optional["GitScraper"] = None
           
