@@ -1036,7 +1036,8 @@ body {
 }
 
 .agent-dropdown-edit,
-.agent-dropdown-delete {
+.agent-dropdown-delete,
+.agent-dropdown-clone {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1047,6 +1048,11 @@ body {
   border-radius: 4px;
   color: var(--text-tertiary);
   transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.agent-dropdown-clone:hover {
+  color: var(--primary);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .agent-dropdown-edit:hover {

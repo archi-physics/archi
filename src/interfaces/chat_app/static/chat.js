@@ -789,6 +789,12 @@ const UI = {
         Chat.loadAgents();
         return;
       }
+      if (target.closest('.agent-dropdown-clone')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.openAgentSpecEditor({ mode: 'clone', name });
+        return;
+      }
       if (target.closest('.agent-dropdown-edit')) {
         const name = row.dataset.agentName;
         this.closeAgentDropdown();
@@ -1093,6 +1099,9 @@ const UI = {
         <div class="agent-dropdown-item${isActive ? ' active' : ''}" data-agent-name="${Utils.escapeHtml(name)}">
           <span class="agent-dropdown-name">${checkmark}${Utils.escapeHtml(name)}</span>
           <div class="agent-dropdown-actions">
+            <button class="agent-dropdown-clone" type="button" title="Create variant">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
             <button class="agent-dropdown-edit" type="button" title="Edit">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
@@ -1111,12 +1120,19 @@ const UI = {
     if (!this.elements.agentSpecModal) return;
     this.elements.agentSpecModal.style.display = 'flex';
     this.setAgentSpecStatus('');
-    this.agentSpecMode = mode;
-    this.agentSpecName = name;
+    // Clone mode → load source spec, then switch to create for saving
+    this.agentSpecMode = mode === 'clone' ? 'create' : mode;
+    this.agentSpecName = mode === 'clone' ? null : name;
     // Restore persisted size
     this.restoreAgentSpecSize();
     if (this.elements.agentSpecTitle) {
-      this.elements.agentSpecTitle.textContent = mode === 'edit' ? `Edit ${name || 'Agent'}` : 'New Agent';
+      if (mode === 'clone') {
+        this.elements.agentSpecTitle.textContent = `New Variant of ${name || 'Agent'}`;
+      } else if (mode === 'edit') {
+        this.elements.agentSpecTitle.textContent = `Edit ${name || 'Agent'}`;
+      } else {
+        this.elements.agentSpecTitle.textContent = 'New Agent';
+      }
     }
     // Update reset button label
     if (this.elements.agentSpecReset) {
@@ -1124,14 +1140,24 @@ const UI = {
     }
     // Clear validation errors
     this.clearAgentSpecValidation();
-    if (mode === 'edit' && name) {
+    if (mode === 'clone' && name) {
+      // Load tool palette first, then load source spec and modify name
+      await this.loadAgentToolPalette();
+      await this.loadAgentSpecByName(name);
+      // Append " (variant)" to the name so user can tweak tools & save
+      if (this.elements.agentSpecName) {
+        this.elements.agentSpecName.value = `${name} (variant)`;
+      }
+      this.setAgentSpecStatus('Cloned — adjust tools and name, then save.', 'info');
+      setTimeout(() => this.elements.agentSpecName?.select(), 100);
+    } else if (mode === 'edit' && name) {
       await this.loadAgentToolPalette();
       await this.loadAgentSpecByName(name);
     } else {
       await this.loadAgentSpecTemplate();
     }
     // Auto-focus name in create mode
-    if (mode === 'create') {
+    if (mode === 'create' && !name) {
       setTimeout(() => this.elements.agentSpecName?.focus(), 100);
     }
   },
