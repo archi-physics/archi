@@ -1231,8 +1231,9 @@ const UI = {
   },
 
   /** Serialise structured form fields back to .md format */
-  serialiseAgentSpec(name, tools, prompt) {
+  serialiseAgentSpec(name, tools, prompt, { ab_only = false } = {}) {
     let yaml = `---\nname: ${name}\n`;
+    if (ab_only) yaml += 'ab_only: true\n';
     if (tools.length) {
       yaml += 'tools:\n';
       for (const t of tools) yaml += `  - ${t}\n`;
@@ -1918,7 +1919,8 @@ const UI = {
     const disableBtn = document.getElementById('ab-pool-disable');
     if (!agentList) return;
 
-    const agents = Chat.state.agents || [];
+    // Use allAgents so AB-only variants appear in the pool editor
+    const agents = Chat.state.allAgents || Chat.state.agents || [];
     const poolEnabled = poolInfo?.enabled === true;
     const currentChampion = poolInfo?.champion || null;
     const currentVariants = poolInfo?.variants || [];
@@ -1940,15 +1942,22 @@ const UI = {
       const isChampion = agent.name === currentChampion;
       const selectedClass = inPool ? ' selected' : '';
       const championClass = isChampion ? ' champion' : '';
+      const isABOnly = agent.ab_only === true;
       return `
         <label class="ab-pool-agent-row${selectedClass}${championClass}" data-agent="${Utils.escapeHtml(agent.name)}">
           <span class="ab-pool-agent-check">
             <input type="checkbox" ${inPool ? 'checked' : ''}>
           </span>
-          <span class="ab-pool-agent-name">${Utils.escapeHtml(agent.name)}</span>
-          <button type="button" class="ab-pool-champion-btn${isChampion ? ' is-champion' : ''}" title="Set as champion">
-            ${isChampion ? '★ Champion' : '☆ Champion'}
-          </button>
+          <span class="ab-pool-agent-name">
+            ${Utils.escapeHtml(agent.name)}
+            ${isABOnly ? '<span class="ab-pool-ab-badge">AB</span>' : ''}
+          </span>
+          <span class="ab-pool-agent-actions">
+            <button type="button" class="ab-pool-variant-btn" title="Create variant of this agent">+</button>
+            <button type="button" class="ab-pool-champion-btn${isChampion ? ' is-champion' : ''}" title="Set as champion">
+              ${isChampion ? '★ Champion' : '☆ Champion'}
+            </button>
+          </span>
         </label>`;
     }).join('');
 
@@ -1957,6 +1966,7 @@ const UI = {
       const agentName = row.dataset.agent;
       const checkbox = row.querySelector('input[type="checkbox"]');
       const champBtn = row.querySelector('.ab-pool-champion-btn');
+      const variantBtn = row.querySelector('.ab-pool-variant-btn');
 
       checkbox.addEventListener('change', () => {
         row.classList.toggle('selected', checkbox.checked);
@@ -1984,6 +1994,14 @@ const UI = {
         champBtn.innerHTML = '★ Champion';
         this._updateABPoolSaveState();
       });
+
+      if (variantBtn) {
+        variantBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this._showQuickVariantPanel(agentName);
+        });
+      }
     });
 
     this._updateABPoolSaveState();
@@ -2025,6 +2043,122 @@ const UI = {
       if (row.classList.contains('champion')) champion = name;
     });
     return { champion, variants };
+  },
+
+  /**
+   * Show an inline panel to quickly create a variant of an existing agent.
+   * The variant is saved with ab_only: true so it only appears in the pool editor.
+   */
+  async _showQuickVariantPanel(sourceAgentName) {
+    // Remove any existing panel
+    document.querySelector('.ab-quick-variant-panel')?.remove();
+
+    // Fetch source agent spec and tool palette in parallel
+    let sourceSpec = null;
+    let availableTools = [];
+    try {
+      const [specResp, templateResp] = await Promise.all([
+        API.getAgentSpec(sourceAgentName),
+        API.getAgentTemplate(),
+      ]);
+      sourceSpec = UI.parseAgentSpec(specResp?.content || '');
+      availableTools = (templateResp?.tools || []).map(t => typeof t === 'string' ? t : t.name);
+    } catch (e) {
+      console.error('Failed to load source agent for variant:', e);
+      return;
+    }
+
+    const sourceTools = sourceSpec?.tools || [];
+
+    // Build panel HTML
+    const panel = document.createElement('div');
+    panel.className = 'ab-quick-variant-panel';
+    panel.innerHTML = `
+      <div class="ab-qv-header">
+        <strong>New variant of "${Utils.escapeHtml(sourceAgentName)}"</strong>
+        <button class="ab-qv-close" title="Cancel">&times;</button>
+      </div>
+      <label class="ab-qv-label">Variant name</label>
+      <input class="ab-qv-name" type="text" value="${Utils.escapeHtml(sourceAgentName)}-v2" spellcheck="false">
+      <label class="ab-qv-label">Tools</label>
+      <div class="ab-qv-tools">
+        ${availableTools.map(t => `
+          <label class="ab-qv-tool">
+            <input type="checkbox" value="${Utils.escapeHtml(t)}" ${sourceTools.includes(t) ? 'checked' : ''}>
+            ${Utils.escapeHtml(t)}
+          </label>
+        `).join('')}
+      </div>
+      <div class="ab-qv-footer">
+        <span class="ab-qv-msg"></span>
+        <button class="ab-qv-save">Create Variant</button>
+      </div>
+    `;
+
+    // Insert panel after the agent list
+    const agentList = document.getElementById('ab-pool-agent-list');
+    agentList?.parentElement?.insertBefore(panel, agentList.nextSibling);
+
+    // References
+    const nameInput = panel.querySelector('.ab-qv-name');
+    const saveBtn = panel.querySelector('.ab-qv-save');
+    const closeBtn = panel.querySelector('.ab-qv-close');
+    const msgEl = panel.querySelector('.ab-qv-msg');
+
+    closeBtn.addEventListener('click', () => panel.remove());
+
+    nameInput.addEventListener('input', () => {
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ab-qv-msg'; }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const variantName = (nameInput.value || '').trim();
+      if (!variantName) {
+        if (msgEl) { msgEl.textContent = 'Name is required'; msgEl.className = 'ab-qv-msg error'; }
+        nameInput.focus();
+        return;
+      }
+
+      // Client-side duplicate check
+      const existingNames = (Chat.state.allAgents || []).map(a => a.name);
+      if (existingNames.includes(variantName)) {
+        if (msgEl) { msgEl.textContent = '"' + variantName + '" already exists \u2014 choose a different name'; msgEl.className = 'ab-qv-msg error'; }
+        nameInput.focus();
+        nameInput.select();
+        return;
+      }
+
+      const selectedTools = [...panel.querySelectorAll('.ab-qv-tools input:checked')].map(cb => cb.value);
+      const specContent = UI.serialiseAgentSpec(variantName, selectedTools, sourceSpec?.prompt || '', { ab_only: true });
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving\u2026';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ab-qv-msg'; }
+
+      try {
+        const result = await API.saveAgentSpec({ content: specContent, mode: 'create' });
+        if (result?.success) {
+          if (msgEl) { msgEl.textContent = 'Created!'; msgEl.className = 'ab-qv-msg success'; }
+          // Refresh agent lists + re-render pool editor
+          await Chat.loadAgents();
+          UI.updateABPoolUI(Chat.state.abPool || {});
+          // Panel replaced by re-render; remove just in case
+          setTimeout(() => panel.remove(), 600);
+        } else {
+          if (msgEl) { msgEl.textContent = result?.error || 'Save failed'; msgEl.className = 'ab-qv-msg error'; }
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Create Variant';
+        }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Save failed'; msgEl.className = 'ab-qv-msg error'; }
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Create Variant';
+      }
+    });
+
+    // Focus the name input
+    nameInput.focus();
+    nameInput.select();
   },
 
   showABWarningModal(onConfirm, onCancel) {
@@ -3074,7 +3208,10 @@ const Chat = {
   async loadAgents() {
     try {
       const data = await API.getAgentsList();
-      this.state.agents = data?.agents || [];
+      // Keep full list (including ab_only) for pool editor
+      this.state.allAgents = data?.agents || [];
+      // Filter out ab_only agents for main dropdown
+      this.state.agents = this.state.allAgents.filter(a => !a.ab_only);
       const activeName = data?.active_name || this.state.agents[0]?.name || null;
       this.state.activeAgentName = Utils.normalizeAgentName(activeName);
       UI.renderAgentsList(this.state.agents, this.state.activeAgentName);

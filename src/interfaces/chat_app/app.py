@@ -2619,7 +2619,7 @@ class FlaskAppWrapper(object):
             for path in agent_files:
                 try:
                     spec = load_agent_spec(path)
-                    agents.append({"name": spec.name, "filename": path.name})
+                    agents.append({"name": spec.name, "filename": path.name, "ab_only": spec.ab_only})
                 except AgentSpecError as exc:
                     logger.warning("Skipping invalid agent spec %s: %s", path, exc)
             try:
