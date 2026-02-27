@@ -4647,15 +4647,21 @@ class FlaskAppWrapper(object):
 
             for project in sources:
                 project_key = project['key']
+                
                 ticket_count = sum(1 for doc in result.get('documents', []) if doc.get('display_name', '').startswith(project_key + '-'))
                 project['ticket_count'] = ticket_count if ticket_count else 0
-                last_sync = max((doc['ingested_at'] for doc in result.get('documents', []) if project_key in doc.get('display_name', '')), default=None)
+                
+                last_sync = max((doc.get('ingested_at')
+                                for doc in result.get('documents', [])
+                                if project_key in doc.get('display_name', '') and doc.get('ingested_at') is not None),
+                                default=None)
+                
                 project['last_sync'] = last_sync if last_sync else None
 
             return jsonify({"sources": sources}), 200
 
         except Exception as e:
-            logger.error(f"Error listing Jira sources: {str(e)}")
+            logger.error(f"Error listing Jira sources: {str(e)}",exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     def _delete_jira_project(self):

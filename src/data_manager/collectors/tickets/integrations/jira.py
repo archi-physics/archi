@@ -176,7 +176,7 @@ class JiraClient:
             if len(batch) < max_batch_results:
                 break
             start_at += max_batch_results
-            if start_at > self.max_tickets:
+            if start_at >= self.max_tickets:
                 logger.warning(f"Reached max ticket limit of {self.max_tickets}. Stopping further fetch.")
                 break
 
