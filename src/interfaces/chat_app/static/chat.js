@@ -30,6 +30,8 @@ const CONFIG = {
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
     AB_POOL: '/api/ab/pool',
+    AB_POOL_SET: '/api/ab/pool/set',
+    AB_POOL_DISABLE: '/api/ab/pool/disable',
     AB_COMPARE: '/api/ab/compare',
     AB_METRICS: '/api/ab/metrics',
     TRACE_GET: '/api/trace',
@@ -355,6 +357,22 @@ const API = {
     return this.fetchJson(`${CONFIG.ENDPOINTS.AB_METRICS}?client_id=${encodeURIComponent(this.clientId)}`);
   },
 
+  async saveABPool(champion, variants) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL_SET, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ champion, variants, client_id: this.clientId }),
+    });
+  },
+
+  async disableABPool() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL_DISABLE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: this.clientId }),
+    });
+  },
+
   /**
    * Stream a pool-based A/B comparison. Returns an async iterator of NDJSON events.
    * Each event has an 'arm' field ('a' or 'b') plus 'type', 'content', etc.
@@ -645,8 +663,6 @@ const UI = {
       settingsModal: document.querySelector('.settings-modal'),
       settingsBackdrop: document.querySelector('.settings-backdrop'),
       settingsClose: document.querySelector('.settings-close'),
-      abCheckbox: document.querySelector('.ab-checkbox'),
-      abModelGroup: document.querySelector('.ab-model-group'),
       traceVerboseOptions: document.querySelector('.trace-verbose-options'),
       agentDropdown: document.querySelector('.agent-dropdown'),
       agentDropdownBtn: document.querySelector('.agent-dropdown-btn'),
@@ -826,37 +842,49 @@ const UI = {
     // Resize handle for agent spec modal
     this.initAgentSpecResize();
     
-    // A/B toggle in settings
-    this.elements.abCheckbox?.addEventListener('change', (e) => {
-      const isEnabled = e.target.checked;
-      if (isEnabled) {
-        // Show warning modal before enabling
-        const dismissed = sessionStorage.getItem(CONFIG.STORAGE_KEYS.AB_WARNING_DISMISSED);
-        if (!dismissed) {
-          e.target.checked = false; // Reset checkbox
-          this.showABWarningModal(
-            () => {
-              // On confirm
-              e.target.checked = true;
-              if (this.elements.abModelGroup) {
-                this.elements.abModelGroup.style.display = 'block';
-              }
-              sessionStorage.setItem(CONFIG.STORAGE_KEYS.AB_WARNING_DISMISSED, 'true');
-            },
-            () => {
-              // On cancel
-              e.target.checked = false;
-            }
-          );
-          return;
+    // A/B pool editor — save & disable buttons
+    document.getElementById('ab-pool-save')?.addEventListener('click', async () => {
+      const sel = UI._getABPoolSelection();
+      if (!sel || !sel.champion || sel.variants.length < 2) return;
+      const saveBtn = document.getElementById('ab-pool-save');
+      const msgEl = document.getElementById('ab-pool-message');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try {
+        const result = await API.saveABPool(sel.champion, sel.variants);
+        if (result?.success) {
+          if (msgEl) { msgEl.textContent = 'Pool saved'; msgEl.className = 'ab-pool-message success'; }
+          Chat.state.abPool = result;
+          // Re-render to reflect saved state
+          UI.updateABPoolUI(result);
+        } else {
+          if (msgEl) { msgEl.textContent = result?.error || 'Save failed'; msgEl.className = 'ab-pool-message error'; }
         }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Save failed'; msgEl.className = 'ab-pool-message error'; }
+      } finally {
+        saveBtn.textContent = 'Save Pool';
+        UI._updateABPoolSaveState();
       }
-      if (this.elements.abModelGroup) {
-        this.elements.abModelGroup.style.display = isEnabled ? 'block' : 'none';
-      }
-      // If disabling A/B mode while vote is pending, re-enable input
-      if (!isEnabled && Chat.state.abVotePending) {
-        Chat.cancelPendingABComparison();
+    });
+
+    document.getElementById('ab-pool-disable')?.addEventListener('click', async () => {
+      const disableBtn = document.getElementById('ab-pool-disable');
+      const msgEl = document.getElementById('ab-pool-message');
+      disableBtn.disabled = true;
+      try {
+        const result = await API.disableABPool();
+        if (result?.success) {
+          Chat.state.abPool = null;
+          UI.updateABPoolUI({ enabled: false });
+          if (msgEl) { msgEl.textContent = 'Pool disabled'; msgEl.className = 'ab-pool-message success'; }
+          // If A/B mode was active in chat, deactivate
+          if (Chat.state.abVotePending) Chat.cancelPendingABComparison();
+        }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Failed'; msgEl.className = 'ab-pool-message error'; }
+      } finally {
+        disableBtn.disabled = false;
       }
     });
 
@@ -1438,7 +1466,8 @@ const UI = {
   },
 
   isABEnabled() {
-    return this.elements.abCheckbox?.checked ?? false;
+    // A/B mode is active when a pool is configured on the server
+    return Chat.state.abPool?.enabled === true;
   },
 
   autoResizeInput() {
@@ -1882,25 +1911,120 @@ const UI = {
   },
 
   updateABPoolUI(poolInfo) {
-    // Show a pool indicator in the AB settings area
-    if (this.elements.abModelGroup) {
-      // Add a pool-mode banner inside the AB model group
-      let poolBanner = this.elements.abModelGroup.querySelector('.ab-pool-banner');
-      if (!poolBanner) {
-        poolBanner = document.createElement('div');
-        poolBanner.className = 'ab-pool-banner';
-        this.elements.abModelGroup.prepend(poolBanner);
-      }
-      const variantNames = (poolInfo.variants || []).join(', ');
-      poolBanner.innerHTML = `
-        <div class="ab-pool-info">
-          <strong>Pool Mode Active</strong>
-          <span>Champion: <em>${Utils.escapeHtml(poolInfo.champion || '?')}</em></span>
-          <span>Variants: <em>${Utils.escapeHtml(variantNames)}</em></span>
-        </div>`;
+    // Render pool editor with current agents + pool state
+    const agentList = document.getElementById('ab-pool-agent-list');
+    const statusBadge = document.getElementById('ab-pool-status');
+    const saveBtn = document.getElementById('ab-pool-save');
+    const disableBtn = document.getElementById('ab-pool-disable');
+    if (!agentList) return;
 
+    const agents = Chat.state.agents || [];
+    const poolEnabled = poolInfo?.enabled === true;
+    const currentChampion = poolInfo?.champion || null;
+    const currentVariants = poolInfo?.variants || [];
 
+    // Update status badge
+    if (statusBadge) {
+      statusBadge.textContent = poolEnabled ? 'Active' : 'Inactive';
+      statusBadge.classList.toggle('active', poolEnabled);
     }
+
+    // Show/hide disable button
+    if (disableBtn) {
+      disableBtn.style.display = poolEnabled ? '' : 'none';
+    }
+
+    // Render agent rows
+    agentList.innerHTML = agents.map(agent => {
+      const inPool = currentVariants.includes(agent.name);
+      const isChampion = agent.name === currentChampion;
+      const selectedClass = inPool ? ' selected' : '';
+      const championClass = isChampion ? ' champion' : '';
+      return `
+        <label class="ab-pool-agent-row${selectedClass}${championClass}" data-agent="${Utils.escapeHtml(agent.name)}">
+          <span class="ab-pool-agent-check">
+            <input type="checkbox" ${inPool ? 'checked' : ''}>
+          </span>
+          <span class="ab-pool-agent-name">${Utils.escapeHtml(agent.name)}</span>
+          <button type="button" class="ab-pool-champion-btn${isChampion ? ' is-champion' : ''}" title="Set as champion">
+            ${isChampion ? '★ Champion' : '☆ Champion'}
+          </button>
+        </label>`;
+    }).join('');
+
+    // Wire up events
+    agentList.querySelectorAll('.ab-pool-agent-row').forEach(row => {
+      const agentName = row.dataset.agent;
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      const champBtn = row.querySelector('.ab-pool-champion-btn');
+
+      checkbox.addEventListener('change', () => {
+        row.classList.toggle('selected', checkbox.checked);
+        if (!checkbox.checked && row.classList.contains('champion')) {
+          row.classList.remove('champion');
+          champBtn.classList.remove('is-champion');
+          champBtn.innerHTML = '☆ Champion';
+        }
+        this._updateABPoolSaveState();
+      });
+
+      champBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!checkbox.checked) return;
+        // Clear previous champion
+        agentList.querySelectorAll('.ab-pool-agent-row').forEach(r => {
+          r.classList.remove('champion');
+          const btn = r.querySelector('.ab-pool-champion-btn');
+          btn.classList.remove('is-champion');
+          btn.innerHTML = '☆ Champion';
+        });
+        row.classList.add('champion');
+        champBtn.classList.add('is-champion');
+        champBtn.innerHTML = '★ Champion';
+        this._updateABPoolSaveState();
+      });
+    });
+
+    this._updateABPoolSaveState();
+  },
+
+  _updateABPoolSaveState() {
+    const agentList = document.getElementById('ab-pool-agent-list');
+    const saveBtn = document.getElementById('ab-pool-save');
+    const msgEl = document.getElementById('ab-pool-message');
+    if (!agentList || !saveBtn) return;
+
+    const selected = agentList.querySelectorAll('.ab-pool-agent-row.selected');
+    const hasChampion = !!agentList.querySelector('.ab-pool-agent-row.champion');
+    const valid = selected.length >= 2 && hasChampion;
+    saveBtn.disabled = !valid;
+
+    if (msgEl) {
+      if (selected.length < 2 && selected.length > 0) {
+        msgEl.textContent = 'Select at least 2 agents';
+        msgEl.className = 'ab-pool-message error';
+      } else if (selected.length >= 2 && !hasChampion) {
+        msgEl.textContent = 'Click "Champion" to designate the baseline agent';
+        msgEl.className = 'ab-pool-message error';
+      } else {
+        msgEl.textContent = '';
+        msgEl.className = 'ab-pool-message';
+      }
+    }
+  },
+
+  _getABPoolSelection() {
+    const agentList = document.getElementById('ab-pool-agent-list');
+    if (!agentList) return null;
+    const variants = [];
+    let champion = null;
+    agentList.querySelectorAll('.ab-pool-agent-row.selected').forEach(row => {
+      const name = row.dataset.agent;
+      variants.push(name);
+      if (row.classList.contains('champion')) champion = name;
+    });
+    return { champion, variants };
   },
 
   showABWarningModal(onConfirm, onCancel) {
@@ -2966,10 +3090,15 @@ const Chat = {
       const isAdmin = data?.is_admin === true;
       // Hide A/B settings section entirely for non-admins
       UI.setABSectionVisible(isAdmin);
-      if (data?.enabled && isAdmin) {
-        this.state.abPool = data;
-        console.info('A/B pool loaded:', data.champion, '+ challengers:', data.variants);
-        UI.updateABPoolUI(data);
+      if (isAdmin) {
+        if (data?.enabled) {
+          this.state.abPool = data;
+          console.info('A/B pool loaded:', data.champion, '+ challengers:', data.variants);
+        } else {
+          this.state.abPool = null;
+        }
+        // Always render the editor for admins (shows current pool state or empty)
+        UI.updateABPoolUI(data?.enabled ? data : { enabled: false });
       } else {
         this.state.abPool = null;
       }

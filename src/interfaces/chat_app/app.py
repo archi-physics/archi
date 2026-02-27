@@ -2165,6 +2165,8 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/ab/preference', 'ab_preference', self.require_auth(self.ab_submit_preference), methods=["POST"])
         self.add_endpoint('/api/ab/pending', 'ab_pending', self.require_auth(self.ab_get_pending), methods=["GET"])
         self.add_endpoint('/api/ab/pool', 'ab_pool', self.require_auth(self.ab_get_pool), methods=["GET"])
+        self.add_endpoint('/api/ab/pool/set', 'ab_pool_set', self.require_auth(self.ab_set_pool), methods=["POST"])
+        self.add_endpoint('/api/ab/pool/disable', 'ab_pool_disable', self.require_auth(self.ab_disable_pool), methods=["POST"])
         self.add_endpoint('/api/ab/compare', 'ab_compare', self.require_auth(self.ab_compare_stream), methods=["POST"])
         self.add_endpoint('/api/ab/metrics', 'ab_metrics', self.require_auth(self.ab_get_metrics), methods=["GET"])
 
@@ -3759,6 +3761,74 @@ class FlaskAppWrapper(object):
         except Exception as e:
             logger.error(f"Error getting A/B pool: {str(e)}")
             return jsonify({'error': str(e)}), 500
+
+    def ab_set_pool(self):
+        """
+        Set the A/B testing pool from the UI.
+        Admin only.  Accepts JSON: { champion: "agent-name", variants: ["name1", "name2", ...] }
+        The champion must be in the variants list.  At least 2 variants required.
+        """
+        if not self._is_admin_request():
+            return jsonify({'error': 'Admin access required'}), 403
+        try:
+            data = request.get_json(force=True)
+            champion_name = (data.get('champion') or '').strip()
+            variant_names = data.get('variants') or []
+            if not champion_name:
+                return jsonify({'error': 'champion is required'}), 400
+            if not isinstance(variant_names, list) or len(variant_names) < 2:
+                return jsonify({'error': 'At least 2 variant names required'}), 400
+            if champion_name not in variant_names:
+                return jsonify({'error': 'Champion must be one of the variants'}), 400
+
+            # Resolve each variant name to its agent spec file
+            agents_dir = self._get_agents_dir()
+            agent_files = list_agent_files(agents_dir)
+            spec_map = {}
+            for p in agent_files:
+                try:
+                    spec = load_agent_spec(p)
+                    spec_map[spec.name] = p
+                except Exception:
+                    pass
+
+            missing = [n for n in variant_names if n not in spec_map]
+            if missing:
+                return jsonify({'error': f'Agent(s) not found: {", ".join(missing)}'}), 400
+
+            # Build ABVariant list
+            variants = []
+            for name in variant_names:
+                path = spec_map[name]
+                variants.append(ABVariant(
+                    name=name,
+                    agent_spec=path.name,  # relative filename inside agents_dir
+                ))
+
+            pool = ABPool(variants=variants, champion_name=champion_name)
+            self.chat.ab_pool = pool
+            logger.info("A/B pool updated via UI: champion='%s', variants=%s", champion_name, variant_names)
+            self.chat._prewarm_ab_models()
+            return jsonify({'success': True, **pool.pool_info()}), 200
+        except ABPoolError as exc:
+            return jsonify({'error': str(exc)}), 400
+        except Exception as exc:
+            logger.error("Error setting A/B pool: %s", exc)
+            return jsonify({'error': str(exc)}), 500
+
+    def ab_disable_pool(self):
+        """
+        Disable (clear) the A/B testing pool. Admin only.
+        """
+        if not self._is_admin_request():
+            return jsonify({'error': 'Admin access required'}), 403
+        try:
+            self.chat.ab_pool = None
+            logger.info("A/B pool disabled via UI")
+            return jsonify({'success': True, 'enabled': False}), 200
+        except Exception as exc:
+            logger.error("Error disabling A/B pool: %s", exc)
+            return jsonify({'error': str(exc)}), 500
 
     def ab_compare_stream(self):
         """

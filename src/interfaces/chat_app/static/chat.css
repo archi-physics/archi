@@ -2070,8 +2070,181 @@ body {
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
-   A/B Pool Banner
+   A/B Pool Editor
    ----------------------------------------------------------------------------- */
+.ab-pool-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #e2e8f0);
+  color: var(--text-tertiary, #94a3b8);
+}
+
+.ab-pool-status.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.ab-pool-editor {
+  margin-top: 12px;
+}
+
+.ab-pool-agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ab-pool-agent-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  transition: background 0.1s ease;
+  cursor: pointer;
+}
+
+.ab-pool-agent-row:last-child {
+  border-bottom: none;
+}
+
+.ab-pool-agent-row:hover {
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.ab-pool-agent-row.selected {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ab-pool-agent-row.selected.champion {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.ab-pool-agent-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ab-pool-agent-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color, #10b981);
+  cursor: pointer;
+}
+
+.ab-pool-agent-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-pool-champion-btn {
+  display: none; /* hidden until agent is selected */
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ab-pool-agent-row.selected .ab-pool-champion-btn {
+  display: inline-flex;
+}
+
+.ab-pool-champion-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.ab-pool-champion-btn.is-champion {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  color: #fff;
+  cursor: default;
+}
+
+.ab-pool-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ab-pool-btn {
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ab-pool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ab-pool-btn-save {
+  background: var(--accent-color, #10b981);
+  color: #fff;
+  border-color: var(--accent-color, #10b981);
+}
+
+.ab-pool-btn-save:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.ab-pool-btn-disable {
+  background: transparent;
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.ab-pool-btn-disable:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
+.ab-pool-message {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  min-height: 1.2em;
+}
+
+.ab-pool-message.success {
+  color: #10b981;
+}
+
+.ab-pool-message.error {
+  color: #ef4444;
+}
+
+/* Legacy banner (kept for backward compat) */
 .ab-pool-banner {
   background: var(--bg-secondary, #f0f4f8);
   border: 1px solid var(--border-color, #d1d9e6);
