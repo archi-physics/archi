@@ -481,27 +481,19 @@ class DataUploader {
       });
     }
 
-    // Schedule dropdowns
-    const jiraScheduleSelect = document.getElementById('jira-schedule');
-    if (jiraScheduleSelect) {
-      jiraScheduleSelect.addEventListener('change', (e) => {
-        this.updateSourceSchedule('jira', e.target.value);
-      });
-    }
-    
-    const gitScheduleSelect = document.getElementById('git-schedule');
-    if (gitScheduleSelect) {
-      gitScheduleSelect.addEventListener('change', (e) => {
-        this.updateSourceSchedule('git', e.target.value);
-      });
-    }
-
-    const linksScheduleSelect = document.getElementById('links-schedule');
-    if (linksScheduleSelect) {
-      linksScheduleSelect.addEventListener('change', (e) => {
-        this.updateSourceSchedule('links', e.target.value);
-      });
-    }
+    // Schedule inputs (interval + unit)
+    ['jira','git','links'].forEach(source => {
+      const intervalEl = document.getElementById(`${source}-schedule-interval`);
+      const unitEl = document.getElementById(`${source}-schedule-unit`);
+      if (intervalEl && unitEl) {
+        const onChange = () => {
+          const schedule = this.buildScheduleFromInputs(source);
+          this.updateSourceSchedule(source, schedule);
+        };
+        intervalEl.addEventListener('input', onChange);
+        unitEl.addEventListener('change', onChange);
+      }
+    });
 
     // Refresh button
     const refreshBtn = document.getElementById('refresh-btn');
@@ -1003,29 +995,25 @@ class DataUploader {
       const data = await response.json();
       const schedules = data.schedules || {};
       
-      // Update Jira schedule dropdown
-      const jiraSchedule = document.getElementById('jira-schedule');
-      if (jiraSchedule && schedules.jira) {
-        jiraSchedule.value = schedules.jira.display || 'disabled';
-      }
+      // helper to populate inputs
+      const populate = (source, cron) => {
+        const intervalEl = document.getElementById(`${source}-schedule-interval`);
+        const unitEl = document.getElementById(`${source}-schedule-unit`);
+        if (intervalEl && unitEl) {
+          this.parseCronToInputs(cron || '', intervalEl, unitEl);
+        }
+      };
       
-      // Update Git schedule dropdown
-      const gitSchedule = document.getElementById('git-schedule');
-      if (gitSchedule && schedules.git) {
-        gitSchedule.value = schedules.git.display || 'disabled';
-      }
-
-      // Update Links/URLs schedule dropdown
-      const linksSchedule = document.getElementById('links-schedule');
-      if (linksSchedule && schedules.links) {
-        linksSchedule.value = schedules.links.display || 'disabled';
-      }
+      populate('jira', schedules.jira && schedules.jira.cron);
+      populate('git', schedules.git && schedules.git.cron);
+      populate('links', schedules.links && schedules.links.cron);
     } catch (err) {
       console.warn('Failed to load source schedules:', err);
     }
   }
 
   async updateSourceSchedule(source, schedule) {
+    // schedule expected to be cron expression or empty
     try {
       const response = await fetch('/api/sources/schedules', {
         method: 'PUT',
@@ -1045,6 +1033,74 @@ class DataUploader {
       toast.error(`Failed to update schedule: ${err.message}`);
       return false;
     }
+  }
+
+  /**
+   * Construct a cron string from the interval/unit inputs for a source.
+   * If the interval field is blank or invalid, returns empty string (disabled).
+   */
+  buildScheduleFromInputs(source) {
+    const intervalEl = document.getElementById(`${source}-schedule-interval`);
+    const unitEl = document.getElementById(`${source}-schedule-unit`);
+    if (!intervalEl || !unitEl) return '';
+    const val = parseInt(intervalEl.value, 10);
+    if (isNaN(val) || val <= 0) {
+      return '';
+    }
+    const unit = unitEl.value;
+    switch (unit) {
+      case 'minutes':
+        return `*/${val} * * * *`;
+      case 'hours':
+        return `0 */${val} * * *`;
+      case 'days':
+        return `0 0 */${val} * *`;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Populate numeric and unit inputs based on a cron expression.
+   * This handles the common patterns we support, otherwise clears inputs.
+   */
+  parseCronToInputs(cron, intervalEl, unitEl) {
+    // clear defaults
+    intervalEl.value = '';
+    unitEl.value = 'hours';
+    if (!cron) return;
+    // minutes pattern
+    let m = cron.match(/^\*\/(\d+) \* \* \* \*$/);
+    if (m) {
+      intervalEl.value = m[1];
+      unitEl.value = 'minutes';
+      return;
+    }
+    // hourly pattern including zero-minute marker
+    m = cron.match(/^0 \/(\d+) \* \* \*$/);
+    if (m) {
+      intervalEl.value = m[1];
+      unitEl.value = 'hours';
+      return;
+    }
+    if (cron === '0 * * * *') {
+      intervalEl.value = '1';
+      unitEl.value = 'hours';
+      return;
+    }
+    // daily patterns
+    m = cron.match(/^0 0 \/(\d+) \* \*$/);
+    if (m) {
+      intervalEl.value = m[1];
+      unitEl.value = 'days';
+      return;
+    }
+    if (cron === '0 0 * * *') {
+      intervalEl.value = '1';
+      unitEl.value = 'days';
+      return;
+    }
+    // else: leave blank for custom cron
   }
 
   /**

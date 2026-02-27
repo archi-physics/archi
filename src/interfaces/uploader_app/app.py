@@ -85,10 +85,7 @@ class FlaskAppWrapper:
         CORS(self.app)
 
         protected = self.require_admin
-        self.add_endpoint("/", "index", protected(self.index))
         self.add_endpoint("/api/health", "health", self.health, methods=["GET"])
-        self.add_endpoint("/document_index/", "document_index", protected(self.document_index))
-        self.add_endpoint("/document_index/index", "document_index_alt", protected(self.document_index))
         self.add_endpoint("/document_index/upload", "upload", protected(self.upload), methods=["POST"])
         self.add_endpoint("/document_index/delete/<file_hash>", "delete", protected(self.delete))
         self.add_endpoint(
@@ -170,56 +167,6 @@ class FlaskAppWrapper:
 
     def health(self):
         return jsonify({"status": "OK"}), 200
-
-    def index(self):
-        return redirect(url_for("document_index"))
-
-    def document_index(self):
-        # Ensure the catalog reflects the latest ingested resources
-        try:
-            self.catalog.refresh()
-        except Exception as exc:
-            logger.warning("Failed to refresh catalog before rendering index: %s", exc)
-
-        # Seed all configured source types so empty sources still render a card.
-        configured_sources = list((self.config.get("data_manager", {}) or {}).get("sources", {}).keys())
-        sources_index = {name: [] for name in configured_sources}
-        source_status = self._load_source_status()
-
-        for source_hash in self.catalog.metadata_index.keys():
-            metadata_source = self.catalog.get_metadata_for_hash(source_hash)
-            if not isinstance(metadata_source, dict):
-                logger.info("Metadata for hash %s missing or invalid; skipping", source_hash)
-                continue
-
-            source_type = metadata_source.get("source_type")
-            if not source_type:
-                logger.info("Metadata for hash %s missing source_type; skipping", source_hash)
-                continue
-
-            title = metadata_source.get("ticket_id") or metadata_source.get("url")
-            if not title:
-                title = (
-                    metadata_source.get("display_name")
-                    or metadata_source.get("file_name")
-                    or source_hash
-                )
-
-            ts = metadata_source.get("modified_at") or metadata_source.get("created_at") or metadata_source.get("ingested_at") or ""
-            sources_index.setdefault(source_type, []).append(
-                {"hash": source_hash, "title": title, "ts": ts}
-            )
-
-        # sort each source list by timestamp (desc) then title
-        def _sort_key(entry: dict):
-            ts = entry.get("ts") or ""
-            return (ts, entry.get("title") or "")
-
-        for key, entries in sources_index.items():
-            entries.sort(key=_sort_key, reverse=True)
-
-        sorted_sources = sorted(sources_index.items(), key=lambda x: x[0])
-        return render_template("document_index.html", sources_index=sorted_sources, source_status=source_status)
 
     def add_git_repo(self):
         repo_url = request.form.get("repo_url") or ""
@@ -356,6 +303,7 @@ class FlaskAppWrapper:
         if schedule:
             try:
                 from croniter import croniter
+                logger.debug(f"Updating source {source} schedule to {schedule}")
 
                 croniter(schedule)
             except Exception as exc:
@@ -457,6 +405,7 @@ class FlaskAppWrapper:
                 else:
                     entry.pop("schedule", None)
             data[source] = entry
+            logger.debug(f"Updated source status with state {state}, last_run: {last_run}, schedule: {schedule}")
             self.status_file.parent.mkdir(parents=True, exist_ok=True)
             self.status_file.write_text(json.dumps(data))
         except Exception as exc:

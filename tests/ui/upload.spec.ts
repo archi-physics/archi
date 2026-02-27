@@ -318,7 +318,7 @@ test.describe('Upload Page', () => {
       await expect(page.getByText('Include only README files')).toBeVisible();
     });
 
-    test('shows auto-sync schedule selector', async ({ page }) => {
+    test('shows auto-sync schedule inputs', async ({ page }) => {
       await page.goto('/upload');
       await page.getByRole('button', { name: /Git Repos/ }).click();
       
@@ -326,6 +326,9 @@ test.describe('Upload Page', () => {
       await page.waitForTimeout(300);
       const gitPanel = page.locator('#panel-git');
       await expect(gitPanel.getByText('Auto-sync Schedule')).toBeVisible();
+      // should have the numeric interval and unit selector
+      await expect(gitPanel.locator('#git-schedule-interval')).toBeVisible();
+      await expect(gitPanel.locator('#git-schedule-unit')).toBeVisible();
     });
 
     test('displays existing repositories', async ({ page }) => {
@@ -417,6 +420,8 @@ test.describe('Upload Page', () => {
       await page.waitForTimeout(300);
       const jiraPanel = page.locator('#panel-jira');
       await expect(jiraPanel.getByText('Auto-sync Schedule')).toBeVisible();
+      await expect(jiraPanel.locator('#jira-schedule-interval')).toBeVisible();
+      await expect(jiraPanel.locator('#jira-schedule-unit')).toBeVisible();
     });
   });
 

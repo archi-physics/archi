@@ -140,13 +140,13 @@ test.describe('Git Repository Workflows', () => {
     await page.goto('/upload');
     await page.getByRole('button', { name: /Git Repos/ }).click();
 
-    // Find the auto-sync schedule selector in the git panel
+    // Find the auto-sync schedule inputs in the git panel
     const gitPanel = page.locator('#panel-git');
-    const scheduleSelect = gitPanel.locator('select');
-    
-    if (await scheduleSelect.first().isVisible()) {
-      await expect(scheduleSelect.first()).toBeVisible();
-    }
+    const intervalInput = gitPanel.locator('#git-schedule-interval');
+    const unitSelect = gitPanel.locator('#git-schedule-unit');
+
+    await expect(intervalInput.first()).toBeVisible();
+    await expect(unitSelect.first()).toBeVisible();
   });
 
   test('accepts GitHub URLs', async ({ page }) => {

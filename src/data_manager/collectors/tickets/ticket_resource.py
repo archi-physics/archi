@@ -41,6 +41,8 @@ class TicketResource(BaseResource):
         if self.created_at:
             extra.setdefault("created_at", str(self.created_at))
         if display_name:
+            pattern = r'(\w+)\-\d+'
+            display_name = re.search(pattern,display_name).group() if re.search(pattern,display_name) else display_name
             extra["display_name"] = str(display_name)
 
         return ResourceMetadata(file_name=self.get_filename(), extra=extra)
