@@ -69,7 +69,7 @@ def check_tool_permission(required_permission: str) -> tuple[bool, Optional[str]
                 )
         except Exception as e:
             logger.warning(f"Error checking permission from registry : {e}")
-            return False, "An unexpected error occurred while checking permissions with registry. Access denied.""
+            return False, "An unexpected error occurred while checking permissions with registry. Access denied."
             
     except ImportError as e:
         # Flask not available (e.g., running outside web context)
