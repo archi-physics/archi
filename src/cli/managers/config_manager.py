@@ -183,6 +183,19 @@ class ConfigurationManager:
                 f"services.chat_app.providers.{default_provider}.enabled=false"
             )
 
+        timeout_path = "services.chat_app.client_timeout_seconds"
+        timeout_raw = chat_cfg.get("client_timeout_seconds", 600)
+        if isinstance(timeout_raw, bool):
+            raise ValueError(f"Invalid field: '{timeout_path}' must be a positive number of seconds")
+        try:
+            timeout_value = float(timeout_raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"Invalid field: '{timeout_path}' must be a positive number of seconds")
+        if timeout_value <= 0:
+            raise ValueError(f"Invalid field: '{timeout_path}' must be > 0")
+        if timeout_value > 86400:
+            raise ValueError(f"Invalid field: '{timeout_path}' must be <= 86400 seconds")
+
     def _validate_benchmarking_config(self, config: Dict[str, Any], services: List[str]) -> None:
         if not services or "benchmarking" not in services:
             return

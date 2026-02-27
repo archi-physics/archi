@@ -134,6 +134,10 @@ MAIN_PROMPT_FILE = "/root/archi/main.prompt"
 CONDENSE_PROMPT_FILE = "/root/archi/condense.prompt"
 SUMMARY_PROMPT_FILE = "/root/archi/summary.prompt"
 ARCHI_SENDER = "archi"
+CLIENT_TIMEOUT_ERROR_MESSAGE = (
+    "client timeout; the agent wasn't able to find satisfactory information "
+    "to respond to the query within the time limit set by the administrator."
+)
 
 
 class AnswerRenderer(mt.HTMLRenderer):
@@ -1642,7 +1646,7 @@ class ChatWrapper:
             if error_code is not None:
                 error_message = "server error; see chat logs for message"
                 if error_code == 408:
-                    error_message = "client timeout"
+                    error_message = CLIENT_TIMEOUT_ERROR_MESSAGE
                 elif error_code == 403:
                     error_message = "conversation not found"
                 yield {"type": "error", "status": error_code, "message": error_message}
@@ -1690,7 +1694,7 @@ class ChatWrapper:
                             cancellation_reason='Client timeout',
                             total_duration_ms=total_duration_ms,
                         )
-                    yield {"type": "error", "status": 408, "message": "client timeout"}
+                    yield {"type": "error", "status": 408, "message": CLIENT_TIMEOUT_ERROR_MESSAGE}
                     return
                 last_output = output
                 
@@ -2436,7 +2440,25 @@ class FlaskAppWrapper(object):
             except Exception as exc:
                 logger.warning(f"Failed to load config {name} for description: {exc}")
             options.append({"name": name, "description": description})
-        return jsonify({'options': options}), 200
+        timeout_seconds = 600.0
+        try:
+            chat_cfg = (self.config.get("services", {}) or {}).get("chat_app", {}) or {}
+            configured_timeout = chat_cfg.get("client_timeout_seconds", 600)
+            if isinstance(configured_timeout, bool):
+                raise ValueError("boolean is not allowed")
+            parsed_timeout = float(configured_timeout)
+            if parsed_timeout > 0:
+                timeout_seconds = parsed_timeout
+            else:
+                raise ValueError("must be positive")
+        except Exception as exc:
+            logger.warning("Invalid services.chat_app.client_timeout_seconds; using default 600s: %s", exc)
+
+        return jsonify({
+            'options': options,
+            'client_timeout_seconds': timeout_seconds,
+            'client_timeout_ms': int(timeout_seconds * 1000),
+        }), 200
 
     def get_providers(self):
         """
@@ -3239,7 +3261,7 @@ class FlaskAppWrapper(object):
         # handle errors
         if error_code is not None:
             if error_code == 408:
-                output = jsonify({'error': 'client timeout'})
+                output = jsonify({'error': CLIENT_TIMEOUT_ERROR_MESSAGE})
             elif error_code == 403:
                 output = jsonify({'error': 'conversation not found'})
             else:

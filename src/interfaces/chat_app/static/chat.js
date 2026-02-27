@@ -52,11 +52,14 @@ const CONFIG = {
     TEXT_FEEDBACK: '/api/text_feedback',
   },
   STREAMING: {
-    TIMEOUT: 300000, // 5 minutes
+    TIMEOUT: 600000, // 10 minutes
   },
   TRACE: {
     MAX_TOOL_OUTPUT_PREVIEW: 500,
     AUTO_COLLAPSE_TOOL_COUNT: 5,
+  },
+  MESSAGES: {
+    CLIENT_TIMEOUT: "client timeout; the agent wasn't able to find satisfactory information to respond to the query within the time limit set by the administrator.",
   },
 };
 
@@ -2879,6 +2882,10 @@ const Chat = {
     try {
       const data = await API.getConfigs();
       this.state.configs = data?.options || [];
+      const timeoutMs = Number(data?.client_timeout_ms);
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        CONFIG.STREAMING.TIMEOUT = timeoutMs;
+      }
       UI.renderConfigs(this.state.configs);
     } catch (e) {
       console.error('Failed to load configs:', e);
@@ -3810,7 +3817,7 @@ const Chat = {
       if (e.name === 'AbortError') {
         UI.updateMessage(messageId, {
           html: timedOut
-            ? '<p class="cancelled-notice"><em>Response timed out</em></p>'
+            ? `<p class="cancelled-notice"><em>${Utils.escapeHtml(CONFIG.MESSAGES.CLIENT_TIMEOUT)}</em></p>`
             : streamedText 
               ? Markdown.render(streamedText) + '<p class="cancelled-notice"><em>Response cancelled</em></p>'
               : '<p class="cancelled-notice"><em>Response cancelled</em></p>',
