@@ -59,6 +59,30 @@ The main chat interface.
 | `host` | string | `0.0.0.0` | Network binding |
 | `num_responses_until_feedback` | int | `3` | Responses before prompting for feedback |
 | `auth.enabled` | bool | `false` | Enable authentication |
+| `alerts.managers` | list | `[]` | Usernames allowed to create and delete alerts |
+
+#### `services.chat_app.alerts`
+
+Controls access to the [Service Status Board & Alert Banners](services.md#service-status-board--alert-banners).
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `alerts.managers` | list of strings | `[]` | Usernames granted alert manager access |
+
+Access rules (evaluated in order):
+
+1. **Auth disabled** → all users may manage alerts.
+2. **Auth enabled, managers list present** → only listed usernames may manage.
+3. **Auth enabled, managers list absent or empty** → nobody may manage (safe default).
+
+```yaml
+services:
+  chat_app:
+    alerts:
+      managers:
+        - alice
+        - bob
+```
 
 #### Provider Configuration
 

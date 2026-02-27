@@ -5,7 +5,7 @@ import time
 import uuid
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional
 from pathlib import Path
@@ -58,6 +58,8 @@ from src.utils.sql import (
     SQL_GET_PENDING_AB_COMPARISON, SQL_DELETE_AB_COMPARISON, SQL_GET_AB_COMPARISONS_BY_CONVERSATION,
     SQL_CREATE_AGENT_TRACE, SQL_UPDATE_AGENT_TRACE, SQL_GET_AGENT_TRACE,
     SQL_GET_TRACE_BY_MESSAGE, SQL_GET_ACTIVE_TRACE, SQL_CANCEL_ACTIVE_TRACES,
+    SQL_INSERT_ALERT, SQL_SET_ALERT_EXPIRY, SQL_LIST_ALERTS,
+    SQL_LIST_ACTIVE_BANNER_ALERTS, SQL_DELETE_ALERT,
 )
 from src.interfaces.chat_app.document_utils import *
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
@@ -2146,6 +2148,17 @@ class FlaskAppWrapper(object):
         # enable CORS:
         CORS(self.app)
 
+        # inject active alerts into every template context
+        @self.app.context_processor
+        def _inject_alerts():
+            if not session.get('logged_in'):
+                return dict(active_banner_alerts=[], is_alert_manager=False)
+            alerts = self._get_active_banner_alerts()
+            return dict(
+                active_banner_alerts=alerts,
+                is_alert_manager=self._is_alert_manager(),
+            )
+
         # add endpoints for flask app
         # Public endpoints (no auth required)
         self.add_endpoint('/', 'landing', self.landing)
@@ -2233,6 +2246,12 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/admin/database', 'database_viewer_page', self.require_auth(self.database_viewer_page))
         self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_auth(self.list_database_tables), methods=["GET"])
         self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_auth(self.run_database_query), methods=["POST"])
+
+        # Service status board endpoints
+        logger.info("Adding service status board endpoints")
+        self.add_endpoint('/ssb/status', 'status_board', self.require_auth(self.status_board))
+        self.add_endpoint('/api/ssb/alerts', 'create_alert', self.require_auth(self.create_alert), methods=["POST"])
+        self.add_endpoint('/api/ssb/alerts/<int:alert_id>', 'delete_alert', self.require_auth(self.delete_alert), methods=["DELETE"])
 
         # add unified auth endpoints
         if self.auth_enabled:
@@ -2393,6 +2412,172 @@ class FlaskAppWrapper(object):
             
             return f(*args, **kwargs)
         return decorated_function
+
+    # =========================================================================
+    # Service Alert Helpers & Routes
+    # =========================================================================
+
+    def _is_alert_manager(self) -> bool:
+        """Return True if the current session user may manage service alerts.
+
+        Rules (evaluated in order):
+        1. Auth disabled → everyone may manage.
+        2. Auth enabled, managers list present → username must be in the list.
+        3. Auth enabled, managers list absent/empty → no one may manage (safe default).
+        """
+        if not self.auth_enabled:
+            return True
+        managers = (
+            self.chat_app_config
+            .get('alerts', {})
+            .get('managers', [])
+        )
+        
+        if not managers:
+            logger.warning("Alert managers list is not configured or empty, no users will have permissions to manage alerts")
+            return False
+        username = (session.get('user') or {}).get('username', '')
+        return username in managers
+
+    def _get_active_banner_alerts(self) -> list:
+        """Return alerts that should appear in the page banner (non-expired, active)."""
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(SQL_LIST_ACTIVE_BANNER_ALERTS)
+                rows = cursor.fetchall()
+                return [
+                    {
+                        'id': row[0],
+                        'severity': row[1],
+                        'message': row[2],
+                        'description': row[3],
+                        'created_by': row[4],
+                        'created_at': row[5].isoformat() if row[5] else None,
+                        'expires_at': row[6].isoformat() if row[6] else None,
+                    }
+                    for row in rows
+                ]
+            finally:
+                cursor.close()
+                conn.close()
+        except Exception as exc:
+            logger.warning("Failed to fetch banner alerts: %s", exc)
+            return []
+
+    def status_board(self):
+        """Render the service status board page."""
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(SQL_LIST_ALERTS)
+                rows = cursor.fetchall()
+                alerts = [
+                    {
+                        'id': row[0],
+                        'severity': row[1],
+                        'message': row[2],
+                        'description': row[3],
+                        'created_by': row[4],
+                        'created_at': row[5],
+                        'expires_at': row[6],
+                        'active': row[7],
+                        'expired': bool(row[6] and row[6] < datetime.now()),
+                    }
+                    for row in rows
+                ]
+            finally:
+                cursor.close()
+                conn.close()
+        except Exception as exc:
+            logger.error("Failed to load status board alerts: %s", exc)
+            alerts = []
+        print(f"Loaded {len(alerts)} alerts for status board, current user: '{(session.get('user') or {}).get('username', '')}' is_alert_manager: {self._is_alert_manager()}")
+        return render_template(
+            'status.html',
+            alerts=alerts,
+            is_alert_manager=self._is_alert_manager(),
+        )
+
+    def create_alert(self):
+        """Create a new service alert. Restricted to alert managers."""
+        if not self._is_alert_manager():
+            return jsonify({'error': 'Forbidden'}), 403
+
+        payload = request.get_json(silent=True) or {}
+        severity = payload.get('severity', 'info')
+        message = payload.get('message', '').strip()
+        description = payload.get('description', '').strip() or None
+        expires_in_hours = payload.get('expires_in_hours')  # optional float
+        expires_at_str = payload.get('expires_at')          # optional explicit ISO-8601 datetime string
+
+        if not message:
+            return jsonify({'error': 'message is required'}), 400
+        if severity not in ('info', 'warning', 'alarm', 'news'):
+            return jsonify({'error': 'invalid severity'}), 400
+
+        created_by = None
+        if self.auth_enabled:
+            created_by = (session.get('user') or {}).get('username') or None
+
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(SQL_INSERT_ALERT, (severity, message, description, created_by))
+                row = cursor.fetchone()
+                alert_id = row[0]
+
+                expires_at = None
+                if expires_at_str is not None:
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at_str)
+                    except ValueError:
+                        return jsonify({'error': 'expires_at must be a valid ISO-8601 datetime (e.g. 2026-03-01T18:00:00)'}), 400
+                    if expires_at <= datetime.now():
+                        return jsonify({'error': 'expires_at must be a future date/time'}), 400
+                elif expires_in_hours is not None:
+                    if float(expires_in_hours) <= 0:
+                        return jsonify({'error': 'expires_in_hours must be a positive number'}), 400
+                    expires_at = datetime.now() + timedelta(hours=float(expires_in_hours))
+
+                if expires_at is not None:
+                    cursor.execute(SQL_SET_ALERT_EXPIRY, (expires_at, alert_id))
+
+                conn.commit()
+                logger.info("Service alert %d created by %s: [%s] %s", alert_id, created_by, severity, message)
+                return jsonify({'id': alert_id, 'severity': severity, 'message': message}), 201
+            finally:
+                cursor.close()
+                conn.close()
+        except Exception as exc:
+            logger.error("Failed to create alert: %s", exc)
+            return jsonify({'error': 'internal error'}), 500
+
+    def delete_alert(self, alert_id: int):
+        """Delete a service alert by ID. Restricted to alert managers."""
+        if not self._is_alert_manager():
+            return jsonify({'error': 'Forbidden'}), 403
+
+        try:
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(SQL_DELETE_ALERT, (alert_id,))
+                deleted = cursor.rowcount > 0
+                conn.commit()
+            finally:
+                cursor.close()
+                conn.close()
+            if not deleted:
+                return jsonify({'error': 'not found'}), 404
+            logger.info("Service alert %d deleted", alert_id)
+            return jsonify({'deleted': alert_id}), 200
+        except Exception as exc:
+            logger.error("Failed to delete alert %d: %s", alert_id, exc)
+            return jsonify({'error': 'internal error'}), 500
 
     def health(self):
         return jsonify({"status": "OK"}), 200

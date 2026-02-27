@@ -130,6 +130,39 @@ Archi has benchmarking functionality via the `archi evaluate` CLI command:
 
 ---
 
+## Alerts & Service Status Board
+
+The **Service Status Board (SSB)** lets operators communicate service health, outages, maintenance windows, and general announcements to all users directly in the chat app.
+
+### For all users
+
+- **Alert banners** appear at the top of every page when active alerts exist. Up to 5 banners are shown; each can be dismissed individually.
+- The banner colour indicates severity: red (`alarm`), amber (`warning`), blue (`news`), slate (`info`).
+- Click **details** on any banner, or navigate to **Status** in the header, to view the full [Service Status Board](/ssb/status) with alert history.
+
+### For alert managers
+
+Navigate to `/ssb/status` and use the **Post New Alert** form to create an alert. Required fields are **Message** and **Severity**. Optionally add an extended **Description** (shown only on the status page) and set an **Expires at** datetime for time-bounded notices.
+
+Delete alerts by clicking **Delete** on any alert card. Deletion is permanent; expired alerts remain in history until deleted.
+
+To grant alert manager access, add usernames to `services.chat_app.alerts.managers` in your config:
+
+```yaml
+services:
+  chat_app:
+    alerts:
+      managers:
+        - alice
+        - bob
+```
+
+If auth is disabled, all users can manage alerts. If auth is enabled and the managers list is absent or empty, nobody can manage alerts.
+
+**[Read more →](services.md#service-status-board--alert-banners)**
+
+---
+
 ## Admin Guide
 
 ### Becoming an Admin
