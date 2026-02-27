@@ -13,7 +13,7 @@ except ImportError:
 from langgraph.errors import GraphRecursionError
 from langgraph.graph.state import CompiledStateGraph
 
-from src.archi.pipelines.agents.utils.prompt_utils import read_prompt
+from src.archi.pipelines.agents.utils.prompt_utils import get_role_context, read_prompt
 from src.archi.pipelines.agents.utils.history_utils import infer_speaker
 from src.archi.providers import get_model
 from src.archi.providers.base import ProviderType
@@ -24,39 +24,6 @@ from src.archi.pipelines.agents.tools import initialize_mcp_client
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-def _get_role_context() -> str:
-    """
-    Get role context string for the current user if enabled.
-    
-    Requires SSO auth with auth_roles configured and pass_descriptions_to_agent: true.
-    Returns empty string if conditions not met or user not authenticated.
-    """
-    try:
-        from flask import session, has_request_context
-        if not has_request_context():
-            return ""
-        if not session.get('logged_in'):
-            return ""
-        
-        from src.utils.rbac.registry import get_registry
-        registry = get_registry()
-        
-        if not registry.pass_descriptions_to_agent:
-            return ""
-        
-        roles = session.get('roles', [])
-        if not roles:
-            return ""
-        
-        descriptions = registry.get_role_descriptions(roles)
-        if descriptions:
-            return f"\n\nUser roles: {descriptions}."
-        return ""
-    except Exception as e:
-        logger.debug(f"Could not get role context: {e}")
-        return ""
 
 class BaseReActAgent:
     """
@@ -1010,7 +977,7 @@ class BaseReActAgent:
         and pass_descriptions_to_agent is set to true.
         """
         base_prompt = self.agent_prompt or ""
-        role_context = _get_role_context()
+        role_context = get_role_context()
         return base_prompt + role_context
 
     def _create_agent(self, tools: Sequence[Callable], middleware: Sequence[Callable]) -> CompiledStateGraph:
