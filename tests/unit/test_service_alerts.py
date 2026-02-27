@@ -115,12 +115,17 @@ def _obj(**kwargs):
     Imports FlaskAppWrapper but never calls __init__, which keeps tests fast.
     We call the unbound methods directly: FlaskAppWrapper.method(obj, ...).
     """
-    return SimpleNamespace(
+    ns = SimpleNamespace(
         auth_enabled=kwargs.get('auth_enabled', False),
         sso_enabled=kwargs.get('sso_enabled', False),
         chat_app_config=kwargs.get('chat_app_config', {}),
         pg_config=kwargs.get('pg_config', {}),
     )
+    # Bind the real _is_alert_manager so that methods which call
+    # self._is_alert_manager() work correctly on this SimpleNamespace.
+    from src.interfaces.chat_app.app import FlaskAppWrapper
+    ns._is_alert_manager = lambda: FlaskAppWrapper._is_alert_manager(ns)
+    return ns
 
 
 def _mock_db(rows=None, rowcount=0):
