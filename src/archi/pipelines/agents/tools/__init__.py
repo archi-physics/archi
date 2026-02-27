@@ -8,7 +8,6 @@ from .local_files import (
 )
 from .retriever import create_retriever_tool
 from .mcp import initialize_mcp_client
-from .http_get import create_http_get_tool
 from .monit_opensearch import (
     MONITOpenSearchClient,
     create_monit_opensearch_search_tool,
@@ -25,7 +24,6 @@ __all__ = [
     "RemoteCatalogClient",
     "create_retriever_tool",
     "initialize_mcp_client",
-    "create_http_get_tool",
     "MONITOpenSearchClient",
     "create_monit_opensearch_search_tool",
     "create_monit_opensearch_aggregation_tool",
