@@ -70,6 +70,57 @@ export const mockData = {
       { provider: 'openai', display_name: 'OpenAI', configured: false, has_session_key: false },
     ],
   },
+
+  // A/B Testing mock data ---------------------------------------------------
+
+  agentsList: {
+    agents: [
+      { name: 'CMS CompOps Agent', ab_only: false },
+      { name: 'Challenger GPT-4o', ab_only: true },
+      { name: 'Challenger Claude', ab_only: true },
+    ],
+    active_name: 'CMS CompOps Agent',
+  },
+
+  abPoolAdmin: {
+    enabled: true,
+    is_admin: true,
+    champion: 'CMS CompOps Agent',
+    variants: ['CMS CompOps Agent', 'Challenger GPT-4o'],
+  },
+
+  abPoolAdminInactive: {
+    enabled: false,
+    is_admin: true,
+  },
+
+  abPoolNonAdmin: {
+    enabled: true,
+    is_admin: false,
+  },
+
+  abMetrics: {
+    metrics: [
+      {
+        variant: 'CMS CompOps Agent',
+        is_champion: true,
+        comparisons: 10,
+        wins: 6,
+        losses: 3,
+        ties: 1,
+        win_rate: 0.6,
+      },
+      {
+        variant: 'Challenger GPT-4o',
+        is_champion: false,
+        comparisons: 10,
+        wins: 3,
+        losses: 6,
+        ties: 1,
+        win_rate: 0.3,
+      },
+    ],
+  },
 };
 
 // =============================================================================
@@ -153,6 +204,17 @@ export async function setupBasicMocks(page: Page) {
   await page.route('**/api/new_conversation', async (route) => {
     await route.fulfill({ status: 200, json: { conversation_id: null } });
   });
+
+  // Default: agents list (including ab_only variants for pool editor)
+  await page.route('**/api/agents/list', async (route) => {
+    await route.fulfill({ status: 200, json: mockData.agentsList });
+  });
+
+  // Default A/B pool: non-admin, disabled.
+  // Tests that need admin behavior should call setupABAdminMocks AFTER this.
+  await page.route(/\/api\/ab\/pool(\?|$)/, async (route) => {
+    await route.fulfill({ status: 200, json: { enabled: false, is_admin: false } });
+  });
 }
 
 export async function setupStreamMock(page: Page, response: string, delay = 0) {
@@ -164,17 +226,86 @@ export async function setupStreamMock(page: Page, response: string, delay = 0) {
   });
 }
 
-export async function enableABMode(page: Page) {
-  // Dismiss warning for session
-  await page.evaluate(() => {
-    sessionStorage.setItem('archi_ab_warning_dismissed', 'true');
+/**
+ * Set up route mocks that make the page behave as an admin with an active A/B pool.
+ * Must be called BEFORE page.goto('/chat') so the init API calls get intercepted.
+ */
+export async function setupABAdminMocks(page: Page) {
+  // Register AFTER setupBasicMocks — Playwright processes routes LIFO,
+  // so this handler runs first and the default non-admin one never fires.
+  await page.route('**/api/agents/list', async (route) => {
+    await route.fulfill({ status: 200, json: mockData.agentsList });
   });
-  
-  // Open settings and enable A/B
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.locator('.settings-nav-item[data-section="advanced"]').click();
-  await page.locator('#ab-checkbox').check();
-  await page.getByRole('button', { name: 'Close settings' }).click();
+
+  await page.route(/\/api\/ab\/pool(\?|$)/, async (route) => {
+    await route.fulfill({ status: 200, json: mockData.abPoolAdmin });
+  });
+}
+
+/**
+ * Set up route mocks for an admin who has NOT yet enabled a pool.
+ */
+export async function setupABAdminInactiveMocks(page: Page) {
+  await page.route('**/api/agents/list', async (route) => {
+    await route.fulfill({ status: 200, json: mockData.agentsList });
+  });
+
+  await page.route(/\/api\/ab\/pool(\?|$)/, async (route) => {
+    await route.fulfill({ status: 200, json: mockData.abPoolAdminInactive });
+  });
+}
+
+/**
+ * Build an NDJSON body for a mock A/B comparison stream.
+ */
+export function createABStreamResponse(options: {
+  armAContent?: string;
+  armBContent?: string;
+  comparisonId?: number;
+  conversationId?: number;
+  armAVariant?: string;
+  armBVariant?: string;
+} = {}) {
+  const {
+    armAContent = 'Response from arm A',
+    armBContent = 'Response from arm B',
+    comparisonId = 42,
+    conversationId = 1,
+    armAVariant = 'CMS CompOps Agent',
+    armBVariant = 'Challenger GPT-4o',
+  } = options;
+
+  const events = [
+    { type: 'meta', event: 'stream_started' },
+    { arm: 'a', type: 'chunk', content: armAContent },
+    { arm: 'b', type: 'chunk', content: armBContent },
+    {
+      type: 'ab_meta',
+      comparison_id: comparisonId,
+      conversation_id: conversationId,
+      arm_a_message_id: 101,
+      arm_b_message_id: 102,
+      arm_a_variant: armAVariant,
+      arm_b_variant: armBVariant,
+    },
+  ];
+
+  return events.map(e => JSON.stringify(e)).join('\n') + '\n';
+}
+
+export async function enableABMode(page: Page) {
+  // Legacy helper — kept for backwards compat but now just ensures the pool
+  // state is wired correctly via evaluate (after page has loaded).
+  await page.evaluate(() => {
+    // @ts-ignore – Chat is a global in the app
+    if (typeof Chat !== 'undefined') {
+      Chat.state.abPool = {
+        enabled: true,
+        champion: 'CMS CompOps Agent',
+        variants: ['CMS CompOps Agent', 'Challenger GPT-4o'],
+      };
+    }
+  });
 }
 
 export async function clearStorage(page: Page) {
