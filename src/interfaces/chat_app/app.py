@@ -3183,6 +3183,24 @@ class FlaskAppWrapper(object):
                 'error': str(e),
             }), 200
 
+    def _get_request_client_id(self) -> str:
+        """Extract client_id from the current request (JSON body or query params)."""
+        if request.is_json and request.json:
+            cid = request.json.get('client_id')
+            if cid:
+                return cid
+        return request.args.get('client_id', '')
+
+    def _is_admin_request(self) -> bool:
+        """Return True if the current request's client_id belongs to an admin."""
+        client_id = self._get_request_client_id()
+        if not client_id:
+            return False
+        try:
+            return self.config_service.is_admin(client_id)
+        except Exception:
+            return False
+
     def _parse_chat_request(self) -> Dict[str, Any]:
         payload = request.get_json(silent=True) or {}
 
@@ -3729,13 +3747,15 @@ class FlaskAppWrapper(object):
 
         Returns:
             JSON with pool info (enabled, champion, variant names) or enabled=false.
+            Only admins see the full pool info; non-admins get enabled=false.
         """
         try:
+            is_admin = self._is_admin_request()
             pool = self.chat.ab_pool
-            if pool:
-                return jsonify({'success': True, **pool.pool_info()}), 200
+            if pool and is_admin:
+                return jsonify({'success': True, 'is_admin': True, **pool.pool_info()}), 200
             else:
-                return jsonify({'success': True, 'enabled': False}), 200
+                return jsonify({'success': True, 'enabled': False, 'is_admin': is_admin}), 200
         except Exception as e:
             logger.error(f"Error getting A/B pool: {str(e)}")
             return jsonify({'error': str(e)}), 500
@@ -3743,6 +3763,7 @@ class FlaskAppWrapper(object):
     def ab_compare_stream(self):
         """
         Stream a pool-based A/B comparison (champion vs challenger).
+        Admin only — non-admins receive 403.
 
         POST body:
         - message: [sender, content] pair
@@ -3753,6 +3774,9 @@ class FlaskAppWrapper(object):
         Returns:
             NDJSON stream with arm-tagged events.
         """
+        if not self._is_admin_request():
+            return jsonify({'error': 'Admin access required for A/B testing'}), 403
+
         server_received_msg_ts = datetime.now()
         request_data = self._parse_chat_request()
 
@@ -3780,11 +3804,13 @@ class FlaskAppWrapper(object):
 
     def ab_get_metrics(self):
         """
-        Get per-variant A/B testing metrics.
+        Get per-variant A/B testing metrics. Admin only.
 
         Returns:
             JSON with variant metrics (wins, losses, ties, total).
         """
+        if not self._is_admin_request():
+            return jsonify({'error': 'Admin access required'}), 403
         try:
             from src.utils.conversation_service import ConversationService
             conv_service = ConversationService(connection_params=self.chat.pg_config)

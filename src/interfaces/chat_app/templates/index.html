@@ -212,7 +212,8 @@
             <section class="settings-section" id="settings-advanced" aria-labelledby="advanced-heading" hidden>
               <h4 class="settings-section-title" id="advanced-heading">Advanced Settings</h4>
               
-              <!-- A/B Testing -->
+              <!-- A/B Testing (admin only — hidden until loadABPool confirms admin) -->
+              <div id="ab-settings-section" style="display: none;">
               <div class="settings-group">
                 <div class="settings-group-header">
                   <span class="settings-label" id="ab-testing-label">A/B Testing</span>
@@ -226,6 +227,7 @@
               
               <div class="settings-group ab-model-group" style="display: none;">
                 <!-- Pool info banner injected here by JS when A/B pool is active -->
+              </div>
               </div>
               
               <!-- Agent Transparency -->

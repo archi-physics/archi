@@ -348,11 +348,11 @@ const API = {
 
   // Pool-based A/B testing API methods
   async getABPool() {
-    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL);
+    return this.fetchJson(`${CONFIG.ENDPOINTS.AB_POOL}?client_id=${encodeURIComponent(this.clientId)}`);
   },
 
   async getABMetrics() {
-    return this.fetchJson(CONFIG.ENDPOINTS.AB_METRICS);
+    return this.fetchJson(`${CONFIG.ENDPOINTS.AB_METRICS}?client_id=${encodeURIComponent(this.clientId)}`);
   },
 
   /**
@@ -1848,6 +1848,13 @@ const UI = {
   // A/B Testing UI Methods
   // =========================================================================
 
+  setABSectionVisible(visible) {
+    const section = document.getElementById('ab-settings-section');
+    if (section) {
+      section.style.display = visible ? '' : 'none';
+    }
+  },
+
   updateABPoolUI(poolInfo) {
     // Show a pool indicator in the AB settings area
     if (this.elements.abModelGroup) {
@@ -2930,7 +2937,10 @@ const Chat = {
   async loadABPool() {
     try {
       const data = await API.getABPool();
-      if (data?.enabled) {
+      const isAdmin = data?.is_admin === true;
+      // Hide A/B settings section entirely for non-admins
+      UI.setABSectionVisible(isAdmin);
+      if (data?.enabled && isAdmin) {
         this.state.abPool = data;
         console.info('A/B pool loaded:', data.champion, '+ challengers:', data.variants);
         UI.updateABPoolUI(data);
@@ -2940,6 +2950,7 @@ const Chat = {
     } catch (e) {
       console.warn('Failed to load A/B pool (pool mode disabled):', e);
       this.state.abPool = null;
+      UI.setABSectionVisible(false);
     }
   },
 
