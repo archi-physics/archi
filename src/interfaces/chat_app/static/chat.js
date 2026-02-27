@@ -19,8 +19,6 @@ const CONFIG = {
     SELECTED_PROVIDER: 'archi_selected_provider',
     SELECTED_MODEL: 'archi_selected_model',
     SELECTED_MODEL_CUSTOM: 'archi_selected_model_custom',
-    SELECTED_PROVIDER_B: 'archi_selected_provider_b',
-    SELECTED_MODEL_B: 'archi_selected_model_b',
   },
   ENDPOINTS: {
     STREAM: '/api/get_chat_response_stream',
@@ -29,9 +27,13 @@ const CONFIG = {
     LOAD_CONVERSATION: '/api/load_conversation',
     NEW_CONVERSATION: '/api/new_conversation',
     DELETE_CONVERSATION: '/api/delete_conversation',
-    AB_CREATE: '/api/ab/create',
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
+    AB_POOL: '/api/ab/pool',
+    AB_POOL_SET: '/api/ab/pool/set',
+    AB_POOL_DISABLE: '/api/ab/pool/disable',
+    AB_COMPARE: '/api/ab/compare',
+    AB_METRICS: '/api/ab/metrics',
     TRACE_GET: '/api/trace',
     CANCEL_STREAM: '/api/cancel_stream',
     PROVIDERS: '/api/providers',
@@ -219,6 +221,47 @@ const API = {
     return data;
   },
 
+  /**
+   * Shared NDJSON reader: reads a fetch Response body and yields parsed JSON objects.
+   * Properly flushes any remaining buffer content after the stream ends.
+   */
+  async *_readNDJSON(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            yield JSON.parse(trimmed);
+          } catch (e) {
+            console.warn('Failed to parse NDJSON line:', trimmed);
+          }
+        }
+      }
+      // Flush remaining buffer after stream ends
+      if (buffer.trim()) {
+        try {
+          yield JSON.parse(buffer.trim());
+        } catch (e) {
+          console.warn('Failed to parse final NDJSON line:', buffer.trim());
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
+
   async getConfigs() {
     return this.fetchJson(CONFIG.ENDPOINTS.CONFIGS);
   },
@@ -269,10 +312,10 @@ const API = {
         client_sent_msg_ts: Date.now(),
         client_timeout: CONFIG.STREAMING.TIMEOUT,
         client_id: this.clientId,
-        include_agent_steps: true,  // Required for streaming chunks
-        include_tool_steps: true,   // Enable tool step events for trace
-        provider: provider,  // Provider-based model selection
-        model: model,        // Model ID/name for the provider
+        include_agent_steps: true,
+        include_tool_steps: true,
+        provider: provider,
+        model: model,
       }),
       signal: signal,
     });
@@ -287,47 +330,10 @@ const API = {
       throw new Error(text || `Request failed (${response.status})`);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          
-          try {
-            yield JSON.parse(trimmed);
-          } catch (e) {
-            console.error('Failed to parse stream event:', e);
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
+    yield* this._readNDJSON(response);
   },
 
   // A/B Testing API methods
-  async createABComparison(data) {
-    return this.fetchJson(CONFIG.ENDPOINTS.AB_CREATE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...data,
-        client_id: this.clientId,
-      }),
-    });
-  },
-
   async submitABPreference(comparisonId, preference) {
     return this.fetchJson(CONFIG.ENDPOINTS.AB_PREFERENCE, {
       method: 'POST',
@@ -343,6 +349,60 @@ const API = {
   async getPendingABComparison(conversationId) {
     const url = `${CONFIG.ENDPOINTS.AB_PENDING}?conversation_id=${conversationId}&client_id=${encodeURIComponent(this.clientId)}`;
     return this.fetchJson(url);
+  },
+
+  // Pool-based A/B testing API methods
+  async getABPool() {
+    return this.fetchJson(`${CONFIG.ENDPOINTS.AB_POOL}?client_id=${encodeURIComponent(this.clientId)}`);
+  },
+
+  async getABMetrics() {
+    return this.fetchJson(`${CONFIG.ENDPOINTS.AB_METRICS}?client_id=${encodeURIComponent(this.clientId)}`);
+  },
+
+  async saveABPool(champion, variants) {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL_SET, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ champion, variants, client_id: this.clientId }),
+    });
+  },
+
+  async disableABPool() {
+    return this.fetchJson(CONFIG.ENDPOINTS.AB_POOL_DISABLE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: this.clientId }),
+    });
+  },
+
+  /**
+   * Stream a pool-based A/B comparison. Returns an async iterator of NDJSON events.
+   * Each event has an 'arm' field ('a' or 'b') plus 'type', 'content', etc.
+   */
+  async *streamABComparison(history, conversationId, configName, signal) {
+    const body = {
+      last_message: history.slice(-1),
+      conversation_id: conversationId,
+      config_name: configName || null,
+      client_id: this.clientId,
+      client_sent_msg_ts: Date.now(),
+      client_timeout: CONFIG.STREAMING.TIMEOUT,
+    };
+
+    const response = await fetch(CONFIG.ENDPOINTS.AB_COMPARE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`A/B compare failed: ${response.status} ${errText}`);
+    }
+
+    yield* this._readNDJSON(response);
   },
 
   // Provider API methods
@@ -600,14 +660,12 @@ const UI = {
       inputField: document.querySelector('.input-field'),
       sendBtn: document.querySelector('.send-btn'),
       modelSelectA: null,
-      modelSelectB: document.querySelector('.model-select-b'),
+
       settingsBtn: document.querySelector('.settings-btn'),
       dataTab: document.getElementById('data-tab'),
       settingsModal: document.querySelector('.settings-modal'),
       settingsBackdrop: document.querySelector('.settings-backdrop'),
       settingsClose: document.querySelector('.settings-close'),
-      abCheckbox: document.querySelector('.ab-checkbox'),
-      abModelGroup: document.querySelector('.ab-model-group'),
       traceVerboseOptions: document.querySelector('.trace-verbose-options'),
       agentDropdown: document.querySelector('.agent-dropdown'),
       agentDropdownBtn: document.querySelector('.agent-dropdown-btn'),
@@ -635,7 +693,7 @@ const UI = {
       // Provider selection elements
       providerSelect: document.getElementById('provider-select'),
       modelSelectPrimary: document.getElementById('model-select-primary'),
-      providerSelectB: document.getElementById('provider-select-b'),
+
       providerStatus: document.getElementById('provider-status'),
       // User profile elements
       userProfileWidget: document.getElementById('user-profile-widget'),
@@ -758,6 +816,12 @@ const UI = {
         Chat.loadAgents();
         return;
       }
+      if (target.closest('.agent-dropdown-clone')) {
+        const name = row.dataset.agentName;
+        this.closeAgentDropdown();
+        this.openAgentSpecEditor({ mode: 'clone', name });
+        return;
+      }
       if (target.closest('.agent-dropdown-edit')) {
         const name = row.dataset.agentName;
         this.closeAgentDropdown();
@@ -789,37 +853,49 @@ const UI = {
     // Resize handle for agent spec modal
     this.initAgentSpecResize();
     
-    // A/B toggle in settings
-    this.elements.abCheckbox?.addEventListener('change', (e) => {
-      const isEnabled = e.target.checked;
-      if (isEnabled) {
-        // Show warning modal before enabling
-        const dismissed = sessionStorage.getItem(CONFIG.STORAGE_KEYS.AB_WARNING_DISMISSED);
-        if (!dismissed) {
-          e.target.checked = false; // Reset checkbox
-          this.showABWarningModal(
-            () => {
-              // On confirm
-              e.target.checked = true;
-              if (this.elements.abModelGroup) {
-                this.elements.abModelGroup.style.display = 'block';
-              }
-              sessionStorage.setItem(CONFIG.STORAGE_KEYS.AB_WARNING_DISMISSED, 'true');
-            },
-            () => {
-              // On cancel
-              e.target.checked = false;
-            }
-          );
-          return;
+    // A/B pool editor — save & disable buttons
+    document.getElementById('ab-pool-save')?.addEventListener('click', async () => {
+      const sel = UI._getABPoolSelection();
+      if (!sel || !sel.champion || sel.variants.length < 2) return;
+      const saveBtn = document.getElementById('ab-pool-save');
+      const msgEl = document.getElementById('ab-pool-message');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try {
+        const result = await API.saveABPool(sel.champion, sel.variants);
+        if (result?.success) {
+          if (msgEl) { msgEl.textContent = 'Pool saved'; msgEl.className = 'ab-pool-message success'; }
+          Chat.state.abPool = result;
+          // Re-render to reflect saved state
+          UI.updateABPoolUI(result);
+        } else {
+          if (msgEl) { msgEl.textContent = result?.error || 'Save failed'; msgEl.className = 'ab-pool-message error'; }
         }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Save failed'; msgEl.className = 'ab-pool-message error'; }
+      } finally {
+        saveBtn.textContent = 'Save Pool';
+        UI._updateABPoolSaveState();
       }
-      if (this.elements.abModelGroup) {
-        this.elements.abModelGroup.style.display = isEnabled ? 'block' : 'none';
-      }
-      // If disabling A/B mode while vote is pending, re-enable input
-      if (!isEnabled && Chat.state.abVotePending) {
-        Chat.cancelPendingABComparison();
+    });
+
+    document.getElementById('ab-pool-disable')?.addEventListener('click', async () => {
+      const disableBtn = document.getElementById('ab-pool-disable');
+      const msgEl = document.getElementById('ab-pool-message');
+      disableBtn.disabled = true;
+      try {
+        const result = await API.disableABPool();
+        if (result?.success) {
+          Chat.state.abPool = null;
+          UI.updateABPoolUI({ enabled: false });
+          if (msgEl) { msgEl.textContent = 'Pool disabled'; msgEl.className = 'ab-pool-message success'; }
+          // If A/B mode was active in chat, deactivate
+          if (Chat.state.abVotePending) Chat.cancelPendingABComparison();
+        }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Failed'; msgEl.className = 'ab-pool-message error'; }
+      } finally {
+        disableBtn.disabled = false;
       }
     });
 
@@ -849,25 +925,21 @@ const UI = {
       Chat.handleCustomModelChange(e.target.value);
     });
 
-    this.elements.providerSelectB?.addEventListener('change', (e) => {
-      Chat.handleProviderBChange(e.target.value);
-    });
-    
     // User profile widget interactions
     this.elements.userRolesToggle?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleUserRolesPanel();
     });
-    
+
     this.elements.userProfileWidget?.addEventListener('click', () => {
       this.toggleUserRolesPanel();
     });
-    
+
     this.elements.userLogoutBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       window.location.href = '/logout';
     });
-    
+
     // Close modal on Escape
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.elements.settingsModal?.style.display !== 'none') {
@@ -1159,6 +1231,9 @@ const UI = {
         <div class="agent-dropdown-item${isActive ? ' active' : ''}" data-agent-name="${Utils.escapeHtml(name)}">
           <span class="agent-dropdown-name">${checkmark}${Utils.escapeHtml(name)}</span>
           <div class="agent-dropdown-actions">
+            <button class="agent-dropdown-clone" type="button" title="Create variant">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
             <button class="agent-dropdown-edit" type="button" title="Edit">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
@@ -1177,12 +1252,19 @@ const UI = {
     if (!this.elements.agentSpecModal) return;
     this.elements.agentSpecModal.style.display = 'flex';
     this.setAgentSpecStatus('');
-    this.agentSpecMode = mode;
-    this.agentSpecName = name;
+    // Clone mode → load source spec, then switch to create for saving
+    this.agentSpecMode = mode === 'clone' ? 'create' : mode;
+    this.agentSpecName = mode === 'clone' ? null : name;
     // Restore persisted size
     this.restoreAgentSpecSize();
     if (this.elements.agentSpecTitle) {
-      this.elements.agentSpecTitle.textContent = mode === 'edit' ? `Edit ${name || 'Agent'}` : 'New Agent';
+      if (mode === 'clone') {
+        this.elements.agentSpecTitle.textContent = `New Variant of ${name || 'Agent'}`;
+      } else if (mode === 'edit') {
+        this.elements.agentSpecTitle.textContent = `Edit ${name || 'Agent'}`;
+      } else {
+        this.elements.agentSpecTitle.textContent = 'New Agent';
+      }
     }
     // Update reset button label
     if (this.elements.agentSpecReset) {
@@ -1190,14 +1272,24 @@ const UI = {
     }
     // Clear validation errors
     this.clearAgentSpecValidation();
-    if (mode === 'edit' && name) {
+    if (mode === 'clone' && name) {
+      // Load tool palette first, then load source spec and modify name
+      await this.loadAgentToolPalette();
+      await this.loadAgentSpecByName(name);
+      // Append " (variant)" to the name so user can tweak tools & save
+      if (this.elements.agentSpecName) {
+        this.elements.agentSpecName.value = `${name} (variant)`;
+      }
+      this.setAgentSpecStatus('Cloned — adjust tools and name, then save.', 'info');
+      setTimeout(() => this.elements.agentSpecName?.select(), 100);
+    } else if (mode === 'edit' && name) {
       await this.loadAgentToolPalette();
       await this.loadAgentSpecByName(name);
     } else {
       await this.loadAgentSpecTemplate();
     }
     // Auto-focus name in create mode
-    if (mode === 'create') {
+    if (mode === 'create' && !name) {
       setTimeout(() => this.elements.agentSpecName?.focus(), 100);
     }
   },
@@ -1243,8 +1335,9 @@ const UI = {
   },
 
   /** Serialise structured form fields back to .md format */
-  serialiseAgentSpec(name, tools, prompt) {
+  serialiseAgentSpec(name, tools, prompt, { ab_only = false } = {}) {
     let yaml = `---\nname: ${name}\n`;
+    if (ab_only) yaml += 'ab_only: true\n';
     if (tools.length) {
       yaml += 'tools:\n';
       for (const t of tools) yaml += `  - ${t}\n`;
@@ -1478,7 +1571,8 @@ const UI = {
   },
 
   isABEnabled() {
-    return this.elements.abCheckbox?.checked ?? false;
+    // A/B mode is active when a pool is configured on the server
+    return Chat.state.abPool?.enabled === true;
   },
 
   autoResizeInput() {
@@ -1566,14 +1660,6 @@ const UI = {
       select.value = '';
     }
 
-    // Also populate provider B select for A/B testing
-    const selectB = this.elements.providerSelectB;
-    if (selectB) {
-      selectB.innerHTML = '<option value="">Same as primary</option>' +
-        enabledProviders
-          .map(p => `<option value="${Utils.escapeHtml(p.type)}">${Utils.escapeHtml(p.display_name)}</option>`)
-          .join('');
-    }
   },
 
   renderProviderModels(models, selectedModel = null, providerType = null) {
@@ -1608,29 +1694,7 @@ const UI = {
     }
   },
 
-  renderModelBOptions(models, selectedModel = null, providerType = null) {
-    const select = this.elements.modelSelectB;
-    if (!select) return;
 
-    if (!models || models.length === 0) {
-      select.innerHTML = '<option value="">No models available</option>';
-      return;
-    }
-
-    const options = models
-      .map(m => `<option value="${Utils.escapeHtml(m.id)}">${Utils.escapeHtml(m.display_name || m.name)}</option>`)
-      .join('');
-    const customOption = providerType === 'openrouter'
-      ? '<option value="__custom__">Custom model…</option>'
-      : '';
-    select.innerHTML = options + customOption;
-
-    if (selectedModel === '__custom__' && providerType === 'openrouter') {
-      select.value = '__custom__';
-    } else if (selectedModel && models.some(m => m.id === selectedModel)) {
-      select.value = selectedModel;
-    }
-  },
 
   updateProviderStatus(status, message) {
     const statusEl = this.elements.providerStatus;
@@ -1944,6 +2008,263 @@ const UI = {
   // A/B Testing UI Methods
   // =========================================================================
 
+  setABSectionVisible(visible) {
+    const section = document.getElementById('ab-settings-section');
+    if (section) {
+      section.style.display = visible ? '' : 'none';
+    }
+  },
+
+  updateABPoolUI(poolInfo) {
+    // Render pool editor with current agents + pool state
+    const agentList = document.getElementById('ab-pool-agent-list');
+    const statusBadge = document.getElementById('ab-pool-status');
+    const saveBtn = document.getElementById('ab-pool-save');
+    const disableBtn = document.getElementById('ab-pool-disable');
+    if (!agentList) return;
+
+    // Use allAgents so AB-only variants appear in the pool editor
+    const agents = Chat.state.allAgents || Chat.state.agents || [];
+    const poolEnabled = poolInfo?.enabled === true;
+    const currentChampion = poolInfo?.champion || null;
+    const currentVariants = poolInfo?.variants || [];
+
+    // Update status badge
+    if (statusBadge) {
+      statusBadge.textContent = poolEnabled ? 'Active' : 'Inactive';
+      statusBadge.classList.toggle('active', poolEnabled);
+    }
+
+    // Show/hide disable button
+    if (disableBtn) {
+      disableBtn.style.display = poolEnabled ? '' : 'none';
+    }
+
+    // Render agent rows
+    agentList.innerHTML = agents.map(agent => {
+      const inPool = currentVariants.includes(agent.name);
+      const isChampion = agent.name === currentChampion;
+      const selectedClass = inPool ? ' selected' : '';
+      const championClass = isChampion ? ' champion' : '';
+      const isABOnly = agent.ab_only === true;
+      return `
+        <label class="ab-pool-agent-row${selectedClass}${championClass}" data-agent="${Utils.escapeHtml(agent.name)}">
+          <span class="ab-pool-agent-check">
+            <input type="checkbox" ${inPool ? 'checked' : ''}>
+          </span>
+          <span class="ab-pool-agent-name">
+            ${Utils.escapeHtml(agent.name)}
+            ${isABOnly ? '<span class="ab-pool-ab-badge">AB</span>' : ''}
+          </span>
+          <span class="ab-pool-agent-actions">
+            <button type="button" class="ab-pool-variant-btn" title="Create variant of this agent">+</button>
+            <button type="button" class="ab-pool-champion-btn${isChampion ? ' is-champion' : ''}" title="Set as champion">
+              ${isChampion ? '★ Champion' : '☆ Champion'}
+            </button>
+          </span>
+        </label>`;
+    }).join('');
+
+    // Wire up events
+    agentList.querySelectorAll('.ab-pool-agent-row').forEach(row => {
+      const agentName = row.dataset.agent;
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      const champBtn = row.querySelector('.ab-pool-champion-btn');
+      const variantBtn = row.querySelector('.ab-pool-variant-btn');
+
+      checkbox.addEventListener('change', () => {
+        row.classList.toggle('selected', checkbox.checked);
+        if (!checkbox.checked && row.classList.contains('champion')) {
+          row.classList.remove('champion');
+          champBtn.classList.remove('is-champion');
+          champBtn.innerHTML = '☆ Champion';
+        }
+        this._updateABPoolSaveState();
+      });
+
+      champBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!checkbox.checked) return;
+        // Clear previous champion
+        agentList.querySelectorAll('.ab-pool-agent-row').forEach(r => {
+          r.classList.remove('champion');
+          const btn = r.querySelector('.ab-pool-champion-btn');
+          btn.classList.remove('is-champion');
+          btn.innerHTML = '☆ Champion';
+        });
+        row.classList.add('champion');
+        champBtn.classList.add('is-champion');
+        champBtn.innerHTML = '★ Champion';
+        this._updateABPoolSaveState();
+      });
+
+      if (variantBtn) {
+        variantBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this._showQuickVariantPanel(agentName);
+        });
+      }
+    });
+
+    this._updateABPoolSaveState();
+  },
+
+  _updateABPoolSaveState() {
+    const agentList = document.getElementById('ab-pool-agent-list');
+    const saveBtn = document.getElementById('ab-pool-save');
+    const msgEl = document.getElementById('ab-pool-message');
+    if (!agentList || !saveBtn) return;
+
+    const selected = agentList.querySelectorAll('.ab-pool-agent-row.selected');
+    const hasChampion = !!agentList.querySelector('.ab-pool-agent-row.champion');
+    const valid = selected.length >= 2 && hasChampion;
+    saveBtn.disabled = !valid;
+
+    if (msgEl) {
+      if (selected.length < 2 && selected.length > 0) {
+        msgEl.textContent = 'Select at least 2 agents';
+        msgEl.className = 'ab-pool-message error';
+      } else if (selected.length >= 2 && !hasChampion) {
+        msgEl.textContent = 'Click "Champion" to designate the baseline agent';
+        msgEl.className = 'ab-pool-message error';
+      } else {
+        msgEl.textContent = '';
+        msgEl.className = 'ab-pool-message';
+      }
+    }
+  },
+
+  _getABPoolSelection() {
+    const agentList = document.getElementById('ab-pool-agent-list');
+    if (!agentList) return null;
+    const variants = [];
+    let champion = null;
+    agentList.querySelectorAll('.ab-pool-agent-row.selected').forEach(row => {
+      const name = row.dataset.agent;
+      variants.push(name);
+      if (row.classList.contains('champion')) champion = name;
+    });
+    return { champion, variants };
+  },
+
+  /**
+   * Show an inline panel to quickly create a variant of an existing agent.
+   * The variant is saved with ab_only: true so it only appears in the pool editor.
+   */
+  async _showQuickVariantPanel(sourceAgentName) {
+    // Remove any existing panel
+    document.querySelector('.ab-quick-variant-panel')?.remove();
+
+    // Fetch source agent spec and tool palette in parallel
+    let sourceSpec = null;
+    let availableTools = [];
+    try {
+      const [specResp, templateResp] = await Promise.all([
+        API.getAgentSpec(sourceAgentName),
+        API.getAgentTemplate(),
+      ]);
+      sourceSpec = UI.parseAgentSpec(specResp?.content || '');
+      availableTools = (templateResp?.tools || []).map(t => typeof t === 'string' ? t : t.name);
+    } catch (e) {
+      console.error('Failed to load source agent for variant:', e);
+      return;
+    }
+
+    const sourceTools = sourceSpec?.tools || [];
+
+    // Build panel HTML
+    const panel = document.createElement('div');
+    panel.className = 'ab-quick-variant-panel';
+    panel.innerHTML = `
+      <div class="ab-qv-header">
+        <strong>New variant of "${Utils.escapeHtml(sourceAgentName)}"</strong>
+        <button class="ab-qv-close" title="Cancel">&times;</button>
+      </div>
+      <label class="ab-qv-label">Variant name</label>
+      <input class="ab-qv-name" type="text" value="${Utils.escapeHtml(sourceAgentName)}-v2" spellcheck="false">
+      <label class="ab-qv-label">Tools</label>
+      <div class="ab-qv-tools">
+        ${availableTools.map(t => `
+          <label class="ab-qv-tool">
+            <input type="checkbox" value="${Utils.escapeHtml(t)}" ${sourceTools.includes(t) ? 'checked' : ''}>
+            ${Utils.escapeHtml(t)}
+          </label>
+        `).join('')}
+      </div>
+      <div class="ab-qv-footer">
+        <span class="ab-qv-msg"></span>
+        <button class="ab-qv-save">Create Variant</button>
+      </div>
+    `;
+
+    // Insert panel after the agent list
+    const agentList = document.getElementById('ab-pool-agent-list');
+    agentList?.parentElement?.insertBefore(panel, agentList.nextSibling);
+
+    // References
+    const nameInput = panel.querySelector('.ab-qv-name');
+    const saveBtn = panel.querySelector('.ab-qv-save');
+    const closeBtn = panel.querySelector('.ab-qv-close');
+    const msgEl = panel.querySelector('.ab-qv-msg');
+
+    closeBtn.addEventListener('click', () => panel.remove());
+
+    nameInput.addEventListener('input', () => {
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ab-qv-msg'; }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      const variantName = (nameInput.value || '').trim();
+      if (!variantName) {
+        if (msgEl) { msgEl.textContent = 'Name is required'; msgEl.className = 'ab-qv-msg error'; }
+        nameInput.focus();
+        return;
+      }
+
+      // Client-side duplicate check
+      const existingNames = (Chat.state.allAgents || []).map(a => a.name);
+      if (existingNames.includes(variantName)) {
+        if (msgEl) { msgEl.textContent = '"' + variantName + '" already exists \u2014 choose a different name'; msgEl.className = 'ab-qv-msg error'; }
+        nameInput.focus();
+        nameInput.select();
+        return;
+      }
+
+      const selectedTools = [...panel.querySelectorAll('.ab-qv-tools input:checked')].map(cb => cb.value);
+      const specContent = UI.serialiseAgentSpec(variantName, selectedTools, sourceSpec?.prompt || '', { ab_only: true });
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving\u2026';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'ab-qv-msg'; }
+
+      try {
+        const result = await API.saveAgentSpec({ content: specContent, mode: 'create' });
+        if (result?.success) {
+          if (msgEl) { msgEl.textContent = 'Created!'; msgEl.className = 'ab-qv-msg success'; }
+          // Refresh agent lists + re-render pool editor
+          await Chat.loadAgents();
+          UI.updateABPoolUI(Chat.state.abPool || {});
+          // Panel replaced by re-render; remove just in case
+          setTimeout(() => panel.remove(), 600);
+        } else {
+          if (msgEl) { msgEl.textContent = result?.error || 'Save failed'; msgEl.className = 'ab-qv-msg error'; }
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Create Variant';
+        }
+      } catch (e) {
+        if (msgEl) { msgEl.textContent = e.message || 'Save failed'; msgEl.className = 'ab-qv-msg error'; }
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Create Variant';
+      }
+    });
+
+    // Focus the name input
+    nameInput.focus();
+    nameInput.select();
+  },
+
   showABWarningModal(onConfirm, onCancel) {
     // Prevent duplicate modals
     if (document.getElementById('ab-warning-modal')) {
@@ -2027,41 +2348,53 @@ const UI = {
     const traceIconSvg = `<svg class="trace-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
     const traceHtml = (id) => showTrace ? `
           <div class="trace-container ab-trace-container" data-message-id="${id}">
-            <div class="trace-header" onclick="UI.toggleTraceExpanded('${id}')">
+            <div class="trace-header" data-trace-toggle="${id}">
               ${traceIconSvg}
               <span class="trace-label">Agent Activity</span>
+              <span class="trace-timer" data-start="${Date.now()}">0.0s</span>
               <span class="toggle-icon">▼</span>
             </div>
-            <div class="trace-content"></div>
+            <div class="trace-content">
+              <div class="step-timeline"></div>
+            </div>
           </div>` : '';
+
+    // Use normal message structure for each arm — looks like two regular chat messages side by side
+    const armHtml = (id, label) => `
+        <div class="message assistant ab-arm" data-id="${id}">
+          <div class="message-inner">
+            <div class="message-header">
+              <div class="message-avatar"><img class="assistant-logo" src="/static/images/archi-logo.png" alt="archi logo"></div>
+              <span class="message-sender">archi</span>
+              <span class="message-label ab-arm-label">${label}</span>
+            </div>
+            ${traceHtml(id)}
+            <div class="message-content"></div>
+          </div>
+        </div>`;
 
     const html = `
       <div class="ab-comparison" id="ab-comparison-active">
-        <div class="ab-response ab-response-a" data-id="${msgIdA}">
-          <div class="ab-response-header">
-            <span class="ab-response-label">Model A</span>
-          </div>
-          ${traceHtml(msgIdA)}
-          <div class="ab-response-content message-content"></div>
-        </div>
-        <div class="ab-response ab-response-b" data-id="${msgIdB}">
-          <div class="ab-response-header">
-            <span class="ab-response-label">Model B</span>
-          </div>
-          ${traceHtml(msgIdB)}
-          <div class="ab-response-content message-content"></div>
-        </div>
+        ${armHtml(msgIdA, 'Response A')}
+        ${armHtml(msgIdB, 'Response B')}
       </div>`;
 
     this.elements.messagesInner?.insertAdjacentHTML('beforeend', html);
+    // Bind trace toggle handlers (replacing inline onclick for CSP compliance)
+    document.querySelectorAll('[data-trace-toggle]').forEach(el => {
+      if (!el._traceToggleBound) {
+        el._traceToggleBound = true;
+        el.addEventListener('click', () => UI.toggleTraceExpanded(el.dataset.traceToggle));
+      }
+    });
     this.scrollToBottom();
   },
 
   updateABResponse(responseId, html, streaming = false) {
-    const container = document.querySelector(`.ab-response[data-id="${responseId}"]`);
+    const container = document.querySelector(`.ab-arm[data-id="${responseId}"], .ab-response[data-id="${responseId}"]`);
     if (!container) return;
 
-    const contentEl = container.querySelector('.ab-response-content');
+    const contentEl = container.querySelector('.message-content');
     if (contentEl) {
       contentEl.innerHTML = html;
       if (streaming) {
@@ -2077,15 +2410,19 @@ const UI = {
 
     const voteHtml = `
       <div class="ab-vote-container" data-comparison-id="${comparisonId}">
-        <div class="ab-vote-prompt">Which response was better?</div>
+        <div class="ab-vote-prompt">Which response do you prefer?</div>
         <div class="ab-vote-buttons">
           <button class="ab-vote-btn ab-vote-btn-a" data-vote="a">
-            <span class="ab-vote-icon">👍</span>
-            <span>Model A</span>
+            <span class="ab-vote-icon">👈</span>
+            <span>Response A</span>
+          </button>
+          <button class="ab-vote-btn ab-vote-btn-tie" data-vote="tie">
+            <span class="ab-vote-icon">🤝</span>
+            <span>Tie</span>
           </button>
           <button class="ab-vote-btn ab-vote-btn-b" data-vote="b">
-            <span class="ab-vote-icon">👍</span>
-            <span>Model B</span>
+            <span class="ab-vote-icon">👉</span>
+            <span>Response B</span>
           </button>
         </div>
       </div>`;
@@ -2111,46 +2448,35 @@ const UI = {
     const comparison = document.getElementById('ab-comparison-active');
     if (!comparison) return;
 
-    const responseA = comparison.querySelector('.ab-response-a');
-    const responseB = comparison.querySelector('.ab-response-b');
+    const arms = comparison.querySelectorAll('.ab-arm');
+    const armA = arms[0];
+    const armB = arms[1];
 
-    let winnerContent = '';
-    let winnerTrace = '';
-    if (preference === 'a') {
-      winnerContent = responseA?.querySelector('.ab-response-content')?.innerHTML || '';
-      winnerTrace = responseA?.querySelector('.trace-container')?.outerHTML || '';
-    } else if (preference === 'b') {
-      winnerContent = responseB?.querySelector('.ab-response-content')?.innerHTML || '';
-      winnerTrace = responseB?.querySelector('.trace-container')?.outerHTML || '';
-    } else {
-      // Tie - keep both visible but mark them
-      responseA?.classList.add('ab-response-tie');
-      responseB?.classList.add('ab-response-tie');
+    if (preference === 'tie') {
+      // Tie — dim both equally and add a badge
+      armA?.classList.add('ab-arm-tie');
+      armB?.classList.add('ab-arm-tie');
       comparison.removeAttribute('id');
       return;
     }
 
-    // Replace the entire comparison with a normal archi message (matching createMessageHTML format)
-    // Include the trace container from the winning response
-    const metaLabel = Chat.getEntryMetaLabel();
-    const metaHtml = metaLabel
-      ? `<div class="message-meta">${Utils.escapeHtml(metaLabel)}</div>`
-      : '';
+    // Winner/loser — collapse to single message
+    const winner = preference === 'a' ? armA : armB;
+    const loser = preference === 'a' ? armB : armA;
 
-    const normalMessage = `
-      <div class="message assistant" data-id="ab-winner-${Date.now()}">
-        <div class="message-inner">
-          <div class="message-header">
-            <div class="message-avatar">✦</div>
-            <span class="message-sender">archi</span>
-          </div>
-          ${winnerTrace}
-          <div class="message-content">${winnerContent}</div>
-          ${metaHtml}
-        </div>
-      </div>`;
+    if (winner) {
+      // Remove the AB label
+      winner.querySelector('.ab-arm-label')?.remove();
+      winner.classList.remove('ab-arm');
+    }
+    if (loser) {
+      loser.remove();
+    }
 
-    comparison.outerHTML = normalMessage;
+    // Unwrap from the comparison container
+    if (winner) {
+      comparison.outerHTML = winner.outerHTML;
+    }
   },
 
   removeABComparisonContainer() {
@@ -2938,8 +3264,9 @@ const Chat = {
     isStreaming: false,
     configs: [],
     // A/B Testing state
-    activeABComparison: null,  // { comparisonId, responseAId, responseBId, configAId, configBId, userPromptMid }
+    activeABComparison: null,  // { comparisonId, responseAId, responseBId, variantA, variantB }
     abVotePending: false,      // true when waiting for user vote
+    abPool: null,              // null or { enabled, champion, variants: [...] } from /api/ab/pool
     // Trace state
     activeTrace: null,         // { traceId, events: [], toolCalls: Map<toolCallId, toolData> }
     traceVerboseMode: localStorage.getItem(CONFIG.STORAGE_KEYS.TRACE_VERBOSE_MODE) || 'normal', // 'minimal' | 'normal' | 'verbose'
@@ -2950,9 +3277,9 @@ const Chat = {
     selectedProvider: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER) || null,
     selectedModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL) || null,
     selectedCustomModel: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_CUSTOM) || null,
-    selectedProviderB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B) || null,
-    selectedModelB: localStorage.getItem(CONFIG.STORAGE_KEYS.SELECTED_MODEL_B) || null,
+
     agents: [],
+    allAgents: [],  // full list including ab_only variants, for pool editor
     activeAgentName: null,
   },
 
@@ -2969,6 +3296,7 @@ const Chat = {
       this.loadApiKeyStatus(),
       UI.loadUserProfile(),
       this.loadAgents(),
+      this.loadABPool(),
     ]);
 
     // Update model label after all data is loaded (configs, providers, pipeline default)
@@ -2998,13 +3326,41 @@ const Chat = {
   async loadAgents() {
     try {
       const data = await API.getAgentsList();
-      this.state.agents = data?.agents || [];
+      // Keep full list (including ab_only) for pool editor
+      this.state.allAgents = data?.agents || [];
+      // Filter out ab_only agents for main dropdown
+      this.state.agents = this.state.allAgents.filter(a => !a.ab_only);
       const activeName = data?.active_name || this.state.agents[0]?.name || null;
       this.state.activeAgentName = Utils.normalizeAgentName(activeName);
       UI.renderAgentsList(this.state.agents, this.state.activeAgentName);
       this.updateActiveModelLabel();
     } catch (e) {
       console.error('Failed to load agents list:', e);
+    }
+  },
+
+  async loadABPool() {
+    try {
+      const data = await API.getABPool();
+      const isAdmin = data?.is_admin === true;
+      // Hide A/B settings section entirely for non-admins
+      UI.setABSectionVisible(isAdmin);
+      if (isAdmin) {
+        if (data?.enabled) {
+          this.state.abPool = data;
+          console.info('A/B pool loaded:', data.champion, '+ challengers:', data.variants);
+        } else {
+          this.state.abPool = null;
+        }
+        // Always render the editor for admins (shows current pool state or empty)
+        UI.updateABPoolUI(data?.enabled ? data : { enabled: false });
+      } else {
+        this.state.abPool = null;
+      }
+    } catch (e) {
+      console.warn('Failed to load A/B pool (pool mode disabled):', e);
+      this.state.abPool = null;
+      UI.setABSectionVisible(false);
     }
   },
 
@@ -3161,11 +3517,6 @@ const Chat = {
         }
       }
 
-      // Also update Model B options if provider B is same as primary
-      if (!this.state.selectedProviderB || this.state.selectedProviderB === providerType) {
-        UI.renderModelBOptions(models, this.state.selectedModelB, providerType);
-      }
-
       // Show connected status
       if (provider.enabled) {
         UI.updateProviderStatus('connected', `Connected to ${provider.display_name}`);
@@ -3238,27 +3589,6 @@ const Chat = {
     this.updateActiveModelLabel();
   },
 
-  async handleProviderBChange(providerType) {
-    this.state.selectedProviderB = providerType || null;
-    
-    if (providerType) {
-      localStorage.setItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B, providerType);
-      
-      // Load models for provider B
-      const provider = this.state.providers.find(p => p.type === providerType);
-      if (provider) {
-        UI.renderModelBOptions(provider.models || [], this.state.selectedModelB, providerType);
-      }
-    } else {
-      localStorage.removeItem(CONFIG.STORAGE_KEYS.SELECTED_PROVIDER_B);
-      // Use primary provider's models
-      const primaryProvider = this.state.providers.find(p => p.type === this.state.selectedProvider);
-      if (primaryProvider) {
-        UI.renderModelBOptions(primaryProvider.models || [], this.state.selectedModelB, this.state.selectedProvider);
-      }
-    }
-  },
-
   getSelectedProviderAndModel() {
     const provider = this.state.selectedProvider || null;
     if (!provider) {
@@ -3268,21 +3598,6 @@ const Chat = {
       return { provider, model: this.state.selectedCustomModel || null };
     }
     return { provider, model: this.state.selectedModel };
-  },
-
-  getSelectedProviderAndModelB() {
-    const providerB = this.state.selectedProviderB || this.state.selectedProvider;
-    const modelB = UI.elements.modelSelectB?.value || this.state.selectedModelB;
-    if (!providerB) {
-      return { provider: null, model: null };
-    }
-    if (providerB === 'openrouter' && modelB === '__custom__') {
-      return { provider: providerB, model: this.state.selectedCustomModel || null };
-    }
-    return {
-      provider: providerB,
-      model: modelB,
-    };
   },
 
   // API Key Management
@@ -3451,13 +3766,12 @@ const Chat = {
     UI.setStreamingState(true);
     this.state.isStreaming = true;
 
-    // Determine which configs to use
+    // Determine which config to use
     const configA = UI.getSelectedConfig('A');
-    const configB = UI.getSelectedConfig('B') || configA;
     const isAB = UI.isABEnabled();
 
     if (isAB) {
-      await this.sendABMessage(text, configA, configB);
+      await this.sendABMessage(text, configA);
     } else {
       await this.sendSingleMessage(configA);
     }
@@ -3487,87 +3801,101 @@ const Chat = {
     }
   },
 
-  async sendABMessage(userText, configA, configB) {
-        const selectedA = this.getSelectedProviderAndModel();
-        const selectedB = this.getSelectedProviderAndModelB();
-        if (selectedA.provider && !selectedA.model) {
-          UI.showToast('Please select a model for Provider A.');
-          this.state.isStreaming = false;
-          UI.setInputDisabled(false);
-          UI.setStreamingState(false);
-          return;
-        }
-        if (selectedB.provider && !selectedB.model) {
-          UI.showToast('Please select a model for Provider B.');
-          this.state.isStreaming = false;
-          UI.setInputDisabled(false);
-          UI.setStreamingState(false);
-          return;
-        }
-    // Randomize which config gets A vs B
-    const shuffled = Math.random() < 0.5;
-    const [actualConfigA, actualConfigB] = shuffled ? [configB, configA] : [configA, configB];
+  async sendABMessage(userText, configA) {
+    if (!this.state.abPool) {
+      UI.showToast('A/B pool is not configured on the server. Cannot run comparison.');
+      this.state.isStreaming = false;
+      UI.setInputDisabled(false);
+      UI.setStreamingState(false);
+      return;
+    }
 
     const msgIdA = `${Date.now()}-ab-a`;
     const msgIdB = `${Date.now()}-ab-b`;
 
-    // Create side-by-side container
+    // Create side-by-side container using normal message styling
     UI.addABComparisonContainer(msgIdA, msgIdB);
 
-    // Track streaming results
-    const results = {
-      a: { text: '', messageId: null, configId: null, error: null },
-      b: { text: '', messageId: null, configId: null, error: null },
-    };
+    const armTexts = { a: '', b: '' };
+    let abMeta = null;
 
     try {
       this.state.abortController = new AbortController();
-      // Stream both responses in parallel
-      await Promise.all([
-        this.streamABResponse(msgIdA, actualConfigA, results.a, selectedA.provider, selectedA.model),
-        this.streamABResponse(msgIdB, actualConfigB, results.b, selectedB.provider, selectedB.model),
-      ]);
 
-      // Check for errors
-      if (results.a.error || results.b.error) {
-        const errorMsg = results.a.error || results.b.error;
-        UI.showABError(errorMsg);
-        this.state.isStreaming = false;
-        UI.setInputDisabled(false);
-        UI.setStreamingState(false);
-        await this.loadConversations();
-        return;
+      for await (const event of API.streamABComparison(
+        this.state.history,
+        this.state.conversationId,
+        configA,
+        this.state.abortController?.signal,
+      )) {
+        if (event.type === 'meta' && event.event === 'stream_started') {
+          continue; // padding event
+        }
+
+        if (event.type === 'error') {
+          const errMsg = event.message || 'A/B stream error';
+          UI.showABError(errMsg);
+          this.state.isStreaming = false;
+          UI.setInputDisabled(false);
+          UI.setStreamingState(false);
+          this.state.abortController = null;
+          await this.loadConversations();
+          return;
+        }
+
+        if (event.type === 'ab_meta') {
+          abMeta = event;
+          // Update conversation_id if server assigned one
+          if (event.conversation_id != null) {
+            this.state.conversationId = event.conversation_id;
+            Storage.setActiveConversationId(event.conversation_id);
+          }
+          continue;
+        }
+
+        const arm = event.arm; // 'a' or 'b'
+        if (!arm) continue;
+        const targetId = arm === 'a' ? msgIdA : msgIdB;
+
+        if (event.type === 'text' || event.type === 'chunk') {
+          const content = event.content || '';
+          if (content) {
+            armTexts[arm] = content; // Server sends accumulated text
+            UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
+          }
+        } else if (event.type === 'step' && event.step_type === 'agent') {
+          const content = event.content || '';
+          if (content) {
+            armTexts[arm] = content;
+            UI.updateABResponse(targetId, Markdown.render(armTexts[arm]), true);
+          }
+        } else {
+          this._renderStreamEvent(targetId, event);
+        }
       }
 
-      // Get config IDs
-      const configAId = this.getConfigId(actualConfigA);
-      const configBId = this.getConfigId(actualConfigB);
+      // Finalize both arms (remove streaming cursor)
+      UI.updateABResponse(msgIdA, Markdown.render(armTexts.a), false);
+      UI.updateABResponse(msgIdB, Markdown.render(armTexts.b), false);
 
-      // Create A/B comparison record
-      const response = await API.createABComparison({
-        conversation_id: this.state.conversationId,
-        user_prompt_mid: results.a.userPromptMid || results.b.userPromptMid,
-        response_a_mid: results.a.messageId,
-        response_b_mid: results.b.messageId,
-        config_a_id: configAId,
-        config_b_id: configBId,
-        is_config_a_first: !shuffled,
-      });
-
-      if (response?.comparison_id) {
+      // Set up voting if we got a comparison_id
+      if (abMeta?.comparison_id) {
         this.state.activeABComparison = {
-          comparisonId: response.comparison_id,
-          responseAId: results.a.messageId,
-          responseBId: results.b.messageId,
-          responseAText: results.a.text,
-          responseBText: results.b.text,
-          configAId: configAId,
-          configBId: configBId,
+          comparisonId: abMeta.comparison_id,
+          responseAId: abMeta.arm_a_message_id,
+          responseBId: abMeta.arm_b_message_id,
+          responseAText: armTexts.a,
+          responseBText: armTexts.b,
+          variantA: abMeta.arm_a_variant,
+          variantB: abMeta.arm_b_variant,
         };
         this.state.abVotePending = true;
+        UI.showABVoteButtons(abMeta.comparison_id);
+      }
 
-        // Show vote buttons
-        UI.showABVoteButtons(response.comparison_id);
+      // Highlight code
+      if (typeof hljs !== 'undefined') {
+        setTimeout(() => hljs.highlightAll(), 0);
       }
 
     } catch (e) {
@@ -3588,117 +3916,6 @@ const Chat = {
     await this.loadConversations();
   },
 
-  async streamABResponse(elementId, configName, result, provider = null, model = null) {
-    let streamedText = '';
-    const showTrace = this.state.traceVerboseMode !== 'minimal';
-    const toolCalls = new Map(); // Track tool calls for this response
-
-    try {
-      for await (const event of API.streamResponse(
-        this.state.history,
-        this.state.conversationId,
-        configName,
-        this.state.abortController?.signal || null,
-        provider,
-        model
-      )) {
-        // Handle trace events
-        if (event.type === 'tool_start') {
-          toolCalls.set(event.tool_call_id, {
-            name: event.tool_name,
-            args: event.tool_args,
-            status: 'running',
-            output: null,
-            duration: null,
-          });
-          if (showTrace) {
-            UI.renderToolStart(elementId, event);
-          }
-        } else if (event.type === 'tool_output') {
-          const toolData = toolCalls.get(event.tool_call_id);
-          if (toolData) {
-            toolData.output = event.output;
-            toolData.status = 'success';
-          }
-          if (showTrace) {
-            UI.renderToolOutput(elementId, event);
-            UI.renderToolEnd(elementId, {
-              tool_call_id: event.tool_call_id,
-              status: 'success',
-            });
-          }
-        } else if (event.type === 'tool_end') {
-          const toolData = toolCalls.get(event.tool_call_id);
-          if (toolData) {
-            toolData.status = event.status;
-            toolData.duration = event.duration_ms;
-          }
-          if (showTrace) {
-            UI.renderToolEnd(elementId, event);
-          }
-        } else if (event.type === 'chunk') {
-          if (event.accumulated) {
-            streamedText = event.content || '';
-          } else {
-            streamedText += event.content || '';
-          }
-          UI.updateABResponse(elementId, Markdown.render(streamedText), true);
-        } else if (event.type === 'step' && event.step_type === 'agent') {
-          const content = event.content || '';
-          if (content) {
-            streamedText = content;
-            UI.updateABResponse(elementId, Markdown.render(streamedText), true);
-          }
-        } else if (event.type === 'final') {
-          const finalText = event.response || streamedText;
-          
-          // Finalize trace display
-          if (showTrace) {
-            UI.finalizeTrace(elementId, { toolCalls }, event);
-          }
-          
-          UI.updateABResponse(elementId, Markdown.render(finalText), false);
-
-          if (event.conversation_id != null) {
-            this.state.conversationId = event.conversation_id;
-            Storage.setActiveConversationId(event.conversation_id);
-          }
-
-          result.text = finalText;
-          result.messageId = event.message_id;
-          result.userPromptMid = event.user_message_id;
-
-          // Re-highlight code blocks
-          if (typeof hljs !== 'undefined') {
-            setTimeout(() => hljs.highlightAll(), 0);
-          }
-          return;
-        } else if (event.type === 'error') {
-          result.error = event.message || 'Stream error';
-          UI.updateABResponse(
-            elementId,
-            `<p style="color: var(--error-text);">${Utils.escapeHtml(result.error)}</p>`,
-            false
-          );
-          return;
-        }
-      }
-    } catch (e) {
-      console.error('A/B stream error:', e);
-      result.error = e.message || 'Streaming failed';
-      UI.updateABResponse(
-        elementId,
-        `<p style="color: var(--error-text);">${Utils.escapeHtml(result.error)}</p>`,
-        false
-      );
-    }
-  },
-
-  getConfigId(configName) {
-    const config = this.state.configs.find((c) => c.name === configName);
-    return config?.id || null;
-  },
-
   async submitABPreference(preference) {
     if (!this.state.activeABComparison) return;
 
@@ -3709,11 +3926,16 @@ const Chat = {
       UI.markABWinner(preference);
       UI.hideABVoteButtons();
 
-      // Add the winning response to history for context
-      const winningText =
-        preference === 'b'
-          ? this.state.activeABComparison.responseBText
-          : this.state.activeABComparison.responseAText;
+      // Add the chosen response to history for context
+      let winningText;
+      if (preference === 'tie') {
+        // For ties, use response A (arbitrary)
+        winningText = this.state.activeABComparison.responseAText;
+      } else if (preference === 'b') {
+        winningText = this.state.activeABComparison.responseBText;
+      } else {
+        winningText = this.state.activeABComparison.responseAText;
+      }
       this.state.history.push(['archi', winningText]);
 
       // Clear A/B state
@@ -3731,6 +3953,12 @@ const Chat = {
     // Called when user disables A/B mode while vote is pending
     if (!this.state.abVotePending) return;
 
+    // Submit 'tie' as a skip preference so the comparison is resolved in the DB
+    if (this.state.activeABComparison?.comparisonId) {
+      API.submitABPreference(this.state.activeABComparison.comparisonId, 'tie')
+        .catch(e => console.warn('Failed to submit skip preference:', e));
+    }
+
     // Add response A to history as default
     if (this.state.activeABComparison?.responseAText) {
       this.state.history.push(['archi', this.state.activeABComparison.responseAText]);
@@ -3745,6 +3973,34 @@ const Chat = {
     this.state.abVotePending = false;
     UI.setInputDisabled(false);
     UI.showToast('A/B comparison skipped');
+  },
+
+  /**
+   * Dispatch a single streaming event to the appropriate UI renderer.
+   * Shared between regular streaming and A/B comparison streaming so that
+   * tool/thinking rendering logic is defined in exactly one place.
+   */
+  _renderStreamEvent(messageId, event) {
+    const showTrace = this.state.traceVerboseMode !== 'minimal';
+    if (!showTrace) return;
+    switch (event.type) {
+      case 'tool_start':
+        UI.renderToolStart(messageId, event);
+        break;
+      case 'tool_output':
+        UI.renderToolOutput(messageId, event);
+        UI.renderToolEnd(messageId, { tool_call_id: event.tool_call_id, status: 'success' });
+        break;
+      case 'tool_end':
+        UI.renderToolEnd(messageId, event);
+        break;
+      case 'thinking_start':
+        UI.renderThinkingStart(messageId, event);
+        break;
+      case 'thinking_end':
+        UI.renderThinkingEnd(messageId, event);
+        break;
+    }
   },
 
   async streamResponse(messageId, configName) {
@@ -3804,9 +4060,7 @@ const Chat = {
             duration: null,
           });
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolStart(messageId, event);
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'tool_output') {
           const toolData = this.state.activeTrace.toolCalls.get(event.tool_call_id);
           if (toolData) {
@@ -3814,13 +4068,7 @@ const Chat = {
             toolData.status = 'success';
           }
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolOutput(messageId, event);
-            UI.renderToolEnd(messageId, {
-              tool_call_id: event.tool_call_id,
-              status: 'success',
-            });
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'tool_end') {
           const toolData = this.state.activeTrace.toolCalls.get(event.tool_call_id);
           if (toolData) {
@@ -3828,19 +4076,10 @@ const Chat = {
             toolData.duration = event.duration_ms;
           }
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderToolEnd(messageId, event);
-          }
-        } else if (event.type === 'thinking_start') {
+          this._renderStreamEvent(messageId, event);
+        } else if (event.type === 'thinking_start' || event.type === 'thinking_end') {
           this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderThinkingStart(messageId, event);
-          }
-        } else if (event.type === 'thinking_end') {
-          this.state.activeTrace.events.push(event);
-          if (showTrace) {
-            UI.renderThinkingEnd(messageId, event);
-          }
+          this._renderStreamEvent(messageId, event);
         } else if (event.type === 'chunk') {
           // Chunks may be accumulated or delta content
           if (event.accumulated) {

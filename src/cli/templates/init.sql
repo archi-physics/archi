@@ -502,6 +502,12 @@ CREATE TABLE IF NOT EXISTS ab_comparisons (
     config_a_id INTEGER REFERENCES configs(config_id),
     config_b_id INTEGER REFERENCES configs(config_id),
     
+    -- Pool-based variant info (populated when ab_testing pool is active)
+    variant_a_name VARCHAR(200),
+    variant_b_name VARCHAR(200),
+    variant_a_meta JSONB,
+    variant_b_meta JSONB,
+    
     is_config_a_first BOOLEAN NOT NULL,
     preference VARCHAR(10),
     preference_ts TIMESTAMP,
@@ -512,6 +518,18 @@ CREATE INDEX IF NOT EXISTS idx_ab_comparisons_conversation ON ab_comparisons(con
 CREATE INDEX IF NOT EXISTS idx_ab_comparisons_models ON ab_comparisons(model_a, model_b);
 CREATE INDEX IF NOT EXISTS idx_ab_comparisons_preference ON ab_comparisons(preference) WHERE preference IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_ab_comparisons_pending ON ab_comparisons(conversation_id) WHERE preference IS NULL;
+CREATE INDEX IF NOT EXISTS idx_ab_comparisons_variant_a ON ab_comparisons(variant_a_name) WHERE variant_a_name IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_ab_comparisons_variant_b ON ab_comparisons(variant_b_name) WHERE variant_b_name IS NOT NULL;
+
+-- Per-variant aggregate metrics (wins/losses/ties)
+CREATE TABLE IF NOT EXISTS ab_variant_metrics (
+    variant_name VARCHAR(200) PRIMARY KEY,
+    wins INTEGER NOT NULL DEFAULT 0,
+    losses INTEGER NOT NULL DEFAULT 0,
+    ties INTEGER NOT NULL DEFAULT 0,
+    total_comparisons INTEGER NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP NOT NULL DEFAULT NOW()
+);
 
 -- ============================================================================
 -- 9. MIGRATION STATE (for resumable migrations)
@@ -555,6 +573,7 @@ GRANT SELECT ON
     timing,
     agent_tool_calls,
     ab_comparisons,
+    ab_variant_metrics,
     migration_state
 TO grafana;
 {% endif %}

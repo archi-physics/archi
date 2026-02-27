@@ -249,31 +249,27 @@
             <!-- <section class="settings-section" id="settings-advanced" aria-labelledby="advanced-heading" hidden>
               <h4 class="settings-section-title" id="advanced-heading">Advanced Settings</h4> -->
               
-              <!-- A/B Testing -->
-              <!-- <div class="settings-group">
+              <!-- A/B Testing Pool Editor (admin only — hidden until loadABPool confirms admin) -->
+              <div id="ab-settings-section" style="display: none;">
+              <div class="settings-group settings-group-bordered">
                 <div class="settings-group-header">
-                  <span class="settings-label" id="ab-testing-label">A/B Testing</span>
-                  <label class="settings-toggle-compact">
-                    <input type="checkbox" class="ab-checkbox" id="ab-checkbox" aria-describedby="ab-testing-label">
-                    <span class="toggle-slider-compact"></span>
-                  </label>
+                  <span class="settings-label" id="ab-testing-label">A/B Testing Pool</span>
+                  <span class="ab-pool-status" id="ab-pool-status">Inactive</span>
                 </div>
-                <p class="settings-description">Compare responses from two different models side by side.</p>
+                <p class="settings-description">Pick a champion and at least one challenger to run side-by-side comparisons.</p>
+                
+                <div class="ab-pool-editor" id="ab-pool-editor">
+                  <div class="ab-pool-agent-list" id="ab-pool-agent-list">
+                    <!-- Agent rows rendered by JS -->
+                  </div>
+                  <div class="ab-pool-actions" id="ab-pool-actions">
+                    <button class="ab-pool-btn ab-pool-btn-save" id="ab-pool-save" disabled>Save Pool</button>
+                    <button class="ab-pool-btn ab-pool-btn-disable" id="ab-pool-disable" style="display:none;">Disable</button>
+                  </div>
+                  <div class="ab-pool-message" id="ab-pool-message"></div>
+                </div>
               </div>
-              
-              <div class="settings-group ab-model-group" style="display: none;">
-                <label class="settings-label" for="model-select-b">Model B (for comparison)</label>
-                <div class="provider-row">
-                  <label class="settings-field-label" for="provider-select-b">Provider</label>
-                  <select id="provider-select-b" class="model-select provider-select-b">
-                    <option value="">Same as primary</option>
-                  </select>
-                </div>
-                <div class="provider-row">
-                  <label class="settings-field-label" for="model-select-b">Model</label>
-                  <select id="model-select-b" class="model-select model-select-b"></select>
-                </div>
-              </div> -->
+              </div>
               
               <!-- Agent Transparency -->
               <!-- <div class="settings-group settings-group-bordered">

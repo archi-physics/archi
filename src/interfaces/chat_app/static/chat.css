@@ -1211,7 +1211,8 @@ body {
 }
 
 .agent-dropdown-edit,
-.agent-dropdown-delete {
+.agent-dropdown-delete,
+.agent-dropdown-clone {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1222,6 +1223,11 @@ body {
   border-radius: 4px;
   color: var(--text-tertiary);
   transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.agent-dropdown-clone:hover {
+  color: var(--primary);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .agent-dropdown-edit:hover {
@@ -2239,6 +2245,375 @@ body {
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------
+   A/B Pool Editor
+   ----------------------------------------------------------------------------- */
+.ab-pool-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #e2e8f0);
+  color: var(--text-tertiary, #94a3b8);
+}
+
+.ab-pool-status.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.ab-pool-editor {
+  margin-top: 12px;
+}
+
+.ab-pool-agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ab-pool-agent-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  transition: background 0.1s ease;
+  cursor: pointer;
+}
+
+.ab-pool-agent-row:last-child {
+  border-bottom: none;
+}
+
+.ab-pool-agent-row:hover {
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.ab-pool-agent-row.selected {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ab-pool-agent-row.selected.champion {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.ab-pool-agent-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ab-pool-agent-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color, #10b981);
+  cursor: pointer;
+}
+
+.ab-pool-agent-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ab-pool-champion-btn {
+  display: none; /* hidden until agent is selected */
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ab-pool-agent-row.selected .ab-pool-champion-btn {
+  display: inline-flex;
+}
+
+.ab-pool-champion-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.ab-pool-champion-btn.is-champion {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  color: #fff;
+  cursor: default;
+}
+
+.ab-pool-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ab-pool-btn {
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ab-pool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ab-pool-btn-save {
+  background: var(--accent-color, #10b981);
+  color: #fff;
+  border-color: var(--accent-color, #10b981);
+}
+
+.ab-pool-btn-save:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.ab-pool-btn-disable {
+  background: transparent;
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.ab-pool-btn-disable:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
+.ab-pool-message {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  min-height: 1.2em;
+}
+
+.ab-pool-message.success {
+  color: #10b981;
+}
+
+.ab-pool-message.error {
+  color: #ef4444;
+}
+
+/* Agent actions inside pool row */
+.ab-pool-agent-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ab-pool-variant-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ab-pool-agent-row:hover .ab-pool-variant-btn {
+  display: inline-flex;
+}
+
+.ab-pool-variant-btn:hover {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+}
+
+/* AB-only badge */
+.ab-pool-ab-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  vertical-align: middle;
+}
+
+/* Quick Variant Panel */
+.ab-quick-variant-panel {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  padding: 12px;
+  margin-bottom: 12px;
+  animation: modalSlideIn 0.15s ease-out;
+}
+
+.ab-qv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ab-qv-header strong {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.ab-qv-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.ab-qv-close:hover {
+  color: var(--text-primary);
+}
+
+.ab-qv-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+
+.ab-qv-name {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.ab-qv-name:focus {
+  outline: none;
+  border-color: var(--accent-color, #10b981);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+
+.ab-qv-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.ab-qv-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  color: var(--text-secondary);
+}
+
+.ab-qv-tool:has(input:checked) {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+  color: var(--text-primary);
+}
+
+.ab-qv-tool input {
+  width: 12px;
+  height: 12px;
+  accent-color: #10b981;
+}
+
+.ab-qv-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ab-qv-msg {
+  font-size: 0.75rem;
+}
+
+.ab-qv-msg.error {
+  color: #ef4444;
+}
+
+.ab-qv-msg.success {
+  color: #10b981;
+}
+
+/* Legacy banner (kept for backward compat) */
+.ab-pool-banner {
+  background: var(--bg-secondary, #f0f4f8);
+  border: 1px solid var(--border-color, #d1d9e6);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.ab-pool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5a6a7a);
+}
+
+.ab-pool-info strong {
+  color: var(--text-primary, #1a2a3a);
+  font-size: 0.9rem;
+}
+
+.ab-pool-info em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--accent-color, #4a7eff);
+}
+
+/* -----------------------------------------------------------------------------
    A/B Comparison Container - Side-by-Side Layout
    ----------------------------------------------------------------------------- */
 .ab-comparison {
@@ -2249,86 +2624,44 @@ body {
   padding: var(--message-padding-y) var(--message-padding-x);
 }
 
-.ab-response {
+/* Each arm is a normal .message.assistant with an extra .ab-arm class */
+.ab-arm {
   flex: 1;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 500px;
+  min-width: 0; /* allow flex shrink */
 }
 
-.ab-response-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-color);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
+/* Remove default message max-width when inside AB comparison */
+.ab-comparison .ab-arm.message {
+  max-width: none;
 }
 
-.ab-response-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ab-response-label::before {
-  content: '';
-}
-
-.ab-response-content {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* Winner/Loser States */
-.ab-response-winner {
-  border: none;
-  background: transparent;
-  flex: none;
-  width: 100%;
-  max-width: var(--message-max-width);
-}
-
-.ab-comparison-resolved {
-  display: block;
-  gap: 0;
-}
-
-.ab-comparison-resolved .ab-response-winner {
-  padding: 0;
-}
-
-.ab-comparison-resolved .ab-response-winner .ab-response-content {
-  padding: 0;
-}
-
-.ab-response-loser {
-  display: none;
-}
-
-.ab-response-tie {
-  border-color: var(--text-tertiary);
-}
-
-.ab-winner-badge {
+/* A/B label badge */
+.ab-arm-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 2px 8px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
   background: var(--accent);
   color: white;
-  border-radius: 9999px;
+  border-radius: 50%;
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Tie state — dim both arms */
+.ab-arm-tie {
+  opacity: 0.6;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 768px) {
+  .ab-comparison {
+    flex-direction: column;
+    max-width: var(--message-max-width);
+  }
 }
 
 /* -----------------------------------------------------------------------------
