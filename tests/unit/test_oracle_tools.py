@@ -95,6 +95,8 @@ OracleDBConfig = _connection.OracleDBConfig
 format_results_as_markdown = _query.format_results_as_markdown
 create_oracle_query_tool = _query.create_oracle_query_tool
 create_oracle_schema_tool = _query.create_oracle_schema_tool
+_build_query_tool_description = _query._build_query_tool_description
+generate_oracle_skill_doc = _query.generate_oracle_skill_doc
 
 
 # =============================================================================
@@ -555,3 +557,153 @@ class TestOracleSchemaDiscoveryTool:
             result = tool.invoke({"db_name": "test_db", "table_name": "MY_SCHEMA.NONEXISTENT"})
 
         assert "not found" in result.lower()
+
+
+# =============================================================================
+# Skill document support
+# =============================================================================
+
+
+class TestBuildQueryToolDescription:
+    """Test _build_query_tool_description helper."""
+
+    def test_without_skill(self):
+        desc = _build_query_tool_description("db1, db2")
+        assert "db1, db2" in desc
+        assert "--- Domain Knowledge ---" not in desc
+        assert "describe_oracle_schema" in desc
+
+    def test_with_skill(self):
+        skill_content = "# My Skill\nSome domain knowledge here."
+        desc = _build_query_tool_description("db1", skill=skill_content)
+        assert "--- Domain Knowledge ---" in desc
+        assert skill_content in desc
+        assert "db1" in desc
+
+    def test_with_none_skill(self):
+        desc = _build_query_tool_description("db1", skill=None)
+        assert "--- Domain Knowledge ---" not in desc
+
+    def test_with_empty_string_skill(self):
+        desc = _build_query_tool_description("db1", skill="")
+        assert "--- Domain Knowledge ---" not in desc
+
+    def test_skill_passed_to_create_tool(self, manager):
+        """Verify create_oracle_query_tool passes skill to description."""
+        skill_content = "# Oracle Schema\nTable info here."
+        tool = create_oracle_query_tool(manager, skill=skill_content)
+        assert "--- Domain Knowledge ---" in tool.description
+        assert skill_content in tool.description
+
+    def test_create_tool_without_skill(self, manager):
+        """Verify create_oracle_query_tool works without skill."""
+        tool = create_oracle_query_tool(manager)
+        assert "--- Domain Knowledge ---" not in tool.description
+
+    @pytest.fixture
+    def manager(self):
+        cfg = OracleDBConfig(
+            name="test_db",
+            dsn="localhost/TESTDB",
+            user="test_user",
+            password_secret="TEST_SECRET",
+            description="Test database",
+        )
+        return OracleConnectionManager({"test_db": cfg})
+
+
+class TestGenerateOracleSkillDoc:
+    """Test generate_oracle_skill_doc utility."""
+
+    @pytest.fixture
+    def manager(self):
+        cfg = OracleDBConfig(
+            name="test_db",
+            dsn="localhost/TESTDB",
+            user="test_user",
+            password_secret="TEST_SECRET",
+            description="Test database",
+            allowed_schemas=["MY_SCHEMA"],
+        )
+        return OracleConnectionManager({"test_db": cfg})
+
+    @pytest.fixture
+    def multi_db_manager(self):
+        cfg1 = OracleDBConfig(
+            name="db_alpha",
+            dsn="localhost/ALPHA",
+            user="user1",
+            password_secret="SECRET1",
+            description="Alpha database",
+            allowed_schemas=["ALPHA_SCHEMA"],
+        )
+        cfg2 = OracleDBConfig(
+            name="db_beta",
+            dsn="localhost/BETA",
+            user="user2",
+            password_secret="SECRET2",
+            description="Beta database",
+            allowed_schemas=["BETA_SCHEMA"],
+        )
+        return OracleConnectionManager({"db_alpha": cfg1, "db_beta": cfg2})
+
+    @pytest.fixture
+    def mock_connection(self):
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        return conn, cursor
+
+    def test_generates_markdown_structure(self, manager, mock_connection):
+        conn, cursor = mock_connection
+        # First call: _list_tables returns tables
+        # Second call: _describe_columns for first table
+        cursor.fetchall.side_effect = [
+            [("MY_SCHEMA", "USERS", "TABLE"), ("MY_SCHEMA", "ORDERS", "TABLE")],
+            [("MY_SCHEMA", "USERS", "ID", "NUMBER", 22, "N"),
+             ("MY_SCHEMA", "USERS", "NAME", "VARCHAR2", 100, "Y")],
+            [("MY_SCHEMA", "ORDERS", "ORDER_ID", "NUMBER", 22, "N"),
+             ("MY_SCHEMA", "ORDERS", "STATUS", "VARCHAR2", 50, "Y")],
+        ]
+
+        with patch.object(manager, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value.__enter__ = MagicMock(return_value=conn)
+            mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+            result = generate_oracle_skill_doc(manager)
+
+        assert "# Oracle Databases" in result
+        assert "test_db" in result
+        assert "Test database" in result
+        assert "FETCH FIRST" in result
+
+    def test_empty_databases(self):
+        """Manager with no databases."""
+        empty_mgr = OracleConnectionManager({})
+        result = generate_oracle_skill_doc(empty_mgr)
+        assert "No Oracle databases" in result
+
+    def test_multiple_databases(self, multi_db_manager, mock_connection):
+        conn, cursor = mock_connection
+        cursor.fetchall.return_value = []
+
+        with patch.object(multi_db_manager, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value.__enter__ = MagicMock(return_value=conn)
+            mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+            result = generate_oracle_skill_doc(multi_db_manager)
+
+        assert "db_alpha" in result
+        assert "db_beta" in result
+        assert "Alpha database" in result
+        assert "Beta database" in result
+
+    def test_includes_oracle_sql_tips(self, manager, mock_connection):
+        conn, cursor = mock_connection
+        cursor.fetchall.return_value = []
+
+        with patch.object(manager, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value.__enter__ = MagicMock(return_value=conn)
+            mock_get_conn.return_value.__exit__ = MagicMock(return_value=False)
+            result = generate_oracle_skill_doc(manager)
+
+        assert "FETCH FIRST" in result
+        assert "DUAL" in result

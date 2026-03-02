@@ -124,11 +124,28 @@ def _cell(value) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _build_query_tool_description(db_summary: str, skill: Optional[str] = None) -> str:
+    """Build the description for the Oracle query tool, optionally appending a skill."""
+    base = (
+        "Execute a read-only SQL query against an Oracle database. "
+        "Only SELECT queries are allowed.\n"
+        f"Available databases: {db_summary}\n"
+        "Input: db_name (string) and sql (string).\n"
+        "Use describe_oracle_schema first to discover tables and columns.\n"
+        "This is an Oracle database - use Oracle SQL syntax "
+        "(FETCH FIRST N ROWS ONLY instead of LIMIT, use DUAL for constants, etc.)."
+    )
+    if skill:
+        base += f"\n--- Domain Knowledge ---\n{skill}"
+    return base
+
+
 def create_oracle_query_tool(
     manager: OracleConnectionManager,
     *,
     name: str = "query_oracle_db",
     description: Optional[str] = None,
+    skill: Optional[str] = None,
 ) -> Callable:
     """Create a LangChain tool for executing read-only Oracle SQL queries.
 
@@ -136,6 +153,7 @@ def create_oracle_query_tool(
         manager: OracleConnectionManager with configured databases.
         name: Tool name.
         description: Override tool description.
+        skill: Optional skill markdown to append to the tool description.
 
     Returns:
         A LangChain @tool callable.
@@ -146,15 +164,7 @@ def create_oracle_query_tool(
         for d in db_list
     )
 
-    tool_description = description or (
-        "Execute a read-only SQL query against an Oracle database. "
-        "Only SELECT queries are allowed.\n"
-        f"Available databases: {db_summary}\n"
-        "Input: db_name (string) and sql (string).\n"
-        "Use describe_oracle_schema first to discover tables and columns.\n"
-        "This is an Oracle database - use Oracle SQL syntax "
-        "(FETCH FIRST N ROWS ONLY instead of LIMIT, use DUAL for constants, etc.)."
-    )
+    tool_description = description or _build_query_tool_description(db_summary, skill)
 
     @tool(name, description=tool_description)
     def _query_oracle_db(db_name: str, sql: str) -> str:
@@ -437,3 +447,100 @@ def _describe_columns(
         lines.append(f"| {col} | {type_str} | {null_str} |")
 
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Skill document generation
+# ---------------------------------------------------------------------------
+
+
+_ORACLE_SQL_TIPS = """\
+## Oracle SQL Tips
+
+- Use `FETCH FIRST N ROWS ONLY` instead of `LIMIT N` (Oracle does not support LIMIT).
+- Use `SELECT ... FROM DUAL` for evaluating expressions or constants.
+- Date literals: `DATE '2024-01-15'` or `TO_DATE('2024-01-15', 'YYYY-MM-DD')`.
+- Timestamp literals: `TIMESTAMP '2024-01-15 10:30:00'`.
+- String comparison is case-sensitive; use `UPPER(col)` or `LOWER(col)` for case-insensitive matching.
+- Use `NVL(col, default)` for NULL handling (equivalent to COALESCE but Oracle-specific).
+- Use `ROWNUM` in subqueries for legacy pagination, or `FETCH FIRST ... ROWS ONLY` (12c+).
+"""
+
+
+def generate_oracle_skill_doc(manager: OracleConnectionManager) -> str:
+    """Generate a skill document describing all configured Oracle databases.
+
+    Introspects live databases to produce a markdown document listing
+    databases, tables/views, and column details. The output is suitable
+    for injection into a tool description via the ``--- Domain Knowledge ---``
+    pattern.
+
+    Args:
+        manager: OracleConnectionManager with configured databases.
+
+    Returns:
+        Markdown string with schema documentation.
+    """
+    db_list = manager.list_databases()
+    if not db_list:
+        return "# Oracle Databases\n\nNo Oracle databases are configured.\n"
+
+    sections: List[str] = ["# Oracle Databases\n"]
+
+    for db in db_list:
+        db_name = db["name"]
+        desc = db.get("description", "")
+        sections.append(f"## {db_name}")
+        if desc:
+            sections.append(desc)
+        sections.append("")
+
+        try:
+            cfg = manager.get_db_config(db_name)
+        except ValueError:
+            sections.append("_Could not resolve database config._\n")
+            continue
+
+        schema_filter = cfg.allowed_schemas
+
+        # List tables
+        tables_output = _list_tables(manager, db_name, schema_filter)
+        sections.append(tables_output)
+        sections.append("")
+
+        # Parse table names from the output and describe columns for each
+        table_names = _extract_table_names(tables_output)
+        for schema_part, table_part in table_names:
+            col_output = _describe_columns(manager, db_name, schema_part, table_part, schema_filter)
+            if "not found" not in col_output.lower():
+                sections.append(col_output)
+                sections.append("")
+
+    sections.append(_ORACLE_SQL_TIPS)
+
+    return "\n".join(sections)
+
+
+def _extract_table_names(
+    tables_output: str,
+) -> List[Tuple[Optional[str], str]]:
+    """Extract (schema, table) pairs from _list_tables output.
+
+    The output format is lines like:
+        ``  - TABLE_NAME (TABLE)``
+    under schema headers like:
+        ``**SCHEMA_NAME**``
+    """
+    results: List[Tuple[Optional[str], str]] = []
+    current_schema: Optional[str] = None
+
+    for line in tables_output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("**") and stripped.endswith("**"):
+            current_schema = stripped.strip("*")
+        elif stripped.startswith("- ") and "(" in stripped:
+            # "- TABLE_NAME (TABLE)" or "- TABLE_NAME (VIEW)"
+            name_part = stripped[2:].split("(")[0].strip()
+            results.append((current_schema, name_part))
+
+    return results
