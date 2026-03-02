@@ -65,3 +65,39 @@ def load_skill(skill_name: str, config: Dict[str, Any]) -> Optional[str]:
     except Exception as e:
         logger.error("Failed to read skill file %s: %s", skill_path, e)
         return None
+
+
+def save_skill(skill_name: str, content: str, config: Dict[str, Any]) -> bool:
+    """
+    Save a skill markdown file to the configured skills directory.
+
+    Creates the directory if it does not exist.  Returns ``True`` on success
+    and ``False`` on failure (logging a warning).
+
+    Args:
+        skill_name: Name of the skill file (without .md extension).
+        content: Markdown content to write.
+        config: Runtime config dict (from ``get_full_config()``).
+
+    Returns:
+        ``True`` if the file was written successfully, ``False`` otherwise.
+    """
+    skills_dir = _resolve_skills_dir(config)
+    if skills_dir is None:
+        logger.warning(
+            "No skills_dir configured in services.chat_app.skills_dir; "
+            "cannot save skill '%s'",
+            skill_name,
+        )
+        return False
+
+    skill_path = skills_dir / f"{skill_name}.md"
+
+    try:
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        skill_path.write_text(content, encoding="utf-8")
+        logger.info("Saved skill '%s' to %s (%d chars)", skill_name, skill_path, len(content))
+        return True
+    except Exception as e:
+        logger.warning("Failed to save skill file %s: %s", skill_path, e)
+        return False
