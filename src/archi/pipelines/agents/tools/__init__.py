@@ -13,7 +13,7 @@ from .monit_opensearch import (
     create_monit_opensearch_aggregation_tool,
 )
 from .oracle_connection import OracleConnectionManager
-from .oracle_query import create_oracle_query_tool, create_oracle_schema_tool
+from .oracle_query import create_oracle_query_tool, create_oracle_schema_tool, generate_oracle_skill_doc
 
 __all__ = [
     "create_document_fetch_tool",
@@ -29,4 +29,5 @@ __all__ = [
     "OracleConnectionManager",
     "create_oracle_query_tool",
     "create_oracle_schema_tool",
+    "generate_oracle_skill_doc",
 ]

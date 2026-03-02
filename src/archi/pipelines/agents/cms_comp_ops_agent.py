@@ -21,7 +21,8 @@ from src.archi.pipelines.agents.tools import (
     create_oracle_query_tool,
     create_oracle_schema_tool,
 )
-from src.archi.pipelines.agents.utils.skill_utils import load_skill
+from src.archi.pipelines.agents.utils.skill_utils import load_skill, save_skill
+from src.archi.pipelines.agents.tools.oracle_query import generate_oracle_skill_doc
 
 logger = get_logger(__name__)
 
@@ -49,6 +50,7 @@ class CMSCompOpsAgent(BaseReActAgent):
 
         # Initialize Oracle connection manager (shared across query and schema tools)
         self._oracle_manager = None
+        self._oracle_skill = None
         self._init_oracle()
 
         self.rebuild_static_tools()
@@ -83,7 +85,7 @@ class CMSCompOpsAgent(BaseReActAgent):
             logger.info("MONIT_GRAFANA_TOKEN not found; MONIT OpenSearch tools not available")
 
     def _init_oracle(self) -> None:
-        """Initialize the Oracle connection manager if databases are configured."""
+        """Initialize the Oracle connection manager and load/generate skill document."""
         try:
             oracle_dbs = self._chat_app_config.get("tools", {}).get("oracle_databases", {})
             manager = OracleConnectionManager.from_config(oracle_dbs)
@@ -91,6 +93,17 @@ class CMSCompOpsAgent(BaseReActAgent):
                 self._oracle_manager = manager
                 db_names = [d["name"] for d in manager.list_databases()]
                 logger.info("Oracle connection manager initialized for databases: %s", ", ".join(db_names))
+
+                # Load or generate the Oracle skill document (lazy cache)
+                self._oracle_skill = load_skill("oracle_databases", self.config)
+                if self._oracle_skill is None:
+                    try:
+                        logger.info("Oracle skill not found; generating from live schema...")
+                        self._oracle_skill = generate_oracle_skill_doc(manager)
+                        save_skill("oracle_databases", self._oracle_skill, self.config)
+                    except Exception as e:
+                        logger.warning("Failed to generate Oracle skill document: %s", e)
+                        self._oracle_skill = None
             else:
                 logger.info("No Oracle databases configured; Oracle tools not available")
         except Exception as e:
@@ -225,7 +238,7 @@ class CMSCompOpsAgent(BaseReActAgent):
 
     def _build_oracle_query_tool(self) -> Callable:
         """Build the Oracle SQL query tool."""
-        return create_oracle_query_tool(self._oracle_manager)
+        return create_oracle_query_tool(self._oracle_manager, skill=self._oracle_skill)
 
     def _build_oracle_schema_tool(self) -> Callable:
         """Build the Oracle schema description tool."""
