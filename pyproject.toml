@@ -29,6 +29,7 @@ dependencies = [
     "psycopg2-binary==2.9.10"
 ]
 
+
 [project.scripts]
 archi = "src.cli.cli_main:main"
 

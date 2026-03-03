@@ -426,6 +426,11 @@ class TemplateManager:
         if context.plan.get_service("grader").enabled:
             template_vars["rubrics"] = self._get_grader_rubrics(context.config_manager)
 
+        # Auto-detect Oracle database config and set INSTALL_ORACLE build arg
+        base_config = (context.config_manager.get_configs() or [{}])[0]
+        oracle_dbs = base_config.get("services", {}).get("chat_app", {}).get("tools", {}).get("oracle_databases")
+        template_vars["install_oracle"] = bool(oracle_dbs)
+
         compose_template = self.env.get_template(BASE_COMPOSE_TEMPLATE)
         compose_rendered = compose_template.render(**template_vars)
 
