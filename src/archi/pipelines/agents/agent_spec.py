@@ -13,6 +13,7 @@ class AgentSpec:
     tools: List[str]
     prompt: str
     source_path: Path
+    ab_only: bool = False
 
 
 class AgentSpecError(ValueError):
@@ -31,22 +32,26 @@ def load_agent_spec(path: Path) -> AgentSpec:
     text = path.read_text()
     frontmatter, prompt = _parse_frontmatter(text, path)
     name, tools = _extract_metadata(frontmatter, path)
+    ab_only = bool(frontmatter.get("ab_only", False))
     return AgentSpec(
         name=name,
         tools=tools,
         prompt=prompt,
         source_path=path,
+        ab_only=ab_only,
     )
 
 
 def load_agent_spec_from_text(text: str) -> AgentSpec:
     frontmatter, prompt = _parse_frontmatter(text, Path("<memory>"))
     name, tools = _extract_metadata(frontmatter, Path("<memory>"))
+    ab_only = bool(frontmatter.get("ab_only", False))
     return AgentSpec(
         name=name,
         tools=tools,
         prompt=prompt,
         source_path=Path("<memory>"),
+        ab_only=ab_only,
     )
 
 

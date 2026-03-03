@@ -94,6 +94,7 @@ class LocalProvider(BaseProvider):
         model_kwargs = {
             "model": model_name,
             "streaming": True,
+            "keep_alive": "24h",
             **self.config.extra_kwargs,
             **kwargs,
         }

@@ -46,7 +46,48 @@ Retrieve the full trace of a previous request.
 
 ### `POST /api/ab/create`
 
-Create an A/B comparison between two model responses.
+Create an A/B comparison between two model responses (legacy manual mode).
+
+### `GET /api/ab/pool`
+
+Get the server-side A/B testing pool configuration. Returns `enabled: true` with champion name and variant list when a pool is configured, or `enabled: false` otherwise.
+
+**Response (pool active):**
+```json
+{
+  "success": true,
+  "enabled": true,
+  "champion": "default",
+  "variants": ["default", "creative", "concise"]
+}
+```
+
+### `POST /api/ab/compare`
+
+Stream a pool-based champion vs. challenger A/B comparison. The server randomly pairs the champion against a challenger from the pool and streams interleaved NDJSON events tagged with `arm: "a"` or `arm: "b"`. A final `ab_meta` event carries the `comparison_id` and variant mapping.
+
+**Request body:** Same as `/api/get_chat_response_stream`.
+
+### `GET /api/ab/metrics`
+
+Get per-variant aggregate metrics (wins, losses, ties, total comparisons).
+
+**Response:**
+```json
+{
+  "success": true,
+  "metrics": [
+    {
+      "variant_name": "creative",
+      "wins": 12,
+      "losses": 5,
+      "ties": 3,
+      "total_comparisons": 20,
+      "last_updated": "2025-01-15T10:30:00"
+    }
+  ]
+}
+```
 
 ---
 

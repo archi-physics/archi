@@ -220,6 +220,47 @@ data_manager:
 
 ---
 
+## A/B Testing Pool
+
+Archi supports champion/challenger A/B testing via a server-side variant pool. When configured, the system automatically pairs the champion agent against a random challenger for each comparison. Users vote on which response is better, and aggregate metrics are tracked per variant.
+
+Add an `ab_testing` block under your `archi:` or top-level config:
+
+```yaml
+ab_testing:
+  champion: default            # The variant that always appears in every matchup
+  variants:
+    - name: default
+      agent_spec: default      # Name of the agent spec (from agents_dir)
+    - name: creative
+      agent_spec: default
+      provider: openai
+      model: gpt-4o
+      recursion_limit: 30
+    - name: concise
+      agent_spec: concise      # A different agent spec with a shorter prompt
+      provider: anthropic
+      model: claude-sonnet-4-20250514
+      num_documents_to_retrieve: 3
+```
+
+### Variant Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | *required* | Unique variant identifier |
+| `agent_spec` | string | `null` | Agent spec name to use (must exist in `agents_dir`) |
+| `provider` | string | `null` | Override LLM provider |
+| `model` | string | `null` | Override LLM model |
+| `num_documents_to_retrieve` | int | `null` | Override retriever document count |
+| `recursion_limit` | int | `null` | Override agent recursion limit |
+
+The `champion` field must reference an existing variant name. At least two variants are required. When a user enables A/B mode in the chat UI, the pool takes over — the champion always appears in one arm, and a random challenger is placed in the other. Arm positions (A vs B) are randomized per comparison.
+
+Variant metrics (wins, losses, ties) are tracked in the `ab_variant_metrics` database table and available via `GET /api/ab/metrics`.
+
+---
+
 ## Agent Configuration Model
 
 Archi no longer uses a top-level `archi:` block in standard deployment YAML.
