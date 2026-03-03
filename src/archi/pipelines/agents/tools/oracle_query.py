@@ -235,10 +235,12 @@ def create_oracle_query_tool(
                 )
             return f"Oracle query error: {err_str}"
 
-        if not rows:
-            return "Query returned 0 rows."
+        sql_header = f"**Query executed on {db_name}:**\n```sql\n{safe_sql}\n```\n\n"
 
-        return format_results_as_markdown(columns, rows, max_chars=4000, cursor_description=desc)
+        if not rows:
+            return sql_header + "Query returned 0 rows."
+
+        return sql_header + format_results_as_markdown(columns, rows, max_chars=4000, cursor_description=desc)
 
     return _query_oracle_db
 
