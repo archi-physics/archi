@@ -13,8 +13,8 @@ from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-class DataManager():
 
+class DataManager:
     def __init__(self, *, run_ingestion: bool = True, factory=None):
 
         self.config = get_full_config()
@@ -29,10 +29,16 @@ class DataManager():
             **self.config["services"]["postgres"],
         }
         self.persistence = PersistenceService(self.data_path, pg_config=self.pg_config)
-        self.config_service = factory.config_service if factory else ConfigService(pg_config=self.pg_config)
+        self.config_service = (
+            factory.config_service
+            if factory
+            else ConfigService(pg_config=self.pg_config)
+        )
         static_config = self.config_service.get_static_config()
         if not static_config or static_config.sources_config is None:
-            raise RuntimeError("Static config missing sources_config; run deployment initialization first.")
+            raise RuntimeError(
+                "Static config missing sources_config; run deployment initialization first."
+            )
         self.config["data_manager"]["sources"] = static_config.sources_config
 
         self.localfile_manager = LocalFileManager(dm_config=self.config["data_manager"])
@@ -57,13 +63,43 @@ class DataManager():
         if self.should_run_ingestion:
             self.run_ingestion()
 
-    def run_ingestion(self, progress_callback: Optional[Callable[[str], None]] = None) -> None:
+    def run_ingestion(
+        self, progress_callback: Optional[Callable[[str], None]] = None
+    ) -> None:
         """Execute initial ingestion and vectorstore update."""
+        reset_collection = self.config["data_manager"].get("reset_collection", False)
+
         source_aggregation = [
-            ("Copying configured local files", lambda: self.localfile_manager.collect_all_from_config(self.persistence)),
-            ("Scraping documents onto filesystem", lambda: self.scraper_manager.collect_all_from_config(self.persistence)),
-            ("Fetching ticket data onto filesystem", lambda: self.ticket_manager.collect_all_from_config(self.persistence)),
+            (
+                "Copying configured local files",
+                lambda: self.localfile_manager.collect_all_from_config(
+                    self.persistence
+                ),
+            ),
         ]
+
+        if reset_collection:
+            source_aggregation.extend(
+                [
+                    (
+                        "Scraping documents onto filesystem",
+                        lambda: self.scraper_manager.collect_all_from_config(
+                            self.persistence
+                        ),
+                    ),
+                    (
+                        "Fetching ticket data onto filesystem",
+                        lambda: self.ticket_manager.collect_all_from_config(
+                            self.persistence
+                        ),
+                    ),
+                ]
+            )
+        else:
+            logger.info(
+                "reset_collection is false; skipping ticket and scraper collection. "
+                "Data will be updated via scheduled sync."
+            )
 
         for message, step in source_aggregation:
             logger.info(message)
@@ -74,7 +110,6 @@ class DataManager():
         if progress_callback:
             progress_callback("Flushing indices")
         self.persistence.flush_index()
-
 
         # Verify catalog was updated
         catalog = self.persistence.catalog
