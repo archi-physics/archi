@@ -238,6 +238,11 @@
   margin: 0;
 }
 
+/* Keep drop zone visible after files are added (override Dropzone's dz-started hide) */
+.dropzone.dz-started .dz-message {
+  display: block;
+}
+
 .dropzone-icon {
   color: var(--text-muted, #6e7681);
   margin-bottom: 16px;
