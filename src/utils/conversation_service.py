@@ -43,9 +43,9 @@ class ABComparison:
     """An A/B comparison between two model responses."""
     comparison_id: Optional[int] = None
     conversation_id: str = ""
-    user_prompt_mid: int = 0  # message_id of user prompt
-    response_a_mid: int = 0   # message_id of response A
-    response_b_mid: int = 0   # message_id of response B
+    user_prompt_message_id: int = 0  # message_id of user prompt
+    response_a_message_id: int = 0   # message_id of response A
+    response_b_message_id: int = 0   # message_id of response B
     model_a: str = ""
     pipeline_a: str = ""
     model_b: str = ""
@@ -259,9 +259,9 @@ class ConversationService:
     def create_ab_comparison(
         self,
         conversation_id: str,
-        user_prompt_mid: int,
-        response_a_mid: int,
-        response_b_mid: int,
+        user_prompt_message_id: int,
+        response_a_message_id: int,
+        response_b_message_id: int,
         model_a: str,
         pipeline_a: str,
         model_b: str,
@@ -273,9 +273,9 @@ class ConversationService:
         
         Args:
             conversation_id: Conversation this comparison belongs to
-            user_prompt_mid: Message ID of user prompt
-            response_a_mid: Message ID of response A
-            response_b_mid: Message ID of response B
+            user_prompt_message_id: Message ID of user prompt
+            response_a_message_id: Message ID of response A
+            response_b_message_id: Message ID of response B
             model_a: Model identifier for response A
             pipeline_a: Pipeline identifier for response A
             model_b: Model identifier for response B
@@ -292,9 +292,9 @@ class ConversationService:
                     SQL_INSERT_AB_COMPARISON,
                     (
                         conversation_id,
-                        user_prompt_mid,
-                        response_a_mid,
-                        response_b_mid,
+                        user_prompt_message_id,
+                        response_a_message_id,
+                        response_b_message_id,
                         model_a,
                         pipeline_a,
                         model_b,
@@ -362,9 +362,9 @@ class ConversationService:
                 return ABComparison(
                     comparison_id=row[0],
                     conversation_id=row[1],
-                    user_prompt_mid=row[2],
-                    response_a_mid=row[3],
-                    response_b_mid=row[4],
+                    user_prompt_message_id=row[2],
+                    response_a_message_id=row[3],
+                    response_b_message_id=row[4],
                     model_a=row[5],
                     pipeline_a=row[6],
                     model_b=row[7],
@@ -402,9 +402,9 @@ class ConversationService:
                 return ABComparison(
                     comparison_id=row[0],
                     conversation_id=row[1],
-                    user_prompt_mid=row[2],
-                    response_a_mid=row[3],
-                    response_b_mid=row[4],
+                    user_prompt_message_id=row[2],
+                    response_a_message_id=row[3],
+                    response_b_message_id=row[4],
                     model_a=row[5],
                     pipeline_a=row[6],
                     model_b=row[7],
@@ -443,9 +443,9 @@ class ConversationService:
                     ABComparison(
                         comparison_id=row[0],
                         conversation_id=row[1],
-                        user_prompt_mid=row[2],
-                        response_a_mid=row[3],
-                        response_b_mid=row[4],
+                        user_prompt_message_id=row[2],
+                        response_a_message_id=row[3],
+                        response_b_message_id=row[4],
                         model_a=row[5],
                         pipeline_a=row[6],
                         model_b=row[7],

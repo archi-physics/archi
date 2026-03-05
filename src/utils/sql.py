@@ -15,19 +15,19 @@ RETURNING message_id;
 
 SQL_INSERT_FEEDBACK = """
 INSERT INTO feedback (
-    mid, feedback_ts, feedback, feedback_msg, incorrect, unhelpful, inappropriate
+    message_id, feedback_ts, feedback, feedback_msg, incorrect, unhelpful, inappropriate
 )
 VALUES (%s, %s, %s, %s, %s, %s, %s);
 """
 
 SQL_DELETE_REACTION_FEEDBACK = """
 DELETE FROM feedback
-WHERE mid = %s AND feedback IN ('like', 'dislike');
+WHERE message_id = %s AND feedback IN ('like', 'dislike');
 """
 
 SQL_GET_REACTION_FEEDBACK = """
 SELECT feedback FROM feedback
-WHERE mid = %s AND feedback IN ('like', 'dislike')
+WHERE message_id = %s AND feedback IN ('like', 'dislike')
 ORDER BY feedback_ts DESC
 LIMIT 1;
 """
@@ -47,28 +47,28 @@ SELECT c.sender,
        COALESCE(cf.comment_count, 0) AS comment_count
 FROM conversations c
 LEFT JOIN (
-    SELECT DISTINCT ON (mid)
-        mid,
+    SELECT DISTINCT ON (message_id)
+        message_id,
         feedback,
         feedback_ts
     FROM feedback
     WHERE feedback IN ('like', 'dislike')
-    ORDER BY mid, feedback_ts DESC
-) lf ON lf.mid = c.message_id
+    ORDER BY message_id, feedback_ts DESC
+) lf ON lf.message_id = c.message_id
 LEFT JOIN (
-    SELECT mid,
+    SELECT message_id,
            COUNT(*) AS comment_count
     FROM feedback
     WHERE feedback = 'comment'
-    GROUP BY mid
-) cf ON cf.mid = c.message_id
+    GROUP BY message_id
+) cf ON cf.message_id = c.message_id
 WHERE c.conversation_id = %s
 ORDER BY c.message_id ASC;
 """
 
 SQL_INSERT_TIMING = """
 INSERT INTO timing (
-    mid,
+    message_id,
     client_sent_msg_ts,
     server_received_msg_ts,
     lock_acquisition_ts,
@@ -154,7 +154,7 @@ ORDER BY step_number ASC;
 
 SQL_INSERT_AB_COMPARISON = """
 INSERT INTO ab_comparisons (
-    conversation_id, user_prompt_mid, response_a_mid, response_b_mid, 
+    conversation_id, user_prompt_message_id, response_a_message_id, response_b_message_id,
     model_a, pipeline_a, model_b, pipeline_b, is_config_a_first
 )
 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -168,15 +168,15 @@ WHERE comparison_id = %s;
 """
 
 SQL_GET_AB_COMPARISON = """
-SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
-       model_a, pipeline_a, model_b, pipeline_b, 
+SELECT comparison_id, conversation_id, user_prompt_message_id, response_a_message_id, response_b_message_id,
+       model_a, pipeline_a, model_b, pipeline_b,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons
 WHERE comparison_id = %s;
 """
 
 SQL_GET_PENDING_AB_COMPARISON = """
-SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
+SELECT comparison_id, conversation_id, user_prompt_message_id, response_a_message_id, response_b_message_id,
        model_a, pipeline_a, model_b, pipeline_b,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons
@@ -191,7 +191,7 @@ WHERE comparison_id = %s;
 """
 
 SQL_GET_AB_COMPARISONS_BY_CONVERSATION = """
-SELECT comparison_id, conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
+SELECT comparison_id, conversation_id, user_prompt_message_id, response_a_message_id, response_b_message_id,
        model_a, pipeline_a, model_b, pipeline_b,
        is_config_a_first, preference, preference_ts, created_at
 FROM ab_comparisons

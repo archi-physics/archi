@@ -102,7 +102,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "-- number of messages per 1h window\nWITH msg_timing_info AS (\n  SELECT $__timeGroup(server_received_msg_ts, '1h', 0) as t1, count(mid) as num_msgs\n  FROM timing\n  WHERE $__timeFrom() <= server_received_msg_ts AND server_received_msg_ts <= $__timeTo()\n  GROUP BY 1\n), convo_timing_info AS (\n  SELECT $__timeGroup(server_received_msg_ts, '1h', 0) as t2,\n         COUNT(DISTINCT (meta.client_id || '-' || conversations.conversation_id)) as num_convos\n  FROM timing\n  JOIN conversations ON timing.mid = conversations.message_id\n  JOIN conversation_metadata meta ON conversations.conversation_id = meta.conversation_id\n  WHERE $__timeFrom() <= server_received_msg_ts AND server_received_msg_ts <= $__timeTo()\n  GROUP BY 1\n), intervals AS (\n  SELECT $__timeGroupAlias(t, '1h', 0) FROM generate_series($__timeFrom(), $__timeTo(), '1 hour'::interval) AS s(t)\n), msgs_join_convos AS (\n  SELECT * FROM msg_timing_info JOIN convo_timing_info ON t1 = t2\n)\nSELECT time, num_msgs, num_convos FROM intervals LEFT OUTER JOIN msgs_join_convos ON t1 = intervals.time;\n",
+          "rawSql": "-- number of messages per 1h window\nWITH msg_timing_info AS (\n  SELECT $__timeGroup(server_received_msg_ts, '1h', 0) as t1, count(message_id) as num_msgs\n  FROM timing\n  WHERE $__timeFrom() <= server_received_msg_ts AND server_received_msg_ts <= $__timeTo()\n  GROUP BY 1\n), convo_timing_info AS (\n  SELECT $__timeGroup(server_received_msg_ts, '1h', 0) as t2,\n         COUNT(DISTINCT (meta.client_id || '-' || conversations.conversation_id)) as num_convos\n  FROM timing\n  JOIN conversations ON timing.message_id = conversations.message_id\n  JOIN conversation_metadata meta ON conversations.conversation_id = meta.conversation_id\n  WHERE $__timeFrom() <= server_received_msg_ts AND server_received_msg_ts <= $__timeTo()\n  GROUP BY 1\n), intervals AS (\n  SELECT $__timeGroupAlias(t, '1h', 0) FROM generate_series($__timeFrom(), $__timeTo(), '1 hour'::interval) AS s(t)\n), msgs_join_convos AS (\n  SELECT * FROM msg_timing_info JOIN convo_timing_info ON t1 = t2\n)\nSELECT time, num_msgs, num_convos FROM intervals LEFT OUTER JOIN msgs_join_convos ON t1 = intervals.time;\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -188,7 +188,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  t.server_received_msg_ts AS time,\n  COALESCE(c.model_used, 'unknown') AS metric,\n  EXTRACT(EPOCH FROM t.msg_duration) AS value\nFROM timing t\nJOIN conversations c ON t.mid = c.message_id\nWHERE $__timeFilter(t.server_received_msg_ts)\nORDER BY time",
+          "rawSql": "SELECT\n  t.server_received_msg_ts AS time,\n  COALESCE(c.model_used, 'unknown') AS metric,\n  EXTRACT(EPOCH FROM t.msg_duration) AS value\nFROM timing t\nJOIN conversations c ON t.message_id = c.message_id\nWHERE $__timeFilter(t.server_received_msg_ts)\nORDER BY time",
           "refId": "A",
           "sql": {
             "columns": [
@@ -325,7 +325,7 @@
           "format": "table",
           "hide": false,
           "rawQuery": true,
-          "rawSql": "WITH msg_to_model AS (\n  SELECT c.message_id,\n         COALESCE(c.model_used, 'unknown') AS model_name\n  FROM conversations c\n),\nfeedback_by_model AS (\n  SELECT f.feedback,\n         mtm.model_name\n  FROM feedback f\n  JOIN msg_to_model mtm ON f.mid = mtm.message_id\n  WHERE f.feedback IN ('like', 'dislike')\n)\nSELECT \n  COUNT(*) AS count,\n  feedback || '_' || model_name AS feedback,\n  model_name\nFROM feedback_by_model\nGROUP BY feedback, model_name\nORDER BY model_name,\n         CASE feedback WHEN 'like' THEN 1 ELSE 2 END;\n",
+          "rawSql": "WITH msg_to_model AS (\n  SELECT c.message_id,\n         COALESCE(c.model_used, 'unknown') AS model_name\n  FROM conversations c\n),\nfeedback_by_model AS (\n  SELECT f.feedback,\n         mtm.model_name\n  FROM feedback f\n  JOIN msg_to_model mtm ON f.message_id = mtm.message_id\n  WHERE f.feedback IN ('like', 'dislike')\n)\nSELECT \n  COUNT(*) AS count,\n  feedback || '_' || model_name AS feedback,\n  model_name\nFROM feedback_by_model\nGROUP BY feedback, model_name\nORDER BY model_name,\n         CASE feedback WHEN 'like' THEN 1 ELSE 2 END;\n",
           "refId": "A",
           "sql": {
             "columns": [

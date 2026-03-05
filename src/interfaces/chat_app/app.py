@@ -613,7 +613,7 @@ class ChatWrapper:
         """
         Insert feedback from user for specific message into feedback table.
         """
-        # construct insert_tup (mid, feedback_ts, feedback, feedback_msg, incorrect, unhelpful, inappropriate)
+        # construct insert_tup (message_id, feedback_ts, feedback, feedback_msg, incorrect, unhelpful, inappropriate)
         insert_tup = (
             feedback['message_id'],
             feedback['feedback_ts'],
@@ -672,9 +672,9 @@ class ChatWrapper:
     def create_ab_comparison(
         self,
         conversation_id: int,
-        user_prompt_mid: int,
-        response_a_mid: int,
-        response_b_mid: int,
+        user_prompt_message_id: int,
+        response_a_message_id: int,
+        response_b_message_id: int,
         config_a_id: int,
         config_b_id: int,
         is_config_a_first: bool,
@@ -684,9 +684,9 @@ class ChatWrapper:
         
         Args:
             conversation_id: The conversation this comparison belongs to
-            user_prompt_mid: Message ID of the user's question
-            response_a_mid: Message ID of response A
-            response_b_mid: Message ID of response B
+            user_prompt_message_id: Message ID of the user's question
+            response_a_message_id: Message ID of response A
+            response_b_message_id: Message ID of response B
             config_a_id: Config ID used for response A
             config_b_id: Config ID used for response B
             is_config_a_first: True if config A was the "first" config before randomization
@@ -699,7 +699,7 @@ class ChatWrapper:
         try:
             cursor.execute(
                 SQL_INSERT_AB_COMPARISON,
-                (conversation_id, user_prompt_mid, response_a_mid, response_b_mid,
+                (conversation_id, user_prompt_message_id, response_a_message_id, response_b_message_id,
                  config_a_id, config_b_id, is_config_a_first)
             )
             comparison_id = cursor.fetchone()[0]
@@ -751,9 +751,9 @@ class ChatWrapper:
             return {
                 'comparison_id': row[0],
                 'conversation_id': row[1],
-                'user_prompt_mid': row[2],
-                'response_a_mid': row[3],
-                'response_b_mid': row[4],
+                'user_prompt_message_id': row[2],
+                'response_a_message_id': row[3],
+                'response_b_message_id': row[4],
                 'config_a_id': row[5],
                 'config_b_id': row[6],
                 'is_config_a_first': row[7],
@@ -782,9 +782,9 @@ class ChatWrapper:
             return {
                 'comparison_id': row[0],
                 'conversation_id': row[1],
-                'user_prompt_mid': row[2],
-                'response_a_mid': row[3],
-                'response_b_mid': row[4],
+                'user_prompt_message_id': row[2],
+                'response_a_message_id': row[3],
+                'response_b_message_id': row[4],
                 'config_a_id': row[5],
                 'config_b_id': row[6],
                 'is_config_a_first': row[7],
@@ -832,9 +832,9 @@ class ChatWrapper:
                 {
                     'comparison_id': row[0],
                     'conversation_id': row[1],
-                    'user_prompt_mid': row[2],
-                    'response_a_mid': row[3],
-                    'response_b_mid': row[4],
+                    'user_prompt_message_id': row[2],
+                    'response_a_message_id': row[3],
+                    'response_b_message_id': row[4],
                     'config_a_id': row[5],
                     'config_b_id': row[6],
                     'is_config_a_first': row[7],
@@ -3960,9 +3960,9 @@ class FlaskAppWrapper(object):
 
         POST body:
         - conversation_id: The conversation ID
-        - user_prompt_mid: Message ID of the user's question
-        - response_a_mid: Message ID of response A
-        - response_b_mid: Message ID of response B
+        - user_prompt_message_id: Message ID of the user's question
+        - response_a_message_id: Message ID of response A
+        - response_b_message_id: Message ID of response B
         - config_a_id: Config ID used for response A
         - config_b_id: Config ID used for response B
         - is_config_a_first: True if config A was the "first" config before randomization
@@ -3974,9 +3974,9 @@ class FlaskAppWrapper(object):
         try:
             data = request.json
             conversation_id = data.get('conversation_id')
-            user_prompt_mid = data.get('user_prompt_mid')
-            response_a_mid = data.get('response_a_mid')
-            response_b_mid = data.get('response_b_mid')
+            user_prompt_message_id = data.get('user_prompt_message_id')
+            response_a_message_id = data.get('response_a_message_id')
+            response_b_message_id = data.get('response_b_message_id')
             config_a_id = data.get('config_a_id')
             config_b_id = data.get('config_b_id')
             is_config_a_first = data.get('is_config_a_first', True)
@@ -3986,12 +3986,12 @@ class FlaskAppWrapper(object):
             missing = []
             if not conversation_id:
                 missing.append('conversation_id')
-            if not user_prompt_mid:
-                missing.append('user_prompt_mid')
-            if not response_a_mid:
-                missing.append('response_a_mid')
-            if not response_b_mid:
-                missing.append('response_b_mid')
+            if not user_prompt_message_id:
+                missing.append('user_prompt_message_id')
+            if not response_a_message_id:
+                missing.append('response_a_message_id')
+            if not response_b_message_id:
+                missing.append('response_b_message_id')
             if not config_a_id:
                 missing.append('config_a_id')
             if not config_b_id:
@@ -4005,9 +4005,9 @@ class FlaskAppWrapper(object):
             # Create the comparison
             comparison_id = self.chat.create_ab_comparison(
                 conversation_id=conversation_id,
-                user_prompt_mid=user_prompt_mid,
-                response_a_mid=response_a_mid,
-                response_b_mid=response_b_mid,
+                user_prompt_message_id=user_prompt_message_id,
+                response_a_message_id=response_a_message_id,
+                response_b_message_id=response_b_message_id,
                 config_a_id=config_a_id,
                 config_b_id=config_b_id,
                 is_config_a_first=is_config_a_first,

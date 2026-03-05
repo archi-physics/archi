@@ -340,9 +340,9 @@ class TestConversationService:
         service = ConversationService(connection_pool=mock_pool)
         comparison_id = service.create_ab_comparison(
             conversation_id="conv123",
-            user_prompt_mid=1,
-            response_a_mid=2,
-            response_b_mid=3,
+            user_prompt_message_id=1,
+            response_a_message_id=2,
+            response_b_message_id=3,
             model_a="gpt-4",
             pipeline_a="QAPipeline",
             model_b="claude-3",
