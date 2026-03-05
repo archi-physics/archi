@@ -248,14 +248,14 @@ def test_ab_comparison_v2(test_conv_id):
     )
     
     message_ids = service.insert_messages([prompt_msg, response_a_msg, response_b_msg])
-    user_prompt_mid, response_a_mid, response_b_mid = message_ids
+    user_prompt_message_id, response_a_message_id, response_b_message_id = message_ids
     
     # Create A/B comparison with model info (using correct API)
     comparison_id = service.create_ab_comparison(
         conversation_id=test_conv_id,
-        user_prompt_mid=user_prompt_mid,
-        response_a_mid=response_a_mid,
-        response_b_mid=response_b_mid,
+        user_prompt_message_id=user_prompt_message_id,
+        response_a_message_id=response_a_message_id,
+        response_b_message_id=response_b_message_id,
         model_a="gpt-4o",
         model_b="claude-3-5-sonnet",
         pipeline_a="QAPipeline",

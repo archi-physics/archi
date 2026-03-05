@@ -3546,9 +3546,9 @@ const Chat = {
       // Create A/B comparison record
       const response = await API.createABComparison({
         conversation_id: this.state.conversationId,
-        user_prompt_mid: results.a.userPromptMid || results.b.userPromptMid,
-        response_a_mid: results.a.messageId,
-        response_b_mid: results.b.messageId,
+        user_prompt_message_id: results.a.userPromptMid || results.b.userPromptMid,
+        response_a_message_id: results.a.messageId,
+        response_b_message_id: results.b.messageId,
         config_a_id: configAId,
         config_b_id: configBId,
         is_config_a_first: !shuffled,
