@@ -196,6 +196,7 @@ data_manager:
         visible: {{ data_manager.sources.links.selenium_scraper.selenium_scraper.visible | default(false, true) }}
         use_for_scraping: {{ data_manager.sources.links.selenium_scraper.use_for_scraping | default(false, true) }}
         selenium_class: {{  data_manager.sources.links.selenium_scraper.selenium_class | default('CERNSSOScraper', true)  }}
+        selenium_url: {{  data_manager.sources.links.selenium_scraper.selenium_url | default('null', true)  }}
         selenium_class_map:
           CERNSSOScraper:
             class: {{ data_manager.sources.links.selenium_scraper.selenium_class_map.CERNSSOScraper.class | default('CERNSSOScraper', true) }}

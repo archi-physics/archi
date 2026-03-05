@@ -282,6 +282,7 @@ class ScraperManager:
     def _resolve_scraper(self):
         class_name = self.selenium_config.get("selenium_class")
         class_map = self.selenium_config.get("selenium_class_map", {})
+        selenium_url = self.selenium_config.get("selenium_url",None)
 
         entry = class_map.get(class_name)
 
@@ -298,6 +299,7 @@ class ScraperManager:
             module = importlib.import_module(module_name)
             scraper_class = getattr(module, scraper_class)
         scraper_kwargs = entry.get("kwargs", {})
+        scraper_kwargs["selenium_url"] = selenium_url
         return scraper_class, scraper_kwargs
 
 

@@ -13,6 +13,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException
 
 from src.data_manager.collectors.scrapers.scraped_resource import \
     ScrapedResource, BrowserIntermediaryResult
@@ -24,7 +25,7 @@ logger = get_logger(__name__)
 class SSOScraper(ABC):
     """Generic base class for SSO-authenticated web scrapers."""
     
-    def __init__(self, username=None, password=None, headless=True, site_type="generic", max_depth=2):
+    def __init__(self, username=None, password=None, headless=True, site_type="generic", max_depth=2, selenium_url=None):
         """Initialize the SSO scraper with credentials and browser settings.
         
         Args:
@@ -41,6 +42,7 @@ class SSOScraper(ABC):
         self.site_type = site_type
         self.driver = None
         self.visited_urls = set()
+        self.selenium_url = selenium_url
         
         if self.username:
             logger.info(f"Using username: {self.username}")
@@ -87,7 +89,10 @@ class SSOScraper(ABC):
         firefox_profile.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/pdf")
         
         # Initialize the driver with options
-        self.driver = webdriver.Firefox(options=firefox_options)
+        if self.selenium_url:
+            self.driver = webdriver.Remote(command_executor=self.selenium_url,options=firefox_options)
+        else:
+            self.driver = webdriver.Firefox(options=firefox_options)
         self.driver.set_page_load_timeout(30)
         logger.info(f"Starting Firefox browser in {'headless' if self.headless else 'visible'} mode...")
         return self.driver
@@ -239,7 +244,7 @@ class SSOScraper(ABC):
                     depth += 1
                         
             except Exception as e:
-                logger.info(f"Error crawling {current_url}: {e}")
+                logger.info(f"Error crawling {current_url}: {e}", exc_info=True)
                 self.visited_urls.add(current_url)  # Mark as visited to avoid retrying           
             
         logger.info(f"Crawling complete. Visited {pages_visited} pages.")
@@ -265,10 +270,11 @@ class SSOScraper(ABC):
     
     def authenticate_and_navigate(self, url):
         """Complete authentication flow and navigate to target URL."""
-        try:
-            if not self.driver:
+        
+        if not self.driver:
                 self.setup_driver()
-                
+
+        try:
             # First navigate to trigger SSO
             self.driver.get(url)
             
@@ -280,7 +286,7 @@ class SSOScraper(ABC):
             else:
                 return None
         except Exception as e:
-            logger.warning(f"Error during authentication: {e}")
+            logger.warning(f"Error during authentication: {e}", exc_info=True)
             return None
 
     def authenticate(self, url):
@@ -299,7 +305,7 @@ class SSOScraper(ABC):
             else:
                 return None
         except Exception as e:
-            logger.warning(f"Error during authentication: {e}")
+            logger.warning(f"Error during authentication: {e}", exc_info=True)
             return None
         
     def __enter__(self):
@@ -329,24 +335,28 @@ class CERNSSOScraper(SSOScraper):
             raise ValueError("Missing credentials for CERN SSO")
             
         try:
+            wait = WebDriverWait(self.driver, 20) 
+
             # Wait for login form to appear
-            username_input = WebDriverWait(self.driver, 10).until(
+            username_input = wait.until(
                 EC.presence_of_element_located((By.ID, "username"))
             )
             username_input.send_keys(self.username)
             # time.sleep(1)  # Optional sleep to ensure the input is registered
             
-            password_input = self.driver.find_element(By.ID, "password")
+            password_input = wait.until(EC.presence_of_element_located((By.ID, "password")))
             password_input.send_keys(self.password)
             # time.sleep(1)  # Optional sleep to ensure the input is registered
             
-            sign_in = self.driver.find_element(By.ID, "kc-login")
+            sign_in = wait.until(EC.presence_of_element_located((By.ID, "kc-login")))
             sign_in.click()
                 
             logger.info("Login credentials submitted")
             return True
+        except TimeoutException as e:
+            logger.error(f"Could not find username or password fields in due time: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"Error during login: {e}")
+            logger.error(f"Error during login: {e}",exc_info=True)
             return False
 
 
