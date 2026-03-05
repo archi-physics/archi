@@ -64,6 +64,10 @@ def get_archi_config() -> Dict[str, Any]:
     return get_static_config().archi_config or {}
 
 
+def get_mcp_servers_config() -> Dict[str, Any]:
+    return get_static_config().mcp_servers_config or {}
+
+
 def get_full_config(*, resolve_embeddings: bool = False) -> Dict[str, Any]:
     """
     Return the full merged config.
@@ -90,6 +94,7 @@ def get_full_config(*, resolve_embeddings: bool = False) -> Dict[str, Any]:
         "data_manager": data_manager_config,
         "archi": static.archi_config,
         "sources": static.sources_config,
+        "mcp_servers": static.mcp_servers_config or {},
         "available_pipelines": static.available_pipelines,
         "available_models": static.available_models,
         "available_providers": static.available_providers,

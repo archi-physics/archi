@@ -30,6 +30,8 @@ def seed(config: dict, cs: ConfigService):
     dm = config.get("data_manager", {})
     services = config.get("services", {})
     archi_cfg = config.get("archi", {}) or {}
+    mcp_servers = config.get("mcp_servers", {}) or {}
+    archi_cfg = {**archi_cfg}
     global_cfg = config.get("global", {})
 
     # Embedding dimensions fallback TODO why is this here?
@@ -58,6 +60,7 @@ def seed(config: dict, cs: ConfigService):
         auth_enabled=services.get("chat_app", {}).get("auth", {}).get("enabled", False),
         sources_config=dm.get("sources", {}),
         services_config=services,
+        mcp_servers_config=mcp_servers,
         data_manager_config=dm,
         archi_config=archi_cfg,
         global_config=global_cfg,

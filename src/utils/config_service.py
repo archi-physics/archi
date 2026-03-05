@@ -56,6 +56,7 @@ class StaticConfig:
     data_manager_config: Dict[str, Any] = field(default_factory=dict)
     archi_config: Dict[str, Any] = field(default_factory=dict)
     global_config: Dict[str, Any] = field(default_factory=dict)
+    mcp_servers_config: Dict[str, Any] = field(default_factory=dict)
     
     created_at: Optional[str] = None
 
@@ -288,7 +289,7 @@ class ConfigService:
                            chunk_size, chunk_overlap, distance_metric,
                            available_pipelines, available_models, available_providers,
                            auth_enabled, session_lifetime_days, sources_config,
-                           services_config, data_manager_config, archi_config, global_config,
+                           services_config, data_manager_config, archi_config, mcp_servers_config, global_config,
                            created_at
                     FROM static_config
                     WHERE id = 1
@@ -318,6 +319,7 @@ class ConfigService:
                     services_config=row.get("services_config") or {},
                     data_manager_config=row.get("data_manager_config") or {},
                     archi_config=row.get("archi_config") or {},
+                    mcp_servers_config=row.get("mcp_servers_config") or {},
                     global_config=row.get("global_config") or {},
                     created_at=str(row["created_at"]) if row["created_at"] else None,
                 )
@@ -343,6 +345,7 @@ class ConfigService:
         auth_enabled: bool = False,
         sources_config: Optional[Dict[str, Any]] = None,
         services_config: Optional[Dict[str, Any]] = None,
+        mcp_servers_config: Optional[Dict[str, Any]] = None,
         data_manager_config: Optional[Dict[str, Any]] = None,
         archi_config: Optional[Dict[str, Any]] = None,
         global_config: Optional[Dict[str, Any]] = None,
@@ -366,7 +369,7 @@ class ConfigService:
             available_models: List of available models
             available_providers: List of available providers
             auth_enabled: Whether authentication is enabled
-            
+            mcp_servers_config: Configuration for MCP servers
         Returns:
             Created StaticConfig
             
@@ -377,6 +380,7 @@ class ConfigService:
         services_section = services_config or {}
         data_manager_section = data_manager_config or {}
         archi_section = archi_config or {}
+        mcp_servers_section = mcp_servers_config or {}
         global_section = global_config or {}
         conn = self._get_connection()
         try:
@@ -389,9 +393,9 @@ class ConfigService:
                         chunk_size, chunk_overlap, distance_metric,
                         available_pipelines, available_models, available_providers,
                         auth_enabled, sources_config,
-                        services_config, data_manager_config, archi_config, global_config
+                        services_config, data_manager_config, archi_config, mcp_servers_config, global_config
                     )
-                    VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         deployment_name = EXCLUDED.deployment_name,
                         config_version = EXCLUDED.config_version,
@@ -409,13 +413,14 @@ class ConfigService:
                         services_config = EXCLUDED.services_config,
                         data_manager_config = EXCLUDED.data_manager_config,
                         archi_config = EXCLUDED.archi_config,
+                        mcp_servers_config = EXCLUDED.mcp_servers_config,
                         global_config = EXCLUDED.global_config
                     RETURNING deployment_name, config_version, data_path,
                               embedding_model, embedding_dimensions,
                               chunk_size, chunk_overlap, distance_metric,
                               available_pipelines, available_models, available_providers,
                               auth_enabled, sources_config,
-                              services_config, data_manager_config, archi_config, global_config,
+                              services_config, data_manager_config, archi_config, mcp_servers_config, global_config,
                               created_at
                     """,
                     (
@@ -430,6 +435,7 @@ class ConfigService:
                         psycopg2.extras.Json(services_section),
                         psycopg2.extras.Json(data_manager_section),
                         psycopg2.extras.Json(archi_section),
+                        psycopg2.extras.Json(mcp_servers_section),
                         psycopg2.extras.Json(global_section),
                     )
                 )
@@ -453,6 +459,7 @@ class ConfigService:
                     services_config=row.get("services_config") or {},
                     data_manager_config=row.get("data_manager_config") or {},
                     archi_config=row.get("archi_config") or {},
+                    mcp_servers_config=row.get("mcp_servers_config") or {},
                     global_config=row.get("global_config") or {},
                     created_at=str(row["created_at"]) if row["created_at"] else None,
                 )
@@ -920,6 +927,7 @@ class ConfigService:
             available_providers=available_providers,
             auth_enabled=config.get("services", {}).get("chat_app", {}).get("auth", {}).get("enabled", False),
             sources_config=data_manager.get("sources", {}),
+            mcp_servers_config=config.get("mcp_servers", {}),
         )
         
         # Initialize dynamic config from data_manager settings
@@ -995,6 +1003,7 @@ class ConfigService:
             available_providers=available_providers,
             auth_enabled=config.get("services", {}).get("chat_app", {}).get("auth", {}).get("enabled", False),
             sources_config=sources_config,
+            mcp_servers_config=config.get("mcp_servers", {}),
         )
         
         # Initialize dynamic config from data_manager settings

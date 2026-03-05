@@ -10,6 +10,13 @@ global:
   LOGGING:
     input_output_filename: "{{ global.LOGGING.input_output_filename | default('chain_input_output.log', true) }}"
 
+mcp_servers:
+  {%- for server_name, server_config in (mcp_servers | default({}, true)).items() %}
+  {{ server_name }}:
+    transport: {{ server_config.transport | default('streamable_http', true) }}
+    url: {{ server_config.url | default('', true) }}
+  {%- endfor %}
+
 services:
   benchmarking:
     agent_class: {{ services.benchmarking.agent_class | default("", true) }}

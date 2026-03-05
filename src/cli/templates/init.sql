@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS static_config (
     data_manager_config JSONB NOT NULL DEFAULT '{}'::jsonb,
     archi_config JSONB NOT NULL DEFAULT '{}'::jsonb,
     global_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    mcp_servers_config JSONB NOT NULL DEFAULT '{}'::jsonb,
     
     -- Timestamps
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
