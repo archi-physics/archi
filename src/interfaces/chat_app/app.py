@@ -3548,8 +3548,28 @@ class FlaskAppWrapper(object):
 
         # Get API key from session if available
         session_api_key = None
-        if provider and 'provider_api_keys' in session:
-            session_api_key = session.get('provider_api_keys', {}).get(provider.lower())
+        session_provider_keys = session.get('provider_api_keys', {})
+        if provider and session_provider_keys:
+            session_api_key = session_provider_keys.get(provider.lower())
+        elif not provider and session_provider_keys:
+            # No explicit provider selected — check if the pipeline's active provider
+            # has a user-stored session key and inject it transparently so BYOK keys
+            # work even when the default pipeline model is being used (fixes #475).
+            try:
+                dyn = get_dynamic_config()
+                active_model = getattr(dyn, 'active_model', None) if dyn else None
+                if active_model and '/' in active_model:
+                    pipeline_provider, pipeline_model = active_model.split('/', 1)
+                else:
+                    chat_cfg = self.services_config.get('chat_app', {})
+                    pipeline_provider = chat_cfg.get('default_provider')
+                    pipeline_model = chat_cfg.get('default_model')
+                if pipeline_provider and pipeline_provider.lower() in session_provider_keys:
+                    provider = pipeline_provider.lower()
+                    model = model or pipeline_model
+                    session_api_key = session_provider_keys[provider]
+            except Exception:
+                pass  # Fall back to env key silently
 
         def _event_stream() -> Iterator[str]:
             padding = " " * 2048
