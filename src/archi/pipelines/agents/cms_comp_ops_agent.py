@@ -13,6 +13,7 @@ from src.archi.pipelines.agents.tools import (
     create_metadata_search_tool,
     create_metadata_schema_tool,
     create_retriever_tool,
+    create_fetch_url_tool,
     initialize_mcp_client,
     RemoteCatalogClient,
     MONITOpenSearchClient,
@@ -132,6 +133,16 @@ class CMSCompOpsAgent(BaseReActAgent):
                 "builder": self._build_mcp_tools,
                 "description": "Access tools served via configured MCP servers.",
             },
+            "fetch_url": {
+                "builder": self._build_fetch_url_tool,
+                "description": (
+                    "Fetch live content from a URL via HTTP GET request. "
+                    "Input: A valid HTTP or HTTPS URL. "
+                    "Output: The response body text or an error message. "
+                    "Use this to retrieve real-time data from web endpoints, APIs, documentation, or status pages. "
+                    "Examples: checking endpoint status, fetching API data, retrieving documentation."
+                ),
+            },
         }
 
         # Keep this safe for lightweight introspection paths that call
@@ -179,6 +190,17 @@ class CMSCompOpsAgent(BaseReActAgent):
         return create_document_fetch_tool(
             self.catalog_service,
             description=description,
+            store_tool_input=getattr(self, "_store_tool_input", None),
+        )
+
+    def _build_fetch_url_tool(self) -> Callable:
+        """Build the fetch URL tool for retrieving live web content."""
+        description = self._tool_definitions()["fetch_url"]["description"]
+        return create_fetch_url_tool(
+            name="fetch_url",
+            description=description,
+            timeout=15.0,
+            max_response_chars=40000,
             store_tool_input=getattr(self, "_store_tool_input", None),
         )
 

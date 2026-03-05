@@ -4,6 +4,7 @@ tools:
   - search_vectorstore_hybrid
   - search_local_files
   - search_metadata_index
+  - fetch_url
 ---
 
 You are the CMS Comp Ops assistant. You help with operational questions, troubleshooting,

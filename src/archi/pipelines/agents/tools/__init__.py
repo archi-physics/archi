@@ -7,6 +7,7 @@ from .local_files import (
     RemoteCatalogClient,
 )
 from .retriever import create_retriever_tool
+from .fetch_url import create_fetch_url_tool
 from .mcp import initialize_mcp_client
 from .monit_opensearch import (
     MONITOpenSearchClient,
@@ -23,6 +24,7 @@ __all__ = [
     "create_metadata_schema_tool",
     "RemoteCatalogClient",
     "create_retriever_tool",
+    "create_fetch_url_tool",
     "initialize_mcp_client",
     "MONITOpenSearchClient",
     "create_monit_opensearch_search_tool",
