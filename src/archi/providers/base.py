@@ -25,6 +25,7 @@ class ProviderType(str, Enum):
     GEMINI = "gemini"
     OPENROUTER = "openrouter"
     LOCAL = "local"
+    CERN_LITELLM = "cern_litellm"
 
 
 @dataclass
