@@ -210,7 +210,44 @@ class MONITOpenSearchClient:
         else:
             raise ValueError(f"Unsupported aggregation type: {agg_type}")
 
-        opensearch_query = {
+        opensearch_query = self._build_agg_query(
+            lucene_query, agg_clause, time_field, from_time, to_time,
+        )
+
+        result = self.query(opensearch_query, index=index)
+
+        # Fallback for terms aggregation: if .keyword returned no buckets
+        # (e.g. numeric fields), retry with the raw field name.
+        if agg_type == "terms" and not group_by.endswith(".keyword"):
+            buckets = (
+                result.get("responses", [result])[0]
+                .get("aggregations", {})
+                .get("result", {})
+                .get("buckets", [])
+            )
+            if not buckets:
+                logger.debug(
+                    "No buckets for '%s.keyword'; retrying with raw field '%s'",
+                    group_by, group_by,
+                )
+                agg_clause = {"terms": {"field": group_by, "size": top_n}}
+                opensearch_query = self._build_agg_query(
+                    lucene_query, agg_clause, time_field, from_time, to_time,
+                )
+                result = self.query(opensearch_query, index=index)
+
+        return result
+
+    @staticmethod
+    def _build_agg_query(
+        lucene_query: str,
+        agg_clause: Dict[str, Any],
+        time_field: str,
+        from_time: str,
+        to_time: str,
+    ) -> Dict[str, Any]:
+        """Build an aggregation query body."""
+        return {
             "size": 0,
             "query": {
                 "bool": {
@@ -239,8 +276,6 @@ class MONITOpenSearchClient:
                 "result": agg_clause,
             },
         }
-
-        return self.query(opensearch_query, index=index)
 
 
 # ── Response formatting helpers ──────────────────────────────────────────────
