@@ -525,6 +525,15 @@ span.material-symbols-rounded {
     align-items: center; /* Center items vertically */
   }
 
+  .model-label {
+    font-size: 0.7rem;
+    color: var(--incoming-chat-text-color, #666);
+    opacity: 0.6;
+    margin-left: 53px;
+    display: block;
+    margin-top: 2px;
+  }
+
 /* Reponsive Media Query */
 @media screen and (max-width: 600px) {
   .default-text h1 {

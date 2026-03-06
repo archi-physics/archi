@@ -1913,6 +1913,11 @@ const UI = {
       }
     }
 
+    if (updates.meta !== undefined) {
+      const metaEl = msgEl.querySelector('.entry-meta');
+      if (metaEl) metaEl.textContent = updates.meta;
+    }
+
     this.scrollToBottom();
   },
 
@@ -3355,7 +3360,7 @@ const Chat = {
           id: msg.message_id || `${idx}-${isUser ? 'u' : 'a'}`,
           sender: msg.sender,
           html: isUser ? Utils.escapeHtml(msg.content) : Markdown.render(msg.content),
-          meta: isUser ? null : this.getEntryMetaLabel(),
+          meta: isUser ? null : (msg.model_used || this.getEntryMetaLabel()),
           feedback: msg.feedback || null,
           trace: msg.trace || null,  // Include trace data
         };
@@ -3880,6 +3885,13 @@ const Chat = {
             streaming: false,
           });
           
+          // Update model label from actual model used
+          if (event.model_used) {
+            const msg = this.state.messages.find(m => m.id === messageId);
+            if (msg) msg.meta = event.model_used;
+            UI.updateMessage(messageId, { meta: event.model_used });
+          }
+
           // Update message ID from backend so feedback works
           if (event.message_id != null) {
             const msg = this.state.messages.find(m => m.id === messageId);

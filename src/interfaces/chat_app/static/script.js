@@ -523,6 +523,7 @@ async function loadConversation(convId) {
                             <img src="/static/images/archi-logo.png" alt="chatbot-img">
                             <div>${msg.content}</div>
                         </div>
+                        ${msg.model_used ? `<span class="model-label">${msg.model_used}</span>` : ''}
                         <div class="button-container">
                             <button onclick="likeResponse(this)" class="material-button">
                                 <img src="/static/images/thumbs_up.png" alt="Like" width="30" height="30">
@@ -732,6 +733,18 @@ const finalizeIncomingChat = (incomingChatDiv, pElement, responseData) => {
     incomingChatDiv.querySelector(".typing-animation")?.remove();
     incomingChatDiv.querySelector("#loading-text")?.remove();
     incomingChatDiv.querySelector(".chat-details").appendChild(pElement);
+
+    // Add model label if available
+    const modelUsed = responseData?.model_used;
+    if (modelUsed) {
+        const chatContent = incomingChatDiv.querySelector(".chat-content");
+        const label = document.createElement("span");
+        label.className = "model-label";
+        label.textContent = modelUsed;
+        const buttonContainer = chatContent.querySelector(".button-container");
+        chatContent.insertBefore(label, buttonContainer);
+    }
+
     localStorage.setItem("all-chats", chatContainer.innerHTML);
     chatContainer.scrollTo(0, chatContainer.scrollHeight);
 

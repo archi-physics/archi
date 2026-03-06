@@ -52,6 +52,8 @@ from src.utils.sql import (
     SQL_INSERT_CONVO, SQL_INSERT_FEEDBACK, SQL_INSERT_TIMING, SQL_QUERY_CONVO,
     SQL_CREATE_CONVERSATION, SQL_UPDATE_CONVERSATION_TIMESTAMP,
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
+    SQL_LIST_CONVERSATIONS_BY_USER, SQL_GET_CONVERSATION_METADATA_BY_USER,
+    SQL_DELETE_CONVERSATION_BY_USER, SQL_UPDATE_CONVERSATION_TIMESTAMP_BY_USER,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK, SQL_DELETE_REACTION_FEEDBACK,
     SQL_GET_REACTION_FEEDBACK,
     SQL_INSERT_AB_COMPARISON, SQL_UPDATE_AB_PREFERENCE, SQL_GET_AB_COMPARISON,
@@ -1038,7 +1040,7 @@ class ChatWrapper:
             conn.close()
 
 
-    def query_conversation_history(self, conversation_id, client_id):
+    def query_conversation_history(self, conversation_id, client_id, user_id: Optional[str] = None):
         """
         Return the conversation history as an ordered list of tuples. The order
         is determined by ascending message_id. Each tuple contains the sender and
@@ -1048,8 +1050,11 @@ class ChatWrapper:
         conn = psycopg2.connect(**self.pg_config)
         cursor = conn.cursor()
 
-        # ensure conversation belongs to client before querying
-        cursor.execute(SQL_GET_CONVERSATION_METADATA, (conversation_id, client_id))
+        # ensure conversation belongs to user/client before querying
+        if user_id:
+            cursor.execute(SQL_GET_CONVERSATION_METADATA_BY_USER, (conversation_id, user_id))
+        else:
+            cursor.execute(SQL_GET_CONVERSATION_METADATA, (conversation_id, client_id))
         metadata = cursor.fetchone()
         if metadata is None:
             cursor.close()
@@ -1098,7 +1103,7 @@ class ChatWrapper:
         logger.info(f"Created new conversation with ID: {conversation_id}")
         return conversation_id
 
-    def update_conversation_timestamp(self, conversation_id: int, client_id: str):
+    def update_conversation_timestamp(self, conversation_id: int, client_id: str, user_id: Optional[str] = None):
         """
         Update the last_message_at timestamp for a conversation.
         last_message_at is used to reorder conversations in the UI (on vertical sidebar).
@@ -1110,7 +1115,10 @@ class ChatWrapper:
         cursor = conn.cursor()
 
         # update timestamp
-        cursor.execute(SQL_UPDATE_CONVERSATION_TIMESTAMP, (now, conversation_id, client_id))
+        if user_id:
+            cursor.execute(SQL_UPDATE_CONVERSATION_TIMESTAMP_BY_USER, (now, conversation_id, user_id))
+        else:
+            cursor.execute(SQL_UPDATE_CONVERSATION_TIMESTAMP, (now, conversation_id, client_id))
         conn.commit()
 
         # clean up database connection state
@@ -1342,8 +1350,8 @@ class ChatWrapper:
             conversation_id = self.create_conversation(content, client_id, user_id)
             history = []
         else:
-            history = self.query_conversation_history(conversation_id, client_id)
-            self.update_conversation_timestamp(conversation_id, client_id)
+            history = self.query_conversation_history(conversation_id, client_id, user_id)
+            self.update_conversation_timestamp(conversation_id, client_id, user_id)
 
         timestamps["query_convo_history_ts"] = datetime.now()
 
@@ -1684,6 +1692,7 @@ class ChatWrapper:
                         if hasattr(self.archi.pipeline, 'refresh_agent'):
                             self.archi.pipeline.refresh_agent(force=True)
                         logger.info(f"Overrode pipeline LLM with {provider}/{model}")
+                        self.current_model_used = f"{provider}/{model}"
                 except ValueError as e:
                     logger.warning(f"Failed to create provider LLM {provider}/{model}: {e}")
                     yield {"type": "error", "status": 400, "message": str(e)}
@@ -2049,6 +2058,7 @@ class ChatWrapper:
                 "final_response_msg_ts": datetime.now().timestamp(),
                 "usage": usage,
                 "model": model,
+                "model_used": self.current_model_used,
             }
 
         except GeneratorExit:
@@ -3515,6 +3525,7 @@ class FlaskAppWrapper(object):
             'archi_msg_id': message_ids[-1],
             'server_response_msg_ts': timestamps['server_response_msg_ts'].timestamp(),
             'final_response_msg_ts': datetime.now().timestamp(),
+            'model_used': self.current_model_used,
         }
 
         end_time = time.time()
@@ -3758,14 +3769,18 @@ class FlaskAppWrapper(object):
         """
         try:
             client_id = request.args.get('client_id')
-            if not client_id:
+            user_id = session.get('user', {}).get('id') or None
+            if not user_id and not client_id:
                 return jsonify({'error': 'client_id missing'}), 400
             limit = min(int(request.args.get('limit', 50)), 500)
 
             # create connection to database
             conn = psycopg2.connect(**self.pg_config)
             cursor = conn.cursor()
-            cursor.execute(SQL_LIST_CONVERSATIONS, (client_id, limit))
+            if user_id:
+                cursor.execute(SQL_LIST_CONVERSATIONS_BY_USER, (user_id, limit))
+            else:
+                cursor.execute(SQL_LIST_CONVERSATIONS, (client_id, limit))
             rows = cursor.fetchall()
 
             conversations = []
@@ -3803,10 +3818,11 @@ class FlaskAppWrapper(object):
             data = request.json
             conversation_id = data.get('conversation_id')
             client_id = data.get('client_id')
+            user_id = session.get('user', {}).get('id') or None
 
             if not conversation_id:
                 return jsonify({'error': 'conversation_id missing'}), 400
-            if not client_id:
+            if not user_id and not client_id:
                 return jsonify({'error': 'client_id missing'}), 400
 
             # create connection to database
@@ -3814,7 +3830,10 @@ class FlaskAppWrapper(object):
             cursor = conn.cursor()
 
             # get conversation metadata
-            cursor.execute(SQL_GET_CONVERSATION_METADATA, (conversation_id, client_id))
+            if user_id:
+                cursor.execute(SQL_GET_CONVERSATION_METADATA_BY_USER, (conversation_id, user_id))
+            else:
+                cursor.execute(SQL_GET_CONVERSATION_METADATA, (conversation_id, client_id))
             meta_row = cursor.fetchone()
 
             # if no metadata found, return error
@@ -3854,6 +3873,7 @@ class FlaskAppWrapper(object):
                     'message_id': row[2],
                     'feedback': row[3],
                     'comment_count': row[4] if len(row) > 4 else 0,
+                    'model_used': row[5] if len(row) > 5 else None,
                 }
                 
                 # Attach trace data if present
@@ -3919,10 +3939,11 @@ class FlaskAppWrapper(object):
             data = request.json
             conversation_id = data.get('conversation_id')
             client_id = data.get('client_id')
+            user_id = session.get('user', {}).get('id') or None
 
             if not conversation_id:
                 return jsonify({'error': 'conversation_id missing when deleting.'}), 400
-            if not client_id:
+            if not user_id and not client_id:
                 return jsonify({'error': 'client_id missing when deleting.'}), 400
 
             # create connection to database
@@ -3930,7 +3951,10 @@ class FlaskAppWrapper(object):
             cursor = conn.cursor()
 
             # Delete conversation metadata (SQL CASCADE will delete all child messages)
-            cursor.execute(SQL_DELETE_CONVERSATION, (conversation_id, client_id))
+            if user_id:
+                cursor.execute(SQL_DELETE_CONVERSATION_BY_USER, (conversation_id, user_id))
+            else:
+                cursor.execute(SQL_DELETE_CONVERSATION, (conversation_id, client_id))
             deleted_count = cursor.rowcount
             conn.commit()
 
