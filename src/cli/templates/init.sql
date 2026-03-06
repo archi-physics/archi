@@ -528,7 +528,27 @@ CREATE TABLE IF NOT EXISTS migration_state (
 );
 
 -- ============================================================================
--- 10. GRAFANA ACCESS
+-- 10. SERVICE ALERTS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS service_alerts (
+    id SERIAL PRIMARY KEY,
+    severity VARCHAR(10) NOT NULL DEFAULT 'info'
+        CHECK (severity IN ('info', 'warning', 'alarm', 'news')),
+    message TEXT NOT NULL,          -- short text shown in banner
+    description TEXT,               -- optional longer detail for status board
+    created_by VARCHAR(200),        -- username from session, NULL when auth is off
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP,           -- NULL = never expires from banner
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_alerts_banner
+    ON service_alerts (active, expires_at)
+    WHERE active = TRUE;
+
+-- ============================================================================
+-- 11. GRAFANA ACCESS
 -- ============================================================================
 
 {% if use_grafana -%}

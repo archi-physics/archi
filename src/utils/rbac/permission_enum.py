@@ -56,6 +56,9 @@ class Permission:
     class Metrics(str, Enum):
         VIEW = "view:metrics"
 
+    class Alerts(str, Enum):
+        MANAGE = "alerts:manage"
+
     class Admin(str, Enum):
         SYSTEM = "admin:system"
         USERS = "admin:users"

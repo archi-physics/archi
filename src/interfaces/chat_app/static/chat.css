@@ -160,6 +160,8 @@ body {
   background: var(--bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
 }
 
 /* -----------------------------------------------------------------------------
@@ -173,7 +175,8 @@ body {
     "sidebar header"
     "sidebar messages"
     "sidebar input";
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 

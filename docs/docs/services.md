@@ -28,6 +28,7 @@ The primary user-facing service. Provides a web-based chat application for inter
 - Settings panel for model/provider selection
 - [BYOK](models_providers.md#bring-your-own-key-byok) support
 - Conversation history
+- [Service Status Board & Alert Banners](#service-status-board--alert-banners)
 
 ### Configuration
 
@@ -49,6 +50,96 @@ services:
 ```bash
 archi create [...] --services chatbot
 ```
+
+---
+
+## Service Status Board & Alert Banners
+
+The Service Status Board (SSB) is a built-in feature of the Chat Interface that lets designated operators communicate service health, planned downtime, known issues, and general announcements directly to all users — without external tooling.
+
+### How It Works
+
+**Alert banners** appear as colour-coded strips at the top of every page in the chat app. Up to 5 active alerts are displayed at once. Each banner can be individually dismissed by the user client-side. A **details** link redirects to the full status board.
+
+The **Status Board** at `/ssb/status` provides:
+
+- **Active Alerts** — non-expired alerts with severity badges, creator, and timestamp
+- **Expired Alerts** — historical record shown at reduced opacity
+- **Post New Alert form** — visible only to configured alert managers
+
+### Severity Levels
+
+| Severity | Colour | Intended Use |
+|----------|--------|--------------|
+| `alarm` | Red | Service outage or critical failure |
+| `warning` | Amber | Degraded performance, elevated error rate |
+| `news` | Blue | Release notes, planned maintenance |
+| `info` | Slate | General informational notices |
+
+### Creating and Deleting Alerts
+
+Navigate to **Status** in the main chat header (or go to `/ssb/status` directly). The **Post New Alert** form is shown to users who have alert manager access. Fill in:
+
+- **Message** (required) — short text shown in the banner
+- **Severity** (required) — one of `alarm`, `warning`, `news`, `info`
+- **Description** (optional) — longer explanation shown only on the status page
+- **Expires at** (optional) — datetime after which the alert is hidden from banners; expired alerts remain visible in the status board history
+
+To delete an alert, click the **Delete** button on its card on the status board. Deletion is permanent.
+
+Alerts can also be created via the REST API:
+
+```bash
+curl -X POST http://localhost:7861/api/ssb/alerts \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "severity": "warning",
+    "message": "Embedding pipeline running — responses may be slower than usual",
+    "description": "Optional longer explanation shown on the status board.",
+    "expires_in_hours": 4
+  }'
+```
+
+Or with an explicit expiry timestamp:
+
+```bash
+curl -X POST http://localhost:7861/api/ssb/alerts \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "severity": "alarm",
+    "message": "Model backend unavailable",
+    "expires_at": "2026-02-21T18:00:00"
+  }'
+```
+
+### API Endpoints
+
+| Method | Route | Auth Required | Description |
+|--------|-------|---------------|-------------|
+| `GET` | `/ssb/status` | Any authenticated user | Render the status board page |
+| `POST` | `/api/ssb/alerts` | Alert managers only | Create a new alert |
+| `DELETE` | `/api/ssb/alerts/<id>` | Alert managers only | Delete an alert by ID |
+
+### Access Control
+
+Alert managers are configured via `services.chat_app.alerts.managers`. The rules are:
+
+1. **Auth disabled** → everyone may create and delete alerts.
+2. **Auth enabled, managers list present** → only the listed usernames may manage.
+3. **Auth enabled, managers list absent or empty** → nobody may manage (safe default; a warning is logged).
+
+All users can always *view* alerts and the status board regardless of access level.
+
+```yaml
+services:
+  chat_app:
+    alerts:
+      managers:
+        - alice
+        - bob
+```
+
+See [Configuration → `services.chat_app.alerts`](configuration.md#serviceschat_appalerts) for the full reference.
 
 ---
 

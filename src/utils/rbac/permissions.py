@@ -276,6 +276,7 @@ def get_permission_context() -> dict:
             'can_view_metrics': False,
             'is_admin': False,
             'is_expert': False,
+            'can_manage_alerts': False,
             'user_roles': [],
         }
     
@@ -293,5 +294,6 @@ def get_permission_context() -> dict:
         'can_view_metrics': has_permission(Permission.Metrics.VIEW, roles),
         'is_admin': is_admin(roles),
         'is_expert': is_expert(roles),
+        'can_manage_alerts': has_permission(Permission.Alerts.MANAGE, roles),
         'user_roles': roles,
     }

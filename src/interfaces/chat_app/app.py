@@ -5,7 +5,7 @@ import time
 import uuid
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional
 from pathlib import Path
@@ -60,6 +60,9 @@ from src.utils.sql import (
     SQL_GET_TRACE_BY_MESSAGE, SQL_GET_ACTIVE_TRACE, SQL_CANCEL_ACTIVE_TRACES,
 )
 from src.interfaces.chat_app.document_utils import *
+from src.interfaces.chat_app.service_alerts import (
+    register_service_alerts, get_active_banner_alerts, is_alert_manager,
+)
 from src.interfaces.chat_app.utils import collapse_assistant_sequences
 from src.utils.user_service import UserService
 
@@ -2164,6 +2167,17 @@ class FlaskAppWrapper(object):
         # enable CORS:
         CORS(self.app)
 
+        # inject active alerts into every template context
+        @self.app.context_processor
+        def _inject_alerts():
+            if not session.get('logged_in'):
+                return dict(active_banner_alerts=[], is_alert_manager=False)
+            alerts = get_active_banner_alerts()
+            return dict(
+                active_banner_alerts=alerts,
+                is_alert_manager=is_alert_manager(),
+            )
+
         # add endpoints for flask app
         # Public endpoints (no auth required)
         self.add_endpoint('/', 'landing', self.landing)
@@ -2254,6 +2268,16 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/admin/database', 'database_viewer_page', self.require_perm(Permission.Admin.DATABASE)(self.database_viewer_page))
         self.add_endpoint('/api/admin/database/tables', 'list_database_tables', self.require_perm(Permission.Admin.DATABASE)(self.list_database_tables), methods=["GET"])
         self.add_endpoint('/api/admin/database/query', 'run_database_query', self.require_perm(Permission.Admin.DATABASE)(self.run_database_query), methods=["POST"])
+
+        # Service status board endpoints (registered via Blueprint)
+        logger.info("Adding service status board endpoints")
+        register_service_alerts(
+            self.app,
+            pg_config=self.pg_config,
+            auth_enabled=self.auth_enabled,
+            chat_app_config=self.chat_app_config,
+            require_auth=self.require_auth,
+        )
 
         # add unified auth endpoints
         if self.auth_enabled:

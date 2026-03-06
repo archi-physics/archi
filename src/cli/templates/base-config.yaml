@@ -91,9 +91,14 @@ services:
           scope: {{ services.chat_app.auth.sso.client_kwargs.scope | default("openid profile email", true) }}
       basic:
         enabled: {{ services.chat_app.auth.basic.enabled | default(false, true) }}
-      {% if services.chat_app.auth.auth_roles is defined %}
+    {% if services.chat_app.auth.auth_roles is defined %}
       auth_roles: {{ services.chat_app.auth.auth_roles | tojson }}
-      {% endif %}
+    {% endif %}
+    alerts:
+      managers:
+        {%- for manager in services.chat_app.alerts.managers | default([], true) %}
+        - {{ manager }}
+        {%- endfor %} 
   data_manager:
     auth:
       enabled: {{ services.data_manager.auth.enabled | default(false) }}
