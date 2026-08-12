@@ -34,6 +34,7 @@ The [docs](https://archi-physics.github.io/archi/) are organized as follows:
 - [CLI Reference](https://archi-physics.github.io/archi/cli_reference/) — all CLI commands and options.
 - [API Reference](https://archi-physics.github.io/archi/api_reference/) — REST API endpoints.
 - [Benchmarking](https://archi-physics.github.io/archi/benchmarking/) — evaluate retrieval and response quality.
+- [Evaluation Guide](https://archi-physics.github.io/archi/evaluation/) — evaluate complete agent answers against reviewed gold atoms.
 - [Advanced Setup](https://archi-physics.github.io/archi/advanced_setup_deploy/) — GPU setup and production deployment.
 - [Developer Guide](https://archi-physics.github.io/archi/developer_guide/) — architecture, contributing, and extension patterns.
 - [Troubleshooting](https://archi-physics.github.io/archi/troubleshooting/) — common issues and fixes.

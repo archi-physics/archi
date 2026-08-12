@@ -1,6 +1,8 @@
-from typing import Optional, Any
 import asyncio
 import threading
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from typing import Any, Optional
+
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -57,7 +59,11 @@ class AsyncLoopThread:
             Any exception raised by the coroutine
         """
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
-        return future.result(timeout=timeout)
+        try:
+            return future.result(timeout=timeout)
+        except FutureTimeoutError:
+            future.cancel()
+            raise
 
     def in_loop_thread(self) -> bool:
         """Return True if called from the background event-loop thread."""

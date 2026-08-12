@@ -97,6 +97,9 @@
       <nav class="header-tabs" aria-label="Primary">
         <a class="header-tab active" href="/chat" aria-current="page">Chat</a>
         <button class="header-tab" id="data-tab" type="button">Data</button>
+        {% if can_view_evaluations %}
+        <a class="header-tab" href="/evaluations">Evaluation</a>
+        {% endif %}
         <a class="header-tab" href="/ssb/status">Status</a>
       </nav>
     </header>

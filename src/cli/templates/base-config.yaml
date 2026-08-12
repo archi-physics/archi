@@ -129,6 +129,10 @@ services:
     num_responses_until_feedback: {{ services.chat_app.num_responses_until_feedback | default(3, true) }}
     include_copy_button: {{ services.chat_app.include_copy_button | default(false, true) }}
     flask_debug_mode: {{ services.chat_app.flask_debug_mode | default(true, false) }}
+    evaluations:
+      enabled: {{ services.chat_app.evaluations.enabled is sameas true }}
+      root: "{{ services.chat_app.evaluations.root | default('/root/archi/evaluations', true) }}"
+      agent_config_path: "{{ services.chat_app.evaluations.agent_config_path | default('/root/archi/configs/config.yaml', true) }}"
     auth:
       enabled: {{ services.chat_app.auth.enabled | default(false, true) }}
       sso:

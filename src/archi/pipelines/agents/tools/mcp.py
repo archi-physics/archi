@@ -2,13 +2,13 @@ from __future__ import annotations
 import os
 import httpx
 import base64
-from typing import List, Any, Tuple, Optional
+from typing import List, Any, Tuple, Optional, Dict
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.tools import BaseTool
 
-from src.utils.config_access import get_mcp_servers_config, get_full_config
+from src.utils.config_access import get_full_config
 from src.utils.logging import get_logger
 from src.archi.pipelines.agents.utils.skill_utils import load_skill
 from src.utils.env import read_secret
@@ -30,7 +30,7 @@ def mcp_http_client_factory(**kwargs) -> httpx.AsyncClient:
     return httpx.AsyncClient(**kwargs)
 
 
-async def initialize_mcp_client() -> Tuple[Optional[MultiServerMCPClient], List[BaseTool], str]:
+async def initialize_mcp_client(config: Optional[Dict[str, Any]] = None) -> Tuple[Optional[MultiServerMCPClient], List[BaseTool], str]:
     """
     Initializes the MCP client and fetches tool definitions.
     Returns:
@@ -43,7 +43,11 @@ async def initialize_mcp_client() -> Tuple[Optional[MultiServerMCPClient], List[
             the content doesn't multiply by tool count.
     """
 
-    mcp_servers = get_mcp_servers_config()
+    full_config = config if config is not None else get_full_config()
+    mcp_servers = full_config.get("mcp_servers", {})
+    if not mcp_servers:
+        logger.info("No MCP servers configured.")
+        return None, [], ""
 
     # Strip archi-only fields that langchain-mcp-adapters doesn't understand.
     # These are consumed by the compose template (sidecars), the legacy stdio
@@ -55,7 +59,6 @@ async def initialize_mcp_client() -> Tuple[Optional[MultiServerMCPClient], List[
     }
     client_configs: dict[str, dict] = {}
     server_skills: dict[str, str] = {}
-    full_config = get_full_config()
     for name, server_cfg in mcp_servers.items():
         # Load any declared skill so we can append it to this server's tool descriptions.
         skill_name = server_cfg.get("skill")

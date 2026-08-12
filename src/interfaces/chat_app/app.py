@@ -42,6 +42,7 @@ from src.archi.pipelines.agents.agent_spec import (
 )
 from src.archi.providers.base import ModelInfo, ProviderConfig, ProviderType
 from src.archi.utils.output_dataclass import PipelineOutput
+from src.evaluation.qa.console import EvaluationConsoleService
 # from src.data_manager.data_manager import DataManager
 from src.data_manager.data_viewer_service import DataViewerService
 from src.data_manager.vectorstore.manager import VectorStoreManager
@@ -71,6 +72,7 @@ from src.archi.pipelines.agents.tools.playbook_tools import (
     classify_playbook_tool_result,
 )
 from src.interfaces.chat_app.document_utils import *
+from src.interfaces.chat_app.evaluation_routes import register_evaluations
 from src.interfaces.chat_app.playbook_routes import register_playbooks
 from src.interfaces.chat_app.service_alerts import (
     register_service_alerts, get_active_banner_alerts, is_alert_manager,
@@ -2683,6 +2685,21 @@ class FlaskAppWrapper(object):
         self.services_config = self.config["services"]
         self.chat_app_config = self.config["services"]["chat_app"]
         self.data_path = self.global_config["DATA_PATH"]
+        evaluations_config = self.chat_app_config.get("evaluations", {})
+        self.evaluations_enabled = evaluations_config.get("enabled") is True
+        self.evaluation_service = None
+        if self.evaluations_enabled:
+            self.evaluation_service = EvaluationConsoleService(
+                Path(evaluations_config.get("root", "/root/archi/evaluations")),
+                agent_config_path=Path(
+                    evaluations_config.get(
+                        "agent_config_path", "/root/archi/configs/config.yaml"
+                    )
+                ),
+                agents_dir=Path(
+                    self.chat_app_config.get("agents_dir") or "/root/archi/agents"
+                ),
+            )
         self.salt = read_secret("UPLOADER_SALT")
         # Persist an auto-generated key in the DATA_PATH volume when none is configured, so signed
         # sessions survive a restart — a fresh random key per boot would log every user out on each
@@ -2881,6 +2898,14 @@ class FlaskAppWrapper(object):
             chat_app_config=self.chat_app_config,
             require_auth=self.require_auth,
         )
+
+        if self.evaluation_service is not None:
+            logger.info("Adding QA evaluation console endpoints")
+            register_evaluations(
+                self.app,
+                require_perm=self.require_perm,
+                service=self.evaluation_service,
+            )
 
         # add unified auth endpoints
         if self.auth_enabled:
@@ -4657,6 +4682,11 @@ class FlaskAppWrapper(object):
             or has_permission(Permission.AB.METRICS)
         )
 
+    def _can_view_evaluations(self) -> bool:
+        if not self.evaluations_enabled:
+            return False
+        return not self.auth_enabled or has_permission(Permission.Evaluations.VIEW)
+
     def _can_manage_ab_testing(self) -> bool:
         return self._is_admin_request() or has_permission(Permission.AB.MANAGE)
 
@@ -5001,7 +5031,10 @@ class FlaskAppWrapper(object):
                              basic_auth_enabled=self.basic_auth_enabled)
 
     def index(self):
-        return render_template('index.html')
+        return render_template(
+            'index.html',
+            can_view_evaluations=self._can_view_evaluations(),
+        )
 
     def terms(self):
         return render_template('terms.html')

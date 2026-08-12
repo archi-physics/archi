@@ -8,6 +8,7 @@ import yaml
 from jinja2 import (ChainableUndefined, Environment, PackageLoader,
                     select_autoescape)
 
+from src.cli.qa_eval import eval_cli
 from src.cli.managers.config_manager import ConfigurationManager
 from src.cli.managers.deployment_manager import DeploymentError, DeploymentManager
 from src.cli.managers.secrets_manager import SecretsManager
@@ -723,5 +724,6 @@ def main():
     cli.add_command(list_services)
     cli.add_command(list_deployments)
     cli.add_command(evaluate)
+    cli.add_command(eval_cli)
     cli.add_command(install)
     cli()

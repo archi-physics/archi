@@ -2234,7 +2234,23 @@ body {
 
 @media (max-width: 768px) {
   .app {
-    grid-template-columns: 0 1fr;
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  .header {
+    padding-inline: 8px;
+  }
+
+  .header-left {
+    gap: 0;
+  }
+
+  .header-title {
+    display: none;
+  }
+
+  .header-tab {
+    padding-inline: 9px;
   }
   
   .sidebar {

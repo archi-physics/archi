@@ -12,6 +12,7 @@ nav:
   - CLI Reference: cli_reference.md
   - API Reference: api_reference.md
   - Benchmarking: benchmarking.md
+  - Evaluation Guide: evaluation.md
   - Advanced Setup: advanced_setup_deploy.md
   - Helm Deployment: helm_deployment.md
   - Developer Guide: developer_guide.md

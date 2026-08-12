@@ -266,7 +266,11 @@ class BaseReActAgent:
                 return str(reasoning_content)
         return ""
 
-    def invoke(self, **kwargs) -> PipelineOutput:
+    def invoke(
+        self,
+        callbacks: Optional[Sequence[Any]] = None,
+        **kwargs,
+    ) -> PipelineOutput:
         """Synchronously invoke the agent graph and return the final output."""
         logger.debug("Invoking %s", self.__class__.__name__)
         agent_inputs = self._prepare_agent_inputs(**kwargs)
@@ -274,8 +278,11 @@ class BaseReActAgent:
             self.refresh_agent(force=True)
         logger.debug("Agent refreshed, invoking now")
         recursion_limit = self._recursion_limit()
+        invoke_config: Dict[str, Any] = {"recursion_limit": recursion_limit}
+        if callbacks is not None:
+            invoke_config["callbacks"] = list(callbacks)
         try:
-            answer_output = self.agent.invoke(agent_inputs, {"recursion_limit": recursion_limit})
+            answer_output = self.agent.invoke(agent_inputs, invoke_config)
             logger.debug("Agent invocation completed")
             logger.debug(answer_output)
             messages = self._extract_messages(answer_output)
@@ -1066,6 +1073,11 @@ class BaseReActAgent:
         """Explicitly set the static tools cache."""
         self._static_tools = list(value)
 
+    @property
+    def loaded_mcp_tools(self) -> List[Callable]:
+        """Return the MCP tools successfully loaded for this agent."""
+        return list(self._mcp_tools or [])
+
     def refresh_agent(
         self,
         *,
@@ -1134,14 +1146,14 @@ class BaseReActAgent:
         static_names = [name for name in selected if name != "mcp"]
         return self._select_tools_from_registry(static_names)
 
-    def _build_mcp_tools(self) -> List[Callable]:
+    def _build_mcp_tools(self) -> Optional[List[Callable]]:
         """Retrieve MCP tools from servers defined in the config and keep those server connections alive"""
         try:
             self._async_runner = AsyncLoopThread.get_instance()
 
             # Initialize MCP client on the background loop
             # The client and sessions will live on this loop
-            client, mcp_tools, skills_text = self._async_runner.run(initialize_mcp_client())
+            client, mcp_tools, skills_text = self._async_runner.run(initialize_mcp_client(self.config))
             if client is None:
                 logger.info("No MCP servers configured.")
                 return None

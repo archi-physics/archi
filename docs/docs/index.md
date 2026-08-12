@@ -48,6 +48,7 @@ Archi assists TAs, lecturers, and support staff—or students directly—by prep
 | [CLI Reference](cli_reference.md) | All CLI commands and options |
 | [API Reference](api_reference.md) | REST API endpoints |
 | [Benchmarking](benchmarking.md) | Evaluate retrieval and response quality |
+| [Evaluation Guide](evaluation.md) | Evaluate complete agent answers against reviewed gold atoms |
 | [Developer Guide](developer_guide.md) | Architecture, contributing, extending the stack |
 | [Advanced Setup](advanced_setup_deploy.md) | GPU setup, multi-node, production deployment |
 | [Troubleshooting](troubleshooting.md) | Common issues and fixes |

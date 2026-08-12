@@ -63,6 +63,9 @@ spec:
               name: {{ name }}-chatbot-pvc
             - mountPath: /root/archi/configs
               name: {{ name }}-chat-config
+            - mountPath: /root/archi/evaluations
+              name: {{ name }}-chatbot-pvc
+              subPath: evaluations
             - mountPath: /root/archi/data/prompts/chat
               name: {{ name }}-chat-prompts
             - mountPath: /root/archi/data/prompts/condense

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archi · Evaluatio Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/archi_notext.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluations.css') }}">
+  <script src="{{ url_for('static', filename='modules/theme-init.js') }}"></script>
+</head>
+<body>
+  <div class="evaluation-app">
+    <header class="evaluation-header">
+      <div class="header-left">
+        <a href="/chat" class="back-link" title="Back to Chat" aria-label="Back to Chat">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7"></path>
+          </svg>
+          <span>Chat</span>
+        </a>
+      </div>
+      <div class="header-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon" aria-hidden="true">
+          <path d="M4 19V9"></path>
+          <path d="M10 19V5"></path>
+          <path d="M16 19v-7"></path>
+          <path d="M22 19V3"></path>
+          <path d="M2 19h22"></path>
+        </svg>
+        <h1>Evaluation Console</h1>
+      </div>
+      <div class="header-right" aria-hidden="true"></div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <nav aria-label="Evaluation console">
+          <button class="nav-item active" data-view="runs"><span>01</span>Runs</button>
+          <button class="nav-item" data-view="datasets"><span>02</span>Datasets <b id="dataset-count">0</b></button>
+          <button class="nav-item" data-view="profiles"><span>03</span>Profiles <b id="profile-count">0</b></button>
+          <button class="nav-item" data-view="new"><span>04</span>New evaluation</button>
+        </nav>
+        <div class="sidebar-foot">
+          <div class="runtime"><i></i><span><strong id="runtime-label">Ready</strong><small>single-flight executor</small></span></div>
+        </div>
+      </aside>
+
+      <main>
+      <div id="job-banner" class="job-banner" hidden aria-live="polite">
+        <span id="job-banner-message"></span>
+        <button class="button danger" id="cancel-evaluation" type="button" hidden>Cancel evaluation</button>
+      </div>
+
+      <section class="view active" id="view-runs">
+        <header class="page-head">
+          <div><h1>Evaluating Archi has never been simpler.</h1><p>Every result below is reconstructed from persisted JSON artifacts.</p></div>
+          <button class="button primary" data-go="new">Run an evaluation</button>
+        </header>
+        <div class="metrics">
+          <article><small>Persisted runs</small><strong id="metric-runs">—</strong></article>
+          <article><small>Latest pass rate</small><strong id="metric-pass">—</strong></article>
+          <article><small>Datasets</small><strong id="metric-datasets">—</strong></article>
+          <article><small>Evaluation running</small><strong id="metric-job">No</strong></article>
+        </div>
+        <section class="history-trends" aria-labelledby="history-trends-title">
+          <section class="panel trend-filter-panel">
+            <div>
+              <h2 id="history-trends-title">History trends</h2>
+              <p>The selected window applies to the run table and every graph.</p>
+              <label class="history-window-field" for="history-window">
+                <span>History window</span>
+                <select id="history-window">
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="90d" selected>Last 90 days</option>
+                  <option value="365d">Last 365 days</option>
+                </select>
+              </label>
+            </div>
+            <fieldset class="trend-filter-fieldset">
+              <legend>Datasets to visualize</legend>
+              <div class="trend-filter-actions">
+                <button class="button quiet" id="trend-select-all" type="button">Show all datasets</button>
+                <span id="trend-filter-status" aria-live="polite">Loading datasets…</span>
+              </div>
+              <div class="trend-dataset-filters" id="trend-dataset-filters"></div>
+            </fieldset>
+          </section>
+          <section class="panel trend-panel trend-panel-wide" aria-labelledby="trend-latency-title">
+            <div class="trend-panel-head">
+              <div><h2 id="trend-latency-title">Attempt latency</h2><p>Average, best, and worst terminal-attempt time per run.</p></div>
+              <div class="trend-series-legend" aria-label="Latency series">
+                <span><i class="average"></i>Average</span><span><i class="best"></i>Best</span><span><i class="worst"></i>Worst</span>
+              </div>
+            </div>
+            <div class="trend-chart-shell" id="trend-latency-chart" aria-live="polite"><div class="trend-loading">Loading latency history…</div></div>
+            <div class="trend-tooltip" id="trend-latency-tooltip" role="tooltip" hidden></div>
+          </section>
+          <section class="panel trend-panel" aria-labelledby="trend-pass-title">
+            <div class="trend-panel-head">
+              <div><h2 id="trend-pass-title">Pass rate</h2><p>Passed ÷ scored plus execution-failed attempts.</p></div>
+              <div class="trend-series-legend" aria-label="Pass-rate series"><span><i class="pass"></i>Pass rate</span></div>
+            </div>
+            <div class="trend-chart-shell" id="trend-pass-chart" aria-live="polite"><div class="trend-loading">Loading pass-rate history…</div></div>
+            <div class="trend-tooltip" id="trend-pass-tooltip" role="tooltip" hidden></div>
+          </section>
+          <section class="panel trend-panel" aria-labelledby="trend-failure-title">
+            <div class="trend-panel-head">
+              <div><h2 id="trend-failure-title">Technical failure rate</h2><p>Execution plus evaluation failures ÷ all terminal attempts.</p></div>
+              <div class="trend-series-legend" aria-label="Failure-rate series"><span><i class="failure"></i>Failure rate</span></div>
+            </div>
+            <div class="trend-chart-shell" id="trend-failure-chart" aria-live="polite"><div class="trend-loading">Loading failure history…</div></div>
+            <div class="trend-tooltip" id="trend-failure-tooltip" role="tooltip" hidden></div>
+          </section>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><div><h2>Past evaluations</h2></div><button class="button quiet" id="refresh-runs">Refresh</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Evaluation</th><th>Dataset</th><th>Agent</th><th>Attempts</th><th>Pass rate</th><th>Status</th></tr></thead>
+              <tbody id="runs-body"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="runs-empty" hidden><strong>No evaluation runs yet.</strong><span>Import a dataset, choose an agent, and create the first evidence set.</span></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-datasets">
+        <header class="page-head">
+          <div><h1>Import datasets and generate golden atoms.</h1><p>Imports are immutable. Atom reviews always save as a separate child dataset.</p></div>
+        </header>
+        <div class="split">
+          <div>
+            <form class="panel import-panel" id="dataset-import-form">
+              <div><p class="eyebrow">Import</p><h2>Add a JSON or JSONL dataset</h2></div>
+              <label>Name<input name="name" placeholder="Golden Set v2" autocomplete="off" required></label>
+              <label class="file-field">Dataset file<input name="file" type="file" accept=".json,.jsonl,application/json" required></label>
+              <button class="button primary" type="submit">Validate and import</button>
+            </form>
+            <section class="panel catalog-panel">
+              <div class="panel-head"><div><p class="eyebrow">Immutable catalog</p><h2>Datasets</h2></div><input id="dataset-search" class="search" type="search" placeholder="Filter datasets"></div>
+              <div class="catalog-list" id="dataset-list"></div>
+              <div class="empty" id="datasets-empty" hidden><strong>No datasets imported.</strong></div>
+            </section>
+          </div>
+          <aside class="panel detail-panel" id="dataset-detail">
+            <p class="eyebrow">Selected dataset</p>
+            <h2>Select a dataset</h2>
+            <p class="muted">Its non-sensitive metadata and atom workflow will appear here.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-profiles">
+        <header class="page-head">
+          <div><h1>Import an evaluator profile.</h1><p>Profiles pin the atoms extractor and comparator providers, models, and optional timeouts.</p></div>
+        </header>
+        <div class="split">
+          <form class="panel import-panel" id="profile-import-form">
+            <div><p class="eyebrow">Import</p><h2>Add a YAML profile</h2></div>
+            <label>Name<input name="name" placeholder="Local QA judge" autocomplete="off" required></label>
+            <label class="file-field">Profile file<input name="file" type="file" accept=".yaml,.yml,text/yaml" required></label>
+            <button class="button primary" type="submit">Validate and import</button>
+          </form>
+          <section class="panel">
+            <div class="panel-head"><div><p class="eyebrow">Resolved profiles</p><h2>Available judges</h2></div></div>
+            <div class="profile-grid" id="profile-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-new">
+        <header class="page-head">
+          <div><h1>Run a new evaluation.</h1><p>The dataset, profile, agent config, and agent spec are snapshotted into the run.</p></div>
+        </header>
+        <form class="launch-grid" id="evaluation-form">
+          <div class="configuration-grid">
+            <section class="panel form-card">
+              <header class="form-card-head"><span class="step">01</span><h2>Identity</h2></header>
+              <div class="form-card-body">
+                <div class="field-group">
+                  <label for="evaluation-name">Evaluation name</label>
+                  <input id="evaluation-name" name="name" placeholder="ops-readiness · reviewed atoms" autocomplete="off" required>
+                </div>
+                <div class="field-group">
+                  <label for="evaluation-attempts">Attempts per eligible question</label>
+                  <input id="evaluation-attempts" name="attempts" type="number" min="1" value="1" required>
+                </div>
+                <p class="callout supporting-callout">Use a name that distinguishes the dataset, agent, or comparison goal in run history.</p>
+              </div>
+            </section>
+            <section class="panel form-card">
+              <header class="form-card-head"><span class="step">02</span><h2>Gold and judge</h2></header>
+              <div class="form-card-body">
+                <div class="field-group">
+                  <label for="launch-dataset">Dataset</label>
+                  <select name="dataset_id" id="launch-dataset" required></select>
+                </div>
+                <div class="field-group">
+                  <label for="launch-profile">Evaluator profile</label>
+                  <select name="profile_id" id="launch-profile" required></select>
+                </div>
+                <aside class="selection-snapshot" id="profile-snapshot" aria-label="Selected judge configuration">
+                  <div class="snapshot-status" role="status">Select an evaluator profile to inspect it.</div>
+                </aside>
+              </div>
+            </section>
+            <section class="panel form-card">
+              <header class="form-card-head"><span class="step">03</span><h2>Agent under test</h2></header>
+              <div class="form-card-body">
+                <div class="field-group">
+                  <label for="launch-agent">Agent spec</label>
+                  <select name="agent_spec" id="launch-agent" required></select>
+                </div>
+                <aside class="selection-snapshot agent-snapshot" id="agent-snapshot" aria-label="Selected agent configuration">
+                  <div class="snapshot-status" role="status">Select an agent spec to inspect it.</div>
+                </aside>
+                <p class="callout supporting-callout">At the moment, only the deployment’s resolved agent YAML is used. This Markdown spec is copied into the run.</p>
+              </div>
+            </section>
+            <section class="panel form-card concurrency-card">
+              <header class="form-card-head"><span class="step">04</span><h2>Concurrency</h2></header>
+              <div class="form-card-body">
+                <div class="field-group">
+                  <div class="field-label-row">
+                    <label for="run-workers">Run workers</label>
+                    <button class="field-info" type="button" aria-label="Run phase concurrency and memory help" aria-describedby="run-workers-tooltip">i</button>
+                    <span class="field-tooltip" id="run-workers-tooltip" role="tooltip">Runs tested-agent attempts concurrently during the run phase. Every worker owns an isolated agent runtime and tool state, so runtime memory generally grows roughly in proportion to this count. Run and evaluation phases never overlap.</span>
+                  </div>
+                  <input id="run-workers" name="run_workers" type="number" min="1" max="16" step="1" value="1" aria-describedby="run-workers-help" required>
+                  <small class="field-help" id="run-workers-help">1–16 concurrent tested-agent calls.</small>
+                </div>
+                <div class="field-group">
+                  <div class="field-label-row">
+                    <label for="score-workers">Evaluation workers</label>
+                    <button class="field-info" type="button" aria-label="Evaluation phase concurrency and memory help" aria-describedby="score-workers-tooltip">i</button>
+                    <span class="field-tooltip" id="score-workers-tooltip" role="tooltip">Compares answers concurrently after every tested-agent attempt finishes. Every worker owns an isolated evaluator runtime, so runtime memory generally grows roughly in proportion to this count. Evaluation workers are not active during the run phase.</span>
+                  </div>
+                  <input id="score-workers" name="score_workers" type="number" min="1" max="16" step="1" value="1" aria-describedby="score-workers-help" required>
+                  <small class="field-help" id="score-workers-help">1–16 concurrent judge calls.</small>
+                </div>
+                <p class="callout supporting-callout">Start at 1 when memory is constrained; increase one phase at a time while observing the deployment.</p>
+              </div>
+            </section>
+          </div>
+          <section class="panel launch-card">
+            <button class="button primary large" type="submit">Start evaluation</button>
+          </section>
+        </form>
+      </section>
+
+      <section class="view" id="view-run-detail">
+        <header class="page-head">
+          <div><button class="text-button" data-go="runs">← All runs</button><p class="eyebrow">Evaluation evidence</p><h1 id="run-title">Run detail</h1><p id="run-subtitle"></p></div>
+          <div class="page-actions">
+            <button class="button primary" id="retry-failed-evaluation" type="button" hidden>Retry failed attempts</button>
+            <a class="button quiet" id="report-link" target="_blank" rel="noopener">Open report</a>
+          </div>
+        </header>
+        <div id="run-detail-content"></div>
+      </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="atom-dialog" aria-labelledby="atom-dialog-title" aria-describedby="atom-dialog-description">
+    <div class="dialog-shell">
+      <header><div><p class="eyebrow">Golden atom review</p><h2 id="atom-dialog-title">Review atoms</h2><p id="atom-dialog-description">Expected answers and atoms are visible only in this protected review surface.</p></div><button class="close" type="button" data-close-atom-dialog aria-label="Close">×</button></header>
+      <div class="atom-editor" id="atom-editor"></div>
+      <footer>
+        <label>New dataset name<input id="reviewed-dataset-name" autocomplete="off" required></label>
+        <button class="button quiet" type="button" id="retry-failed-atoms" hidden>Retry failed atoms</button>
+        <button class="button quiet" type="button" data-close-atom-dialog>Cancel</button>
+        <button class="button primary" type="button" id="save-reviewed-dataset">Save as new dataset</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><strong id="toast-title"></strong><span id="toast-message"></span></div>
+  <script src="{{ url_for('static', filename='evaluations.js') }}" defer></script>
+</body>
+</html>

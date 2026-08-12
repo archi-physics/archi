@@ -65,6 +65,11 @@ class Permission:
     class Alerts(str, Enum):
         MANAGE = "alerts:manage"
 
+    class Evaluations(str, Enum):
+        VIEW = "evaluations:view"
+        RUN = "evaluations:run"
+        MANAGE = "evaluations:manage"
+
     class Admin(str, Enum):
         SYSTEM = "admin:system"
         USERS = "admin:users"

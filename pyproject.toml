@@ -2,7 +2,7 @@
 name = "archi"
 version = "1.2.4"
 description = "An AI Augmented Research Chat Intelligence (archi)"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 authors = [
     {name="Pietro Lugato", email="pmlugato@mit.edu"},
     {name="Julius Heitkoetter", email="juliush@mit.edu"},
@@ -27,7 +27,8 @@ dependencies = [
     "isort==6.0.1",
     "pre-commit>=4",
     "psycopg2-binary==2.9.10",
-    "markitdown[pdf,pptx]>=0.1.0"
+    "markitdown[pdf,pptx]>=0.1.0",
+    "ijson==3.5.1",
 ]
 
 [project.scripts]

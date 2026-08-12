@@ -1,6 +1,9 @@
 # Benchmarking
 
-Archi provides benchmarking functionality via the `archi evaluate` CLI command to measure retrieval and response quality.
+Archi provides two benchmarking functionalities: the `archi evaluate` (deprecated) CLI command to measure retrieval quality, and the newer `archi eval qa` command to perform atom-based correctness tevaluation of complete agent answers, repeated attempts, manual
+
+gold-atom review, and persisted per-attempt evidence. For a more detailed guide use the separate
+[Evaluation Guide](evaluation.md).
 
 ## Evaluation Modes
 

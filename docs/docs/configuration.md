@@ -97,6 +97,22 @@ services:
               - alerts:manage
 ```
 
+#### `services.chat_app.evaluations`
+
+The evaluation console is opt-in. Both `archi create` and the chat runtime
+disable it when `enabled` is omitted or `false`. Set `enabled: true` explicitly
+to expose the console and its APIs. When enabled, it persists catalogs,
+atom-review drafts, jobs, and run artifacts under one root.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | boolean | `false` | Expose the console and APIs at `/evaluations` only when explicitly `true` |
+| `root` | path | `/root/archi/evaluations` | Persistent evaluation workspace |
+| `agent_config_path` | path | `/root/archi/configs/config.yaml` | Resolved Archi YAML used for UI-launched runs |
+
+See the [Evaluation Guide](evaluation.md) for input formats,
+CLI and console workflows, artifacts, states, and RBAC permissions.
+
 #### `services.chat_app.auth`
 
 Authentication can be enabled with SSO or basic auth.

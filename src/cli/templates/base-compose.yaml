@@ -168,6 +168,7 @@ services:
       - ./data/agents:/root/archi/agents
       - ./data/ab_agents:/root/archi/ab_agents
       - ./data/skills:/root/archi/skills:ro
+      - ./data/evaluations:/root/archi/evaluations
       {% for prompt_file in prompt_files | default([]) -%}
       - ./{{ prompt_file }}:/root/archi/{{ prompt_file }}
       {% endfor %}
@@ -178,8 +179,12 @@ services:
       {%- if srv_cfg.transport == 'stdio' and srv_cfg.path is defined %}
       - {{ srv_cfg.path }}:/root/mcp-packages/{{ srv_name }}:ro
       {%- endif %}
-      {%- for host_path in (srv_cfg.host_file_mounts | default([])) %}
-      - {{ host_path }}:{{ host_path }}:ro
+      {%- for host_mount in (srv_cfg.host_file_mounts | default([])) %}
+      {%- if host_mount is string %}
+      - {{ host_mount }}:{{ host_mount }}:ro
+      {%- else %}
+      - {{ host_mount.src }}:{{ host_mount.dest }}{{ ':ro' if host_mount.read_only | default(true) else '' }}
+      {%- endif %}
       {%- endfor %}
       {%- endfor %}
     {#- Build the MCP auto-install command for stdio packages with a path #}
