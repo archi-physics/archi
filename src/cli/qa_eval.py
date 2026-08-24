@@ -13,6 +13,13 @@ def _run(action, success_message: str) -> None:
         manifest = action()
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
+    if (
+        manifest["status"] == "prepared"
+        and manifest["phases"]["prepare"]["prepared_items"] == 0
+    ):
+        raise click.ClickException(
+            "QA preparation produced no usable items; diagnostic artifacts were written"
+        )
     click.echo(f"{success_message}: {manifest['run_id']} ({manifest['status']})")
 
 
@@ -39,6 +46,17 @@ def eval_cli() -> None:
     "evaluator_profile_path",
     type=click.Path(path_type=Path),
     help="QA evaluator YAML profile.",
+)
+@click.option(
+    "--mcp-config",
+    "mcp_config_path",
+    type=click.Path(path_type=Path),
+    help="Evaluator-only MCP connection registry.",
+)
+@click.option(
+    "--skip-live",
+    is_flag=True,
+    help="Omit V2 live rows during preparation without calling MCP.",
 )
 @click.option("--output-dir", type=click.Path(path_type=Path), help="QA run workspace.")
 @click.option(
@@ -70,6 +88,8 @@ def qa_cli(
     agent_config: Optional[Path],
     agent_spec: Optional[Path],
     evaluator_profile_path: Optional[Path],
+    mcp_config_path: Optional[Path],
+    skip_live: bool,
     output_dir: Optional[Path],
     attempts: int,
     run_workers: int,
@@ -94,6 +114,9 @@ def qa_cli(
             "the composite QA workflow requires " + ", ".join(missing), ctx=ctx
         )
     workflow = QAWorkflow()
+    live_options = {"skip_live": skip_live} if skip_live else {}
+    if mcp_config_path is not None:
+        live_options["mcp_config_path"] = mcp_config_path
     _run(
         lambda: workflow.composite(
             dataset=dataset,
@@ -105,6 +128,7 @@ def qa_cli(
             run_workers=run_workers,
             score_workers=score_workers,
             overwrite=overwrite,
+            **live_options,
         ),
         "QA evaluation completed",
     )
@@ -118,6 +142,13 @@ def qa_cli(
     type=click.Path(path_type=Path),
     help="QA evaluator YAML profile.",
 )
+@click.option(
+    "--mcp-config",
+    "mcp_config_path",
+    type=click.Path(path_type=Path),
+    help="Evaluator-only MCP connection registry.",
+)
+@click.option("--skip-live", is_flag=True, help="Omit V2 live rows.")
 @click.option("--output-dir", type=click.Path(path_type=Path), required=True)
 @click.option(
     "--overwrite", is_flag=True, help="Replace preparation and downstream artifacts."
@@ -125,14 +156,23 @@ def qa_cli(
 def prepare_cli(
     dataset: Path,
     evaluator_profile_path: Optional[Path],
+    mcp_config_path: Optional[Path],
+    skip_live: bool,
     output_dir: Path,
     overwrite: bool,
 ) -> None:
     """Validate DATASET and prepare fixed gold atoms."""
     workflow = QAWorkflow()
+    live_options = {"skip_live": skip_live} if skip_live else {}
+    if mcp_config_path is not None:
+        live_options["mcp_config_path"] = mcp_config_path
     _run(
         lambda: workflow.prepare(
-            dataset, output_dir, evaluator_profile_path, overwrite
+            dataset,
+            output_dir,
+            evaluator_profile_path,
+            overwrite,
+            **live_options,
         ),
         "QA preparation completed",
     )
@@ -142,6 +182,12 @@ def prepare_cli(
 @click.argument("run_dir", type=click.Path(path_type=Path))
 @click.option("--agent-config", type=click.Path(path_type=Path), required=True)
 @click.option("--agent-spec", type=click.Path(path_type=Path), required=True)
+@click.option(
+    "--mcp-config",
+    "mcp_config_path",
+    type=click.Path(path_type=Path),
+    help="Evaluator-only MCP connection registry.",
+)
 @click.option(
     "--attempts",
     "attempts",
@@ -162,12 +208,16 @@ def run_cli(
     run_dir: Path,
     agent_config: Path,
     agent_spec: Path,
+    mcp_config_path: Optional[Path],
     attempts: int,
     run_workers: int,
     overwrite: bool,
 ) -> None:
     """Run isolated Archi attempts in prepared RUN_DIR."""
     workflow = QAWorkflow()
+    live_options = (
+        {"mcp_config_path": mcp_config_path} if mcp_config_path is not None else {}
+    )
     _run(
         lambda: workflow.run(
             run_dir,
@@ -176,6 +226,7 @@ def run_cli(
             attempts,
             overwrite,
             run_workers=run_workers,
+            **live_options,
         ),
         "QA agent run completed",
     )

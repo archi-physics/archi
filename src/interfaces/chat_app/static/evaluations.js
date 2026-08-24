@@ -2,7 +2,7 @@
   "use strict";
 
   const state = {
-    datasets: [], profiles: [], agents: [], runs: [], jobs: [], selectedDataset: null,
+    datasets: [], profiles: [], agents: [], runs: [], jobs: [], permissions: { can_run: true, can_manage: true }, selectedDataset: null,
     draft: null, openRunId: null, pollingJobId: null, reviewValidationActive: false,
     openToolCalls: new Map(), nextToolCallKey: 1, trendDatasetKeys: [],
     selectedTrendDatasets: new Set(), trendFiltersInitialized: false,
@@ -20,6 +20,11 @@
   };
   const when = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
   const scoreValue = (value) => typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null;
+  const liveCheckLabel = (projection) => {
+    const labels = { not_checked: "Not checked", matched_baseline: "Matched baseline", change_observed: "Change observed", last_check_unavailable: "Last check unavailable" };
+    if (!projection) return "Not checked";
+    return `${labels[projection.status] || "Not checked"}${projection.checked_at ? ` · ${when(projection.checked_at)}` : ""}`;
+  };
   const outcomePresentation = {
     entailed: { label: "Passed", className: "passed" },
     not_mentioned: { label: "Not mentioned", className: "not-mentioned" },
@@ -49,30 +54,80 @@
   }
 
   function activeJob() {
-    return state.jobs.find((job) => ["queued", "running", "cancel_requested"].includes(job.status));
+    return state.jobs.find((job) => ["queued", "running", "cancel_requested", "attention_required"].includes(job.status));
   }
 
   function renderRuntime() {
     const job = activeJob();
-    const progress = job?.status === "cancel_requested" ? null : job?.progress?.status;
-    $("#runtime-label").textContent = job ? `${job.kind.replace("_", " ")} · ${progress || job.status}` : "Ready";
-    $("#metric-job").textContent = job ? "Yes" : "No";
+    const runtimePhase = job?.progress?.runtime_phase;
+    const progress = job?.status === "cancel_requested"
+      ? null
+      : (runtimePhase ? runtimePhase.replaceAll("_", " ") : job?.progress?.status);
+    const canRun = state.permissions.can_run !== false;
+    const canSeeAttention = canRun || state.permissions.can_manage;
+    const attention = job?.status === "attention_required" && canSeeAttention;
+    const checkingLiveAnswers = job?.kind === "evaluation"
+      && ["queued", "running"].includes(job.status)
+      && runtimePhase === "checking_live_answers";
+    $("#runtime-label").textContent = checkingLiveAnswers
+      ? "Checking live answers…"
+      : (job ? `${job.kind.replace("_", " ")} · ${progress || job.status}` : "Ready");
+    $("#metric-job").textContent = job && !attention ? "Yes" : "No";
     $("#job-banner").hidden = !job;
     const cancelButton = $("#cancel-evaluation");
+    const continueButton = $("#continue-evaluation");
+    const refreshButton = $("#refresh-live-evaluation");
+    const attentionPanel = $("#attention-panel");
     if (job) {
-      $("#job-banner-message").textContent = `${job.kind.replace("_", " ")} is ${progress || job.status}. This page can be closed; state is persisted.`;
-      cancelButton.hidden = job.kind !== "evaluation";
+      $("#job-banner-message").textContent = attention
+        ? "Live answers changed or could not be checked. No agent attempts have started."
+        : (checkingLiveAnswers
+          ? "Checking live answers… Agent attempts start only after the fresh pre-check completes."
+          : `${job.kind.replace("_", " ")} is ${progress || job.status}. This page can be closed; state is persisted.`);
+      cancelButton.hidden = job.kind !== "evaluation" || !canRun;
       cancelButton.disabled = job.status === "cancel_requested";
       cancelButton.textContent = job.status === "cancel_requested" ? "Canceling…" : "Cancel evaluation";
+      continueButton.hidden = !attention || !canRun;
+      refreshButton.hidden = !attention;
+      attentionPanel.hidden = !attention;
+      if (attention) renderAttention(job);
     } else {
       $("#job-banner-message").textContent = "";
       cancelButton.hidden = true;
+      continueButton.hidden = true;
+      refreshButton.hidden = true;
+      attentionPanel.hidden = true;
     }
   }
 
+  function renderAttention(job) {
+    const attention = job.result?.attention_required || {};
+    const affected = attention.affected_items || [];
+    const changed = affected.some((item) => item.reason === "answer_changed");
+    const managerAction = changed
+      ? "The live answer changed. Refresh the live snapshot before running a complete evaluation."
+      : "One or more live answers could not be checked. Refresh the live snapshot before running a complete evaluation.";
+    $("#attention-remediation").textContent = state.permissions.can_manage
+      ? managerAction
+      : `${changed ? "The live answer changed." : "One or more live answers could not be checked."} Contact a dataset manager to refresh the approved live snapshot.`;
+    $("#attention-summary").innerHTML = `
+      <div><span>Live questions checked</span><strong>${attention.live_items ?? "—"}</strong></div>
+      <div><span>Affected questions</span><strong>${affected.length}</strong></div>
+      <div><span>Observation</span><strong>${esc(when(attention.checked_at || job.started_at))}</strong></div>`;
+    $("#attention-items").innerHTML = affected.map((item) => item.question ? `<details class="attention-evidence">
+      <summary><code>${esc(item.item_id)}</code><strong>${esc((item.reason || "oracle_failed").replaceAll("_", " "))}</strong><span>${esc(item.question)}</span></summary>
+      <div><section><p class="field-label">Approved answer</p><pre>${esc(JSON.stringify(item.approved_answer, null, 2))}</pre></section><section><p class="field-label">Current observation</p><pre>${esc(JSON.stringify(item.current_answer, null, 2))}</pre></section><details><summary>Metadata, recipe, and calls</summary><pre>${esc(JSON.stringify({ metadata: item.metadata, oracle: item.oracle, calls: item.calls }, null, 2))}</pre></details></div>
+    </details>` : `<article>
+      <code>${esc(item.item_id)}</code><strong>${esc((item.reason || "oracle_failed").replaceAll("_", " "))}</strong><span>${esc((item.phase || "pre_run").replaceAll("_", " "))}</span>
+    </article>`).join("");
+    $("#continue-evaluation").disabled = attention.can_continue === false;
+    $("#refresh-live-evaluation").hidden = !state.permissions.can_manage;
+  }
+
   function renderLaunchOptions() {
-    $("#launch-dataset").innerHTML = state.datasets.length
-      ? state.datasets.map((item) => `<option value="${esc(item.id)}">${esc(item.name)} · ${item.item_count} items${item.parent_dataset_id ? " · reviewed child" : ""}</option>`).join("")
+    const launchable = state.datasets.filter((item) => item.time_sensitive_item_count === 0 || item.contains_live_answers);
+    $("#launch-dataset").innerHTML = launchable.length
+      ? launchable.map((item) => `<option value="${esc(item.id)}">${esc(item.name)} · ${item.item_count} items${item.contains_live_answers ? " · approved live snapshot" : (item.generation_scope === "static_only" ? " · static only" : "")}</option>`).join("")
       : `<option value="">Import a dataset first</option>`;
     $("#launch-profile").innerHTML = state.profiles.map((item) => `<option value="${esc(item.id)}">${esc(item.name)}</option>`).join("");
     $("#launch-agent").innerHTML = state.agents.length
@@ -152,7 +207,7 @@
     $("#metric-datasets").textContent = state.datasets.length;
     $("#datasets-empty").hidden = datasets.length > 0;
     $("#dataset-list").innerHTML = datasets.map((item) => `<button class="catalog-item ${state.selectedDataset?.id === item.id ? "selected" : ""}" data-dataset-id="${esc(item.id)}">
-      <span><strong>${esc(item.name)}</strong><small>${item.item_count} items · ${item.supplied_atom_item_count} with supplied atoms${item.parent_dataset_id ? " · reviewed child" : ""}</small></span>
+      <span><strong>${esc(item.name)}</strong><small>${item.item_count} items · ${item.supplied_atom_item_count} with supplied atoms${item.parent_dataset_id ? " · reviewed child" : ""}${item.contains_live_answers ? " · includes live answers" : (item.generation_scope === "static_only" ? " · static only" : "")}</small></span>
       <code>${esc(shortHash(item.sha256))}</code>
     </button>`).join("");
     $$("[data-dataset-id]").forEach((button) => button.addEventListener("click", () => selectDataset(button.dataset.datasetId)));
@@ -164,6 +219,10 @@
     const item = state.selectedDataset;
     if (!item) return;
     const hasAtoms = item.atom_count > 0;
+    const isDefinitionParent = item.dataset_role === "definition_parent";
+    const unresolvedLive = isDefinitionParent && item.time_sensitive_item_count > 0;
+    const approvedLive = Boolean(item.contains_live_answers);
+    const staticOnly = item.generation_scope === "static_only";
     const resumableJob = state.jobs.find((job) =>
       job.kind === "generate_atoms" &&
       job.status === "completed" &&
@@ -177,22 +236,30 @@
       <p class="muted">${esc(item.source_filename)} · ${esc(shortHash(item.sha256))}</p>
       <div class="definition-list">
         <div><span>Total items</span><strong>${item.item_count}</strong></div>
-        <div><span>Eligible / time-sensitive</span><strong>${item.eligible_item_count} / ${item.time_sensitive_item_count}</strong></div>
+        <div><span>Eligible / live</span><strong>${item.eligible_item_count} / ${item.time_sensitive_item_count}</strong></div>
         <div><span>Items with atoms</span><strong>${item.supplied_atom_item_count}</strong></div>
         <div><span>Imported</span><strong>${esc(when(item.created_at))}</strong></div>
+        ${approvedLive ? `<div><span>Last live check</span><strong>${esc(liveCheckLabel(item.last_live_check))}</strong></div>` : ""}
       </div>
       <p class="eyebrow">Categories</p><div class="chips">${(item.categories || []).map((value) => `<span class="chip">${esc(value)}</span>`).join("") || `<span class="muted">None supplied</span>`}</div>
       <p class="eyebrow">Answer sources</p><div class="chips">${(item.answer_sources || []).map((value) => `<span class="chip">${esc(value)}</span>`).join("") || `<span class="muted">None supplied</span>`}</div>
       <div class="detail-actions">
-        ${hasAtoms ? "" : `<label>Atom generation profile<select id="atom-profile">${state.profiles.map((profile) => `<option value="${esc(profile.id)}">${esc(profile.name)}</option>`).join("")}</select></label>`}
-        <button class="button primary" id="${hasAtoms ? "review-atoms" : "generate-atoms"}">${hasAtoms ? "Review Atoms" : "Generate Atoms"}</button>
+        ${hasAtoms && !unresolvedLive ? "" : `<label>Atom generation profile<select id="atom-profile">${state.profiles.map((profile) => `<option value="${esc(profile.id)}">${esc(profile.name)}</option>`).join("")}</select></label>`}
+        ${unresolvedLive ? `<label class="scope-choice"><input id="static-only-generation" type="checkbox"> <span>Create a static-only dataset — omit ${item.time_sensitive_item_count} live questions</span></label>` : ""}
+        ${unresolvedLive ? `<button class="button primary" id="generate-atoms">Generate Atoms</button>` : (approvedLive || staticOnly ? "" : `<button class="button primary" id="${hasAtoms ? "review-atoms" : "generate-atoms"}">${hasAtoms ? "Review Atoms" : "Generate Atoms"}</button>`)}
+        ${approvedLive && state.permissions.can_manage ? `<button class="button primary" id="refresh-live-snapshot">Refresh live snapshot</button>` : ""}
+        ${staticOnly && state.permissions.can_manage ? `<button class="button primary" id="refresh-live-snapshot">Add live questions from parent</button>` : ""}
+        ${(approvedLive || staticOnly) && !state.permissions.can_manage ? `<p class="callout supporting-callout">Contact a dataset manager to refresh this live snapshot.</p>` : ""}
         ${resumableJob ? `<button class="button quiet" id="resume-atoms" data-draft-id="${esc(resumableJob.result.draft_id)}">Resume atom review</button>` : ""}
-        <button class="button quiet" id="evaluate-dataset">Evaluate</button>
+        ${item.parent_dataset_id ? `<button class="button quiet" id="view-parent-definition">View parent definition</button>` : ""}
+        ${unresolvedLive ? "" : `<button class="button quiet" id="evaluate-dataset">${item.dataset_role === "legacy" || item.generation_scope === "review" ? "Evaluate" : (staticOnly ? "Run static evaluation" : "Run evaluation")}</button>`}
       </div>`;
     $("#generate-atoms")?.addEventListener("click", generateAtoms);
     $("#review-atoms")?.addEventListener("click", reviewAtoms);
     $("#resume-atoms")?.addEventListener("click", (event) => resumeAtomDraft(event.currentTarget.dataset.draftId));
-    $("#evaluate-dataset").addEventListener("click", () => {
+    $("#refresh-live-snapshot")?.addEventListener("click", () => refreshLiveSnapshot(item.id));
+    $("#view-parent-definition")?.addEventListener("click", () => selectDataset(item.parent_dataset_id));
+    $("#evaluate-dataset")?.addEventListener("click", () => {
       showView("new");
       $("#launch-dataset").value = item.id;
     });
@@ -558,7 +625,8 @@
       const existing = state.jobs.findIndex((item) => item.id === job.id);
       if (existing >= 0) state.jobs[existing] = job; else state.jobs.unshift(job);
       renderRuntime();
-      if (["completed", "failed", "interrupted", "canceled"].includes(job.status)) {
+      if (["completed", "failed", "interrupted", "canceled", "attention_required"].includes(job.status)) {
+        if (job.status === "attention_required") return { attention_required: true, job };
         if (job.status === "canceled") return { canceled: true };
         if (job.status !== "completed") throw new Error(job.error || `Job ${job.status}`);
         return job.result || {};
@@ -574,6 +642,14 @@
       if (result.canceled) {
         toast("Evaluation canceled", "The stopped run is recorded in history.");
         await Promise.all([loadCatalog(), loadRuns()]);
+        return;
+      }
+      if (result.attention_required) {
+        toast("Live answers need attention", "No agent attempts have started.");
+        await loadCatalog();
+        const index = state.jobs.findIndex((item) => item.id === result.job.id);
+        if (index >= 0) state.jobs[index] = result.job; else state.jobs.unshift(result.job);
+        renderRuntime();
         return;
       }
       toast("Background job completed", result.draft_id ? "The atom draft is ready to resume." : "The evaluation is available in history.");
@@ -599,7 +675,10 @@
     try {
       const payload = await api(`/api/evaluations/datasets/${encodeURIComponent(state.selectedDataset.id)}/generate-atoms`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile_id: $("#atom-profile").value })
+        body: JSON.stringify({
+          profile_id: $("#atom-profile").value,
+          static_only: Boolean($("#static-only-generation")?.checked)
+        })
       });
       state.jobs.unshift(payload.job);
       renderRuntime();
@@ -609,6 +688,25 @@
       state.draft = draftPayload.draft;
       openAtomEditor();
     } catch (error) { toast("Could not generate atoms", error.message); }
+  }
+
+  async function openLiveRefreshJob(job) {
+    state.jobs.unshift(job); renderRuntime();
+    toast("Live refresh started", "A new immutable review draft is being prepared.");
+    const result = await pollJob(job.id);
+    const draftPayload = await api(`/api/evaluations/atom-drafts/${encodeURIComponent(result.draft_id)}`);
+    state.draft = draftPayload.draft;
+    openAtomEditor();
+  }
+
+  async function refreshLiveSnapshot(datasetId) {
+    try {
+      const payload = await api(`/api/evaluations/datasets/${encodeURIComponent(datasetId)}/refresh-live`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile_id: "builtin" })
+      });
+      await openLiveRefreshJob(payload.job);
+    } catch (error) { toast("Could not refresh live snapshot", error.message); }
   }
 
   async function reviewAtoms() {
@@ -623,13 +721,26 @@
   }
 
   function openAtomEditor() {
-    const eligible = state.draft.items.filter((item) => !item.time_sensitive);
+    const eligible = eligibleDraftItems();
     const failed = eligible.filter((item) => item.status === "preparation_failed");
     const isNewDraft = $("#atom-editor").dataset.draftId !== state.draft.id;
     $("#atom-dialog-title").textContent = `Review atoms · ${state.draft.dataset_name}`;
     $("#retry-failed-atoms").hidden = failed.length === 0;
     $("#retry-failed-atoms").disabled = false;
     $("#retry-failed-atoms").textContent = `Retry failed atoms (${failed.length})`;
+    const existingScopeAction = $("#switch-draft-static-only");
+    existingScopeAction?.remove();
+    if (state.draft.dataset_role === "definition_parent" &&
+        state.draft.generation_scope === "complete" &&
+        failed.some((item) => item.time_sensitive)) {
+      const action = document.createElement("button");
+      action.id = "switch-draft-static-only";
+      action.type = "button";
+      action.className = "button secondary";
+      action.textContent = "Switch draft to static-only";
+      $("#retry-failed-atoms").after(action);
+      action.addEventListener("click", switchDraftStaticOnly);
+    }
     if (isNewDraft) {
       state.reviewValidationActive = false;
       $("#reviewed-dataset-name").value = `${state.draft.dataset_name} · reviewed`;
@@ -646,17 +757,23 @@
       </summary>
       <div class="atom-item-body">
         <section class="expected-answer" aria-labelledby="expected-answer-${itemIndex}">
-          <p class="field-label" id="expected-answer-${itemIndex}">Expected answer</p>
-          <div>${esc(item.answer)}</div>
+          <p class="field-label" id="expected-answer-${itemIndex}">${item.time_sensitive ? "Resolved answer" : "Expected answer"}</p>
+          <div>${esc(typeof item.answer === "string" ? item.answer : JSON.stringify(item.answer, null, 2))}</div>
           ${item.answer_source ? `<small class="expected-answer-source">Source: ${esc(item.answer_source)}</small>` : ""}
         </section>
-        ${item.error ? `<div class="generation-error"><strong>Generation failed:</strong> ${esc(item.error)} — add atoms manually.</div>` : ""}
-        <section class="atoms" aria-labelledby="atoms-title-${itemIndex}">
+        ${item.time_sensitive ? `<section class="live-oracle-evidence">
+          <p class="live-answer-label">Live answer</p>
+          <details><summary>Oracle recipe and evidence</summary><pre>${esc(JSON.stringify({ oracle: item.oracle, metadata: item.oracle_metadata, calls: item.oracle_calls }, null, 2))}</pre></details>
+        </section>` : ""}
+        ${item.live_state && item.live_state !== "resolved" ? `<div class="live-state"><strong>Live state:</strong> ${esc(item.live_state.replaceAll("_", " "))}</div>` : ""}
+        ${item.previous_answer ? `<details class="previous-live-answer"><summary>Previous approved answer</summary><pre>${esc(JSON.stringify(item.previous_answer, null, 2))}</pre></details>` : ""}
+        ${item.error ? `<div class="generation-error"><strong>Generation failed:</strong> ${esc(item.error)}</div>` : ""}
+        ${item.status === "preparation_failed" ? `<div class="generation-resolution">${item.time_sensitive ? "Live answer could not be resolved. Retry failed questions or create a static-only child." : "Atom generation failed. Retry failed questions before approval."}</div>` : `<section class="atoms" aria-labelledby="atoms-title-${itemIndex}">
           <div class="atoms-heading"><div><p class="field-label" id="atoms-title-${itemIndex}">Atoms</p><span>Edit each obligation and choose whether it is required.</span></div></div>
           ${atoms.map((atom, atomIndex) => atomRow(itemIndex, atomIndex, atom, item.item_id)).join("")}
         ${atoms.length ? "" : `<div class="atoms-empty">No atoms yet for this answer.</div>`}
         <button class="add-atom" type="button" data-add-atom="${itemIndex}" aria-label="Add atom to ${esc(item.item_id)}">+ Add atom</button>
-        </section>
+        </section>`}
       </div>
     </details>`;
     }).join("");
@@ -719,6 +836,21 @@
     }
   }
 
+  async function switchDraftStaticOnly() {
+    if (!state.draft) return;
+    try {
+      const omittedCount = state.draft.items.filter((item) => item.time_sensitive && item.status !== "skipped_live").length;
+      const payload = await api(`/api/evaluations/atom-drafts/${encodeURIComponent(state.draft.id)}/static-only`, {
+        method: "POST"
+      });
+      state.draft = payload.draft;
+      openAtomEditor();
+      toast("Draft is now static-only", `${omittedCount} live question${omittedCount === 1 ? " was" : "s were"} omitted by static-only generation. The definition parent was not changed.`);
+    } catch (error) {
+      toast("Could not change draft scope", error.message);
+    }
+  }
+
   function atomRow(itemIndex, atomIndex, atom, itemId) {
     const ordinal = atomIndex + 1;
     return `<div class="atom-row" data-atom-row="${itemIndex}:${atomIndex}">
@@ -729,7 +861,13 @@
     </div>`;
   }
 
-  function eligibleDraftItems() { return state.draft.items.filter((item) => !item.time_sensitive); }
+  function eligibleDraftItems() {
+    return state.draft.items.filter((item) =>
+      item.status === "prepared" ||
+      item.status === "preparation_failed" ||
+      (state.draft.dataset_role !== "definition_parent" && !item.time_sensitive)
+    );
+  }
 
   function syncAtomsFromDom() {
     eligibleDraftItems().forEach((item, itemIndex) => {
@@ -766,7 +904,13 @@
         invalidFields.push(field);
       };
 
-      if (!rows.length) errors.push("Add at least one atom.");
+      if (item.status === "preparation_failed") {
+        errors.push(item.time_sensitive
+          ? "Live answer could not be resolved. Retry failed questions or create a static-only child."
+          : "Atom generation failed. Retry failed questions before approval.");
+      }
+
+      if (item.status !== "preparation_failed" && !rows.length) errors.push("Add at least one atom.");
       const ids = new Map();
       rows.forEach((row) => {
         const idField = row.querySelector('[data-field="id"]');
@@ -801,7 +945,7 @@
       error.setAttribute("role", "alert");
       error.textContent = errors.join(" ");
       panel.querySelector(".atom-item-body").prepend(error);
-      firstInvalid ||= invalidFields[0] || panel.querySelector("[data-add-atom]");
+      firstInvalid ||= invalidFields[0] || panel.querySelector("[data-add-atom]") || $("#retry-failed-atoms");
     });
     state.reviewValidationActive = firstInvalid !== null;
     if (firstInvalid && focusInvalid) {
@@ -915,6 +1059,11 @@
       state.jobs.unshift(payload.job); renderRuntime();
       toast("Evaluation queued", "The run continues even if you leave this page.");
       const result = await pollJob(payload.job.id);
+      if (result.attention_required) {
+        toast("Live answers need attention", "No agent attempts have started.");
+        renderRuntime();
+        return;
+      }
       await loadRuns();
       if (result.canceled) showView("runs"); else await openRun(result.history_id);
     } catch (error) { toast("Could not run evaluation", error.message); }
@@ -924,6 +1073,7 @@
     const groups = [];
     const byId = new Map();
     const resultsByAttempt = new Map((evaluationResults || []).map((result) => [result.attempt_id, result]));
+    const pairedResultIds = new Set();
     (preparedItems || []).forEach((prepared) => {
       const group = { itemId: prepared.item_id, prepared, attempts: [] };
       groups.push(group);
@@ -936,9 +1086,23 @@
         groups.push(group);
         byId.set(answer.item_id, group);
       }
-      group.attempts.push({ answer, result: resultsByAttempt.get(answer.attempt_id) || null });
+      const result = resultsByAttempt.get(answer.attempt_id) || null;
+      if (result) pairedResultIds.add(result.attempt_id);
+      group.attempts.push({ answer, result });
     });
-    groups.forEach((group) => group.attempts.sort((left, right) => (left.answer.ordinal || 0) - (right.answer.ordinal || 0)));
+    (evaluationResults || []).forEach((result) => {
+      if (pairedResultIds.has(result.attempt_id)) return;
+      let group = byId.get(result.item_id);
+      if (!group) {
+        group = { itemId: result.item_id, prepared: {}, attempts: [] };
+        groups.push(group);
+        byId.set(result.item_id, group);
+      }
+      group.attempts.push({ answer: null, result });
+    });
+    groups.forEach((group) => group.attempts.sort((left, right) =>
+      ((left.answer || left.result)?.ordinal || 0) - ((right.answer || right.result)?.ordinal || 0)
+    ));
     return groups;
   }
 
@@ -1260,10 +1424,11 @@
   }
 
   function renderAttempt(attempt, prepared) {
-    const answer = attempt.answer;
+    const answer = attempt.answer || {};
     const result = attempt.result || {};
     const score = scoreValue(result.atom_score);
-    const attemptStatus = result.status || answer.status;
+    const identity = attempt.answer || result;
+    const attemptStatus = result.status || answer.status || "unavailable";
     const statusClass = result.status === "scored" ? (result.passed ? "good" : "bad") : (attemptStatus === "execution_failed" ? "bad" : "run");
     const atoms = prepared.gold_atoms || prepared.expected_atoms || [];
     const judgmentsByAtom = new Map((result.judgments || []).map((judgment) => [judgment.atom_id, judgment]));
@@ -1271,10 +1436,11 @@
       ? atoms
       : (result.judgments || []).map((judgment) => ({ id: judgment.atom_id, text: "", required: false }));
     const modelAnswer = answer.answer || result.answer;
-    return `<details class="attempt-result" data-attempt-id="${esc(answer.attempt_id)}">
+    const exposeLiveFailure = Boolean(result.live_validation);
+    return `<details class="attempt-result" data-attempt-id="${esc(identity.attempt_id)}"${exposeLiveFailure ? " open" : ""}>
       <summary>
         <span class="attempt-title">
-          <strong>Attempt ${esc(answer.ordinal)}</strong>
+          <strong>Attempt ${esc(identity.ordinal)}</strong>
           <span class="status ${statusClass}">${esc(attemptStatus)}</span>
         </span>
         <span class="attempt-score ${score === null ? "unscored" : (result.passed ? "passed" : "failed")}">${score === null ? "Not scored" : percent(score)}</span>
@@ -1284,7 +1450,8 @@
           <summary><span>Model answer</span><small>Full response</small></summary>
           <div class="evidence-copy">${esc(modelAnswer)}</div>
         </details>` : ""}
-        ${renderToolCalls(answer)}
+        ${attempt.answer ? renderToolCalls(answer) : `<div class="empty compact"><strong>No agent answer was created for this live-validation failure.</strong></div>`}
+        ${result.live_validation ? `<section class="attempt-error"><p class="field-label">Live validation</p><p>${esc(result.live_validation.reason.replaceAll("_", " "))} · ${esc(result.live_validation.phase.replaceAll("_", " "))}</p><p>${esc(result.live_validation.detail)}</p></section>` : ""}
         ${(result.error || answer.error) ? `<section class="attempt-error"><p class="field-label">Attempt error</p><p>${esc(readableError(result.error || answer.error))}</p></section>` : ""}
         ${displayedAtoms.length ? `<section class="atom-evidence" aria-label="Atom judgments">
           <div class="atom-evidence-head"><div><p class="eyebrow">Atom evidence</p><h3>Expected content and evaluator judgment</h3></div><span>${displayedAtoms.length} atom${displayedAtoms.length === 1 ? "" : "s"}</span></div>
@@ -1300,10 +1467,11 @@
     const scoreLabel = score.average === null ? "No scored attempts" : percent(score.average);
     const bestWorst = score.average === null
       ? `${group.attempts.length} attempt${group.attempts.length === 1 ? "" : "s"} · awaiting scores`
-      : `Best A${score.best.attempt.answer.ordinal} ${percent(score.best.score)} · Worst A${score.worst.attempt.answer.ordinal} ${percent(score.worst.score)}`;
-    return `<details class="question-result" data-question-id="${esc(group.itemId)}">
+      : `Best A${(score.best.attempt.answer || score.best.attempt.result).ordinal} ${percent(score.best.score)} · Worst A${(score.worst.attempt.answer || score.worst.attempt.result).ordinal} ${percent(score.worst.score)}`;
+    const exposeLiveFailure = group.attempts.some((attempt) => Boolean(attempt.result?.live_validation));
+    return `<details class="question-result" data-question-id="${esc(group.itemId)}"${exposeLiveFailure ? " open" : ""}>
       <summary>
-        <span class="question-summary-copy"><code>${esc(group.itemId)}</code><strong>${esc(question)}</strong></span>
+        <span class="question-summary-copy"><span class="question-summary-tags"><code>${esc(group.itemId)}</code>${group.prepared.time_sensitive ? `<span class="live-answer-label">Live answer</span>` : ""}</span><strong>${esc(question)}</strong></span>
         <span class="question-summary-score">
           <span><small>Average score</small><strong>${scoreLabel}</strong></span>
           <meter min="0" max="1" value="${score.average ?? 0}" aria-label="Average atom score for ${esc(group.itemId)}" aria-valuetext="${esc(scoreLabel)}">${scoreLabel}</meter>
@@ -1338,7 +1506,8 @@
         return;
       }
       const counts = summary.attempt_lifecycle_counts || {};
-      const retryableCount = (counts.execution_failed || 0) + (counts.evaluation_failed || 0);
+      const liveValidationFailed = counts.live_validation_failed || 0;
+      const retryableCount = (counts.execution_failed || 0) + (counts.evaluation_failed || 0) + liveValidationFailed;
       const retryButton = $("#retry-failed-evaluation");
       retryButton.hidden = retryableCount === 0 || run.capabilities?.retry_failed !== true;
       retryButton.disabled = false;
@@ -1376,6 +1545,8 @@
             <small>macro mean, scored only</small>
           </article>
           <article class="evidence-card"><span>Artifact schema</span><strong>${esc(manifest.schema_version || "—")}</strong><small>${esc(manifest.status || "unknown")}</small></article>
+          ${manifest.schema_version === "qa-v2" ? `<article class="evidence-card"><span>Truth source</span><strong>${manifest.contains_live_answers ? "Includes live answers" : "Static only"}</strong><small>source type, not a freshness guarantee</small></article>` : ""}
+          <article class="evidence-card"><span>Live validation failed</span><strong>${liveValidationFailed}</strong><small>excluded from quality and technical-failure rates</small></article>
         </div>
         <section class="panel"><div class="panel-head"><div><p class="eyebrow">Attempt evidence</p><h2>Answers and judgments</h2></div></div>
           <div class="result-list">${questionGroups.map((group) => renderQuestionGroup(group)).join("") || `<div class="empty"><strong>No question results are available.</strong></div>`}</div>
@@ -1409,6 +1580,50 @@
     }
   }
 
+  async function continueAttentionEvaluation() {
+    const job = activeJob();
+    if (!job || job.status !== "attention_required") return;
+    const button = $("#continue-evaluation");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/evaluations/jobs/${encodeURIComponent(job.id)}/continue`, { method: "POST" });
+      const index = state.jobs.findIndex((item) => item.id === job.id);
+      if (index >= 0) state.jobs[index] = payload.job;
+      renderRuntime();
+      toast("Live answers are being checked again", "Matching questions will start only after the fresh pre-check completes.");
+      const result = await pollJob(job.id);
+      if (result.attention_required) {
+        toast("Live answers still need attention", "No agent attempts have started.");
+        return;
+      }
+      await Promise.all([loadCatalog(), loadRuns()]);
+      await openRun(result.history_id);
+    } catch (error) {
+      button.disabled = false;
+      toast("Could not continue evaluation", error.message);
+    }
+  }
+
+  async function refreshAttentionEvaluation() {
+    const job = activeJob();
+    if (!job || job.status !== "attention_required") return;
+    const button = $("#refresh-live-evaluation");
+    button.disabled = true;
+    try {
+      const payload = await api(`/api/evaluations/jobs/${encodeURIComponent(job.id)}/refresh-live`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile_id: "builtin" })
+      });
+      const index = state.jobs.findIndex((item) => item.id === job.id);
+      if (index >= 0) state.jobs[index] = payload.closed_evaluation.job;
+      renderRuntime();
+      await openLiveRefreshJob(payload.job);
+    } catch (error) {
+      button.disabled = false;
+      toast("Could not refresh live snapshot", error.message);
+    }
+  }
+
   $$(".nav-item").forEach((item) => item.addEventListener("click", () => showView(item.dataset.view)));
   $$("[data-go]").forEach((item) => item.addEventListener("click", () => showView(item.dataset.go)));
   $("#dataset-search").addEventListener("input", renderDatasets);
@@ -1434,6 +1649,8 @@
   $("#evaluation-form").addEventListener("submit", launchEvaluation);
   $("#retry-failed-atoms").addEventListener("click", retryFailedAtoms);
   $("#retry-failed-evaluation").addEventListener("click", retryFailedEvaluation);
+  $("#continue-evaluation").addEventListener("click", continueAttentionEvaluation);
+  $("#refresh-live-evaluation").addEventListener("click", refreshAttentionEvaluation);
   $("#cancel-evaluation").addEventListener("click", async () => {
     const job = activeJob();
     if (!job || job.kind !== "evaluation") return;

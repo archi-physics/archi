@@ -2,11 +2,12 @@
 """Deterministic local runtime for evaluation-console browser tests."""
 
 import os
+import sys
 import time
 from collections import Counter
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, jsonify, request
 
 import src.evaluation.qa.console as console_module
 import src.evaluation.qa.jobs as jobs_module
@@ -42,9 +43,36 @@ class FakeEvaluator:
             ]
         }
 
+    def compare(self, question, gold_atoms, answer):
+        return {
+            "judgments": [
+                {
+                    "atom_id": atom.id,
+                    "outcome": "entailed",
+                    "rationale": "Deterministic browser fixture.",
+                }
+                for atom in gold_atoms
+            ]
+        }
+
+
+class FakeAgentRuntime:
+    def __init__(self, *_args, **_kwargs):
+        self.tool_calls = []
+
+    def run(self, question):
+        self.tool_calls = []
+        return f"Deterministic answer for: {question}"
+
 
 class FakeWorkflow:
     require_worker_count = staticmethod(ProductionQAWorkflow.require_worker_count)
+
+    def run(self, *args, **kwargs):
+        return ProductionQAWorkflow().run(*args, **kwargs)
+
+    def score(self, *args, **kwargs):
+        return ProductionQAWorkflow().score(*args, **kwargs)
 
     def composite(
         self,
@@ -57,7 +85,28 @@ class FakeWorkflow:
         overwrite=False,
         run_workers=1,
         score_workers=1,
+        mcp_config_path=None,
+        trusted_dataset=False,
+        pause_on_live_mismatch=False,
     ):
+        from src.evaluation.qa.dataset import DatasetSchemaVersion, iter_dataset_items
+
+        first_item = next(iter_dataset_items(dataset, allow_materialized_live=True))
+        if first_item.schema_version is DatasetSchemaVersion.V2:
+            return ProductionQAWorkflow().composite(
+                dataset,
+                agent_config,
+                agent_spec,
+                output_dir,
+                evaluator_profile_path=evaluator_profile_path,
+                attempts=attempts,
+                overwrite=overwrite,
+                run_workers=run_workers,
+                score_workers=score_workers,
+                mcp_config_path=mcp_config_path,
+                trusted_dataset=trusted_dataset,
+                pause_on_live_mismatch=pause_on_live_mismatch,
+            )
         from src.evaluation.qa.validation import load_dataset
 
         all_items = load_dataset(dataset)[1]
@@ -252,6 +301,8 @@ class FakeWorkflow:
 
     def retry_plan(self, parent_run_dir):
         manifest = read_json(parent_run_dir / "manifest.json")
+        if manifest.get("schema_version") == "qa-v2":
+            return ProductionQAWorkflow().retry_plan(parent_run_dir)
         results = read_jsonl(parent_run_dir / "evaluation_results.jsonl")
         retryable = [
             result
@@ -262,26 +313,27 @@ class FakeWorkflow:
             raise ValueError("evaluation run has no failed attempts to retry")
         return {
             "parent_run_id": manifest["run_id"],
-            "retry_attempt_ids": [result["attempt_id"] for result in retryable],
-            "execution_attempt_ids": [
-                result["attempt_id"]
-                for result in retryable
-                if result["status"] == "execution_failed"
-            ],
-            "evaluation_attempt_ids": [
-                result["attempt_id"]
-                for result in retryable
-                if result["status"] == "evaluation_failed"
-            ],
-            "carried_forward_attempt_ids": [
-                result["attempt_id"]
-                for result in results
-                if result["status"] == "scored"
-            ],
+            "retry_attempt_count": len(retryable),
+            "execution_attempt_count": sum(
+                result["status"] == "execution_failed" for result in retryable
+            ),
+            "evaluation_attempt_count": sum(
+                result["status"] == "evaluation_failed" for result in retryable
+            ),
+            "live_validation_attempt_count": 0,
+            "carried_forward_attempt_count": sum(
+                result["status"] == "scored" for result in results
+            ),
         }
 
-    def retry(self, parent_run_dir, output_dir):
+    def retry(self, parent_run_dir, output_dir, mcp_config_path=None):
         parent_manifest = read_json(parent_run_dir / "manifest.json")
+        if parent_manifest.get("schema_version") == "qa-v2":
+            return ProductionQAWorkflow().retry(
+                parent_run_dir,
+                output_dir,
+                mcp_config_path=mcp_config_path,
+            )
         plan = self.retry_plan(parent_run_dir)
         preparation = read_jsonl(parent_run_dir / "preparation.jsonl")
         prepared = [row for row in preparation if row["status"] == "prepared"]
@@ -293,7 +345,11 @@ class FakeWorkflow:
         prepared_by_id = {row["item_id"]: row for row in prepared}
         successor_answers = []
         successor_results = []
-        retry_ids = set(plan["retry_attempt_ids"])
+        retry_ids = {
+            result["attempt_id"]
+            for result in parent_results
+            if result["status"] in {"execution_failed", "evaluation_failed"}
+        }
         for result in parent_results:
             attempt_id = result["attempt_id"]
             if attempt_id not in retry_ids:
@@ -409,8 +465,22 @@ def create_app():
     config_path = root / "config.yaml"
     write_text(
         config_path,
-        "services:\n  chat_app:\n    agent_class: FakeAgent\n"
+        "services:\n  chat_app:\n    agent_class: CMSCompOpsAgent\n"
         "    default_provider: fake\n    default_model: fake-model\n",
+    )
+    live_value_path = root / "live-value.txt"
+    write_text(live_value_path, "7\n")
+    os.environ["QA_FAKE_MCP_VALUE_FILE"] = str(live_value_path)
+    mcp_config_path = root / "qa_evaluation_mcp.yaml"
+    write_text(
+        mcp_config_path,
+        "schema_version: qa-evaluation-mcp-v1\n"
+        "servers:\n"
+        "  fixture:\n"
+        "    transport: stdio\n"
+        f"    command: {sys.executable}\n"
+        "    args: [-m, tests.unit.evaluation.qa.fake_mcp_server]\n"
+        "    authentication: {mode: inherited_environment}\n",
     )
     console_module.LangChainEvaluatorRuntime = lambda profile: FakeEvaluator()
     console_module.QAWorkflow = FakeWorkflow
@@ -427,12 +497,22 @@ def create_app():
         root,
         agent_config_path=config_path,
         agents_dir=repository / "examples/agents",
+        mcp_config_path=mcp_config_path,
     )
 
-    def allow(_permission):
-        return lambda view: view
+    @app.post("/api/evaluation-test/live-value")
+    def set_live_value():
+        payload = request.get_json()
+        value = payload.get("value") if isinstance(payload, dict) else None
+        if isinstance(value, bool) or not isinstance(value, int):
+            return jsonify({"error": "value must be an integer"}), 400
+        write_text(live_value_path, f"{value}\n")
+        return jsonify({"value": value})
 
-    register_evaluations(app, require_perm=allow, service=service)
+    def allow(_permission):
+        return None
+
+    register_evaluations(app, authorize_request=allow, service=service)
     return app
 
 

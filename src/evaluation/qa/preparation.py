@@ -15,13 +15,28 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    Union,
 )
 
 from .artifacts import iter_jsonl
+from .oracle import (
+    DIAGNOSTIC_LIMIT,
+    OracleCallEvidence,
+    OracleRecipe,
+    OracleResolutionError,
+    OracleResolver,
+    answer_sha256,
+    bounded_diagnostic,
+    canonical_json,
+    oracle_call_evidence_from_dict,
+    parse_oracle_recipe,
+    validate_json_value,
+)
 from .validation import (
     ANSWER_MODE_VALUES,
     Atom,
     DatasetItem,
+    DatasetItemState,
     validate_atoms,
     validate_gold_output,
     validate_nonempty_string,
@@ -34,6 +49,7 @@ from .validation import (
 PreparationStatus = Literal[
     "prepared",
     "skipped_time_sensitive",
+    "skipped_live",
     "preparation_failed",
 ]
 AtomSource = Literal["supplied", "inferred"]
@@ -60,11 +76,15 @@ class PreparationRecord:
     answer_mode: Optional[str] = None
     answer_source: Optional[str] = None
     question: Optional[str] = None
-    answer: Optional[str] = None
+    answer: Optional[Union[str, Dict[str, Any]]] = None
     time_sensitive: Optional[bool] = None
     gold_atoms: Optional[Tuple[Atom, ...]] = None
     atom_source: Optional[AtomSource] = None
     error: Optional[str] = None
+    oracle: Optional[OracleRecipe] = None
+    answer_sha256: Optional[str] = None
+    oracle_metadata: Optional[Dict[str, Any]] = None
+    oracle_calls: Optional[Tuple[OracleCallEvidence, ...]] = None
 
     def __post_init__(self) -> None:
         validate_nonempty_string(self.item_id, "preparation item_id")
@@ -84,6 +104,7 @@ class PreparationRecord:
         if self.status not in {
             "prepared",
             "skipped_time_sensitive",
+            "skipped_live",
             "preparation_failed",
         }:
             raise ValueError("unsupported preparation status")
@@ -93,33 +114,73 @@ class PreparationRecord:
                 "prepared record question",
                 normalize_newlines=True,
             )
-            normalized_answer = validate_nonempty_string(
-                self.answer,
-                "prepared record answer",
-                normalize_newlines=True,
-            )
-            if normalized_question != self.question or normalized_answer != self.answer:
+            if normalized_question != self.question:
                 raise ValueError("prepared record text must use normalized newlines")
-            if self.time_sensitive is not False:
-                raise ValueError("time-sensitive item cannot be prepared")
             if not self.gold_atoms:
                 raise ValueError("prepared record requires gold atoms")
             if self.atom_source not in {"supplied", "inferred"}:
                 raise ValueError("prepared record requires an atom source")
             if self.error is not None:
                 raise ValueError("prepared record cannot contain an error")
+            if self.time_sensitive is False:
+                normalized_answer = validate_nonempty_string(
+                    self.answer,
+                    "prepared record answer",
+                    normalize_newlines=True,
+                )
+                if normalized_answer != self.answer:
+                    raise ValueError(
+                        "prepared record text must use normalized newlines"
+                    )
+                if any(
+                    value is not None
+                    for value in (
+                        self.oracle,
+                        self.answer_sha256,
+                        self.oracle_metadata,
+                        self.oracle_calls,
+                    )
+                ):
+                    raise ValueError("static prepared record has live-only fields")
+                return
+            if self.time_sensitive is not True:
+                raise ValueError("prepared record requires time_sensitive boolean")
+            if (
+                not isinstance(self.answer, dict)
+                or not self.answer
+                or self.oracle is None
+                or self.answer_sha256 != answer_sha256(self.answer)
+                or not isinstance(self.oracle_metadata, dict)
+                or not isinstance(self.oracle_calls, tuple)
+            ):
+                raise ValueError("live prepared record has invalid live truth fields")
+            validate_json_value(self.oracle_metadata, "live prepared oracle_metadata")
             return
         if self.status == "preparation_failed":
             if self.error is None:
                 raise ValueError("failed preparation requires an error")
-            if not isinstance(self.error, str):
-                raise ValueError("failed preparation error must be a string")
+            if (
+                not isinstance(self.error, str)
+                or not self.error
+                or len(self.error) > DIAGNOSTIC_LIMIT
+            ):
+                raise ValueError(
+                    "failed preparation error must be bounded non-empty text"
+                )
+            validate_nonempty_string(self.error, "failed preparation error")
             if (
                 self.question is not None
                 or self.answer is not None
                 or self.time_sensitive is not None
                 or self.gold_atoms is not None
                 or self.atom_source is not None
+                or self.oracle is not None
+                or self.answer_sha256 is not None
+                or self.oracle_metadata is not None
+                or (
+                    self.oracle_calls is not None
+                    and not isinstance(self.oracle_calls, tuple)
+                )
             ):
                 raise ValueError("failed preparation cannot contain prepared output")
             return
@@ -130,6 +191,10 @@ class PreparationRecord:
             or self.gold_atoms is not None
             or self.atom_source is not None
             or self.error is not None
+            or self.oracle is not None
+            or self.answer_sha256 is not None
+            or self.oracle_metadata is not None
+            or self.oracle_calls is not None
         ):
             raise ValueError("skipped preparation cannot contain output")
 
@@ -146,7 +211,7 @@ class PreparationRecord:
         return self.question
 
     @property
-    def prepared_answer(self) -> str:
+    def prepared_answer(self) -> Union[str, Dict[str, Any]]:
         if self.status != "prepared" or self.answer is None:
             raise ValueError("preparation record is not prepared")
         return self.answer
@@ -169,8 +234,27 @@ class PreparationRecord:
                     "gold_atoms": [atom.to_dict() for atom in self.prepared_gold_atoms],
                 }
             )
+            if self.time_sensitive:
+                assert self.oracle is not None
+                assert self.answer_sha256 is not None
+                assert self.oracle_metadata is not None
+                assert self.oracle_calls is not None
+                row.update(
+                    {
+                        "oracle": self.oracle.to_dict(),
+                        "answer_sha256": self.answer_sha256,
+                        "oracle_metadata": self.oracle_metadata,
+                        "oracle_calls": [
+                            evidence.to_dict() for evidence in self.oracle_calls
+                        ],
+                    }
+                )
         elif self.status == "preparation_failed":
             row["error"] = self.error
+            if self.oracle_calls is not None:
+                row["oracle_calls"] = [
+                    evidence.to_dict() for evidence in self.oracle_calls
+                ]
         return row
 
 
@@ -182,10 +266,14 @@ def prepare_dataset_items(
 
 
 def prepare_dataset_item(
-    item: DatasetItem, extractor: GoldExtractor
+    item: DatasetItem,
+    extractor: GoldExtractor,
+    oracle_resolver: Optional[OracleResolver] = None,
+    *,
+    skip_live: bool = False,
 ) -> PreparationRecord:
     """Prepare one validated dataset item into one terminal record."""
-    if item.time_sensitive:
+    if item.state is DatasetItemState.LEGACY_TIME_SENSITIVE:
         return PreparationRecord(
             item_id=item.id,
             status="skipped_time_sensitive",
@@ -193,25 +281,77 @@ def prepare_dataset_item(
             answer_mode=item.answer_mode,
             answer_source=item.answer_source,
         )
+    if item.is_live and skip_live:
+        return PreparationRecord(
+            item_id=item.id,
+            status="skipped_live",
+            category=item.category,
+            answer_mode=item.answer_mode,
+            answer_source=item.answer_source,
+        )
     try:
+        resolved = None
+        if item.state is DatasetItemState.UNRESOLVED_LIVE:
+            if oracle_resolver is None or item.oracle is None:
+                raise ValueError("live preparation requires an evaluator MCP registry")
+            resolved = oracle_resolver.resolve(item.oracle)
+            answer: Union[str, Dict[str, Any]] = resolved.answer
+        elif item.state is DatasetItemState.MATERIALIZED_LIVE:
+            if not isinstance(item.answer, dict) or item.oracle is None:
+                raise ValueError("materialized live item is incomplete")
+            answer = item.answer
+        else:
+            answer = item.answer_for_extraction()
         if item.expected_atoms is not None:
             gold_atoms = item.expected_atoms
             atom_source: AtomSource = "supplied"
         else:
             gold_atoms = validate_gold_output(
-                extractor.extract_gold(item.question, item.answer),
+                extractor.extract_gold(
+                    item.question,
+                    (
+                        item.answer_for_extraction()
+                        if isinstance(answer, str)
+                        else canonical_json(answer)
+                    ),
+                ),
                 context=f"gold extraction for item {item.id}",
             )
             atom_source = "inferred"
     except Exception as exc:
+        if isinstance(exc, OracleResolutionError):
+            detail: Any = exc.detail
+        elif item.is_live:
+            detail = f"Gold extraction failed ({type(exc).__name__})."
+        else:
+            detail = exc
         return PreparationRecord(
             item_id=item.id,
             status="preparation_failed",
             category=item.category,
             answer_mode=item.answer_mode,
             answer_source=item.answer_source,
-            error=str(exc),
+            error=bounded_diagnostic(detail),
+            oracle_calls=(
+                exc.calls
+                if isinstance(exc, OracleResolutionError)
+                else (resolved.calls if resolved is not None else None)
+            ),
         )
+    live_fields: Dict[str, Any] = {}
+    if item.is_live:
+        assert isinstance(answer, dict)
+        assert item.oracle is not None
+        live_fields = {
+            "oracle": item.oracle,
+            "answer_sha256": (
+                resolved.answer_sha256
+                if resolved is not None
+                else answer_sha256(answer)
+            ),
+            "oracle_metadata": resolved.metadata if resolved is not None else {},
+            "oracle_calls": resolved.calls if resolved is not None else (),
+        }
     return PreparationRecord(
         item_id=item.id,
         status="prepared",
@@ -219,10 +359,11 @@ def prepare_dataset_item(
         answer_mode=item.answer_mode,
         answer_source=item.answer_source,
         question=item.question,
-        answer=item.answer,
+        answer=answer,
         time_sensitive=item.time_sensitive,
         gold_atoms=tuple(gold_atoms),
         atom_source=atom_source,
+        **live_fields,
     )
 
 
@@ -246,6 +387,7 @@ def _record_from_row(row: Dict[str, Any], *, index: int) -> PreparationRecord:
     if status not in {
         "prepared",
         "skipped_time_sensitive",
+        "skipped_live",
         "preparation_failed",
     }:
         raise ValueError(f"{context} has an unsupported status")
@@ -266,7 +408,17 @@ def _record_from_row(row: Dict[str, Any], *, index: int) -> PreparationRecord:
         },
         "preparation_failed": {"error"},
         "skipped_time_sensitive": set(),
+        "skipped_live": set(),
     }[status]
+    if status == "prepared" and row.get("time_sensitive") is True:
+        status_fields |= {
+            "oracle",
+            "answer_sha256",
+            "oracle_metadata",
+            "oracle_calls",
+        }
+    if status == "preparation_failed" and "oracle_calls" in row:
+        status_fields.add("oracle_calls")
     _require_exact_keys(row, base_fields | status_fields, context=context)
     common = {
         "item_id": row["item_id"],
@@ -288,6 +440,24 @@ def _record_from_row(row: Dict[str, Any], *, index: int) -> PreparationRecord:
             time_sensitive=row["time_sensitive"],
             gold_atoms=gold_atoms,
             atom_source=atom_source,
+            oracle=(
+                parse_oracle_recipe(row["oracle"], f"{context}.oracle")
+                if row["time_sensitive"] is True
+                else None
+            ),
+            answer_sha256=row.get("answer_sha256"),
+            oracle_metadata=row.get("oracle_metadata"),
+            oracle_calls=(
+                tuple(
+                    oracle_call_evidence_from_dict(
+                        evidence,
+                        f"{context}.oracle_calls[{call_index}]",
+                    )
+                    for call_index, evidence in enumerate(row.get("oracle_calls", []))
+                )
+                if row["time_sensitive"] is True
+                else None
+            ),
         )
 
     if status == "preparation_failed":
@@ -295,8 +465,19 @@ def _record_from_row(row: Dict[str, Any], *, index: int) -> PreparationRecord:
             **common,
             status="preparation_failed",
             error=row["error"],
+            oracle_calls=(
+                tuple(
+                    oracle_call_evidence_from_dict(
+                        evidence,
+                        f"{context}.oracle_calls[{call_index}]",
+                    )
+                    for call_index, evidence in enumerate(row.get("oracle_calls", []))
+                )
+                if "oracle_calls" in row
+                else None
+            ),
         )
-    return PreparationRecord(**common, status="skipped_time_sensitive")
+    return PreparationRecord(**common, status=status)
 
 
 def _validate_expected_count(expected_count: Optional[int]) -> None:
@@ -332,9 +513,14 @@ def iter_preparation_records(
     path: Path, *, expected_count: Optional[int] = None
 ) -> Iterator[PreparationRecord]:
     """Validate and yield the authoritative preparation artifact incrementally."""
-    yield from _iter_preparation_rows(
-        iter_jsonl(path), expected_count=expected_count
-    )
+    yield from _iter_preparation_rows(iter_jsonl(path), expected_count=expected_count)
+
+
+def preparation_record_from_dict(
+    row: Dict[str, Any], *, context_index: int = 1
+) -> PreparationRecord:
+    """Validate one already-decoded preparation row."""
+    return _record_from_row(row, index=context_index)
 
 
 def load_preparation_records(

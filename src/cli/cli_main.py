@@ -688,7 +688,7 @@ def install(name: str, config_files: list, config_dir: str, templates_dir: str, 
     volume_manager = VolumeManager(helm=True)
     volume_manager.create_volume_templates(base_dir, helm_config, env=env, name=helm_name)
 
-    helm_template_manager.prepare_deployment_files(
+    template_context = helm_template_manager.prepare_deployment_files(
         helm_config,
         config_manager,
         secrets_manager,
@@ -707,7 +707,10 @@ def install(name: str, config_files: list, config_dir: str, templates_dir: str, 
         env=env,
         name=helm_name,
         use_selenium=use_selenium,
-        template_vars=helm_config.to_template_vars(),
+        template_vars={
+            **helm_config.to_template_vars(),
+            "evaluation_mcp_configured": template_context.evaluation_mcp_configured,
+        },
     )
     
     if not dry:

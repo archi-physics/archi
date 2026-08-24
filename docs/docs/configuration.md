@@ -97,21 +97,34 @@ services:
               - alerts:manage
 ```
 
-#### `services.chat_app.evaluations`
+#### Chat-app evaluation configuration
 
 The evaluation console is opt-in. Both `archi create` and the chat runtime
 disable it when `enabled` is omitted or `false`. Set `enabled: true` explicitly
 to expose the console and its APIs. When enabled, it persists catalogs,
-atom-review drafts, jobs, and run artifacts under one root.
+atom-review drafts, jobs, and run artifacts.
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `enabled` | boolean | `false` | Expose the console and APIs at `/evaluations` only when explicitly `true` |
-| `root` | path | `/root/archi/evaluations` | Persistent evaluation workspace |
-| `agent_config_path` | path | `/root/archi/configs/config.yaml` | Resolved Archi YAML used for UI-launched runs |
+```yaml
+services:
+  chat_app:
+    agents_dir: ../configs/agents
+    evaluations:
+      enabled: true
+      mcp_config_path: ../configs/qa_evaluation_mcp.yaml
+```
 
-See the [Evaluation Guide](evaluation.md) for input formats,
-CLI and console workflows, artifacts, states, and RBAC permissions.
+- `agents_dir` points to the host directory of Markdown agent specs that the
+  Console offers for selection.
+- `evaluations.enabled` must be `true` to expose `/evaluations` and its APIs.
+- `evaluations.mcp_config_path` is needed only for Dataset V2 live oracle
+  items. It is an absolute host path or a path relative to this deployment YAML.
+  Archi validates and stages the referenced evaluator MCP registry.
+
+Top-level `mcp_servers` configures tools available to the tested agent; it is
+not reused as the evaluator registry. See
+[Chat-app evaluation configuration](evaluation.md#chat-app-evaluation-configuration)
+and [Evaluator MCP registry](evaluation.md#evaluator-mcp-registry) for path
+resolution, runtime reachability, authentication, and schema rules.
 
 #### `services.chat_app.auth`
 

@@ -1,9 +1,11 @@
 # Benchmarking
 
-Archi provides two benchmarking functionalities: the `archi evaluate` (deprecated) CLI command to measure retrieval quality, and the newer `archi eval qa` command to perform atom-based correctness tevaluation of complete agent answers, repeated attempts, manual
-
-gold-atom review, and persisted per-attempt evidence. For a more detailed guide use the separate
-[Evaluation Guide](evaluation.md).
+Archi provides two evaluation workflows. The deprecated `archi evaluate` CLI
+command measures retrieval and RAGAS quality. The newer `archi eval qa` command
+and browser console perform atom-based correctness evaluation of complete agent
+answers, repeated attempts, optional manual gold-atom review, live Dataset V2
+checks, and persisted per-attempt tool evidence. See the separate
+[Evaluation Guide](evaluation.md) for the current workflow.
 
 ## Evaluation Modes
 

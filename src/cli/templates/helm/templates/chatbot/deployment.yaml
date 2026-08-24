@@ -63,6 +63,11 @@ spec:
               name: {{ name }}-chatbot-pvc
             - mountPath: /root/archi/configs
               name: {{ name }}-chat-config
+{% if evaluation_mcp_configured | default(false) %}
+            - mountPath: /root/archi/evaluation_config
+              name: {{ name }}-evaluation-config
+              readOnly: true
+{% endif %}
             - mountPath: /root/archi/evaluations
               name: {{ name }}-chatbot-pvc
               subPath: evaluations
@@ -105,6 +110,11 @@ spec:
         - configMap:
             name: {{ name }}-chat-config
           name: {{ name }}-chat-config
+{% if evaluation_mcp_configured | default(false) %}
+        - configMap:
+            name: {{ name }}-evaluation-config
+          name: {{ name }}-evaluation-config
+{% endif %}
         - name: {{ name }}-condense-prompts
           configMap:
             name: {{ name }}-condense-prompts

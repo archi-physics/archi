@@ -74,6 +74,7 @@ def test_render_config_files_rewrites_ab_agents_dir_to_runtime_path(tmp_path):
         base_dir=tmp_path / "deployment",
         config_manager=_FakeConfigManager(config),
         plan=SimpleNamespace(host_mode=False, verbosity=0),
+        evaluation_mcp_configured=False,
         helm = False,
     )
 
@@ -106,6 +107,7 @@ def test_render_config_files_preserves_benchmarking_rewrite_with_explicit_flag(t
         config_manager=_FakeConfigManager(config),
         plan=SimpleNamespace(host_mode=False, verbosity=0),
         benchmarking=True,
+        evaluation_mcp_configured=False,
         helm = False,
     )
 

@@ -166,6 +166,61 @@ def test_dataset_import_preserves_mocked_source_and_reports_metadata(tmp_path):
     assert "answer" not in metadata
 
 
+def test_legacy_catalog_entry_is_verified_and_backfilled_on_upgrade(tmp_path):
+    from src.evaluation.qa.artifacts import write_json
+
+    catalog = EvaluationCatalog(tmp_path)
+    metadata, _ = catalog.import_dataset("Legacy", "legacy.json", _dataset_blob())
+    directory = catalog.datasets_dir / metadata["id"]
+    legacy_metadata = {
+        key: value
+        for key, value in metadata.items()
+        if key
+        not in {
+            "schema_version",
+            "dataset_role",
+            "publication_schema",
+            "based_on_child_id",
+            "generation_scope",
+            "approval_actor",
+            "approval_time",
+            "contains_live_answers",
+        }
+    }
+    write_json(directory / "metadata.json", legacy_metadata)
+    (directory / "integrity.json").unlink()
+
+    upgraded = catalog.get_dataset(metadata["id"])
+
+    assert upgraded == {
+        **legacy_metadata,
+        "schema_version": "qa-dataset-v1",
+        "dataset_role": "legacy",
+        "publication_schema": "qa-dataset-v1",
+        "based_on_child_id": None,
+        "generation_scope": None,
+        "approval_actor": None,
+        "approval_time": None,
+        "contains_live_answers": False,
+    }
+    assert (directory / "integrity.json").is_file()
+
+
+def test_catalog_rejects_integrity_bound_metadata_with_invalid_semantic_role(tmp_path):
+    from src.evaluation.qa.artifacts import read_json, write_json
+
+    catalog = EvaluationCatalog(tmp_path)
+    metadata, _ = catalog.import_dataset("Dataset", "dataset.json", _dataset_blob())
+    directory = catalog.datasets_dir / metadata["id"]
+    invalid = read_json(directory / "metadata.json")
+    invalid["dataset_role"] = "definition"
+    write_json(directory / "metadata.json", invalid)
+    catalog._write_dataset_integrity(directory, f"source.{metadata['format']}")
+
+    with pytest.raises(ValueError, match="invalid role"):
+        catalog.get_dataset(metadata["id"])
+
+
 def test_dataset_import_is_immutable_and_content_deduplicated(tmp_path):
     catalog = EvaluationCatalog(tmp_path)
     first, created = catalog.import_dataset("One", "set.json", _dataset_blob())
@@ -206,6 +261,40 @@ def test_atom_review_creates_new_dataset_and_preserves_parent_bytes(tmp_path):
     child_items = load_dataset(catalog.dataset_path(child["id"]))[1]
     assert child_items[0].expected_atoms[0].text == "Double checked"
     assert child_items[1].expected_atoms is None
+
+
+def test_pre_upgrade_inline_atom_draft_can_still_be_saved(tmp_path):
+    from src.evaluation.qa.artifacts import write_json
+
+    catalog = EvaluationCatalog(tmp_path)
+    parent, _ = catalog.import_dataset("Parent", "set.json", _dataset_blob())
+    draft = catalog.create_atom_draft(parent["id"], "builtin", _Evaluator())
+    draft_path = catalog.drafts_dir / draft["id"] / "draft.json"
+    legacy = {
+        key: value
+        for key, value in draft.items()
+        if key
+        in {
+            "id",
+            "dataset_id",
+            "dataset_name",
+            "profile_id",
+            "status",
+            "created_at",
+            "items",
+        }
+    }
+    write_json(draft_path, legacy)
+    (draft_path.parent / "items.jsonl").unlink()
+
+    child = catalog.save_reviewed_dataset(
+        draft["id"],
+        "Legacy reviewed",
+        [{"item_id": "eligible", "atoms": draft["items"][0]["atoms"]}],
+    )
+
+    assert child["parent_dataset_id"] == parent["id"]
+    assert child["dataset_role"] == "approved_child"
 
 
 def test_review_draft_preserves_existing_atoms_and_leaves_missing_atoms_empty(tmp_path):
@@ -306,7 +395,9 @@ def test_review_is_rejected_when_dataset_contains_zero_atoms(tmp_path):
         catalog.create_atom_review_draft(dataset["id"])
 
 
-def test_atom_retry_updates_only_failed_rows_in_the_same_open_draft(tmp_path):
+def test_atom_retry_updates_only_failed_rows_in_the_same_open_draft(
+    monkeypatch, tmp_path
+):
     catalog = EvaluationCatalog(tmp_path)
     dataset, _ = catalog.import_dataset(
         "Two items", "two.json", _two_item_dataset_blob()
@@ -316,6 +407,13 @@ def test_atom_retry_updates_only_failed_rows_in_the_same_open_draft(tmp_path):
     draft = catalog.create_atom_draft(dataset["id"], "builtin", initial)
     first_before = draft["items"][0]
     retry = _SelectiveEvaluator()
+    monkeypatch.setattr(
+        catalog,
+        "dataset_items",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("atom retry must stream the dataset")
+        ),
+    )
 
     retried = catalog.retry_failed_atom_items(draft["id"], retry)
 

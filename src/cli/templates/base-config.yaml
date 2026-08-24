@@ -133,6 +133,7 @@ services:
       enabled: {{ services.chat_app.evaluations.enabled is sameas true }}
       root: "{{ services.chat_app.evaluations.root | default('/root/archi/evaluations', true) }}"
       agent_config_path: "{{ services.chat_app.evaluations.agent_config_path | default('/root/archi/configs/config.yaml', true) }}"
+      mcp_config_path: {{ services.chat_app.evaluations.mcp_config_path | default(none, true) | tojson }}
     auth:
       enabled: {{ services.chat_app.auth.enabled | default(false, true) }}
       sso:

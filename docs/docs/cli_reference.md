@@ -219,23 +219,64 @@ The YAML must define `services.chat_app.agent_class`, `default_provider`, and
 `default_model`. The Markdown frontmatter selects tools and its body is the
 agent system prompt.
 
-A minimal JSON row is:
+A minimal Dataset V2 JSON document is:
 
 ```json
 {
-  "question": "How much quota remains?",
-  "answer": "The account has 2.8 TB remaining.",
-  "time_sensitive": false
+  "schema_version": "qa-dataset-v2",
+  "items": [{
+    "id": "quota-remaining",
+    "question": "How much quota remains?",
+    "answer": "The account has 2.8 TB remaining.",
+    "time_sensitive": false
+  }]
 }
 ```
 
-The dataset may be a JSON array or a JSONL stream. Rows are strict. Optional
-fields are `id`, `category`, `answer_mode`, `answer_source`, and
-`expected_atoms`. `answer_source` is a non-empty free-form string, so the
-original Golden Set v2 values are accepted directly. A row with
-`time_sensitive: true` is recorded as skipped before any model or agent call.
-Canonical answers and gold atoms are stored in the evaluation workspace and are
-never passed to the tested agent.
+The dataset uses an explicit `qa-dataset-v2` JSON envelope or JSONL version
+header. Every item requires an `id`, `question`, and `time_sensitive` value.
+Static items require a string `answer`; live items require an oracle and omit
+the unresolved answer. Optional fields include `category`, `answer_mode`,
+`answer_source`, and static-item `expected_atoms`. `answer_source` is a
+non-empty free-form string, so original Golden Set v2 values are accepted
+directly. Canonical answers and gold atoms are stored in the evaluation
+workspace and are never passed to the tested agent.
+
+For live-state questions, use Dataset V2 and an evaluator-only MCP registry:
+
+```json
+{
+  "schema_version": "qa-dataset-v2",
+  "items": [{
+    "id": "current-quota",
+    "question": "How much quota remains?",
+    "time_sensitive": true,
+    "oracle": {
+      "kind": "mcp",
+      "calls": [{
+        "id": "quota",
+        "server": "operations-readonly",
+        "tool": "get_quota",
+        "arguments": {},
+        "answer_fields": {"remaining": "/remaining"}
+      }]
+    }
+  }]
+}
+```
+
+Pass `--mcp-config qa_evaluation_mcp.yaml` to the composite, `prepare`, and `run`
+commands. The registry maps the recipe alias to a deployment-owned MCP
+transport and environment-backed credentials; it is never added to the tested
+agent configuration. `--skip-live` on the composite or `prepare` command omits
+live rows without making MCP or model calls. `score` accepts neither option.
+
+`--mcp-config` is a direct filesystem path for the CLI process. The browser
+console instead uses `services.chat_app.evaluations.mcp_config_path` in the
+deployment YAML; that value is a host source path, resolved relative to the
+deployment YAML and staged into the generated deployment's dedicated
+`evaluation_config/` directory. It is not an in-container path and is separate
+from the tested agent's top-level `mcp_servers` configuration.
 
 The same workflow can be run as three separate stages. This is useful when you
 want to inspect the generated atoms before running Archi or inspect Archi's
@@ -246,6 +287,7 @@ answers before scoring them.
 ```bash
 archi eval qa prepare questions.jsonl \
   --evaluator-profile evaluator.yaml \
+  --mcp-config qa_evaluation_mcp.yaml \
   --output-dir evaluation-run/
 ```
 
@@ -260,11 +302,12 @@ used.
 
 The command snapshots the input dataset and writes exactly one terminal record
 per input item to `preparation.jsonl`. Prepared records contain the normalized
-question, hidden canonical answer, fixed atoms, and atom source; other records
-contain a time-sensitive skip or item-scoped atom-extraction failure. The same
-artifact determines both run eligibility and preparation lifecycle counts. The
-command also stores the resolved evaluator profile in the run workspace. It
-does not run Archi or generate answers.
+question, hidden canonical or resolved answer, fixed atoms, and atom source;
+other records contain an intentional `--skip-live` omission or an item-scoped
+oracle/atom-extraction failure. The
+same artifact determines both run eligibility and preparation lifecycle
+counts. The command also stores the resolved evaluator profile in the run
+workspace. It does not run Archi or generate tested-agent answers.
 
 #### 2. Run Archi
 
@@ -272,6 +315,7 @@ does not run Archi or generate answers.
 archi eval qa run evaluation-run/ \
   --agent-config agent.yaml \
   --agent-spec agent.md \
+  --mcp-config qa_evaluation_mcp.yaml \
   --attempts 4 \
   --run-workers 4
 ```
@@ -311,10 +355,9 @@ summary to `report.md`. It does not invoke Archi again.
 
 #### Understanding the output
 
-Current commands write workspace schema `qa-v1`. Earlier `qa-v0` workspaces
-that used separate preparation files are left unchanged. Current run, score,
-and retry commands do not accept them, but the browser history console can
-inspect intact `qa-v0` workspaces through a read-only in-memory projection.
+Current commands write workspace schema `qa-v2`. Input datasets use
+`qa-dataset-v2`, including strict live recipes, materialized answers, and
+`live_checks.jsonl` evidence.
 
 At the end of a successful evaluation, the main result for a person to inspect
 is `report.md` in the selected output directory:
@@ -333,7 +376,8 @@ more detailed analysis or automation, the same workspace contains:
 | `summary.json` | Machine-readable aggregate and per-item metrics, lifecycle counts, atom pass rates, and configuration provenance hashes. |
 | `evaluation_results.jsonl` | One terminal scoring record per attempt: the Archi answer, each atom's outcome and evaluator rationale, numeric scores and pass result, or an evaluation/execution failure. |
 | `answers.jsonl` | The verbatim answer produced by Archi for every attempt, or its terminal execution error, plus total attempt latency and complete ordered tool-call query/response or error evidence with optional per-call latency before evaluator scoring. |
-| `preparation.jsonl` | Exactly one terminal record per input item: normalized prepared questions with canonical answers and fixed gold atoms, time-sensitive skips, or atom-extraction failures. |
+| `preparation.jsonl` | Exactly one terminal record per input item: normalized prepared questions with canonical or resolved answers and fixed gold atoms, intentional live omissions, or oracle/atom-extraction failures. |
+| `live_checks.jsonl` | Ordered pre-run and post-run Dataset V2 oracle observations, answer hashes, metadata, call evidence, and item-scoped live failures. Static runs contain an empty file. |
 | `input.snapshot.json` or `input.snapshot.jsonl` | An exact snapshot of the input dataset used for the evaluation. |
 | `agent_config.resolved.yaml` and `agent_spec.resolved.md` | The resolved Archi configuration and exact agent spec used to generate the answers. |
 | `evaluator_profile.resolved.yaml` | The resolved atoms-extractor and scoring-evaluator configuration. |
@@ -345,20 +389,24 @@ output directory private when those evaluation references are sensitive.
 
 #### Supplying your own atoms
 
-You can define the complete gold-atom set directly in each dataset row:
+You can define the complete gold-atom set directly in a static dataset item:
 
 ```json
 {
-  "question": "How much quota remains?",
-  "answer": "The account has 2.8 TB remaining.",
-  "time_sensitive": false,
-  "expected_atoms": [
-    {
-      "id": "quota-remaining",
-      "text": "The account has 2.8 TB remaining.",
-      "required": true
-    }
-  ]
+  "schema_version": "qa-dataset-v2",
+  "items": [{
+    "id": "quota-question",
+    "question": "How much quota remains?",
+    "answer": "The account has 2.8 TB remaining.",
+    "time_sensitive": false,
+    "expected_atoms": [
+      {
+        "id": "quota-remaining",
+        "text": "The account has 2.8 TB remaining.",
+        "required": true
+      }
+    ]
+  }]
 }
 ```
 
@@ -376,9 +424,11 @@ Across all three stages, `manifest.json` records phase state and SHA-256 hashes.
 Editing an artifact from a completed phase makes the next phase fail closed.
 
 `run` uses the selected Archi pipeline through its normal production interface.
-The evaluation runner does not add tool-schema preflight, tool argument/output
-trace capture, secret redaction, retry observation, or evaluation-specific
-changes to agent behavior.
+The evaluation runner observes the pipeline's tool callbacks and stores complete
+ordered query, response, error, status, and available duration evidence in
+`answers.jsonl`. It does not add tool-schema preflight, secret redaction,
+automatic retries, or evaluation-specific changes to agent behavior. Treat the
+workspace as sensitive because tool evidence is not truncated or redacted.
 When the selected agent spec enables `mcp` but normal pipeline construction
 loads no MCP tools, that attempt is recorded as `execution_failed` before the
 model is invoked.

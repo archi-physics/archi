@@ -41,6 +41,7 @@ def test_generated_evaluation_console_requires_explicit_enablement(
         "enabled": expected_enabled,
         "root": "/root/archi/evaluations",
         "agent_config_path": "/root/archi/configs/config.yaml",
+        "mcp_config_path": None,
     }
 
 
@@ -109,6 +110,11 @@ def test_evaluation_console_routes_require_explicit_enablement(
         "require_perm",
         lambda self, _permission: lambda view: view,
     )
+    monkeypatch.setattr(
+        chat_app_module.FlaskAppWrapper,
+        "authorize_request",
+        lambda self, _permission: None,
+    )
 
     repository = Path(__file__).resolve().parents[2]
     flask_app = Flask(
@@ -122,6 +128,8 @@ def test_evaluation_console_routes_require_explicit_enablement(
 
     assert wrapper.evaluations_enabled is expected_enabled
     assert evaluation_service_factory.call_count == int(expected_enabled)
+    if expected_enabled:
+        assert evaluation_service_factory.call_args.kwargs["mcp_config_path"] is None
     assert ("/evaluations" in registered_routes) is expected_enabled
     assert ("/api/evaluations/catalog" in registered_routes) is expected_enabled
     assert page_response.status_code == (200 if expected_enabled else 404)
@@ -215,3 +223,22 @@ def test_chatbot_deployments_persist_the_evaluation_root():
     assert "./data/evaluations:/root/archi/evaluations" in compose
     assert "mountPath: /root/archi/evaluations" in helm
     assert "subPath: evaluations" in helm
+
+
+def test_helm_mounts_dedicated_evaluation_config_only_when_configured():
+    repository = Path(__file__).resolve().parents[2]
+    template = _template_env().get_template("helm/templates/chatbot/deployment.yaml")
+
+    configured = template.render(
+        name="demo",
+        evaluation_mcp_configured=True,
+    )
+    omitted = template.render(
+        name="demo",
+        evaluation_mcp_configured=False,
+    )
+
+    assert "mountPath: /root/archi/evaluation_config" in configured
+    assert "name: demo-evaluation-config" in configured
+    assert "mountPath: /root/archi/evaluation_config" not in omitted
+    assert "name: demo-evaluation-config" not in omitted

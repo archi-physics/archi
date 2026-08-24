@@ -210,11 +210,13 @@ def test_composite_and_staged_workflows_are_equivalent_at_four_attempts(
         "prepared": 2,
         "preparation_failed": 0,
         "skipped_time_sensitive": 1,
+        "skipped_live": 0,
     }
     assert summary["attempt_lifecycle_counts"] == {
         "execution_failed": 0,
         "evaluation_failed": 0,
         "scored": 8,
+        "live_validation_failed": 0,
     }
     assert summary["overall_attempt_pass_rate"] == 1.0
     assert all(
@@ -736,6 +738,7 @@ def test_score_validates_then_evaluates_answer_pairs_one_at_a_time(
     real_pairs = workflow._iter_answer_pairs
     real_validate = EvaluationWorkspace.validate_answer_pairs
     real_load_preparation = workflow._load_preparation
+    real_build_summary = workflow_module.build_summary
     state = {"validated": False, "scoring_yields": 0}
 
     def guarded_validate(validate_run_dir, manifest):
@@ -754,6 +757,10 @@ def test_score_validates_then_evaluates_answer_pairs_one_at_a_time(
         assert evaluator.calls["compare"] == 4
         return real_load_preparation(load_run_dir, manifest)
 
+    def guarded_build_summary(*args, **kwargs):
+        assert kwargs.get("item_sink") is not None
+        return real_build_summary(*args, **kwargs)
+
     monkeypatch.setattr(
         EvaluationWorkspace,
         "validate_answer_pairs",
@@ -761,6 +768,7 @@ def test_score_validates_then_evaluates_answer_pairs_one_at_a_time(
     )
     monkeypatch.setattr(workflow, "_iter_answer_pairs", guarded_pairs)
     monkeypatch.setattr(workflow, "_load_preparation", guarded_load_preparation)
+    monkeypatch.setattr(workflow_module, "build_summary", guarded_build_summary)
 
     workflow.score(run_dir)
 
@@ -1499,20 +1507,20 @@ def test_retry_creates_complete_successor_and_invokes_only_failed_phases(
     assert {row["status"] for row in successor_results.values()} == {"scored"}
     assert manifest["retry"] == {
         "parent_run_id": read_json(parent / "manifest.json")["run_id"],
-        "retry_attempt_ids": [
-            "execution-attempt-1",
-            "evaluation-attempt-1",
-        ],
-        "execution_attempt_ids": ["execution-attempt-1"],
-        "evaluation_attempt_ids": ["evaluation-attempt-1"],
-        "carried_forward_attempt_ids": ["scored-attempt-1"],
+        "retry_attempt_count": 2,
+        "execution_attempt_count": 1,
+        "evaluation_attempt_count": 1,
+        "live_validation_attempt_count": 0,
+        "carried_forward_attempt_count": 1,
     }
+    assert manifest["phases"]["run"]["actual_agent_executions"] == 1
     assert manifest["phases"]["run"]["workers"] == 2
     assert manifest["phases"]["score"]["workers"] == 2
     assert read_json(successor / "summary.json")["attempt_lifecycle_counts"] == {
         "execution_failed": 0,
         "evaluation_failed": 0,
         "scored": 3,
+        "live_validation_failed": 0,
     }
     for artifact in (
         "input.snapshot.json",

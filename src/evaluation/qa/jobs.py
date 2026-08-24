@@ -26,6 +26,7 @@ class JobConflictError(RuntimeError):
 class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
+    ATTENTION_REQUIRED = "attention_required"
     CANCEL_REQUESTED = "cancel_requested"
     CANCELED = "canceled"
     COMPLETED = "completed"
@@ -159,6 +160,30 @@ class EvaluationJobManager:
                 raise
             return job
 
+    def continue_process(self, job_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Resume one persisted attention-required evaluation in the same job."""
+        with self._lock:
+            job = self.get(job_id)
+            if (
+                job["kind"] != "evaluation"
+                or job["status"] != JobStatus.ATTENTION_REQUIRED.value
+            ):
+                raise JobConflictError("evaluation job is not awaiting attention")
+            active = self._active()
+            if active is not None:
+                raise JobConflictError(
+                    f"job {active['id']} is already {active['status']}"
+                )
+            job["status"] = JobStatus.QUEUED.value
+            job["completed_at"] = None
+            job.pop("result", None)
+            job.pop("error", None)
+            write_json(self._path(job_id), job)
+            self._futures[job_id] = self._executor.submit(
+                self._execute_process, job_id, request
+            )
+            return job
+
     def _execute(
         self, job_id: str, work: Callable[[], Optional[Dict[str, Any]]]
     ) -> None:
@@ -245,9 +270,16 @@ class EvaluationJobManager:
                 job["completed_at"] = utc_now()
                 job["error"] = str(exc)
             else:
-                job["status"] = JobStatus.COMPLETED.value
-                job["completed_at"] = utc_now()
                 job["result"] = envelope["result"]
+                if (
+                    envelope["result"].get("status")
+                    == JobStatus.ATTENTION_REQUIRED.value
+                ):
+                    job["status"] = JobStatus.ATTENTION_REQUIRED.value
+                    job["completed_at"] = None
+                else:
+                    job["status"] = JobStatus.COMPLETED.value
+                    job["completed_at"] = utc_now()
             finally:
                 self._remove_result(result_path)
             write_json(self._path(job_id), job)
@@ -300,6 +332,10 @@ class EvaluationJobManager:
         except ProcessLookupError:
             pass
         process.wait()
+        # The group leader may be reaped before a killed descendant has been
+        # scheduled to its terminal state. Do not report cancellation while a
+        # signal-resistant child can still execute.
+        time.sleep(PROCESS_GROUP_POLL_SECONDS)
 
     def cancel(
         self,
@@ -317,6 +353,7 @@ class EvaluationJobManager:
                 JobStatus.QUEUED.value,
                 JobStatus.RUNNING.value,
                 JobStatus.CANCEL_REQUESTED.value,
+                JobStatus.ATTENTION_REQUIRED.value,
             }:
                 raise JobConflictError(f"job {job_id} is already {job['status']}")
             job["status"] = JobStatus.CANCEL_REQUESTED.value

@@ -29,8 +29,14 @@ BASE_GRAFANA_DASHBOARDS_TEMPLATE = "grafana/dashboards.yaml"
 BASE_GRAFANA_ARCHI_DEFAULT_DASHBOARDS_TEMPLATE = "grafana/archi-default-dashboard.json"
 BASE_GRAFANA_CONFIG_TEMPLATE = "grafana/grafana.ini"
 DEPLOYMENT_AGENTS_DIR = "/root/archi/agents"
+EVALUATION_CONFIG_DIR = "evaluation_config"
+EVALUATION_MCP_CONFIG_FILENAME = "qa_evaluation_mcp.yaml"
+EVALUATION_MCP_RUNTIME_PATH = (
+    f"/root/archi/{EVALUATION_CONFIG_DIR}/{EVALUATION_MCP_CONFIG_FILENAME}"
+)
 
 HELM_CHAT_CONFIGMAP = "helm/templates/chatbot/configmap.yaml"
+HELM_EVALUATION_CONFIGMAP = "helm/templates/chatbot/evaluation-configmap.yaml"
 HELM_DM_CONFIGMAP = "helm/templates/data-manager/configmap.yaml"
 HELM_POSTGRES_CONFIGMAP = "helm/templates/postgres/configmap.yaml"
 HELM_GRAFANA_CONFIGMAP = "helm/templates/grafana/configmap.yaml"
@@ -90,6 +96,7 @@ class TemplateContext:
     options: Dict[str, Any]
     base_dir: Path = field(init=False)
     prompt_mappings: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    evaluation_mcp_configured: bool = False
 
     def __post_init__(self) -> None:
         self.base_dir = self.plan.base_dir
@@ -129,7 +136,7 @@ class TemplateManager:
         config_manager,
         secrets_manager,
         **options,
-    ) -> None:
+    ) -> TemplateContext:
         context = TemplateContext(
             plan=plan,
             config_manager=config_manager,
@@ -147,6 +154,7 @@ class TemplateManager:
             logger.debug(f"Completed template stage {stage.__name__}")
 
         logger.info(f"Finished preparing deployment artifacts for {plan.name}")
+        return context
 
     # workflow construction
     def _build_workflow(self, context: TemplateContext) -> List[Callable[[TemplateContext], None]]:
@@ -155,6 +163,7 @@ class TemplateManager:
             self._stage_agents, 
             self._stage_skills,
             self._stage_mcp_copy,
+            self._stage_evaluation_config,
             self._stage_configs,
             self._stage_service_artifacts,
             self._stage_postgres_init,
@@ -520,6 +529,96 @@ class TemplateManager:
                 if isinstance(servers.get(name), dict):
                     servers[name]["build_context"] = rewritten
 
+    def _stage_evaluation_config(self, context: TemplateContext) -> None:
+        """Validate and stage the evaluator-owned MCP registry.
+
+        The deployment configuration contains a host path. Runtime configuration
+        always receives the fixed path where this stage mounts the validated
+        snapshot into the chatbot container.
+        """
+        config = context.config_manager.config or {}
+        services = config.get("services", {}) or {}
+        chat_app = services.get("chat_app", {}) or {}
+        evaluations = chat_app.get("evaluations", {}) or {}
+        raw_path = evaluations.get("mcp_config_path")
+
+        staged_path = (
+            context.base_dir
+            / EVALUATION_CONFIG_DIR
+            / EVALUATION_MCP_CONFIG_FILENAME
+        )
+        helm_path = (
+            context.base_dir
+            / "templates"
+            / "chatbot-evaluation-config-configmap.yaml"
+        )
+
+        if raw_path is None:
+            context.evaluation_mcp_configured = False
+            for managed_path in (staged_path, helm_path):
+                if managed_path.exists() or managed_path.is_symlink():
+                    managed_path.unlink()
+            return
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError(
+                "services.chat_app.evaluations.mcp_config_path must be a "
+                "non-empty string"
+            )
+
+        source_path = Path(raw_path).expanduser()
+        if not source_path.is_absolute():
+            config_path_raw = config.get("_config_path")
+            if not config_path_raw:
+                raise ValueError(
+                    "Cannot resolve relative evaluator MCP configuration path "
+                    "without the deployment configuration file path"
+                )
+            config_path = Path(str(config_path_raw)).expanduser()
+            source_path = (config_path.parent / source_path).resolve()
+
+        try:
+            if not source_path.exists():
+                raise ValueError(
+                    f"Evaluator MCP configuration file not found: {source_path}"
+                )
+            if not source_path.is_file():
+                raise ValueError(
+                    f"Evaluator MCP configuration must be a file: {source_path}"
+                )
+
+            # Import locally to keep CLI module loading independent of the MCP
+            # client until an evaluator registry is actually configured.
+            from src.evaluation.qa.oracle_config import EvaluatorMCPRegistry
+
+            EvaluatorMCPRegistry.load(source_path)
+        except PermissionError:
+            raise ValueError(
+                f"Evaluator MCP configuration is not readable: {source_path}"
+            ) from None
+
+        context.evaluation_mcp_configured = True
+        if context.helm:
+            content = source_path.read_text(encoding="utf-8")
+            if staged_path.exists() or staged_path.is_symlink():
+                staged_path.unlink()
+            template = self.env.get_template(HELM_EVALUATION_CONFIGMAP)
+            rendered = template.render(
+                archi_name=context.plan.name,
+                content=content,
+            )
+            helm_path.parent.mkdir(parents=True, exist_ok=True)
+            helm_path.write_text(rendered, encoding="utf-8")
+        else:
+            if helm_path.exists() or helm_path.is_symlink():
+                helm_path.unlink()
+            staged_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source_path, staged_path)
+            logger.info(
+                "Staged evaluator MCP configuration from %s to %s",
+                source_path,
+                staged_path,
+            )
+
     def _clone_mcp_build_context(self, name: str, spec: Dict[str, Any], dest_dir: Path) -> None:
         """Clone a git-sourced MCP build context into ``dest_dir``.
 
@@ -752,6 +851,13 @@ class TemplateManager:
                     if service_cfg.get("skills_dir"):
                         service_cfg["skills_dir"] = "/root/archi/skills"
                     if service_name == "chat_app":
+                        evaluations_cfg = service_cfg.get("evaluations")
+                        if isinstance(evaluations_cfg, dict):
+                            evaluations_cfg["mcp_config_path"] = (
+                                EVALUATION_MCP_RUNTIME_PATH
+                                if context.evaluation_mcp_configured
+                                else None
+                            )
                         ab_cfg = service_cfg.get("ab_testing")
                         if isinstance(ab_cfg, dict) and ab_cfg.get("ab_agents_dir"):
                             ab_cfg["ab_agents_dir"] = DEFAULT_AB_AGENTS_DIR
@@ -934,6 +1040,7 @@ class TemplateManager:
         # and emit sidecar services for servers with build_context/image.
         mcp_servers = context.config_manager.config.get("mcp_servers", {}) or {}
         template_vars["mcp_servers"] = mcp_servers
+        template_vars["evaluation_mcp_configured"] = context.evaluation_mcp_configured
 
         compose_template = self.env.get_template(BASE_COMPOSE_TEMPLATE)
         compose_rendered = compose_template.render(**template_vars)

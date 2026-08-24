@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ archi_name }}-evaluation-config
+data:
+  qa_evaluation_mcp.yaml: |
+    {{ content | indent(4) }}

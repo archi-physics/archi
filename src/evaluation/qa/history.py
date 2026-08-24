@@ -1,12 +1,20 @@
+# isort: skip_file
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
+import ijson
+
 from .artifacts import iter_jsonl, read_json, read_jsonl, verify_hashes
-from .constants import ATTEMPT_LIFECYCLE_STATUSES, SCHEMA_VERSION
+from .constants import (
+    ATTEMPT_LIFECYCLE_STATUSES_BY_SCHEMA,
+    LEGACY_RUN_SCHEMA_VERSIONS,
+    SCHEMA_VERSION,
+)
 from .preparation import load_preparation_records, load_preparation_rows
 from .schema import CanceledRunRecord, ConsoleMetadata, RunManifest
 from .tool_traces import serialize_tool_call_records
@@ -14,6 +22,7 @@ from .tool_traces import serialize_tool_call_records
 LEGACY_SCHEMA_VERSION = "qa-v0"
 _PREPARATION_FILES = {
     LEGACY_SCHEMA_VERSION: ("prepared_items.jsonl", "preparation_results.jsonl"),
+    "qa-v1": ("preparation.jsonl",),
     SCHEMA_VERSION: ("preparation.jsonl",),
 }
 
@@ -68,6 +77,17 @@ class EvaluationHistory:
     def run_path(self, history_id: str) -> Path:
         return self._resolve(history_id)
 
+    def get_run_header(self, history_id: str) -> Dict[str, Any]:
+        """Return retry/navigation metadata without hydrating run artifacts."""
+        path = self._resolve(history_id)
+        manifest = self._load_manifest(path)
+        metadata = self._load_console_metadata(path, manifest)
+        return {
+            "manifest": manifest.to_dict(),
+            "metadata": metadata.to_dict() if metadata is not None else {},
+            "capabilities": self._capabilities(manifest.schema_version),
+        }
+
     @staticmethod
     def _preparation_files(schema_version: Any) -> Tuple[str, ...]:
         try:
@@ -77,7 +97,10 @@ class EvaluationHistory:
 
     @staticmethod
     def _capabilities(schema_version: str) -> Dict[str, bool]:
-        return {"retry_failed": schema_version == SCHEMA_VERSION}
+        return {
+            "retry_failed": schema_version
+            not in {LEGACY_SCHEMA_VERSION, *LEGACY_RUN_SCHEMA_VERSIONS[:1]}
+        }
 
     @staticmethod
     def _load_manifest(path: Path) -> RunManifest:
@@ -269,6 +292,27 @@ class EvaluationHistory:
         return dataset_key, basename or "CLI snapshot"
 
     @staticmethod
+    def _summary_projection(path: Path) -> Dict[str, Any]:
+        """Read compact trend fields without hydrating dataset-sized items."""
+        summary: Dict[str, Any] = {}
+        for field in (
+            "overall_attempt_pass_rate",
+            "passed_attempts",
+            "quality_accounted_attempts",
+            "attempt_lifecycle_counts",
+        ):
+            with path.open("rb") as handle:
+                values = ijson.items(handle, field)
+                try:
+                    value = next(values)
+                    summary[field] = (
+                        float(value) if isinstance(value, Decimal) else value
+                    )
+                except StopIteration:
+                    continue
+        return summary
+
+    @staticmethod
     def _optional_count(summary: Dict[str, Any], field: str) -> Optional[int]:
         value = summary.get(field)
         if value is None:
@@ -295,7 +339,9 @@ class EvaluationHistory:
         return parsed.timestamp()
 
     @staticmethod
-    def _summary_trends(summary: Any) -> Dict[str, Any]:
+    def _summary_trends(
+        summary: Any, schema_version: str = SCHEMA_VERSION
+    ) -> Dict[str, Any]:
         if summary is None:
             return {
                 "overall_attempt_pass_rate": None,
@@ -346,13 +392,19 @@ class EvaluationHistory:
         if lifecycle is not None:
             if not isinstance(lifecycle, dict):
                 raise ValueError("summary attempt_lifecycle_counts must be an object")
-            _require_exact_fields(
-                lifecycle,
-                set(ATTEMPT_LIFECYCLE_STATUSES),
-                context="summary attempt_lifecycle_counts",
-            )
+            try:
+                lifecycle_statuses = ATTEMPT_LIFECYCLE_STATUSES_BY_SCHEMA[
+                    schema_version
+                ]
+            except KeyError as exc:
+                raise ValueError("unsupported run schema") from exc
+            required_statuses = set(lifecycle_statuses)
+            missing = sorted(required_statuses - set(lifecycle))
+            unknown = sorted(set(lifecycle) - required_statuses)
+            if missing or unknown:
+                raise ValueError("summary attempt_lifecycle_counts has invalid fields")
             validated_lifecycle = {}
-            for status in ATTEMPT_LIFECYCLE_STATUSES:
+            for status in lifecycle_statuses:
                 count = EvaluationHistory._optional_count(lifecycle, status)
                 if count is None:
                     raise ValueError(
@@ -360,8 +412,18 @@ class EvaluationHistory:
                         "must be a non-negative integer"
                     )
                 validated_lifecycle[status] = count
+            live_validation_failed = EvaluationHistory._optional_count(
+                lifecycle, "live_validation_failed"
+            )
+            if "live_validation_failed" in lifecycle:
+                assert live_validation_failed is not None
+                validated_lifecycle["live_validation_failed"] = live_validation_failed
             lifecycle = validated_lifecycle
-            terminal_attempts = sum(lifecycle.values())
+            terminal_attempts = sum(
+                lifecycle[status]
+                for status in lifecycle_statuses
+                if status != "live_validation_failed"
+            )
             if terminal_attempts:
                 technical_failure_rate = (
                     lifecycle["execution_failed"] + lifecycle["evaluation_failed"]
@@ -377,13 +439,18 @@ class EvaluationHistory:
                     "summary passed-attempt count cannot exceed scored attempts"
                 )
 
-        return {
+        projection = {
             "overall_attempt_pass_rate": pass_rate,
             "passed_attempts": passed_attempts,
             "quality_accounted_attempts": quality_attempts,
             "attempt_lifecycle_counts": lifecycle,
             "technical_failure_rate": technical_failure_rate,
         }
+        if lifecycle is not None and "live_validation_failed" in lifecycle:
+            projection["live_validation_failed_attempts"] = lifecycle[
+                "live_validation_failed"
+            ]
+        return projection
 
     @staticmethod
     def _latency_trend(path: Path, manifest: RunManifest) -> Optional[Dict[str, Any]]:
@@ -481,7 +548,7 @@ class EvaluationHistory:
                 ):
                     continue
                 summary = (
-                    read_json(path / "summary.json")
+                    self._summary_projection(path / "summary.json")
                     if (path / "summary.json").is_file()
                     else None
                 )
@@ -491,47 +558,50 @@ class EvaluationHistory:
                     ["summary.json"],
                 )
                 dataset_key, dataset_name = self._dataset_identity(manifest, metadata)
-                trend_summary = self._summary_trends(summary)
+                trend_summary = self._summary_trends(summary, manifest.schema_version)
                 latency = self._latency_trend(path, manifest)
+                row = {
+                    "id": history_id,
+                    "run_id": manifest.run_id,
+                    "name": (metadata.name if metadata is not None else None)
+                    or manifest.run_id,
+                    "status": manifest.status.value,
+                    "created_at": created_at,
+                    "dataset_id": (
+                        metadata.dataset_id if metadata is not None else None
+                    ),
+                    "dataset_key": dataset_key,
+                    "dataset_name": dataset_name,
+                    "profile_id": (
+                        metadata.profile_id if metadata is not None else None
+                    ),
+                    "profile_name": (
+                        metadata.profile_name if metadata is not None else None
+                    ),
+                    "agent_spec": (
+                        metadata.agent_spec if metadata is not None else None
+                    ),
+                    "attempts": manifest.attempts,
+                    "retry_of_history_id": (
+                        metadata.retry_of_history_id if metadata is not None else None
+                    ),
+                    "retry_number": (
+                        metadata.retry_number if metadata is not None else None
+                    ),
+                    **trend_summary,
+                    "latency": latency,
+                    "schema_version": manifest.schema_version,
+                    "capabilities": self._capabilities(manifest.schema_version),
+                    "valid": True,
+                }
+                if manifest.schema_version == SCHEMA_VERSION:
+                    row["contains_live_answers"] = bool(
+                        manifest.extra.get("contains_live_answers")
+                    )
                 rows.append(
                     (
                         sort_value,
-                        {
-                            "id": history_id,
-                            "run_id": manifest.run_id,
-                            "name": (metadata.name if metadata is not None else None)
-                            or manifest.run_id,
-                            "status": manifest.status.value,
-                            "created_at": created_at,
-                            "dataset_id": (
-                                metadata.dataset_id if metadata is not None else None
-                            ),
-                            "dataset_key": dataset_key,
-                            "dataset_name": dataset_name,
-                            "profile_id": (
-                                metadata.profile_id if metadata is not None else None
-                            ),
-                            "profile_name": (
-                                metadata.profile_name if metadata is not None else None
-                            ),
-                            "agent_spec": (
-                                metadata.agent_spec if metadata is not None else None
-                            ),
-                            "attempts": manifest.attempts,
-                            "retry_of_history_id": (
-                                metadata.retry_of_history_id
-                                if metadata is not None
-                                else None
-                            ),
-                            "retry_number": (
-                                metadata.retry_number if metadata is not None else None
-                            ),
-                            **trend_summary,
-                            "latency": latency,
-                            "schema_version": manifest.schema_version,
-                            "capabilities": self._capabilities(manifest.schema_version),
-                            "valid": True,
-                        },
+                        row,
                     )
                 )
             except Exception as exc:
@@ -574,6 +644,20 @@ class EvaluationHistory:
                 "report_available": False,
             }
         manifest = self._load_manifest(path)
+        detail_names = {
+            "summary.json",
+            "answers.jsonl",
+            "live_checks.jsonl",
+            "evaluation_results.jsonl",
+            *self._preparation_files(manifest.schema_version),
+        }
+        detail_size = sum(
+            (path / name).stat().st_size
+            for name in detail_names
+            if (path / name).is_file()
+        )
+        if detail_size > 25 * 1024 * 1024:
+            raise ValueError("run detail exceeds the 25 MB limit")
         metadata = self._load_console_metadata(path, manifest)
         snapshot = manifest.snapshot
         preparation_files = self._preparation_files(manifest.schema_version)
@@ -584,6 +668,11 @@ class EvaluationHistory:
                 snapshot,
                 "summary.json",
                 *preparation_files,
+                *(
+                    ("live_checks.jsonl",)
+                    if manifest.schema_version == SCHEMA_VERSION
+                    else ()
+                ),
                 "answers.jsonl",
                 "evaluation_results.jsonl",
                 "report.md",
@@ -603,6 +692,7 @@ class EvaluationHistory:
         for filename, key in (
             ("summary.json", "summary"),
             ("answers.jsonl", "answers"),
+            ("live_checks.jsonl", "live_checks"),
             ("evaluation_results.jsonl", "evaluation_results"),
         ):
             artifact = path / filename

@@ -13,6 +13,7 @@ from .workflow import QAWorkflow
 
 class WorkerOperation(str, Enum):
     COMPOSITE = "composite"
+    CONTINUE = "continue"
     RETRY = "retry"
 
 
@@ -30,7 +31,7 @@ def execute(request: Dict[str, Any]) -> Dict[str, Any]:
     except (KeyError, ValueError) as exc:
         raise ValueError("unsupported worker operation") from exc
     if operation is WorkerOperation.COMPOSITE:
-        expected = {
+        required = {
             "operation",
             "output_dir",
             "dataset",
@@ -41,15 +42,32 @@ def execute(request: Dict[str, Any]) -> Dict[str, Any]:
             "run_workers",
             "score_workers",
         }
-        if set(request) != expected:
+        optional = {"mcp_config_path", "trusted_dataset", "pause_on_live_mismatch"}
+        if not required.issubset(request) or set(request) - required - optional:
             raise ValueError("composite worker request has invalid fields")
+    elif operation is WorkerOperation.CONTINUE:
+        required = {
+            "operation",
+            "output_dir",
+            "agent_config",
+            "agent_spec",
+            "attempts",
+            "run_workers",
+            "score_workers",
+            "authorize_staged_invalid",
+        }
+        optional = {"mcp_config_path"}
+        if not required.issubset(request) or set(request) - required - optional:
+            raise ValueError("continue worker request has invalid fields")
     else:
         expected = {
             "operation",
             "output_dir",
             "parent_path",
         }
-        if set(request) != expected:
+        if not expected.issubset(request) or set(request) - expected - {
+            "mcp_config_path"
+        }:
             raise ValueError("retry worker request has invalid fields")
 
     output_dir = _path(request["output_dir"], "output_dir")
@@ -71,13 +89,59 @@ def execute(request: Dict[str, Any]) -> Dict[str, Any]:
             run_workers=request["run_workers"],
             score_workers=request["score_workers"],
             overwrite=False,
+            mcp_config_path=(
+                _path(request["mcp_config_path"], "mcp_config_path")
+                if request.get("mcp_config_path") is not None
+                else None
+            ),
+            trusted_dataset=bool(request.get("trusted_dataset", False)),
+            pause_on_live_mismatch=bool(request.get("pause_on_live_mismatch", False)),
         )
-        result = {"run_id": manifest["run_id"]}
+        result = {
+            "run_id": manifest["run_id"],
+            "status": manifest.get("status", "scored"),
+            "attention_required": manifest.get("attention_required"),
+        }
+    elif operation is WorkerOperation.CONTINUE:
+        if request["authorize_staged_invalid"] is not True:
+            raise ValueError("continued run must authorize its staged invalid items")
+        manifest = workflow.run(
+            output_dir,
+            _path(request["agent_config"], "agent_config"),
+            _path(request["agent_spec"], "agent_spec"),
+            attempts=request["attempts"],
+            overwrite=True,
+            run_workers=request["run_workers"],
+            mcp_config_path=(
+                _path(request["mcp_config_path"], "mcp_config_path")
+                if request.get("mcp_config_path") is not None
+                else None
+            ),
+            pause_on_live_mismatch=True,
+            authorize_staged_invalid=True,
+        )
+        if manifest["status"] != "attention_required":
+            manifest = workflow.score(
+                output_dir,
+                score_workers=request["score_workers"],
+            )
+        result = {
+            "run_id": manifest["run_id"],
+            "status": manifest["status"],
+            "attention_required": manifest.get("attention_required"),
+        }
     else:
-        manifest = workflow.retry(
-            _path(request["parent_path"], "parent_path"), output_dir
+        retry_options = (
+            {"mcp_config_path": _path(request["mcp_config_path"], "mcp_config_path")}
+            if request.get("mcp_config_path") is not None
+            else {}
         )
-        result = {"run_id": manifest["run_id"]}
+        manifest = workflow.retry(
+            _path(request["parent_path"], "parent_path"),
+            output_dir,
+            **retry_options,
+        )
+        result = {"run_id": manifest["run_id"], "status": manifest["status"]}
 
     metadata_path = output_dir / "console_metadata.json"
     manifest["artifacts"][metadata_path.name] = sha256_file(metadata_path)

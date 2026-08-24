@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Archi · Evaluatio Console</title>
+  <title>Archi · Evaluation Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -51,12 +51,21 @@
       <main>
       <div id="job-banner" class="job-banner" hidden aria-live="polite">
         <span id="job-banner-message"></span>
-        <button class="button danger" id="cancel-evaluation" type="button" hidden>Cancel evaluation</button>
+        <div class="job-banner-actions">
+          <button class="button quiet" id="continue-evaluation" type="button" hidden>Continue with valid questions</button>
+          <button class="button primary" id="refresh-live-evaluation" type="button" hidden>Refresh live snapshot</button>
+          <button class="button danger" id="cancel-evaluation" type="button" hidden>Cancel evaluation</button>
+        </div>
       </div>
+      <section class="attention-panel" id="attention-panel" hidden aria-live="polite">
+        <div><p class="eyebrow">Evaluation paused</p><h2>Live answers need attention</h2><p><strong>No agent attempts have started.</strong> Review the affected questions, then refresh the approved snapshot or continue with valid questions.</p></div>
+        <p id="attention-remediation"></p>
+        <div class="definition-list" id="attention-summary"></div>
+        <div class="attention-items" id="attention-items"></div>
+      </section>
 
       <section class="view active" id="view-runs">
         <header class="page-head">
-          <div><h1>Evaluating Archi has never been simpler.</h1><p>Every result below is reconstructed from persisted JSON artifacts.</p></div>
           <button class="button primary" data-go="new">Run an evaluation</button>
         </header>
         <div class="metrics">
@@ -109,7 +118,7 @@
           </section>
           <section class="panel trend-panel" aria-labelledby="trend-failure-title">
             <div class="trend-panel-head">
-              <div><h2 id="trend-failure-title">Technical failure rate</h2><p>Execution plus evaluation failures ÷ all terminal attempts.</p></div>
+              <div><h2 id="trend-failure-title">Technical failure rate</h2><p>Execution plus evaluation failures ÷ scored and technical-failure attempts. Live-validation failures are excluded.</p></div>
               <div class="trend-series-legend" aria-label="Failure-rate series"><span><i class="failure"></i>Failure rate</span></div>
             </div>
             <div class="trend-chart-shell" id="trend-failure-chart" aria-live="polite"><div class="trend-loading">Loading failure history…</div></div>

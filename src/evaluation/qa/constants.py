@@ -1,14 +1,40 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = "qa-v1"
+from enum import Enum
+
+
+class EvaluationRuntimePhase(str, Enum):
+    CHECKING_LIVE_ANSWERS = "checking_live_answers"
+    RUNNING_ATTEMPTS = "running_attempts"
+    SCORING = "scoring"
+
+
+SCHEMA_VERSION = "qa-v2"
+LEGACY_RUN_SCHEMA_VERSIONS = ("qa-v0", "qa-v1")
 SCORING_VERSION = "1"
 
-ITEM_LIFECYCLE_STATUSES = (
+LEGACY_ITEM_LIFECYCLE_STATUSES = (
     "skipped_time_sensitive",
     "preparation_failed",
     "prepared",
 )
-ATTEMPT_LIFECYCLE_STATUSES = ("execution_failed", "evaluation_failed", "scored")
+LEGACY_ATTEMPT_LIFECYCLE_STATUSES = (
+    "execution_failed",
+    "evaluation_failed",
+    "scored",
+)
+ITEM_LIFECYCLE_STATUSES_BY_SCHEMA = {
+    "qa-v0": LEGACY_ITEM_LIFECYCLE_STATUSES,
+    "qa-v1": LEGACY_ITEM_LIFECYCLE_STATUSES,
+    SCHEMA_VERSION: LEGACY_ITEM_LIFECYCLE_STATUSES + ("skipped_live",),
+}
+ATTEMPT_LIFECYCLE_STATUSES_BY_SCHEMA = {
+    "qa-v0": LEGACY_ATTEMPT_LIFECYCLE_STATUSES,
+    "qa-v1": LEGACY_ATTEMPT_LIFECYCLE_STATUSES,
+    SCHEMA_VERSION: LEGACY_ATTEMPT_LIFECYCLE_STATUSES + ("live_validation_failed",),
+}
+ITEM_LIFECYCLE_STATUSES = ITEM_LIFECYCLE_STATUSES_BY_SCHEMA[SCHEMA_VERSION]
+ATTEMPT_LIFECYCLE_STATUSES = ATTEMPT_LIFECYCLE_STATUSES_BY_SCHEMA[SCHEMA_VERSION]
 
 GOLD_PROMPT_VERSION = "qa-gold-atoms-v1"
 COMPARATOR_PROMPT_VERSION = "qa-answer-comparator-v1"
@@ -70,6 +96,7 @@ RUN_FILES = {
     "agent_config.resolved.yaml",
     "agent_spec.resolved.md",
     "answers.jsonl",
+    "live_checks.jsonl",
 }
 SCORE_FILES = {
     "evaluation_results.jsonl",

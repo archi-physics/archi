@@ -13,6 +13,7 @@ from .tool_traces import serialize_tool_call_records
 
 class RunStatus(str, Enum):
     PREPARED = "prepared"
+    ATTENTION_REQUIRED = "attention_required"
     RUN_COMPLETED = "run_completed"
     SCORED = "scored"
 
@@ -26,6 +27,7 @@ class EvaluationStatus(str, Enum):
     SCORED = "scored"
     EXECUTION_FAILED = "execution_failed"
     EVALUATION_FAILED = "evaluation_failed"
+    LIVE_VALIDATION_FAILED = "live_validation_failed"
 
 
 class UnsupportedSchemaError(ValueError):
@@ -234,7 +236,7 @@ class RunManifest:
         cls,
         raw: Any,
         *,
-        supported_schema_versions: Iterable[str] = (SCHEMA_VERSION,),
+        supported_schema_versions: Iterable[str] = ("qa-v1", SCHEMA_VERSION),
         preparation_files: Tuple[str, ...] = ("preparation.jsonl",),
     ) -> "RunManifest":
         if not isinstance(raw, dict):
@@ -255,6 +257,7 @@ class RunManifest:
             raise ValueError("manifest phases must be an object")
         required_phases = {
             RunStatus.PREPARED: ("prepare",),
+            RunStatus.ATTENTION_REQUIRED: ("prepare",),
             RunStatus.RUN_COMPLETED: ("prepare", "run"),
             RunStatus.SCORED: ("prepare", "run", "score"),
         }[status]
@@ -294,6 +297,17 @@ class RunManifest:
             raise ValueError("manifest input source path must be a string")
         if not {snapshot, *preparation_files}.issubset(artifacts):
             raise ValueError("manifest is missing preparation artifacts")
+        if (
+            schema_version == SCHEMA_VERSION
+            and status
+            in {
+                RunStatus.ATTENTION_REQUIRED,
+                RunStatus.RUN_COMPLETED,
+                RunStatus.SCORED,
+            }
+            and "live_checks.jsonl" not in artifacts
+        ):
+            raise ValueError("qa-v2 manifest is missing live-check artifacts")
         if status is RunStatus.SCORED and not {"summary.json", "report.md"}.issubset(
             artifacts
         ):

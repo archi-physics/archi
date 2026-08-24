@@ -164,6 +164,9 @@ services:
     volumes:
       - {{ data_manager_volume_name }}:/root/data/
       - ./configs:/root/archi/configs
+      {% if evaluation_mcp_configured | default(false) -%}
+      - ./evaluation_config:/root/archi/evaluation_config:ro
+      {% endif -%}
       - ./data/prompts:/root/archi/data/prompts:ro
       - ./data/agents:/root/archi/agents
       - ./data/ab_agents:/root/archi/ab_agents

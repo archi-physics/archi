@@ -129,6 +129,41 @@ class AtomicJsonlWriter:
                         os.unlink(self._temp_name)
 
 
+class AtomicTextWriter:
+    """Atomic streaming text writer for bounded artifact construction."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self._handle: Optional[TextIO] = None
+        self._temp_name: Optional[str] = None
+
+    def __enter__(self) -> TextIO:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, self._temp_name = tempfile.mkstemp(
+            prefix=f".{self.path.name}.", dir=str(self.path.parent)
+        )
+        self._handle = os.fdopen(descriptor, "w", encoding="utf-8")
+        return self._handle
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        commit = False
+        try:
+            if self._handle is not None and exc_type is None:
+                self._handle.flush()
+                os.fsync(self._handle.fileno())
+                commit = True
+        finally:
+            if self._handle is not None:
+                self._handle.close()
+            if self._temp_name is not None:
+                try:
+                    if commit:
+                        os.replace(self._temp_name, self.path)
+                finally:
+                    if os.path.exists(self._temp_name):
+                        os.unlink(self._temp_name)
+
+
 def write_jsonl(path: Path, rows: Iterable[Dict[str, Any]]) -> None:
     with AtomicJsonlWriter(path) as writer:
         for row in rows:

@@ -33,6 +33,343 @@ test.describe("QA evaluation console", () => {
     await expectStackedImportRows("#profile-import-form");
   });
 
+  test("shows the persisted live pre-check gate without exposing hidden truth", async ({ page }) => {
+    const job = {
+      id: "job-live-attention",
+      kind: "evaluation",
+      status: "attention_required",
+      created_at: "2026-08-13T08:00:00+00:00",
+      started_at: "2026-08-13T08:00:01+00:00",
+      context: { dataset_id: "approved-live", workspace_id: "run-live" },
+      result: {
+        status: "attention_required",
+        attention_required: {
+          live_items: 2,
+          checked_at: "2026-08-13T08:00:02+00:00",
+          can_continue: true,
+          no_agent_attempts_started: true,
+          affected_items: [
+            { item_id: "live-capacity", phase: "pre_run", reason: "answer_changed" },
+          ],
+        },
+      },
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [], profiles: [], agents: [], jobs: [job], permissions: { can_manage: false } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [] } }));
+    await page.route("**/api/evaluations/jobs/job-live-attention", (route) => route.fulfill({ json: { job } }));
+
+    await page.goto("/evaluations");
+
+    await expect(page.getByRole("heading", { name: "Live answers need attention" })).toBeVisible();
+    await expect(page.getByText("No agent attempts have started.", { exact: false }).first()).toBeVisible();
+    await expect(page.locator("#attention-items").getByText("live-capacity", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with valid questions" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Refresh live snapshot" })).toHaveCount(0);
+    await expect(page.getByText("Approved answer")).toHaveCount(0);
+    await expect(page.getByText("Contact a dataset manager to refresh the approved live snapshot.", { exact: false })).toBeVisible();
+    await expect(page.locator("#metric-job")).toHaveText("No");
+  });
+
+  test("preserves manager-only live evidence after refreshing the catalog", async ({ page }) => {
+    let continueRequests = 0;
+    let refreshRequests = 0;
+    const sanitizedJob = {
+      id: "job-manager-attention", kind: "evaluation", status: "attention_required",
+      created_at: "2026-08-13T08:00:00+00:00", started_at: "2026-08-13T08:00:01+00:00",
+      context: { dataset_id: "approved-live", workspace_id: "run-live" },
+      result: { attention_required: {
+        live_items: 1, checked_at: "2026-08-13T08:00:02+00:00", can_continue: true,
+        affected_items: [{ item_id: "live-capacity", phase: "pre_run", reason: "answer_changed" }],
+      } },
+    };
+    const detailedJob = {
+      ...sanitizedJob,
+      result: { attention_required: {
+        ...sanitizedJob.result.attention_required,
+        affected_items: [{
+          item_id: "live-capacity", phase: "pre_run", reason: "answer_changed",
+          question: "What is current capacity?", approved_answer: { capacity: 4 },
+          current_answer: { capacity: 7 }, metadata: { region: "eu" },
+          oracle: { calls: [] }, calls: [],
+        }],
+      } },
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [], profiles: [], agents: [], jobs: [sanitizedJob], permissions: { can_run: false, can_manage: true } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [] } }));
+    await page.route("**/api/evaluations/jobs/job-manager-attention", (route) => route.fulfill({ json: { job: detailedJob } }));
+    await page.route("**/api/evaluations/jobs/job-manager-attention/continue", (route) => {
+      continueRequests += 1;
+      route.fulfill({ json: { job: { ...detailedJob, status: "queued", result: undefined } } });
+    });
+    await page.route("**/api/evaluations/jobs/job-manager-attention/refresh-live", (route) => {
+      refreshRequests += 1;
+      route.fulfill({
+        status: 202,
+        json: {
+          closed_evaluation: {
+            job: { ...detailedJob, status: "canceled", result: undefined },
+            history_id: "run-live",
+          },
+          job: {
+            id: "job-live-refresh", kind: "generate_atoms", status: "completed",
+            context: { dataset_id: "approved-live", refresh: true },
+            result: { draft_id: "draft-live-refresh" },
+          },
+        },
+      });
+    });
+    await page.route("**/api/evaluations/jobs/job-live-refresh", (route) => route.fulfill({ json: {
+      job: {
+        id: "job-live-refresh", kind: "generate_atoms", status: "completed",
+        context: { dataset_id: "approved-live", refresh: true },
+        result: { draft_id: "draft-live-refresh" },
+      },
+    } }));
+    await page.route("**/api/evaluations/atom-drafts/draft-live-refresh", (route) => route.fulfill({ json: {
+      draft: {
+        id: "draft-live-refresh", status: "open", dataset_name: "Approved live",
+        schema_version: "qa-dataset-v2", dataset_role: "approved_child",
+        generation_scope: "refresh_live", items: [], failure_summary: {},
+      },
+    } }));
+
+    await page.goto("/evaluations");
+
+    await expect(page.getByText("What is current capacity?", { exact: true })).toBeVisible();
+    await page.getByText("What is current capacity?", { exact: true }).click();
+    await expect(page.getByText("Approved answer", { exact: true })).toBeVisible();
+    await expect(page.getByText('"capacity": 4', { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Refresh live snapshot" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with valid questions" })).toHaveCount(0);
+    await expect(page.getByText("No agent attempts have started.", { exact: false }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Refresh live snapshot" }).click();
+    await expect(page.getByRole("heading", { name: "Review atoms" })).toBeVisible();
+    expect(refreshRequests).toBe(1);
+    expect(continueRequests).toBe(0);
+  });
+
+  test("announces the live pre-check while an evaluation worker is active", async ({ page }) => {
+    const job = {
+      id: "job-live-running", kind: "evaluation", status: "running",
+      created_at: "2026-08-13T08:00:00+00:00", started_at: "2026-08-13T08:00:01+00:00",
+      context: { dataset_id: "approved-live" },
+      progress: { status: "prepared", runtime_phase: "checking_live_answers" },
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [], profiles: [], agents: [], jobs: [job], permissions: { can_manage: true } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [] } }));
+    await page.route("**/api/evaluations/jobs/job-live-running", (route) => route.fulfill({ json: { job } }));
+
+    await page.goto("/evaluations");
+
+    await expect(page.locator("#runtime-label")).toHaveText("Checking live answers…");
+    await expect(page.getByText("Agent attempts start only after the fresh pre-check completes.", { exact: false })).toBeVisible();
+    await expect(page.locator("#metric-job")).toHaveText("Yes");
+  });
+
+  test("shows ordinary progress for static evaluation attempts", async ({ page }) => {
+    const job = {
+      id: "job-running-attempts", kind: "evaluation", status: "running",
+      created_at: "2026-08-13T08:00:00+00:00", started_at: "2026-08-13T08:00:01+00:00",
+      context: { dataset_id: "static-dataset" },
+      progress: { status: "prepared", runtime_phase: "running_attempts" },
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [], profiles: [], agents: [], jobs: [job], permissions: { can_manage: true } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [] } }));
+    await page.route("**/api/evaluations/jobs/job-running-attempts", (route) => route.fulfill({ json: { job } }));
+
+    await page.goto("/evaluations");
+
+    await expect(page.locator("#runtime-label")).toHaveText("evaluation · running attempts");
+    await expect(page.getByText("Agent attempts start only after the fresh pre-check completes.", { exact: false })).toHaveCount(0);
+    await expect(page.locator("#metric-job")).toHaveText("Yes");
+  });
+
+  test("labels live datasets and counts static-only omissions", async ({ page }) => {
+    const dataset = {
+      id: "live-parent", name: "Live parent", source_filename: "live.json", sha256: "a".repeat(64),
+      schema_version: "qa-dataset-v2", item_count: 2, eligible_item_count: 2,
+      dataset_role: "definition_parent",
+      time_sensitive_item_count: 1, supplied_atom_item_count: 1, atom_count: 1,
+      contains_live_answers: false, generation_scope: null, parent_dataset_id: null,
+      categories: [], answer_sources: [], created_at: "2026-08-13T08:00:00+00:00",
+    };
+    const liveChild = {
+      ...dataset, id: "live-child", name: "Approved live child", contains_live_answers: true,
+      dataset_role: "approved_child", generation_scope: "complete", parent_dataset_id: dataset.id,
+    };
+    const completedJob = {
+      id: "job-static-draft", kind: "generate_atoms", status: "completed",
+      context: { dataset_id: dataset.id }, result: { draft_id: "draft-static", draft_status: "open" },
+    };
+    const completeDraft = {
+      id: "draft-static", status: "open", dataset_name: dataset.name, schema_version: "qa-dataset-v2", dataset_role: "definition_parent", generation_scope: "complete",
+      items: [{ item_id: "live-capacity", question: "Current capacity?", time_sensitive: true,
+        status: "preparation_failed", atoms: [], error: "Oracle unavailable." }],
+    };
+    const staticDraft = {
+      ...completeDraft, generation_scope: "static_only",
+      items: [{ ...completeDraft.items[0], status: "skipped_live" }],
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [dataset, liveChild], profiles: [], agents: [], jobs: [completedJob], permissions: { can_manage: true } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [] } }));
+    await page.route("**/api/evaluations/atom-drafts/draft-static", async (route) => {
+      if (route.request().method() === "POST") await route.fulfill({ json: { draft: staticDraft } });
+      else await route.fulfill({ json: { draft: completeDraft } });
+    });
+    await page.route("**/api/evaluations/atom-drafts/draft-static/static-only", (route) => route.fulfill({ json: { draft: staticDraft } }));
+
+    await page.goto("/evaluations");
+    await page.getByRole("button", { name: /Datasets/ }).click();
+    await expect(page.getByText("includes live answers", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "Resume atom review" }).click();
+    await page.getByRole("button", { name: "Switch draft to static-only" }).click();
+
+    await expect(page.getByText("1 live question was omitted by static-only generation.", { exact: false })).toBeVisible();
+  });
+
+  test("shows retryable live-validation slots without inventing agent answers", async ({ page }) => {
+    const runRow = {
+      id: "live-failed-run", run_id: "live-failed-run", name: "Live failed run",
+      status: "scored", created_at: "2026-08-13T08:00:00+00:00",
+      dataset_name: "Approved live set", attempts: 1, valid: true,
+      overall_attempt_pass_rate: null,
+    };
+    await page.route("**/api/evaluations/catalog", (route) => route.fulfill({
+      json: { datasets: [], profiles: [], agents: [], jobs: [], permissions: { can_manage: false } },
+    }));
+    await page.route("**/api/evaluations/runs?*", (route) => route.fulfill({ json: { runs: [runRow] } }));
+    await page.route("**/api/evaluations/runs/live-failed-run", (route) => route.fulfill({
+      json: {
+        run: {
+          manifest: { schema_version: "qa-v2", run_id: "live-failed-run", status: "scored" },
+          metadata: { name: "Live failed run", dataset_name: "Approved live set" },
+          capabilities: { retry_failed: true }, report_available: false,
+          prepared_items: [{
+            item_id: "live-capacity", question: "Current capacity?", time_sensitive: true,
+            gold_atoms: [{ id: "capacity", text: "Capacity is seven", required: true }],
+          }],
+          answers: [],
+          evaluation_results: [{
+            item_id: "live-capacity", attempt_id: "live-capacity-attempt-1", ordinal: 1,
+            status: "live_validation_failed",
+            live_validation: { phase: "pre_run", reason: "answer_changed", detail: "Approved baseline changed." },
+          }],
+          summary: {
+            overall_attempt_pass_rate: null, passed_attempts: 0, quality_accounted_attempts: 0,
+            attempt_lifecycle_counts: { scored: 0, execution_failed: 0, evaluation_failed: 0, live_validation_failed: 1 },
+          },
+        },
+      },
+    }));
+
+    await page.goto("/evaluations");
+    await page.getByText("Live failed run", { exact: true }).click();
+
+    await expect(page.getByText("No agent answer was created for this live-validation failure.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry failed attempts (1)" })).toBeVisible();
+    await expect(page.getByText("Live validation failed", { exact: true })).toBeVisible();
+    await expect(page.locator("#run-detail-content").getByText("Live answer", { exact: true })).toBeVisible();
+  });
+
+  test("materializes, approves, validates, refreshes, gates, continues, and records a real qa-v2 live run", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.request.post("/api/evaluation-test/live-value", { data: { value: 7 } });
+    await page.goto("/evaluations");
+    await page.getByRole("button", { name: /Datasets/ }).click();
+    await page.getByLabel("Name").first().fill("Production live definition");
+    await page.getByLabel("Dataset file").setInputFiles({
+      name: "production-live.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify({
+        schema_version: "qa-dataset-v2",
+        items: [
+          {
+            id: "static-policy", question: "What is the stable policy?", answer: "The policy is stable.",
+            time_sensitive: false,
+            expected_atoms: [{ id: "policy", text: "The policy is stable.", required: true }],
+          },
+          {
+            id: "live-capacity", question: "What is current primary capacity?", time_sensitive: true,
+            oracle: { kind: "mcp", calls: [{
+              id: "capacity", server: "fixture", tool: "current_capacity",
+              arguments: { service: "primary" }, answer_fields: { available: "/available" },
+              metadata_fields: { revision: "/revision" },
+            }] },
+          },
+        ],
+      })),
+    });
+    await page.getByRole("button", { name: "Validate and import" }).click();
+    const parent = page.locator("#dataset-list [data-dataset-id]").filter({
+      has: page.getByText("Production live definition", { exact: true }),
+    });
+    await expect(parent).toBeVisible();
+    await parent.click();
+    await page.getByRole("button", { name: "Generate Atoms" }).click();
+
+    const materializeDialog = page.getByRole("dialog", { name: "Review atoms · Production live definition" });
+    await expect(materializeDialog).toBeVisible({ timeout: 20_000 });
+    const materializedLivePanel = materializeDialog.locator(".atom-item").filter({ hasText: "live-capacity" });
+    await materializedLivePanel.locator(":scope > summary").click();
+    await expect(materializedLivePanel.getByText("Live answer", { exact: true })).toBeVisible();
+    await expect(materializedLivePanel.locator(".expected-answer")).toContainText('"available": 7');
+    await page.getByLabel("New dataset name").fill("Approved live seven");
+    await page.getByRole("button", { name: "Save as new dataset" }).click();
+    const approvedSeven = page.locator("#dataset-list [data-dataset-id]").filter({
+      has: page.getByText("Approved live seven", { exact: true }),
+    });
+    await expect(approvedSeven).toBeVisible();
+    await expect(approvedSeven).toContainText("includes live answers");
+
+    await page.getByRole("button", { name: "Run evaluation" }).click();
+    await page.getByLabel("Evaluation name").fill("Live seven baseline");
+    await page.getByRole("button", { name: "Start evaluation" }).click();
+    await expect(page.getByRole("heading", { name: "Live seven baseline" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Includes live answers", { exact: true })).toBeVisible();
+    await expect(page.locator("#run-detail-content").getByText("Live answer", { exact: true })).toBeVisible();
+
+    await page.request.post("/api/evaluation-test/live-value", { data: { value: 8 } });
+    await page.getByRole("button", { name: /Datasets/ }).click();
+    await approvedSeven.click();
+    await page.getByRole("button", { name: "Refresh live snapshot" }).click();
+    const refreshDialog = page.getByRole("dialog", { name: "Review atoms · Production live definition" });
+    await expect(refreshDialog).toBeVisible({ timeout: 20_000 });
+    const refreshedLivePanel = refreshDialog.locator(".atom-item").filter({ hasText: "live-capacity" });
+    await refreshedLivePanel.locator(":scope > summary").click();
+    await expect(refreshedLivePanel.getByText("changed", { exact: false })).toBeVisible();
+    await expect(refreshedLivePanel.getByText("Previous approved answer")).toBeVisible();
+    await expect(refreshedLivePanel.locator(".expected-answer")).toContainText('"available": 8');
+    await page.getByLabel("New dataset name").fill("Approved live eight");
+    await page.getByRole("button", { name: "Save as new dataset" }).click();
+    await expect(page.getByText("Approved live eight", { exact: true }).first()).toBeVisible();
+
+    await approvedSeven.click();
+    await page.getByRole("button", { name: "Run evaluation" }).click();
+    await page.getByLabel("Evaluation name").fill("Changed live gate");
+    await page.getByRole("button", { name: "Start evaluation" }).click();
+    await expect(page.getByRole("heading", { name: "Live answers need attention" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("No agent attempts have started.", { exact: false }).first()).toBeVisible();
+    await expect(page.locator("#attention-items").getByText("live-capacity", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Continue with valid questions" }).click();
+    await expect(page.getByRole("heading", { name: "Changed live gate" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("No agent answer was created for this live-validation failure.")).toBeVisible();
+    await expect(page.getByText("Live validation failed", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Retry failed attempts (1)" }).click();
+    await expect(page.getByRole("heading", { name: "Changed live gate · retry 1" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".lineage-callout")).toContainText("retried from Changed live gate");
+    await expect(page.getByText("Live validation failed", { exact: true })).toBeVisible();
+  });
+
   test("aligns the start evaluation action to the launch card edge", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/evaluations");
@@ -579,6 +916,7 @@ test.describe("QA evaluation console", () => {
     await expect(page.getByRole("heading", { name: "Attempt latency" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Pass rate" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Technical failure rate" })).toBeVisible();
+    await expect(page.getByText("Live-validation failures are excluded.", { exact: false })).toBeVisible();
     const alpha = page.getByRole("checkbox", { name: "Alpha set" });
     const beta = page.getByRole("checkbox", { name: "Beta set" });
     await expect(alpha).toBeChecked();
@@ -783,7 +1121,6 @@ test.describe("QA evaluation console", () => {
 
   test("imports, reviews atoms, saves a child dataset, launches, and opens history", async ({ page }) => {
     await page.goto("/evaluations");
-    await expect(page.getByRole("heading", { name: "Evaluating Archi has never been simpler." })).toBeVisible();
 
     await page.getByRole("button", { name: /Datasets/ }).click();
     await page.getByLabel("Name").first().fill("Mock dataset");

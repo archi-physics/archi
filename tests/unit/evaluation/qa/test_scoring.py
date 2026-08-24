@@ -81,11 +81,13 @@ class TestSummaryScoring:
             "skipped_time_sensitive": 0,
             "preparation_failed": 0,
             "prepared": 1,
+            "skipped_live": 0,
         }
         assert summary["attempt_lifecycle_counts"] == {
             "execution_failed": 1,
             "evaluation_failed": 1,
             "scored": 1,
+            "live_validation_failed": 0,
         }
         assert summary["quality_accounted_attempts"] == 2
         assert summary["overall_attempt_pass_rate"] == 0.5
