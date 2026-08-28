@@ -117,3 +117,32 @@ def test_default_sources_need_no_credentials():
             f"{path.name} is selected by default but declares credential_refs; "
             "a fresh install would fail to publish"
         )
+
+
+def test_chat_declares_a_system_prompt_that_ships():
+    """`okg chat sync` REFUSES a deployment with no prompt source.
+
+    Open WebUI never shows the model the MCP server's own `instructions`, so
+    without a system prompt the assistant gets graph tools registered and no
+    idea it has them — a preset that looks configured and cannot answer. okg
+    refuses rather than allow that, so this is a hard requirement, not a
+    nicety, and the file has to be one the bundle actually materialises.
+    """
+    defaults = yaml.safe_load((BUNDLE / "deployment-defaults.yaml").read_text())
+    ref = defaults["chat"]["preset"]["system_prompt_ref"]
+    assert ref, "chat.preset.system_prompt_ref must be declared"
+
+    # The ref is deployment-relative; the bundle's skills/ becomes
+    # <deployment>/skills/, so a skills/-rooted ref must exist there.
+    assert ref.startswith("skills/"), (
+        f"system_prompt_ref {ref!r} is not under skills/, which is the only "
+        "bundle directory materialised into the deployment as loose files"
+    )
+    shipped = BUNDLE / ref
+    assert shipped.is_file(), f"{ref} is declared but not shipped in the bundle"
+    text = shipped.read_text(encoding="utf-8").strip()
+    assert text, "a declared but empty prompt is refused by okg chat sync"
+    # The prompt exists to tell the model it has graph tools. If it stops
+    # naming them, it has stopped doing its job.
+    for operator in ("search", "inspect", "expand"):
+        assert operator in text, f"prompt no longer mentions the {operator} tool"

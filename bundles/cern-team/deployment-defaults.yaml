@@ -84,6 +84,13 @@ chat:
     default: ${chat_model}
   preset:
     display_name: ${chat_site_name}
+    # REQUIRED, not decorative. `okg chat sync` refuses a deployment that
+    # declares neither mcp_instructions nor a system_prompt_ref: Open WebUI
+    # never shows the model the MCP server's own instructions, so without
+    # this the assistant would have graph tools registered and no idea it
+    # has them — a preset that looks configured and cannot answer. The file
+    # is materialised into <deployment>/skills/ by the bundle's skills slot.
+    system_prompt_ref: skills/chat-system-prompt.md
     description: >-
       Answers from this instance's knowledge graph — indexed repositories,
       documentation and catalogs — with the sources it used.

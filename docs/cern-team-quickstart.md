@@ -191,10 +191,26 @@ export OKG_CHAT_APP_DATABASE_URL="postgresql://postgres:$CHAT_DB_PASSWORD@127.0.
 export OKG_CHAT_WEBUI_SECRET_KEY='choose-anything'
 export OKG_CHAT_MCP_TOKEN='choose-anything'
 
+# Prove the credentials work before handing them to okg. If this fails,
+# fix it here — a wrong password shows up much later as a crashed
+# container and a command that appears to hang.
+sleep 5
+okg-venv/bin/python -c "
+import os, psycopg
+psycopg.connect(os.environ['OKG_CHAT_APP_DATABASE_URL']).close()
+print('chat database reachable with these credentials')"
+
 okg-venv/bin/okg chat-instance up --deployment myteam \
   --container-runtime podman --instance-port 8099 --ready-timeout 300
 okg-venv/bin/okg chat-instance status --deployment myteam
 ```
+
+**Set `CHAT_DB_PASSWORD` and create the database in the same shell**, and do
+not change it afterwards. The container bakes the password in at creation,
+so a value that changes between `podman run` and the DSN gives
+`password authentication failed for user "postgres"` — which surfaces as a
+crashed chat container while `chat-instance up` polls on, looking like a
+hang. The check above catches it immediately instead.
 
 **Why `0.0.0.0` here and nowhere else.** This database is read from
 *inside* a container, and under rootless podman a loopback-only published
@@ -219,22 +235,169 @@ here — that one really is just slow.
 **`--container-runtime podman`** is needed because the default is docker,
 and it is accepted by `up` only — `status` rejects it.
 
-**Already created the chat database before reading this?** Remove and
-recreate it; nothing else needs redoing:
+**Retrying after a failed attempt? Remove BOTH containers, not just the
+database.** The chat container bakes its connection string in at creation,
+and `chat-instance up` will reuse an existing one — so a chat container
+built against the old password keeps failing with
+`password authentication failed` no matter how correct the database and DSN
+now are. Neither container has a volume, so removing them loses nothing:
 
 ```bash
-podman rm -f myteam-chat-pg
-# then re-run the block above from the top
+podman rm -f okg-chat-myteam myteam-chat-pg
+# then re-run the block above from the top, in one shell
 ```
+
+This is the single most likely reason a second attempt fails the same way
+as the first.
 
 Expect `status` to report the tools endpoint dead. It is telling the truth:
 the site is up, but the graph tools are a separate process. **Take it
 seriously — the site can be up and every tool call still fail.**
 
-Open `http://127.0.0.1:8099` and point it at your model provider in the
-admin settings. A local ollama needs no API key at all — check which port
-yours actually listens on rather than assuming the default, and note that a
-container reaching *another* machine's ollama works fine.
+### Connect the graph tools
+
+**The site being up does not mean the assistant can reach your graph.** Ask
+it something now and it will search Open WebUI's own built-in "knowledge
+bases" — which are unrelated and empty — and tell you it has no access. Two
+more steps wire the graph in.
+
+**First, serve the tools.** This is a long-running process; give it its own
+terminal. One server per deployment, on one branch — which is why it is not
+folded into `chat-instance up`.
+
+```bash
+export OKG_DSN='postgresql://postgres:okg@127.0.0.1:5433/myteam'
+export OKG_CHAT_MCP_TOKEN='choose-anything'   # the value you used above
+
+okg-venv/bin/okg mcp-serve --deployment myteam \
+  --transport streamable-http \
+  --host 0.0.0.0 --port 8765 \
+  --auth-token-env OKG_CHAT_MCP_TOKEN
+```
+
+`--host 0.0.0.0` for the same reason as the chat database: the chat
+container reaches this from inside, where a loopback-only port is not
+reachable.
+
+**The port must be 8765**, because that is what the bundle declares in
+`chat.mcp.port`. `chat sync` looks for the endpoint there and nowhere else —
+serve on a different port and it fails with `mcp_unreachable` while the
+server is running perfectly well somewhere you did not tell it about.
+
+**Then wire the chat to it**, from your first terminal:
+
+```bash
+export OKG_CHAT_INSTANCE_URL=http://127.0.0.1:8099
+export OKG_CHAT_ADMIN_TOKEN='<see below>'
+okg-venv/bin/okg chat sync --deployment myteam
+```
+
+**Getting that token without touching a browser.** The first account
+created on a fresh instance becomes the admin, and signing up returns a
+token `chat sync` accepts directly — so this is one scriptable command, not
+a round trip through the UI:
+
+```bash
+export OKG_CHAT_ADMIN_TOKEN=$(curl -s -X POST "$OKG_CHAT_INSTANCE_URL/api/v1/auths/signup" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"admin","email":"you@example.org","password":"pick-a-password"}' \
+  | okg-venv/bin/python -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+```
+
+On an instance where that account already exists, swap `signup` for
+`signin` and drop the `name` field. Keep the chat app database and the
+account persists, so this is a one-liner on every later run rather than a
+fresh sign-up.
+
+*(If you would rather use the UI: sign up in the browser, then
+**Settings → Account → API Keys → Create new key**. Same result, more
+clicks.)*
+
+`chat sync` is the step that makes this automatic rather than clicked
+together: it renders the site's appearance from the bundle, creates the MCP
+connection, applies the model preset with the graph tools bound, and then
+**proves it works** — an `initialize` and a `tools/list` through the
+registered credential. A 401, an empty tool list, or a bare TCP connect is
+treated as failure, not success. It reads everything back and compares
+against the manifest, and a partial application is a failure.
+
+**The bundle ships the assistant's system prompt**, at
+`skills/chat-system-prompt.md` in your deployment. It tells the model it has
+graph tools, names them, and tells it to ground answers and to say when the
+graph does not contain something. This is required, not decorative: `chat
+sync` refuses a deployment that declares no prompt, because Open WebUI never
+shows the model the MCP server's own instructions — without it the assistant
+would have tools registered and no idea it had them. Edit that file to
+change the assistant's behaviour, then re-run `chat sync`.
+
+### Opening it, and giving it a model
+
+**If the machine is remote, tunnel to it.** The site binds to loopback on
+purpose, so it is not reachable across the network. From your own machine:
+
+```bash
+ssh -L 8099:127.0.0.1:8099 <that-host>
+```
+
+Then open `http://127.0.0.1:8099` in your own browser.
+
+**Point it at a model provider.** A local ollama needs no API key at all, and
+with the admin token you already exported this is one command rather than a
+trip through the settings screens:
+
+```bash
+curl -s -X POST "$OKG_CHAT_INSTANCE_URL/ollama/config/update" \
+  -H "Authorization: Bearer $OKG_CHAT_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"ENABLE_OLLAMA_API":true,"OLLAMA_BASE_URLS":["http://host.docker.internal:<port>"]}'
+```
+
+*(You can do the same thing by hand under **Settings → Admin → Connections**
+if you prefer clicking.)*
+
+Two things about that URL, both verified the hard way:
+
+- **Use the gateway name, not loopback or the hostname.** If ollama runs on
+  the same machine as the chat container, the URL is
+  `http://host.docker.internal:<port>`. `127.0.0.1` is the *container's* own
+  loopback, and a rootless container cannot route to its host's network
+  address — only the gateway alias reaches it.
+- **Check the port.** `OLLAMA_HOST` is often set to something other than the
+  default `11434`; `systemctl show ollama -p Environment` will tell you.
+
+### Then use it — and pick the right model
+
+**Select the deployment's preset in the model picker — the pre-selected model
+is the wrong one.** This is the single most misleading step, and it is not a
+matter of carelessness: the model the site opens on is a raw ollama model,
+because the manifest field that names the preset's underlying model is also
+the field that sets the site default. The graph tools are bound to the
+*preset* `chat sync` created (named after your deployment), so unless you
+change the picker you are talking to a plain language model with no access to
+anything you indexed and no instructions about this deployment. It will
+answer CMS questions from whatever it already knows, fluently, with nothing
+indicating the graph was never consulted.
+
+A good first question, with a checkable answer:
+
+> What repositories are indexed in this graph? Name three actual files from
+> them.
+
+It should name the repositories you installed and files that really exist in
+them. If it names things you never indexed — plausible-sounding projects from
+the same domain — it is not reaching the graph. Check that you selected the
+preset before concluding anything is broken.
+
+The same trap applies to calling the API directly rather than using the
+browser: Open WebUI deliberately does **not** attach a preset's tools for API
+callers (*"API callers don't expect hidden tools; they can explicitly request
+tools via `tool_ids`"*), so a raw completions call gets a toolless model that
+confabulates. Pass `tool_ids` explicitly if you script against it.
+
+Ollama on a *different* machine is simpler — an ordinary
+`http://<other-host>:<port>` works, because outbound networking from a
+container is unrestricted. It is only reaching back to its own host that
+needs the gateway name.
 
 ## 7. If the publish is blocked
 
