@@ -18,19 +18,25 @@ logger = get_logger(__name__)
 class LocalProvider(BaseProvider):
     """
     Provider for local LLM servers (Ollama, vLLM, LM Studio, etc.)
-    
+
     Supports two modes:
     1. Ollama mode (default): Uses ChatOllama from langchain_ollama
     2. OpenAI-compatible mode: Uses ChatOpenAI for vLLM, LM Studio, etc.
-    
-    The mode is determined by the 'local_mode' setting in extra_kwargs.
+
+    The mode is determined by the 'local_mode' setting in extra_kwargs. Subclasses
+    (OllamaProvider, VLLMProvider) pin the mode/provider_type/default base URL so
+    that both flavors can be configured and used at the same time, under distinct
+    `providers.<name>` config blocks.
     """
-    
+
     provider_type = ProviderType.LOCAL
     display_name = "Local Server"
-    
+
     DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
     DEFAULT_OPENAI_COMPAT_BASE_URL = "http://localhost:8000/v1"
+
+    # Overridden by subclasses to pin a specific mode instead of defaulting to Ollama.
+    DEFAULT_LOCAL_MODE = "ollama"
 
     @staticmethod
     def _normalize_base_url(url: Optional[str]) -> Optional[str]:
@@ -40,37 +46,45 @@ class LocalProvider(BaseProvider):
         if url.startswith(("http://", "https://")):
             return url
         return f"http://{url}"
-    
+
+    def _default_base_url(self) -> str:
+        if self.DEFAULT_LOCAL_MODE == "openai_compat":
+            return self.DEFAULT_OPENAI_COMPAT_BASE_URL
+        return self.DEFAULT_OLLAMA_BASE_URL
+
     def __init__(self, config: Optional[ProviderConfig] = None):
         import os
-        
-        # Check for OLLAMA_HOST environment variable (supports Docker/Podman deployments)
-        # If set, prefer it over the config value so runners can override host/port
-        env_ollama_host = self._normalize_base_url(os.environ.get("OLLAMA_HOST"))
-        default_ollama_host = env_ollama_host or self.DEFAULT_OLLAMA_BASE_URL
+
+        default_host = self._default_base_url()
+        env_ollama_host = None
+        if self.DEFAULT_LOCAL_MODE == "ollama":
+            # Check for OLLAMA_HOST environment variable (supports Docker/Podman deployments)
+            # If set, prefer it over the config value so runners can override host/port
+            env_ollama_host = self._normalize_base_url(os.environ.get("OLLAMA_HOST"))
+            default_host = env_ollama_host or default_host
 
         if config is None:
             config = ProviderConfig(
-                provider_type=ProviderType.LOCAL,
-                base_url=default_ollama_host,
+                provider_type=self.provider_type,
+                base_url=default_host,
                 models=[],  # dynamic fetch
                 default_model="",  # set from first available model if present
-                # Default to Ollama mode
-                extra_kwargs={"local_mode": "ollama"},
+                extra_kwargs={"local_mode": self.DEFAULT_LOCAL_MODE},
             )
         else:
             # Let env override the config base_url when provided (useful in CI)
             if env_ollama_host:
                 config.base_url = env_ollama_host
             elif not config.base_url:
-                config.base_url = default_ollama_host
+                config.base_url = default_host
             config.base_url = self._normalize_base_url(config.base_url)
+            config.extra_kwargs.setdefault("local_mode", self.DEFAULT_LOCAL_MODE)
         super().__init__(config)
     
     @property
     def local_mode(self) -> str:
         """Get the local server mode (ollama or openai_compat)."""
-        return self.config.extra_kwargs.get("local_mode", "ollama")
+        return self.config.extra_kwargs.get("local_mode", self.DEFAULT_LOCAL_MODE)
     
     def get_chat_model(self, model_name: str, **kwargs) -> BaseChatModel:
         """Get a local chat model instance."""
@@ -234,3 +248,28 @@ class LocalProvider(BaseProvider):
         """
         models = self.list_models()
         return [m.id for m in models]
+
+
+class OllamaProvider(LocalProvider):
+    """
+    Provider pinned to Ollama mode, configured via its own `providers.ollama`
+    config block. Lets a service run Ollama and vLLM at the same time by giving
+    each its own ProviderType/config, instead of sharing the generic `local`
+    provider's single `local_mode` setting.
+    """
+
+    provider_type = ProviderType.OLLAMA
+    display_name = "Ollama"
+    DEFAULT_LOCAL_MODE = "ollama"
+
+
+class VLLMProvider(LocalProvider):
+    """
+    Provider pinned to OpenAI-compatible mode (vLLM, LM Studio, etc.), configured
+    via its own `providers.vllm` config block. See OllamaProvider for why this is
+    a separate provider type rather than another `local_mode` value.
+    """
+
+    provider_type = ProviderType.VLLM
+    display_name = "vLLM"
+    DEFAULT_LOCAL_MODE = "openai_compat"

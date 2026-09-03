@@ -161,7 +161,8 @@ def _build_provider_config_from_payload(config_payload: Dict[str, Any], provider
 
     models = [ModelInfo(id=m, name=m, display_name=m) for m in cfg.get("models", [])]
     extra = {}
-    if provider_type == ProviderType.LOCAL and cfg.get("mode"):
+    local_types = (ProviderType.LOCAL, ProviderType.OLLAMA, ProviderType.VLLM)
+    if provider_type in local_types and cfg.get("mode"):
         extra["local_mode"] = cfg.get("mode")
 
     return ProviderConfig(
@@ -4498,8 +4499,8 @@ class FlaskAppWrapper(object):
             
             providers_status = []
             for provider_type in list_provider_types():
-                # Skip local provider - no API key needed
-                if provider_type == ProviderType.LOCAL:
+                # Skip local providers - no API key needed
+                if provider_type in (ProviderType.LOCAL, ProviderType.OLLAMA, ProviderType.VLLM):
                     continue
                     
                 ptype_str = provider_type.value
