@@ -223,8 +223,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 from okg.deployment import ContentHashProbe
 from okg.deployment import file_preflight
 
@@ -479,7 +479,7 @@ class TwikiEOSSource:
             mode=mode,
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         missing_seeds: tuple[str, ...] = ()
         if self._records is not None:
             records = self._records
@@ -495,7 +495,7 @@ class TwikiEOSSource:
                     required=self.required,
                     mode="live",
                 )
-                return ConnectorRun(
+                return SourceRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
@@ -541,7 +541,7 @@ class TwikiEOSSource:
             total = len(self.seed_topics or ())
             samples = ", ".join(missing_seeds[:3])
             all_missing = len(missing_seeds) == total
-            return ConnectorRun(
+            return SourceRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
@@ -558,7 +558,7 @@ class TwikiEOSSource:
                     ),
                 ),
             )
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
@@ -828,14 +828,14 @@ class TwikiCrawlSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         session = self._session()
         if session is None:
             # A missing/unparseable cookie is an auth failure, not an
             # empty-but-complete crawl: with completed_scope=True the
             # registry's missing_from_completed_scope semantics would
             # retract every previously ingested topic.
-            return ConnectorRun(
+            return SourceRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
@@ -894,7 +894,7 @@ class TwikiCrawlSource:
             # topics' records); emit what succeeded and report the rest.
             samples = ", ".join(crawl.failed_urls[:3])
             trailer = f"; {truncation_note}" if truncation_note else ""
-            return ConnectorRun(
+            return SourceRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
@@ -919,7 +919,7 @@ class TwikiCrawlSource:
             # not be claimed complete in any mode (the queued topics'
             # previously ingested records would be retracted under
             # missing_from_completed_scope).
-            return ConnectorRun(
+            return SourceRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
@@ -935,7 +935,7 @@ class TwikiCrawlSource:
                     ),
                 ),
             )
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,

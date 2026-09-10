@@ -313,8 +313,8 @@ from okg.deployment import (
     ProgressMarker,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
@@ -593,7 +593,7 @@ class MONITSAMSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> ConnectorRun:
+    ) -> SourceRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -740,7 +740,7 @@ class MONITCondorSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> ConnectorRun:
+    ) -> SourceRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -888,7 +888,7 @@ class MONITRucioTransferSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> ConnectorRun:
+    ) -> SourceRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -1058,7 +1058,7 @@ class MONITRucioDatasetSource:
         cursor: Any = None,
         since_progress: dict[str, str] | None = None,
         **_: Any,
-    ) -> ConnectorRun:
+    ) -> SourceRun:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
             token = os.environ.get(self.token_env)
@@ -1098,7 +1098,7 @@ class MONITRucioDatasetSource:
                 .get("datasets", {})
             )
             if not first_datasets.get("buckets"):
-                return ConnectorRun(
+                return SourceRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
@@ -1127,7 +1127,7 @@ class MONITRucioDatasetSource:
                     first_page=first_page,
                 )
 
-            return ConnectorRun(
+            return SourceRun(
                 facts=_live(),
                 completed_scope=(mode in {"scope_complete", "reconcile"}),
                 run_mode=mode,
@@ -1482,11 +1482,11 @@ def _missing_credential_run(
     mode: str,
     token_env: str,
     reason: str,
-) -> ConnectorRun:
+) -> SourceRun:
     # A missing configured credential must never claim completed_scope:
     # under missing_from_completed_scope semantics an empty-but-complete
     # run would retract every previously ingested record.
-    return ConnectorRun(
+    return SourceRun(
         facts=[],
         completed_scope=False,
         run_mode=mode,
@@ -1506,9 +1506,9 @@ def _endpoint_failed_run(
     exc: Exception,
     *,
     endpoint: str,
-) -> ConnectorRun:
+) -> SourceRun:
     # Same discipline for failed reads: emit nothing and claim nothing.
-    return ConnectorRun(
+    return SourceRun(
         facts=[],
         completed_scope=False,
         run_mode=mode,
@@ -1535,7 +1535,7 @@ def _source_run(
     ok_reason: str,
     empty_reason: str,
     quality: _ResponseQuality | None = None,
-) -> ConnectorRun:
+) -> SourceRun:
     partial = quality is not None and not quality.complete
     if partial:
         # HTTP 200 but the response itself is partial (timed out, shard
@@ -1562,7 +1562,7 @@ def _source_run(
         status = "ok"
         reason = ok_reason
         completed = mode in {"scope_complete", "reconcile"}
-    return ConnectorRun(
+    return SourceRun(
         facts=facts,
         completed_scope=completed,
         run_mode=mode,

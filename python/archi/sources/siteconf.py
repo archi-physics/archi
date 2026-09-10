@@ -81,8 +81,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 from okg.deployment import MutableApiProbe
 from okg.deployment import credential_preflight
 
@@ -324,10 +324,10 @@ class SITECONFSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         preflight = self.preflight(mode="live")
         if preflight.status != "ok":
-            return ConnectorRun(
+            return SourceRun(
                 facts=[],
                 completed_scope=False,
                 run_mode=mode,
@@ -349,7 +349,7 @@ class SITECONFSource:
                 # visibility) or a crawl that parsed zero site configs
                 # must never become a healthy completed scope over zero
                 # records — that would retract every site_config.
-                return ConnectorRun(
+                return SourceRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
@@ -404,7 +404,7 @@ class SITECONFSource:
                 f"; max_projects={self.max_projects} truncated the "
                 "project list; no complete scope claimed"
             )
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not truncated

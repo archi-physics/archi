@@ -102,8 +102,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 from okg.deployment import MutableApiProbe
 from okg.deployment import file_preflight
 
@@ -394,10 +394,10 @@ class HyperNewsSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         preflight = self.preflight(mode="live")
         if preflight.status != "ok":
-            return ConnectorRun(
+            return SourceRun(
                 facts=[],
                 completed_scope=False,
                 run_mode=mode,
@@ -426,7 +426,7 @@ class HyperNewsSource:
                     # forever); refuse instead of retracting everything.
                     # (Preflight reports the same refusal, so this is
                     # normally caught before reaching here.)
-                    return ConnectorRun(
+                    return SourceRun(
                         facts=[],
                         completed_scope=False,
                         run_mode=mode,
@@ -449,7 +449,7 @@ class HyperNewsSource:
                 credential_refs = (self.cookie_file_env,)
                 outcome = self._fetch()
                 if not outcome.records:
-                    return ConnectorRun(
+                    return SourceRun(
                         facts=[],
                         completed_scope=False,
                         run_mode=mode,
@@ -561,7 +561,7 @@ class HyperNewsSource:
                         targets,
                     )
 
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and allow_scope

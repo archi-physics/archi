@@ -80,8 +80,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 
 from archi.auth.cache import (
     content_hash,
@@ -205,7 +205,7 @@ class CMSSWReleaseSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         records, skipped, truncated = self._records_with_details()
         revision = {
             "run_id": run_id,
@@ -239,7 +239,7 @@ class CMSSWReleaseSource:
                 f"; limit={self.limit} truncated the release list; "
                 "no complete scope claimed"
             )
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"}

@@ -64,8 +64,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 from okg.deployment import ContentHashProbe
 
 DEFAULT_REPOS = (
@@ -146,7 +146,7 @@ class GitHubRepoSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         records = self._records()
         revision = {
             "run_id": run_id,
@@ -166,7 +166,7 @@ class GitHubRepoSource:
                     source_revision=revision,
                 )
 
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,

@@ -67,8 +67,8 @@ from okg.deployment import (
     EdgeFact,
     NodeFact,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 
 from archi.auth.cache import (
     content_hash,
@@ -152,7 +152,7 @@ class CondDBGlobalTagSource:
             base=self.base,
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         records, skipped = self._records_with_skips()
         revision = {
             "run_id": run_id,
@@ -180,7 +180,7 @@ class CondDBGlobalTagSource:
                 cmssw_targets | conddb_only_release_targets,
             )
 
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not skipped

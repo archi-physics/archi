@@ -175,8 +175,8 @@ from okg.deployment import (
     NodeFact,
     ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
@@ -401,10 +401,10 @@ class JiraIssueSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
-            return ConnectorRun(
+            return SourceRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
@@ -508,7 +508,7 @@ class JiraIssueSource:
             # complete would retract every record it dropped. The
             # closed status vocabulary has no 'degraded', so report
             # endpoint_failed.
-            return ConnectorRun(
+            return SourceRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
@@ -528,7 +528,7 @@ class JiraIssueSource:
                     checked_at=_checked_at(),
                 ),
             )
-        return ConnectorRun(
+        return SourceRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,

@@ -37,8 +37,8 @@ import requests
 
 from okg.deployment import (
     PreflightResult,
-    ConnectorRun,
 )
+from okg.substrate.library.sources.base import SourceRun
 from okg.deployment import (
     credential_preflight,
     file_preflight,
@@ -205,8 +205,8 @@ class CERNPreflightSource:
         *,
         mode: str = "cursor",
         sync_scope: Optional[Mapping[str, Any]] = None,
-    ) -> ConnectorRun:
-        return ConnectorRun(facts=[], health=self.preflight())
+    ) -> SourceRun:
+        return SourceRun(facts=[], health=self.preflight())
 
     def _credential_ref(self) -> str:
         if not self.credential_ref:

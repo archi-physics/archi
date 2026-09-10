@@ -281,9 +281,10 @@ below it is still private substrate, and all of it is enricher-side.
 ```
 okg.deployment:
     NodeFact, EdgeFact, ProgressMarker,
-    ConnectorRun, ConnectorHealth, PreflightResult,
+    ConnectorHealth, PreflightResult,
     ContentHashProbe, MutableApiProbe,
     file_preflight, credential_preflight, http_preflight, redact
+okg.substrate.library.sources.base: SourceRun
 okg.substrate.enrichers.base:     EnrichResult, IncrementalContext
 okg.substrate.enrichers.derived_edges:
     DerivedEdgeCandidate, insert_deterministic_edges, mint_edge_id
@@ -292,13 +293,23 @@ okg.substrate.library.linkers.declarative: DeclarativeLinker
 okg.substrate.alias.protocol:     AliasMatch
 ```
 
-Every SDK name above was verified to be the *same object* as the substrate name it
-replaced, except `ConnectorRun`, which is a genuinely narrower type: it drops
-`next_cursor`, `effective_scope_complete`, `bootstrap_identity` and three
-`applied_token_*` fields — none of which Archi ever referenced — and retains
-`record_authority_stream`, `record_set` and `record_set_replacement_keys`, the
-fields #1181's design note warned would cost incremental sources their changed-slice
-retractions.
+Every SDK name above is the *same object* as the substrate name it replaced, so those
+are import-path changes only.
+
+**`SourceRun` is the exception, and it cannot move yet — this is a live #1181 gap.**
+The SDK's replacement, `ConnectorRun`, drops `next_cursor`. okg's own ingest runner
+reads that attribute unconditionally (`ingest/runner.py:3399`,
+`next_cursor = source_run.next_cursor`) and contains no reference to `ConnectorRun`
+anywhere. So a connector written against the public SDK, returning the SDK's own
+declared return type, **fails at ingest** with
+`AttributeError: 'ConnectorRun' object has no attribute 'next_cursor'`. Measured on a
+real deployment 2026-09-10: the source failed at stage `run`, publish continued as
+`deferred_incomplete`, and the generation came out at 187 nodes instead of 2,600 with
+`cmssw_release` absent entirely. Unit tests did not catch it, because they exercise
+our connectors directly rather than through okg's runner. We keep importing
+`SourceRun` from substrate until the runner accepts `ConnectorRun`; this is plausibly
+the same root cause as the installed-connector example that "admitted two records but
+published no generation" in Sprint 11's closing summary.
 
 If you change any of the remaining `okg.substrate.*` entries on `dev`, Archi breaks.
 `_chronos` is underscore-private by Python convention and remains the single item
