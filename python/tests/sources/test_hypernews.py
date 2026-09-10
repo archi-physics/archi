@@ -2,10 +2,10 @@
 import hashlib
 import json
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourcePreflightResult,
+    PreflightResult,
 )
 
 from archi.sources.hypernews import HyperNewsSource
@@ -133,7 +133,7 @@ def _patch_http(monkeypatch, handler):
 
 
 def _ok_preflight(self, mode="live"):
-    return SourcePreflightResult(
+    return PreflightResult(
         source_name="hypernews", status="ok", mode="live"
     )
 

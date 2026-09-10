@@ -41,11 +41,11 @@ see ``pact/changes/circleback-fixes/notes-live.md``):
   ingested record under ``missing_from_completed_scope``.
 - Any cache-read or live-query failure is ``endpoint_failed`` health
   with ``completed_scope=False``.
-- ``SourceHealth.status`` values come only from okg's closed
+- ``ConnectorHealth.status`` values come only from okg's closed
   ``PREFLIGHT_STATUSES`` vocabulary (``ok`` / ``skipped_optional`` /
   ``missing_credential`` / ``auth_failed`` / ``tls_failed`` /
   ``endpoint_failed`` / ``cache_missing`` / ``not_applicable`` / ...);
-  ``SourceHealth.__post_init__`` rejects anything else.
+  ``ConnectorHealth.__post_init__`` rejects anything else.
 - A *partial* OpenSearch response — ``timed_out: true``, failed shards,
   or a bucket-limited terms aggregation that dropped buckets
   (``sum_other_doc_count`` / ``doc_count_error_upper_bound`` > 0) —
@@ -307,13 +307,13 @@ from typing import Any, Callable, Iterable, Iterator
 
 import requests
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
     ProgressMarker,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -575,7 +575,7 @@ class MONITSAMSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         return _monit_preflight(
             source_name=self.name,
             records_path=self.records_path,
@@ -593,7 +593,7 @@ class MONITSAMSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> SourceRun:
+    ) -> ConnectorRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -722,7 +722,7 @@ class MONITCondorSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         return _monit_preflight(
             source_name=self.name,
             records_path=self.records_path,
@@ -740,7 +740,7 @@ class MONITCondorSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> SourceRun:
+    ) -> ConnectorRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -870,7 +870,7 @@ class MONITRucioTransferSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         return _monit_preflight(
             source_name=self.name,
             records_path=self.records_path,
@@ -888,7 +888,7 @@ class MONITRucioTransferSource:
         mode: str = "cursor",
         cursor: Any = None,
         **_: Any,
-    ) -> SourceRun:
+    ) -> ConnectorRun:
         try:
             records, run_mode, revision, quality = self._load_records(run_id)
         except MissingMONITCredential as exc:
@@ -1039,7 +1039,7 @@ class MONITRucioDatasetSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         return _monit_preflight(
             source_name=self.name,
             records_path=self.records_path,
@@ -1058,7 +1058,7 @@ class MONITRucioDatasetSource:
         cursor: Any = None,
         since_progress: dict[str, str] | None = None,
         **_: Any,
-    ) -> SourceRun:
+    ) -> ConnectorRun:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
             token = os.environ.get(self.token_env)
@@ -1098,11 +1098,11 @@ class MONITRucioDatasetSource:
                 .get("datasets", {})
             )
             if not first_datasets.get("buckets"):
-                return SourceRun(
+                return ConnectorRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
-                    health=SourceHealth(
+                    health=ConnectorHealth(
                         status="skipped_optional",
                         mode="live",
                         credential_refs=(self.token_env,),
@@ -1127,11 +1127,11 @@ class MONITRucioDatasetSource:
                     first_page=first_page,
                 )
 
-            return SourceRun(
+            return ConnectorRun(
                 facts=_live(),
                 completed_scope=(mode in {"scope_complete", "reconcile"}),
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="ok",
                     mode="live",
                     credential_refs=(self.token_env,),
@@ -1421,11 +1421,11 @@ def _monit_preflight(
     cache_loader: Callable[[], tuple[list[Any], _ResponseQuality]],
     cache_reason: str,
     base: str | None = None,
-) -> SourcePreflightResult:
+) -> PreflightResult:
     path = resolve_repo_path(records_path, base=base)
     if path.is_file():
         records, _ = cache_loader()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=source_name,
             status="ok",
             mode="cache",
@@ -1437,7 +1437,7 @@ def _monit_preflight(
             checked_at=_checked_at(),
         )
     if os.environ.get(token_env):
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=source_name,
             status="ok",
             mode="live",
@@ -1447,7 +1447,7 @@ def _monit_preflight(
             reason="MONIT Grafana token present",
             checked_at=_checked_at(),
         )
-    return SourcePreflightResult(
+    return PreflightResult(
         source_name=source_name,
         status="missing_credential",
         mode="live",
@@ -1482,15 +1482,15 @@ def _missing_credential_run(
     mode: str,
     token_env: str,
     reason: str,
-) -> SourceRun:
+) -> ConnectorRun:
     # A missing configured credential must never claim completed_scope:
     # under missing_from_completed_scope semantics an empty-but-complete
     # run would retract every previously ingested record.
-    return SourceRun(
+    return ConnectorRun(
         facts=[],
         completed_scope=False,
         run_mode=mode,
-        health=SourceHealth(
+        health=ConnectorHealth(
             status="missing_credential",
             mode="live",
             credential_refs=(token_env,),
@@ -1506,13 +1506,13 @@ def _endpoint_failed_run(
     exc: Exception,
     *,
     endpoint: str,
-) -> SourceRun:
+) -> ConnectorRun:
     # Same discipline for failed reads: emit nothing and claim nothing.
-    return SourceRun(
+    return ConnectorRun(
         facts=[],
         completed_scope=False,
         run_mode=mode,
-        health=SourceHealth(
+        health=ConnectorHealth(
             status="endpoint_failed",
             mode="live",
             credential_refs=(token_env,),
@@ -1535,7 +1535,7 @@ def _source_run(
     ok_reason: str,
     empty_reason: str,
     quality: _ResponseQuality | None = None,
-) -> SourceRun:
+) -> ConnectorRun:
     partial = quality is not None and not quality.complete
     if partial:
         # HTTP 200 but the response itself is partial (timed out, shard
@@ -1562,11 +1562,11 @@ def _source_run(
         status = "ok"
         reason = ok_reason
         completed = mode in {"scope_complete", "reconcile"}
-    return SourceRun(
+    return ConnectorRun(
         facts=facts,
         completed_scope=completed,
         run_mode=mode,
-        health=SourceHealth(
+        health=ConnectorHealth(
             status=status,
             mode=run_mode,
             credential_refs=((token_env,) if run_mode == "live" else ()),

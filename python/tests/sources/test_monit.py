@@ -11,12 +11,12 @@ import time
 
 import pytest
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
     ProgressMarker,
 )
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
+from okg.deployment import MutableApiProbe
 
 import archi.sources.monit as monit_mod
 from archi.sources.monit import (

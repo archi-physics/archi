@@ -120,12 +120,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Iterator, Literal
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -204,14 +204,14 @@ class CRICSource:
             self.responsibilities_path,
         )
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         missing = [
             str(resolve_repo_path(p, base=self.base))
             for p in self.cache_paths
             if not resolve_repo_path(p, base=self.base).is_file()
         ]
         if missing:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -223,7 +223,7 @@ class CRICSource:
         try:
             records = self._records()
         except ValueError as exc:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="cache",
@@ -231,7 +231,7 @@ class CRICSource:
                 reason=str(exc),
                 checked_at=_checked_at(),
             )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -242,7 +242,7 @@ class CRICSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records = self._records()
         revision = {
             "run_id": run_id,
@@ -256,11 +256,11 @@ class CRICSource:
             for record in records:
                 yield from _edge_facts(record, revision)
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="cache",
                 record_count=len(records),
@@ -554,14 +554,14 @@ class CRICCoreSource:
             self.federations_path,
         )
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         missing = [
             str(resolve_repo_path(p, base=self.base))
             for p in self.cache_paths
             if not resolve_repo_path(p, base=self.base).is_file()
         ]
         if missing:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -571,7 +571,7 @@ class CRICCoreSource:
                 checked_at=_checked_at(),
             )
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -582,7 +582,7 @@ class CRICCoreSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records = self._records()
         revision = {
             "run_id": run_id,
@@ -596,11 +596,11 @@ class CRICCoreSource:
             for record in records:
                 yield from _core_edge_facts(record, revision)
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="cache",
                 record_count=len(records),

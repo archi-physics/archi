@@ -1,5 +1,5 @@
 """req.w2.sources-catalogs — GitHubRepoSource emission, offline."""
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
+from okg.deployment import EdgeFact, NodeFact
 
 from archi.sources.github_repos import DEFAULT_REPOS, GitHubRepoSource
 

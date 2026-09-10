@@ -17,7 +17,7 @@ Rewritten from okg-deployments ``cms/cms_sources/preflight.py``
   tagged it ``cache``).
 
 Probes emit no NodeFact/EdgeFact; a run returns an empty fact stream
-with a SourceHealth summarizing the probe outcome. The failure
+with a ConnectorHealth summarizing the probe outcome. The failure
 vocabulary is unchanged: ``ok`` / ``missing_credential`` /
 ``auth_failed`` / ``tls_failed`` / ``endpoint_failed`` /
 ``cache_missing``. Credentials arrive as env-var references and file
@@ -35,16 +35,16 @@ from typing import Any, Iterable, Mapping, Optional
 
 import requests
 
-from okg.substrate.library.sources.base import (
-    SourcePreflightResult,
-    SourceRun,
+from okg.deployment import (
+    PreflightResult,
+    ConnectorRun,
 )
-from okg.substrate.sources.preflight import (
-    credential_env_preflight,
-    file_ref_preflight,
-    http_probe_result,
+from okg.deployment import (
+    credential_preflight,
+    file_preflight,
+    http_preflight,
 )
-from okg.substrate.sources.redaction import redact_text
+from okg.deployment import redact
 
 from archi.auth.cache import resolve_repo_path
 from archi.auth.cookies import (
@@ -99,15 +99,15 @@ def _load_cookie_file(session: requests.Session, path: Path) -> None:
 
 
 def _with_credential_context(
-    result: SourcePreflightResult,
+    result: PreflightResult,
     *,
     credential_ref: str,
     alias_refs: Mapping[str, tuple[str, ...]],
-) -> SourcePreflightResult:
+) -> PreflightResult:
     data = result.as_dict()
     data["credential_refs"] = (credential_ref,)
     data["alias_refs"] = dict(alias_refs)
-    return SourcePreflightResult(**data)
+    return PreflightResult(**data)
 
 
 def _login_page_detected(url: str, text: str) -> bool:
@@ -153,11 +153,11 @@ class CERNPreflightSource:
         )
         self.base = base
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         if self.kind == "cache":
             return self._cache_preflight(mode=mode)
         if self.kind == "token":
-            return credential_env_preflight(
+            return credential_preflight(
                 self.name,
                 self._credential_ref(),
                 aliases=self.aliases,
@@ -165,7 +165,7 @@ class CERNPreflightSource:
                 mode=mode,
             )
         if self.kind == "file":
-            return file_ref_preflight(
+            return file_preflight(
                 self.name,
                 self._credential_ref(),
                 aliases=self.aliases,
@@ -190,7 +190,7 @@ class CERNPreflightSource:
             return self._any_file_preflight(mode=mode)
         if self.kind == "all_env":
             return self._all_env_preflight(mode=mode)
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="endpoint_failed",
             mode=mode,
@@ -205,8 +205,8 @@ class CERNPreflightSource:
         *,
         mode: str = "cursor",
         sync_scope: Optional[Mapping[str, Any]] = None,
-    ) -> SourceRun:
-        return SourceRun(facts=[], health=self.preflight())
+    ) -> ConnectorRun:
+        return ConnectorRun(facts=[], health=self.preflight())
 
     def _credential_ref(self) -> str:
         if not self.credential_ref:
@@ -222,13 +222,13 @@ class CERNPreflightSource:
             )
         return self.endpoint
 
-    def _cache_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _cache_preflight(self, *, mode: str) -> PreflightResult:
         paths = [
             resolve_repo_path(p, base=self.base) for p in self.cache_paths
         ]
         missing = [p for p in paths if not p.exists()]
         if missing:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -242,7 +242,7 @@ class CERNPreflightSource:
             try:
                 count += _json_record_count(path)
             except Exception as exc:  # noqa: BLE001
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="cache_missing",
                     mode="cache",
@@ -253,7 +253,7 @@ class CERNPreflightSource:
                     ),
                     checked_at=_checked_at(),
                 )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -263,8 +263,8 @@ class CERNPreflightSource:
             checked_at=_checked_at(),
         )
 
-    def _ca_bundle_preflight(self, *, mode: str) -> SourcePreflightResult:
-        result = file_ref_preflight(
+    def _ca_bundle_preflight(self, *, mode: str) -> PreflightResult:
+        result = file_preflight(
             self.name,
             self._credential_ref(),
             aliases=self.aliases,
@@ -275,8 +275,8 @@ class CERNPreflightSource:
             data = result.as_dict()
             data["status"] = "tls_failed"
             data["reason"] = "CERN CA bundle is missing; refusing TLS bypass"
-            return SourcePreflightResult(**data)
-        return SourcePreflightResult(
+            return PreflightResult(**data)
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode=mode,
@@ -287,8 +287,8 @@ class CERNPreflightSource:
             checked_at=_checked_at(),
         )
 
-    def _sso_cookie_preflight(self, *, mode: str) -> SourcePreflightResult:
-        result = file_ref_preflight(
+    def _sso_cookie_preflight(self, *, mode: str) -> PreflightResult:
+        result = file_preflight(
             self.name,
             self._credential_ref(),
             aliases=self.aliases,
@@ -305,7 +305,7 @@ class CERNPreflightSource:
             if self.max_age_hours is not None else None
         )
         status = check_cookie_file(cookie_path, max_age=max_age)
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok" if status.fresh else "auth_failed",
             mode=mode,
@@ -316,8 +316,8 @@ class CERNPreflightSource:
             checked_at=_checked_at(),
         )
 
-    def _x509_proxy_preflight(self, *, mode: str) -> SourcePreflightResult:
-        result = file_ref_preflight(
+    def _x509_proxy_preflight(self, *, mode: str) -> PreflightResult:
+        result = file_preflight(
             self.name,
             self._credential_ref(),
             aliases=self.aliases,
@@ -331,7 +331,7 @@ class CERNPreflightSource:
         )
         expiry = _x509_not_after(proxy_path)
         if expiry is not None and expiry <= datetime.now(timezone.utc):
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="auth_failed",
                 mode=mode,
@@ -344,7 +344,7 @@ class CERNPreflightSource:
                 checked_at=_checked_at(),
             )
         if expiry is None:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="auth_failed",
                 mode=mode,
@@ -359,7 +359,7 @@ class CERNPreflightSource:
                 ),
                 checked_at=_checked_at(),
             )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode=mode,
@@ -370,9 +370,9 @@ class CERNPreflightSource:
             checked_at=_checked_at(),
         )
 
-    def _cern_sso_http_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _cern_sso_http_preflight(self, *, mode: str) -> PreflightResult:
         endpoint = self._endpoint()
-        file_result = file_ref_preflight(
+        file_result = file_preflight(
             self.name,
             self._credential_ref(),
             aliases=self.aliases,
@@ -389,7 +389,7 @@ class CERNPreflightSource:
             try:
                 _load_cookie_file(session, cookie_path)
             except Exception as exc:  # noqa: BLE001
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="auth_failed",
                     mode=mode,
@@ -397,7 +397,7 @@ class CERNPreflightSource:
                     credential_refs=(self._credential_ref(),),
                     alias_refs=file_result.alias_refs,
                     endpoint=endpoint,
-                    reason=redact_text(
+                    reason=redact(
                         f"SSO cookie file could not be parsed — re-acquire "
                         f"it (no request was sent): "
                         f"{type(exc).__name__}: {exc}"
@@ -411,7 +411,7 @@ class CERNPreflightSource:
                 allow_redirects=True,
             )
         except requests.exceptions.SSLError as exc:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="tls_failed",
                 mode=mode,
@@ -419,14 +419,14 @@ class CERNPreflightSource:
                 credential_refs=(self._credential_ref(),),
                 alias_refs=file_result.alias_refs,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"CERN SSO HTTP probe failed TLS: "
                     f"{type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode=mode,
@@ -434,7 +434,7 @@ class CERNPreflightSource:
                 credential_refs=(self._credential_ref(),),
                 alias_refs=file_result.alias_refs,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"CERN SSO HTTP probe failed: "
                     f"{type(exc).__name__}: {exc}"
                 ),
@@ -451,7 +451,7 @@ class CERNPreflightSource:
         else:
             reason = f"CERN SSO HTTP probe returned HTTP {status_code}"
         return _with_credential_context(
-            http_probe_result(
+            http_preflight(
                 self.name,
                 ok=status_code == 200,
                 endpoint=endpoint,
@@ -464,7 +464,7 @@ class CERNPreflightSource:
             alias_refs=file_result.alias_refs,
         )
 
-    def _cern_tls_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _cern_tls_preflight(self, *, mode: str) -> PreflightResult:
         endpoint = self._endpoint()
         ca_result = self._ca_bundle_preflight(mode=mode)
         if ca_result.status != "ok":
@@ -478,7 +478,7 @@ class CERNPreflightSource:
                 verify=str(ca_path),
             )
         except requests.exceptions.SSLError as exc:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="tls_failed",
                 mode=mode,
@@ -486,13 +486,13 @@ class CERNPreflightSource:
                 credential_refs=(self._credential_ref(),),
                 alias_refs=ca_result.alias_refs,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"CERN TLS probe failed: {type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode=mode,
@@ -500,7 +500,7 @@ class CERNPreflightSource:
                 credential_refs=(self._credential_ref(),),
                 alias_refs=ca_result.alias_refs,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"CERN TLS probe failed: {type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
@@ -516,7 +516,7 @@ class CERNPreflightSource:
         else:
             reason = f"CERN TLS probe returned HTTP {status_code}"
         return _with_credential_context(
-            http_probe_result(
+            http_preflight(
                 self.name,
                 ok=status_code == 200,
                 endpoint=endpoint,
@@ -529,12 +529,12 @@ class CERNPreflightSource:
             alias_refs=ca_result.alias_refs,
         )
 
-    def _x509_http_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _x509_http_preflight(self, *, mode: str) -> PreflightResult:
         endpoint = self._endpoint()
         refs = self.credential_refs or (self._credential_ref(),)
         proxy_ref = refs[0]
         ca_ref = refs[1] if len(refs) > 1 else None
-        proxy_result = file_ref_preflight(
+        proxy_result = file_preflight(
             self.name,
             proxy_ref,
             required=self.required,
@@ -544,7 +544,7 @@ class CERNPreflightSource:
             return proxy_result
         proxy_path = _credential_file_path(proxy_ref, ())
         if proxy_path is None:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="missing_credential",
                 mode=mode,
@@ -555,7 +555,7 @@ class CERNPreflightSource:
             )
         expiry = _x509_not_after(proxy_path)
         if expiry is not None and expiry <= datetime.now(timezone.utc):
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="auth_failed",
                 mode=mode,
@@ -567,7 +567,7 @@ class CERNPreflightSource:
             )
         ca_path: Path | None = None
         if ca_ref:
-            ca_result = file_ref_preflight(
+            ca_result = file_preflight(
                 self.name,
                 ca_ref,
                 required=self.required,
@@ -577,7 +577,7 @@ class CERNPreflightSource:
                 data = ca_result.as_dict()
                 data["credential_refs"] = tuple(refs)
                 data["status"] = "tls_failed"
-                return SourcePreflightResult(**data)
+                return PreflightResult(**data)
             ca_path = _credential_file_path(ca_ref, ())
         try:
             response = requests.Session().get(
@@ -589,7 +589,7 @@ class CERNPreflightSource:
             )
         except requests.exceptions.SSLError as exc:
             text = str(exc)
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status=(
                     "auth_failed"
@@ -599,21 +599,21 @@ class CERNPreflightSource:
                 required=self.required,
                 credential_refs=tuple(refs),
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"X.509 HTTPS probe failed TLS: "
                     f"{type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode=mode,
                 required=self.required,
                 credential_refs=tuple(refs),
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"X.509 HTTPS probe failed: "
                     f"{type(exc).__name__}: {exc}"
                 ),
@@ -621,7 +621,7 @@ class CERNPreflightSource:
             )
         status_code = int(getattr(response, "status_code", 0) or 0)
         return _with_credential_context(
-            http_probe_result(
+            http_preflight(
                 self.name,
                 ok=status_code == 200,
                 endpoint=endpoint,
@@ -634,7 +634,7 @@ class CERNPreflightSource:
             alias_refs={},
         )
 
-    def _https_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _https_preflight(self, *, mode: str) -> PreflightResult:
         endpoint = self._endpoint()
         try:
             response = requests.Session().get(
@@ -643,25 +643,25 @@ class CERNPreflightSource:
                 allow_redirects=True,
             )
         except requests.exceptions.SSLError as exc:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="tls_failed",
                 mode=mode,
                 required=self.required,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"HTTPS probe failed TLS: {type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode=mode,
                 required=self.required,
                 endpoint=endpoint,
-                reason=redact_text(
+                reason=redact(
                     f"HTTPS probe failed: {type(exc).__name__}: {exc}"
                 ),
                 checked_at=_checked_at(),
@@ -670,7 +670,7 @@ class CERNPreflightSource:
         text = getattr(response, "text", "") or ""
         url = getattr(response, "url", endpoint) or endpoint
         login_page = _login_page_detected(url, text)
-        return http_probe_result(
+        return http_preflight(
             self.name,
             ok=status_code == 200,
             endpoint=endpoint,
@@ -680,13 +680,13 @@ class CERNPreflightSource:
             login_page_detected=login_page or status_code in {401, 403},
         )
 
-    def _any_file_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _any_file_preflight(self, *, mode: str) -> PreflightResult:
         refs = self.credential_refs or (self._credential_ref(),)
         env = _env()
         for ref in refs:
             value = env.get(ref)
             if value and Path(value).expanduser().is_file():
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="ok",
                     mode=mode,
@@ -695,7 +695,7 @@ class CERNPreflightSource:
                     reason=f"{ref} file exists",
                     checked_at=_checked_at(),
                 )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="missing_credential",
             mode=mode,
@@ -705,12 +705,12 @@ class CERNPreflightSource:
             checked_at=_checked_at(),
         )
 
-    def _all_env_preflight(self, *, mode: str) -> SourcePreflightResult:
+    def _all_env_preflight(self, *, mode: str) -> PreflightResult:
         refs = self.credential_refs or (self._credential_ref(),)
         env = _env()
         missing = [ref for ref in refs if not env.get(ref)]
         if missing:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="missing_credential",
                 mode=mode,
@@ -719,7 +719,7 @@ class CERNPreflightSource:
                 reason="missing env refs: " + ", ".join(missing),
                 checked_at=_checked_at(),
             )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode=mode,

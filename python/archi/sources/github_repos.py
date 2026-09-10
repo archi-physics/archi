@@ -59,14 +59,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
-from okg.substrate.library.sources.content_hash_probe import ContentHashProbe
+from okg.deployment import ContentHashProbe
 
 DEFAULT_REPOS = (
     "dmwm/WMCore",
@@ -130,9 +130,9 @@ class GitHubRepoSource:
             emit_targets=GitHubRepoSource,
         )
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="registry_seed",
@@ -146,7 +146,7 @@ class GitHubRepoSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records = self._records()
         revision = {
             "run_id": run_id,
@@ -166,11 +166,11 @@ class GitHubRepoSource:
                     source_revision=revision,
                 )
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="registry_seed",
                 record_count=len(records),

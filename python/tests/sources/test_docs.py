@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
-from okg.substrate.library.sources.content_hash_probe import ContentHashProbe
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
+from okg.deployment import EdgeFact, NodeFact
+from okg.deployment import ContentHashProbe
+from okg.deployment import MutableApiProbe
 
 import archi.sources.docs as docs_mod
 from archi.sources.docs import DocumentationSource, SSOCookieDocsSource

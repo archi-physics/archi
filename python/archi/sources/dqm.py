@@ -60,12 +60,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -126,10 +126,10 @@ class DQMSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -139,7 +139,7 @@ class DQMSource:
                 checked_at=_checked_at(),
             )
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -150,7 +150,7 @@ class DQMSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records, skipped = self._records_with_skips()
         revision = {
             "run_id": run_id,
@@ -167,13 +167,13 @@ class DQMSource:
             record_count=len(records),
             skipped_count=skipped,
         )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not skipped
             ),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status=status,
                 mode="cache",
                 record_count=len(records),

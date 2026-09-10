@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
+from okg.deployment import EdgeFact, NodeFact
 
 from archi.sources.indico import IndicoSource
 

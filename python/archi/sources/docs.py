@@ -265,12 +265,12 @@ from xml.etree import ElementTree
 
 import requests
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -368,10 +368,10 @@ class DocumentationSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -381,7 +381,7 @@ class DocumentationSource:
                 checked_at=_checked_at(),
             )
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -392,14 +392,14 @@ class DocumentationSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
-            return SourceRun(
+            return ConnectorRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="cache_missing",
                     mode="cache",
                     cache_path=str(path),
@@ -427,11 +427,11 @@ class DocumentationSource:
                 chunker_name=self.chunker_name,
             )
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="cache",
                 record_count=len(records),
@@ -528,10 +528,10 @@ class SSOCookieDocsSource(DocumentationSource):
     def cache_paths(self) -> tuple[str, ...]:
         return ()
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         cookie_file = os.environ.get(self.cookie_file_env, "")
         if not cookie_file or not Path(cookie_file).is_file():
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="missing_credential",
                 mode="live",
@@ -549,7 +549,7 @@ class SSOCookieDocsSource(DocumentationSource):
             else None
         )
         status = check_cookie_file(cookie_file, max_age=max_age)
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok" if status.fresh else "auth_failed",
             mode="live",
@@ -560,18 +560,18 @@ class SSOCookieDocsSource(DocumentationSource):
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         session = self._cookie_session()
         if session is None:
             # A missing/unreadable cookie is an auth failure, not an
             # empty-but-complete crawl: with completed_scope=True the
             # registry's missing_from_completed_scope semantics would
             # retract every previously ingested page.
-            return SourceRun(
+            return ConnectorRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="auth_failed",
                     mode="live",
                     credential_refs=(self.cookie_file_env,),
@@ -623,11 +623,11 @@ class SSOCookieDocsSource(DocumentationSource):
             # (missing_from_completed_scope would retract the failed
             # pages' records); emit what succeeded and report the rest.
             samples = ", ".join(crawl.failed_urls[:3])
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="endpoint_failed",
                     mode="live",
                     credential_refs=(self.cookie_file_env,),
@@ -647,11 +647,11 @@ class SSOCookieDocsSource(DocumentationSource):
             # un-crawled pages would be retracted under
             # missing_from_completed_scope if this run claimed a
             # complete scope. Emit what was crawled and claim nothing.
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="ok",
                     mode="live",
                     credential_refs=(self.cookie_file_env,),
@@ -664,11 +664,11 @@ class SSOCookieDocsSource(DocumentationSource):
                     ),
                 ),
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="live",
                 credential_refs=(self.cookie_file_env,),

@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
+from okg.deployment import EdgeFact, NodeFact
 
 from archi.sources.cric import CRICCoreSource, CRICSource
 

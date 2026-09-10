@@ -97,15 +97,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
-from okg.substrate.sources.preflight import file_ref_preflight
+from okg.deployment import MutableApiProbe
+from okg.deployment import file_preflight
 
 from archi.auth.cache import load_json, resolve_repo_path
 from archi.auth.cookies import looks_like_login_page
@@ -265,9 +265,9 @@ class HyperNewsSource:
             if item is not None
         ]
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         if self._records is not None:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="fixture",
@@ -281,7 +281,7 @@ class HyperNewsSource:
             try:
                 records, _skipped = self._records_from_cache()
             except ValueError as exc:
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="endpoint_failed",
                     mode="cache",
@@ -293,7 +293,7 @@ class HyperNewsSource:
             if not records:
                 # Match run()'s refusal: an empty cache must not look
                 # healthy in preflight while run() rejects it.
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="endpoint_failed",
                     mode="cache",
@@ -303,7 +303,7 @@ class HyperNewsSource:
                     reason=self._empty_cache_reason(),
                     checked_at=_checked_at(),
                 )
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="cache",
@@ -314,7 +314,7 @@ class HyperNewsSource:
                 reason="local HyperNews records cache present",
                 checked_at=_checked_at(),
             )
-        file_result = file_ref_preflight(
+        file_result = file_preflight(
             self.name,
             self.cookie_file_env,
             required=self.required,
@@ -326,8 +326,8 @@ class HyperNewsSource:
 
     def _endpoint_probe(
         self,
-        file_result: SourcePreflightResult,
-    ) -> SourcePreflightResult:
+        file_result: PreflightResult,
+    ) -> PreflightResult:
         import http.cookiejar
         import requests
 
@@ -338,7 +338,7 @@ class HyperNewsSource:
             session = requests.Session()
             session.cookies = jar
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="live",
@@ -357,7 +357,7 @@ class HyperNewsSource:
                 failures.append(f"{forum}: {type(exc).__name__}")
                 continue
             if looks_like_login_page(resp.text) or "auth.cern.ch" in resp.url:
-                return SourcePreflightResult(
+                return PreflightResult(
                     source_name=self.name,
                     status="auth_failed",
                     mode="live",
@@ -370,7 +370,7 @@ class HyperNewsSource:
             if resp.status_code >= 400:
                 failures.append(f"{forum}: HTTP {resp.status_code}")
                 continue
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="live",
@@ -380,7 +380,7 @@ class HyperNewsSource:
                 reason="HyperNews forum listing reachable",
                 checked_at=_checked_at(),
             )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="endpoint_failed",
             mode="live",
@@ -394,14 +394,14 @@ class HyperNewsSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         preflight = self.preflight(mode="live")
         if preflight.status != "ok":
-            return SourceRun(
+            return ConnectorRun(
                 facts=[],
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status=preflight.status,
                     mode=preflight.mode,
                     reason=preflight.reason,
@@ -426,11 +426,11 @@ class HyperNewsSource:
                     # forever); refuse instead of retracting everything.
                     # (Preflight reports the same refusal, so this is
                     # normally caught before reaching here.)
-                    return SourceRun(
+                    return ConnectorRun(
                         facts=[],
                         completed_scope=False,
                         run_mode=mode,
-                        health=SourceHealth(
+                        health=ConnectorHealth(
                             status="endpoint_failed",
                             mode="cache",
                             record_count=0,
@@ -449,11 +449,11 @@ class HyperNewsSource:
                 credential_refs = (self.cookie_file_env,)
                 outcome = self._fetch()
                 if not outcome.records:
-                    return SourceRun(
+                    return ConnectorRun(
                         facts=[],
                         completed_scope=False,
                         run_mode=mode,
-                        health=SourceHealth(
+                        health=ConnectorHealth(
                             status="endpoint_failed",
                             mode="live",
                             credential_refs=credential_refs,
@@ -561,13 +561,13 @@ class HyperNewsSource:
                         targets,
                     )
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and allow_scope
             ),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status=run_status,
                 mode=run_health_mode,
                 credential_refs=credential_refs,

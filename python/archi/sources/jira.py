@@ -170,12 +170,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterator, Sequence
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -369,14 +369,14 @@ class JiraIssueSource:
             return {}
         return {self.credential_ref: self.credential_aliases}
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
             expected = _expected_count(self.meta_path, base=self.base)
             reason = "JIRA records cache file is missing"
             if expected is not None:
                 reason += f"; metadata reports {expected} records"
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -388,7 +388,7 @@ class JiraIssueSource:
                 checked_at=_checked_at(),
             )
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -401,14 +401,14 @@ class JiraIssueSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         path = resolve_repo_path(self.records_path, base=self.base)
         if not path.is_file():
-            return SourceRun(
+            return ConnectorRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="cache_missing",
                     mode="cache",
                     credential_refs=self._credential_refs,
@@ -508,11 +508,11 @@ class JiraIssueSource:
             # complete would retract every record it dropped. The
             # closed status vocabulary has no 'degraded', so report
             # endpoint_failed.
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="endpoint_failed",
                     mode="cache",
                     credential_refs=self._credential_refs,
@@ -528,11 +528,11 @@ class JiraIssueSource:
                     checked_at=_checked_at(),
                 ),
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="cache",
                 credential_refs=self._credential_refs,
