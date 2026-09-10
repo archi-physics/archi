@@ -27,6 +27,16 @@ reimplementation of OKG services.
 archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarded
 `okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
 
+**CI was testing a different okg than this page claimed, and now is not.** Until
+2026-09-10 the workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev`
+silently stopped tracking upstream on 2026-08-25. So while this page recorded two pin
+bumps and a passing suite, CI was re-checking a three-week-old okg; every "passed
+against `dev`" claim here was true of local runs only. Found because the connector
+SDK migration failed CI on `ImportError: cannot import name 'EdgeFact'` — the SDK did
+not exist in the pinned commit. The workflow now installs from **`mitdbg/okg`
+directly**, pinned to the same commit this page names, so the two cannot drift apart
+again without the pin visibly changing.
+
 **Our migration debt, now measured rather than estimated.** 43 imports of
 `okg.substrate.*` across ten private modules:
 

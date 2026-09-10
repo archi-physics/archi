@@ -54,8 +54,15 @@ jobs:
           fi
           # The pin is the commit archi is tested against; see
           # docs/okg-alignment.md, which states the drift from okg dev.
+          #
+          # Install from mitdbg/okg, NOT a fork. This used to point at
+          # lucalavezzo/okg@f5ec3b58d, and the fork's dev silently stopped
+          # tracking upstream on 2026-08-25 — so from then until 2026-09-10 CI
+          # was re-checking a three-week-old okg while the alignment page
+          # claimed we tested against current dev. A fork adds a manual sync
+          # step whose only observable effect is that kind of quiet rot.
           python -m pip install --upgrade pip
-          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/lucalavezzo/okg@f5ec3b58d"
+          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/mitdbg/okg@34efbad1b5768fd3ca635992173694a9cc91ebd2"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"
