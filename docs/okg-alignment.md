@@ -20,8 +20,43 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
-*Last updated 2026-09-08, tested against okg `dev` @ `1475c87d5`; archi branch
-`archi_v3` with PRs #610–#634 merged.*
+*Last updated 2026-09-10, tested against okg `dev` @ `34efbad1b`; archi branch
+`archi_v3` with PRs #610–#639 merged.*
+
+**Pin bumped `1475c87d5` → `34efbad1b` (2026-09-10), Sprint 11's 45 merges.** Full
+archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarded
+`okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
+
+**Our migration debt, now measured rather than estimated.** 43 imports of
+`okg.substrate.*` across ten private modules:
+
+| Side | Sites | Status |
+|---|---|---|
+| Connector — `library.sources.base` (17), `sources.preflight` (4), `content_hash_probe` (3), `mutable_api_probe` (3), `sources.redaction` (1) | **28** | **Migratable now.** `okg.deployment` exports 82 names; 17 of the 20 we need are present. `SourceRun` → `ConnectorRun` and `SourceHealth` → `ConnectorHealth` are renames touching ~133 references. We do not use `content_hash_items`. |
+| Enricher — `enrichers.base` (4), `enrichers.derived_edges` (4), `library.linkers` (5), `linkers.declarative` (1), `alias.protocol` (1) | **15** | **Blocked** on #1181 slice 5, the enricher read surface, deferred at our own recommendation. |
+
+One of the fifteen is `okg.substrate.library.linkers._chronos` — underscore-private by
+Python convention, and the single item we flagged upstream as most worth absorbing.
+
+**Sprint 11 closed 2026-09-10 with our three reports absorbed.** Its
+[closing summary](https://github.com/mitdbg/okg/issues/1698#issuecomment-5616923942)
+retains the **connectors-first** example and records the enricher read surface as
+**deferred** — both our recommendation on
+[#1181](https://github.com/mitdbg/okg/issues/1181#issuecomment-5591973861). Sprint 14
+**#1792 owns provider/admin bootstrap** (our
+[#1183 findings](https://github.com/mitdbg/okg/issues/1183#issuecomment-5591286914) 2
+and 3) and **#1795 owns operator acceptance** including install and chat (our
+[#1179 ask](https://github.com/mitdbg/okg/issues/1179#issuecomment-5594656468)).
+**#1185 did not pass** and moved to Sprint 14 (#1789); our wheel remains its required
+real arm.
+
+**Owed by us, per that summary:** trusted admission policy, a real legacy inventory,
+and **acknowledgement of the current v2 contract — the v1 one is now insufficient**.
+The v1 digest we acknowledged (`sha256:db38e9bb…`) is still valid for v1; v2 is
+`sha256:5cba96ce160313402809651027e0d0c708610542a485c8ac0a88a578b2c69f6a`. Held
+deliberately until the real arm can run, since #1185 still lacks the consumer
+environment, sealed packages and lifecycle receipts that would make an
+acknowledgement outlive the day it is issued.
 
 **The bundle now ships the assistant's system prompt (2026-09-08, PR #632).**
 `bundles/cern-team/skills/chat-system-prompt.md`, declared as
