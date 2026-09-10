@@ -27,15 +27,21 @@ reimplementation of OKG services.
 archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarded
 `okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
 
-**CI was testing a different okg than this page claimed, and now is not.** Until
-2026-09-10 the workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev`
-silently stopped tracking upstream on 2026-08-25. So while this page recorded two pin
-bumps and a passing suite, CI was re-checking a three-week-old okg; every "passed
-against `dev`" claim here was true of local runs only. Found because the connector
-SDK migration failed CI on `ImportError: cannot import name 'EdgeFact'` — the SDK did
-not exist in the pinned commit. The workflow now installs from **`mitdbg/okg`
-directly**, pinned to the same commit this page names, so the two cannot drift apart
-again without the pin visibly changing.
+**CI was testing a different okg than this page claimed.** Until 2026-09-10 the
+workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev` silently
+stopped tracking upstream on 2026-08-25. So while this page recorded two pin bumps
+and a passing suite, CI re-checked a three-week-old okg; every "passed against `dev`"
+claim here was true of local runs only. Nothing failed, which is why nobody noticed.
+Found only because the connector SDK migration failed CI on `ImportError: cannot
+import name 'EdgeFact'` — the SDK did not exist in the pinned commit.
+
+**The fork cannot be removed**, which is the uncomfortable part. `OKG_REPO_TOKEN` is
+scoped to that account's own repositories, so pointing CI at `mitdbg/okg` returns 403
+(measured, run `34494575759`). CI can only read the fork, and the fork only tracks
+upstream when someone syncs it by hand. The pin is now `34efbad1b`, matching this
+page, and the workflow carries the sync command plus the rule that the two must stay
+equal — but the structural fix is a token that can read `mitdbg/okg` directly, which
+needs a classic PAT rather than the current fine-grained one.
 
 **Our migration debt, now measured rather than estimated.** 43 imports of
 `okg.substrate.*` across ten private modules:

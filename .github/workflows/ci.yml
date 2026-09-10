@@ -55,14 +55,25 @@ jobs:
           # The pin is the commit archi is tested against; see
           # docs/okg-alignment.md, which states the drift from okg dev.
           #
-          # Install from mitdbg/okg, NOT a fork. This used to point at
-          # lucalavezzo/okg@f5ec3b58d, and the fork's dev silently stopped
-          # tracking upstream on 2026-08-25 — so from then until 2026-09-10 CI
-          # was re-checking a three-week-old okg while the alignment page
-          # claimed we tested against current dev. A fork adds a manual sync
-          # step whose only observable effect is that kind of quiet rot.
+          # THE FORK IS LOAD-BEARING, and the pin must be kept fresh by hand.
+          # OKG_REPO_TOKEN is scoped to this account's own repositories: pointing
+          # this at mitdbg/okg directly returns 403 (measured, run 34494575759),
+          # so the fork is the only copy CI can read.
+          #
+          # That makes the fork a standing hazard rather than a convenience. Its
+          # `dev` silently stopped tracking upstream on 2026-08-25, and from then
+          # until 2026-09-10 CI re-checked a three-week-old okg while
+          # docs/okg-alignment.md claimed we tested against current dev. Nothing
+          # failed, which is exactly why nobody noticed.
+          #
+          # So: before bumping this pin, sync the fork, or the new commit will not
+          # be fetchable —
+          #   gh repo sync lucalavezzo/okg --source mitdbg/okg --branch dev
+          # (needs `gh auth refresh -s workflow`). Keep this pin equal to the
+          # commit named in docs/okg-alignment.md; if they differ, the page is
+          # describing a build that never ran.
           python -m pip install --upgrade pip
-          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/mitdbg/okg@34efbad1b5768fd3ca635992173694a9cc91ebd2"
+          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/lucalavezzo/okg@34efbad1b5768fd3ca635992173694a9cc91ebd2"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"
