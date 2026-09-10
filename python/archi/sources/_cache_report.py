@@ -25,9 +25,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from okg.substrate.library.sources.base import (
-    SourceHealth,
-    SourcePreflightResult,
+from okg.deployment import (
+    ConnectorHealth,
+    PreflightResult,
 )
 
 from archi.auth.cache import content_hash, resolve_repo_path
@@ -42,12 +42,12 @@ def cache_preflight_result(
     required: bool = False,
     mode: str = "cache",
     base: str | None = None,
-) -> SourcePreflightResult:
+) -> PreflightResult:
     paths = tuple(cache_paths)
     resolved_paths = tuple(resolve_repo_path(p, base=base) for p in paths)
     missing = [p for p in resolved_paths if not p.is_file()]
     if missing:
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=source_name,
             status="cache_missing",
             mode=mode,
@@ -57,7 +57,7 @@ def cache_preflight_result(
             checked_at=_checked_at(),
         )
     count = len(tuple(records or ()))
-    return SourcePreflightResult(
+    return PreflightResult(
         source_name=source_name,
         status=_cache_status(count),
         mode=mode,
@@ -76,14 +76,14 @@ def cache_source_health(
     record_count: int,
     skipped_count: int = 0,
     base: str | None = None,
-) -> SourceHealth:
+) -> ConnectorHealth:
     status, reason = skipped_items_status(
         status=_cache_status(record_count),
         reason=_cache_reason(description, record_count, observed=False),
         record_count=record_count,
         skipped_count=skipped_count,
     )
-    return SourceHealth(
+    return ConnectorHealth(
         status=status,
         mode="cache",
         record_count=record_count,

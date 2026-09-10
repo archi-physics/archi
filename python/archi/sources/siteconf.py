@@ -76,15 +76,15 @@ from datetime import datetime, timezone
 from typing import Any, Iterator
 from urllib.parse import quote_plus
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
-from okg.substrate.sources.preflight import credential_env_preflight
+from okg.deployment import MutableApiProbe
+from okg.deployment import credential_preflight
 
 from archi.auth.cache import load_json
 
@@ -160,9 +160,9 @@ class SITECONFSource:
         )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         if self._records is not None:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="fixture",
@@ -171,7 +171,7 @@ class SITECONFSource:
                 reason="in-memory SITECONF records supplied",
                 checked_at=_checked_at(),
             )
-        env_result = credential_env_preflight(
+        env_result = credential_preflight(
             self.name,
             self.token_env,
             aliases=self.aliases,
@@ -184,8 +184,8 @@ class SITECONFSource:
 
     def _token_probe(
         self,
-        env_result: SourcePreflightResult,
-    ) -> SourcePreflightResult:
+        env_result: PreflightResult,
+    ) -> PreflightResult:
         import requests
 
         token = _env_value(self.token_env, self.aliases)
@@ -196,7 +196,7 @@ class SITECONFSource:
                 timeout=20,
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="live",
@@ -208,7 +208,7 @@ class SITECONFSource:
                 checked_at=_checked_at(),
             )
         if resp.status_code in {401, 403}:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="auth_failed",
                 mode="live",
@@ -220,7 +220,7 @@ class SITECONFSource:
                 checked_at=_checked_at(),
             )
         if resp.status_code >= 400:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="live",
@@ -237,8 +237,8 @@ class SITECONFSource:
 
     def _group_probe(
         self,
-        env_result: SourcePreflightResult,
-    ) -> SourcePreflightResult:
+        env_result: PreflightResult,
+    ) -> PreflightResult:
         """Probe group visibility, not just token validity.
 
         ``/api/v4/user`` accepts any live token; a token without group
@@ -261,7 +261,7 @@ class SITECONFSource:
                 timeout=20,
             )
         except Exception as exc:  # noqa: BLE001
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="live",
@@ -273,7 +273,7 @@ class SITECONFSource:
                 checked_at=_checked_at(),
             )
         if resp.status_code in {401, 403}:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="auth_failed",
                 mode="live",
@@ -297,7 +297,7 @@ class SITECONFSource:
             or not isinstance(payload, list)
             or not payload
         ):
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="endpoint_failed",
                 mode="live",
@@ -312,7 +312,7 @@ class SITECONFSource:
                 ),
                 checked_at=_checked_at(),
             )
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="live",
@@ -324,14 +324,14 @@ class SITECONFSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         preflight = self.preflight(mode="live")
         if preflight.status != "ok":
-            return SourceRun(
+            return ConnectorRun(
                 facts=[],
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status=preflight.status,
                     mode=preflight.mode,
                     reason=preflight.reason,
@@ -349,11 +349,11 @@ class SITECONFSource:
                 # visibility) or a crawl that parsed zero site configs
                 # must never become a healthy completed scope over zero
                 # records — that would retract every site_config.
-                return SourceRun(
+                return ConnectorRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
-                    health=SourceHealth(
+                    health=ConnectorHealth(
                         status="endpoint_failed",
                         mode="live",
                         credential_refs=(self.token_env,),
@@ -404,13 +404,13 @@ class SITECONFSource:
                 f"; max_projects={self.max_projects} truncated the "
                 "project list; no complete scope claimed"
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not truncated
             ),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="live" if self._records is None else "fixture",
                 credential_refs=(

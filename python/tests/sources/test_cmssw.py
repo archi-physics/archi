@@ -6,7 +6,7 @@ the W1 releases.map option, which now flows through the same emission
 """
 import json
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
+from okg.deployment import EdgeFact, NodeFact
 
 from archi.sources.cmssw import CMSSWReleaseSource, parse_releases_map
 

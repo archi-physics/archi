@@ -75,12 +75,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -169,12 +169,12 @@ class CMSSWReleaseSource:
             return (self.map_cache_path,)
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         path = resolve_repo_path(self.cache_paths[0], base=self.base)
         if not path.is_file() and not (
             self.map_cache_path is not None and self.fetch
         ):
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
                 mode="cache",
@@ -184,7 +184,7 @@ class CMSSWReleaseSource:
                 checked_at=_checked_at(),
             )
         if not path.is_file():
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="live",
@@ -194,7 +194,7 @@ class CMSSWReleaseSource:
                 checked_at=_checked_at(),
             )
         records = self._records()
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
@@ -205,7 +205,7 @@ class CMSSWReleaseSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records, skipped, truncated = self._records_with_details()
         revision = {
             "run_id": run_id,
@@ -239,7 +239,7 @@ class CMSSWReleaseSource:
                 f"; limit={self.limit} truncated the release list; "
                 "no complete scope claimed"
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"}
@@ -247,7 +247,7 @@ class CMSSWReleaseSource:
                 and not truncated
             ),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status=status,
                 mode="cache",
                 record_count=len(records),

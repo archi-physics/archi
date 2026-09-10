@@ -5,8 +5,8 @@ import time
 
 import pytest
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
+from okg.deployment import EdgeFact, NodeFact
+from okg.deployment import MutableApiProbe
 
 from archi.sources.jira import (
     JiraIssueSource,

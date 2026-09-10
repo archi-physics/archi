@@ -63,11 +63,11 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourcePreflightResult,
-    SourceRun,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -138,7 +138,7 @@ class CondDBGlobalTagSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         try:
             records = self._records()
         except FileNotFoundError:
@@ -152,7 +152,7 @@ class CondDBGlobalTagSource:
             base=self.base,
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records, skipped = self._records_with_skips()
         revision = {
             "run_id": run_id,
@@ -180,7 +180,7 @@ class CondDBGlobalTagSource:
                 cmssw_targets | conddb_only_release_targets,
             )
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not skipped

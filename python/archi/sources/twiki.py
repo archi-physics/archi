@@ -218,15 +218,15 @@ from urllib.parse import urlparse
 
 import requests
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourceHealth,
-    SourcePreflightResult,
-    SourceRun,
+    ConnectorHealth,
+    PreflightResult,
+    ConnectorRun,
 )
-from okg.substrate.library.sources.content_hash_probe import ContentHashProbe
-from okg.substrate.sources.preflight import file_ref_preflight
+from okg.deployment import ContentHashProbe
+from okg.deployment import file_preflight
 
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
@@ -423,9 +423,9 @@ class TwikiEOSSource:
                 out.append((f"aux:{raw}", path))
         return out
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         if self._records is not None:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="fixture",
@@ -460,7 +460,7 @@ class TwikiEOSSource:
                         f" ({len(walk.missing_seeds)} seeds missing from "
                         "the snapshot)"
                     )
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="filesystem",
@@ -472,14 +472,14 @@ class TwikiEOSSource:
                 reason=reason,
                 checked_at=_checked_at(),
             )
-        return file_ref_preflight(
+        return file_preflight(
             self.name,
             self.eos_root_env,
             required=self.required,
             mode=mode,
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         missing_seeds: tuple[str, ...] = ()
         if self._records is not None:
             records = self._records
@@ -489,17 +489,17 @@ class TwikiEOSSource:
             # itself — one listing per run, not two.
             root = Path(self.eos_root).expanduser() if self.eos_root else None
             if root is None or not root.is_dir():
-                preflight = file_ref_preflight(
+                preflight = file_preflight(
                     self.name,
                     self.eos_root_env,
                     required=self.required,
                     mode="live",
                 )
-                return SourceRun(
+                return ConnectorRun(
                     facts=[],
                     completed_scope=False,
                     run_mode=mode,
-                    health=SourceHealth(
+                    health=ConnectorHealth(
                         status=preflight.status,
                         mode=preflight.mode,
                         reason=preflight.reason,
@@ -541,11 +541,11 @@ class TwikiEOSSource:
             total = len(self.seed_topics or ())
             samples = ", ".join(missing_seeds[:3])
             all_missing = len(missing_seeds) == total
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="cache_missing" if all_missing else "endpoint_failed",
                     mode="filesystem",
                     credential_refs=(self.eos_root_env,),
@@ -558,11 +558,11 @@ class TwikiEOSSource:
                     ),
                 ),
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="filesystem" if self._records is None else "fixture",
                 credential_refs=(
@@ -783,9 +783,9 @@ class TwikiCrawlSource:
     def _credential_refs(self) -> tuple[str, ...]:
         return (self.cookie_file_env,) if self.cookie_file_env else ()
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         if not self.cookie_file_env:
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="ok",
                 mode="live",
@@ -799,7 +799,7 @@ class TwikiCrawlSource:
             )
         cookie_file = os.environ.get(self.cookie_file_env, "")
         if not cookie_file or not Path(cookie_file).is_file():
-            return SourcePreflightResult(
+            return PreflightResult(
                 source_name=self.name,
                 status="missing_credential",
                 mode="live",
@@ -817,7 +817,7 @@ class TwikiCrawlSource:
             else None
         )
         status = check_cookie_file(cookie_file, max_age=max_age)
-        return SourcePreflightResult(
+        return PreflightResult(
             source_name=self.name,
             status="ok" if status.fresh else "auth_failed",
             mode="live",
@@ -828,18 +828,18 @@ class TwikiCrawlSource:
             checked_at=_checked_at(),
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         session = self._session()
         if session is None:
             # A missing/unparseable cookie is an auth failure, not an
             # empty-but-complete crawl: with completed_scope=True the
             # registry's missing_from_completed_scope semantics would
             # retract every previously ingested topic.
-            return SourceRun(
+            return ConnectorRun(
                 facts=(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="auth_failed",
                     mode="live",
                     credential_refs=self._credential_refs(),
@@ -894,11 +894,11 @@ class TwikiCrawlSource:
             # topics' records); emit what succeeded and report the rest.
             samples = ", ".join(crawl.failed_urls[:3])
             trailer = f"; {truncation_note}" if truncation_note else ""
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="endpoint_failed",
                     mode="live",
                     credential_refs=self._credential_refs(),
@@ -919,11 +919,11 @@ class TwikiCrawlSource:
             # not be claimed complete in any mode (the queued topics'
             # previously ingested records would be retracted under
             # missing_from_completed_scope).
-            return SourceRun(
+            return ConnectorRun(
                 facts=_facts(),
                 completed_scope=False,
                 run_mode=mode,
-                health=SourceHealth(
+                health=ConnectorHealth(
                     status="ok",
                     mode="live",
                     credential_refs=self._credential_refs(),
@@ -935,11 +935,11 @@ class TwikiCrawlSource:
                     ),
                 ),
             )
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(mode in {"scope_complete", "reconcile"}),
             run_mode=mode,
-            health=SourceHealth(
+            health=ConnectorHealth(
                 status="ok",
                 mode="live",
                 credential_refs=self._credential_refs(),

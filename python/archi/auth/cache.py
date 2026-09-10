@@ -26,8 +26,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from okg.substrate.library.sources.content_hash_probe import ContentHashProbe
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
+from okg.deployment import ContentHashProbe
+from okg.deployment import MutableApiProbe
 
 DATA_ROOT_ENV = "ARCHI_DATA_ROOT"
 

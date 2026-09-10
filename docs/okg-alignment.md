@@ -253,20 +253,21 @@ dereference (your "materialized payload" wording already covers this).
 
 ## The exact substrate surface Archi consumes today
 
-This is the de-facto interface #1181 (public connector/enricher SDK) will replace.
-If you change any of these on `dev`, Archi breaks; when the SDK lands, Archi
-migrates to it in one sweep (imports are centralized).
+**The connector half is done (2026-09-10).** Everything Archi's connectors need now
+comes from the public `okg.deployment` SDK, so #1181's boundary lint has nothing left
+to find on that side. What remains below is enricher-only, and is blocked on #1181
+slice 5 — the enricher read surface, deferred at
+[our own recommendation](https://github.com/mitdbg/okg/issues/1181#issuecomment-5591973861).
 
-**Python imports (all of them):**
+**Python imports (all of them).** The first entry is the public SDK; everything
+below it is still private substrate, and all of it is enricher-side.
+
 ```
-okg.substrate.library.sources.base:
-    NodeFact, EdgeFact, SourceRun, SourceHealth, SourcePreflightResult,
-    ProgressMarker
-okg.substrate.library.sources.content_hash_probe: ContentHashProbe
-okg.substrate.library.sources.mutable_api_probe:  MutableApiProbe
-okg.substrate.sources.preflight:
-    file_ref_preflight, credential_env_preflight, http_probe_result
-okg.substrate.sources.redaction:  redact_text
+okg.deployment:
+    NodeFact, EdgeFact, ProgressMarker,
+    ConnectorRun, ConnectorHealth, PreflightResult,
+    ContentHashProbe, MutableApiProbe,
+    file_preflight, credential_preflight, http_preflight, redact
 okg.substrate.enrichers.base:     EnrichResult, IncrementalContext
 okg.substrate.enrichers.derived_edges:
     DerivedEdgeCandidate, insert_deterministic_edges, mint_edge_id
@@ -274,6 +275,18 @@ okg.substrate.library.linkers:    _chronos
 okg.substrate.library.linkers.declarative: DeclarativeLinker
 okg.substrate.alias.protocol:     AliasMatch
 ```
+
+Every SDK name above was verified to be the *same object* as the substrate name it
+replaced, except `ConnectorRun`, which is a genuinely narrower type: it drops
+`next_cursor`, `effective_scope_complete`, `bootstrap_identity` and three
+`applied_token_*` fields — none of which Archi ever referenced — and retains
+`record_authority_stream`, `record_set` and `record_set_replacement_keys`, the
+fields #1181's design note warned would cost incremental sources their changed-slice
+retractions.
+
+If you change any of the remaining `okg.substrate.*` entries on `dev`, Archi breaks.
+`_chronos` is underscore-private by Python convention and remains the single item
+most worth absorbing into the SDK.
 
 **Contracts consumed as data/CLI (not imports):** the source-registry entry schema
 (`source_class`, `record_identity_*`, `change_probe_kind` soundness, admission

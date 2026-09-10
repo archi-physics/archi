@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 import pytest
 import requests
 
-from okg.substrate.library.sources.base import EdgeFact, NodeFact
-from okg.substrate.library.sources.content_hash_probe import ContentHashProbe
-from okg.substrate.library.sources.mutable_api_probe import MutableApiProbe
+from okg.deployment import EdgeFact, NodeFact
+from okg.deployment import ContentHashProbe
+from okg.deployment import MutableApiProbe
 
 import archi.sources.twiki as twiki_mod
 from archi.sources._twiki_parse import (

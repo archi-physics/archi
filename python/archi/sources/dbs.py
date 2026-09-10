@@ -59,11 +59,11 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterator
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourcePreflightResult,
-    SourceRun,
+    PreflightResult,
+    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -125,7 +125,7 @@ class DBSDatasetSource:
     def cache_paths(self) -> tuple[str, ...]:
         return (self.records_path,)
 
-    def preflight(self, mode: str = "live") -> SourcePreflightResult:
+    def preflight(self, mode: str = "live") -> PreflightResult:
         try:
             records = self._records()
         except FileNotFoundError:
@@ -139,7 +139,7 @@ class DBSDatasetSource:
             base=self.base,
         )
 
-    def run(self, run_id: str, *, mode: str = "cursor") -> SourceRun:
+    def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
         records, skipped = self._records_with_skips()
         revision = {
             "run_id": run_id,
@@ -152,7 +152,7 @@ class DBSDatasetSource:
                 yield _node_fact(record, revision)
             yield from _edge_facts(records, revision)
 
-        return SourceRun(
+        return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"} and not skipped

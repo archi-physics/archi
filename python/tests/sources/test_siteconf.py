@@ -1,10 +1,10 @@
 """req.w2.sources-catalogs — SITECONFSource emission (fixture mode)."""
 import json
 
-from okg.substrate.library.sources.base import (
+from okg.deployment import (
     EdgeFact,
     NodeFact,
-    SourcePreflightResult,
+    PreflightResult,
 )
 
 from archi.sources.siteconf import SiteConfRecord, SITECONFSource
@@ -81,7 +81,7 @@ class _Resp:
 
 
 def _ok_preflight(self, mode="live"):
-    return SourcePreflightResult(
+    return PreflightResult(
         source_name="siteconf", status="ok", mode="live"
     )
 
