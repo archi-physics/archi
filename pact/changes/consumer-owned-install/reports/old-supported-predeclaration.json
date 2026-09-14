@@ -1,0 +1,25 @@
+{
+  "schema": "archi.install-compatibility-predeclaration/v1",
+  "status": "planned-not-executed",
+  "input_sha256": "9271234204ecdf9e71783b6b533be2afa997843c2bc6f0ea4c7c87f343ddb4f2",
+  "recipe_sha256": "35af42df28b3800674d5483f1a5d1f9f30280f7490c3fd5e9d4ef0086657b13c",
+  "release_files": {
+    "install.py": "34246050847b9adf9b973c747a55780853e861f326165921afde7384533224fb",
+    "install_launcher.py": "9e1a6fc7ffc1b070c6087071dd86b764698a3f6060a2d000414fbea3ac3954f7",
+    "release.json": "c24890dd7ecbe05fe2e2452188b88f792cfe58ec2eaf12053086d9f6ae3decb8",
+    "dependencies/manifest.json": "723b60fb4066fc99f98e14beb69dd19471592448317055f8e82e82ad10e23d3c",
+    "dependencies/runtime-wheels.txt": "ff1550d59ea069e1d9c04381b9dcf890545b185a98ab98f146b2d553d9031048",
+    "installer/pip-25.1.1-py3-none-any.whl": "2913a38a2abf4ea6b64ab507bd9e967f3b53dc1ede74b01b0931e1ce548751af",
+    "framework/okg-0.1.0-py3-none-any.whl": "ee10bed78ed7f974345ddc093e984a0dfae65b69c980d81df69fd94c77559932",
+    "consumer/archi-3.0.0a1-py3-none-any.whl": "9762c88ff4204c02731cc0c014efdb973ee8edf8eba167a736a3a2a75ea5a9aa"
+  },
+  "scope": "NEW ordinary public fetch by old supported reader, full scope default limit0, timeout60; capture resulting bytes and derive inventory afterward. Not historical reproduction or frozen predeclaration. No repeat fetch.",
+  "resources": {
+    "postgres_memory_bytes": 4294967296,
+    "cpu_quota": null,
+    "command_deadline_seconds": 1200,
+    "application_memory_limit": null
+  },
+  "evidence_retention": "Private workspace directory outside both repositories; exact path supplied to operator. Not a remotely hosted raw artifact.",
+  "acceptance": "First supported old-pair install and pinned read; independently derive exact expected sets from actual captured map afterward. Keep old instance unchanged for later changed-release refusal. No repeat fetch."
+}
