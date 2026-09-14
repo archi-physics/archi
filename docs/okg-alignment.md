@@ -20,6 +20,19 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**Consumer-owned installation migration (2026-09-14, OKG#1906; under review).**
+The new `archi.install` producer owns frozen snapshot/cache preparation, SDK
+wrappers, configuration and immutable package production. `archi.compat.agent_pipe`
+owns external-agent protocol compatibility. New imports use public
+`okg.distributions`, `okg.deployment` and the proposed `okg.chat` contract.
+The framework helper/facade are currently local reviewed candidates, not a
+released dependency. CI still pins `34efbad1b`; it must move together with this
+page to the final framework commit reachable through the authorized private fork.
+The new tests must execute there without skips before merge. Local synthetic
+contract tests do not establish installed artifact or private-policy acceptance.
+The transition creates a new target, environment and database while retaining
+old release authority; no in-place release upgrade is implemented.
+
 **Frozen CMSSW input contract (2026-09-14, OKG#1795).** This change adds an explicit
 path and SHA256 binding that never fetches in frozen mode. It preserves the live
 profile and existing CI pin. The separately owned packaged installer must support

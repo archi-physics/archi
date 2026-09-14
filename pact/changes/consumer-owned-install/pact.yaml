@@ -1,0 +1,44 @@
+pact_version: 5
+id: consumer-owned-install
+title: Own frozen installation preparation and connector compatibility in Archi
+tier: 2
+why: Consumer profile translation and compatibility currently execute inside the host framework. Archi must produce its own verified package and SDK adapters through consumer-neutral interfaces, preserving installed-release authority and explicit transition behavior.
+affected_code:
+- python/archi/install/
+- python/archi/compat/
+- python/tests/test_agent_pipe_bridge.py
+- python/tests/test_pipe_bridge_benchmark_report.py
+- python/tests/test_consumer_install.py
+- python/tests/test_frozen_adapters.py
+- bundles/cern-team/prepared-deployment.yaml
+- docs/okg-alignment.md
+- docs/consumer-install.md
+requirements:
+- id: producer
+  statement: Archi owns exact snapshot validation, derived cache preparation, profile configuration, release identity selection and immutable package production through public OKG distribution interfaces. No private host imports or callbacks are introduced; live profile defaults remain unchanged.
+- id: adapters
+  statement: Archi-owned SDK wrappers adapt the bounded CMSSW, documentation and Jira readers without changing completion, probe-safety, authorization or failure semantics. No host special-case bridge is required for the new adapters.
+- id: pipe-compatibility
+  statement: The existing standard-library-only external-agent pipe compatibility implementation and its consumer protocol acceptance tests move to Archi without changing tool authorization or message semantics; framework safety prohibitions remain intact.
+- id: transition
+  statement: Existing sealed installations retain their exact original launcher, environment, configuration, key and database authority. A changed release refuses ordinary reapply/update into that installation; the supported transition is a separately provisioned replacement with explicit operator cutover, not in-place release adoption.
+- id: installed-proof
+  statement: Actual consumer and framework artifacts outside checkouts prove bounded authentic installation, expected publication and pinned lineage reads, supported scoped update/search, changed-release refusal and original-last-good preservation. Unchanged-repeat defects remain failures and dependencies.
+tasks:
+- id: producer-tests
+  requirement: producer
+  verification: Consumer tests verify exact snapshot shapes and hashes, cache paths and fetch false, strict package identities, neutral manifest membership, deterministic output and rejection of tamper/symlink/unknown bindings; test alignment and built wheel payload.
+- id: sdk-tests
+  requirement: adapters
+  verification: Exercise all three real consumer wrappers through public ConnectorAdapter, normal and recovery construction, partial health/completion and unchanged probe flags; no source mutation solely to make repeats pass.
+- id: pipe-tests
+  requirement: pipe-compatibility
+  verification: Port existing compatibility tests, compare behavior and public authorization contracts, and confirm the moved module remains free of framework imports; do not create a new chat framework.
+- id: transition-tests
+  requirement: transition
+  verification: Review the release compatibility matrix and execute changed-release refusal against a disposable retained installation, compare original receipt/key/config bytes and independently query its original pinned reader.
+- id: real-install
+  requirement: installed-proof
+  verification: Build pinned real artifacts after generic entry delivery; run existing assembled installer and retained-release update/search on a fresh disposable instance under machine guard/mutex, retaining exact exits/generations/reader and resource evidence separately from concise source-PR reports.
+evidence: []
+decisions: []

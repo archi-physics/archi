@@ -1,0 +1,21 @@
+# Consumer-owned posture for the immutable, cache-only installation variant.
+# Instance name, modules, sources, cache roots and release pins are bound by the
+# producer; ordinary live profile defaults remain separate.
+nomos:
+  runtime_enforcement: enforce
+  deployment_posture:
+    deployment_class: personal_okg
+    read_principals: [human_operator, okg_service]
+    write_principals: [human_operator, source_adapter, okg_service]
+    mcp_write_default: deny
+    export_policy: no_export
+    secret_handling: secret_ref_required
+    live_call_default: deny
+    allowed_source_sensitivities: [local_private]
+    allowed_data_classifications: [private]
+    allowed_exportability: [no_export]
+    privacy_obligations: [audit, no_export]
+    readiness_profiles: [personal]
+release:
+  kind: packaged
+  channel: dev
