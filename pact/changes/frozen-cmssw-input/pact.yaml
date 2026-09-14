@@ -1,0 +1,56 @@
+pact_version: 5
+id: frozen-cmssw-input
+title: Bind CMSSW catalog ingestion to verified frozen bytes
+tier: 2
+why: >-
+  The CMSSW releases.map path can fetch live data when a cache is missing, and
+  the shipped live profile forces fetching. A bounded deployment baseline needs
+  an explicit consumer contract that verifies selected immutable bytes and
+  cannot silently replace them with a network response. This is the consumer
+  slice of mitdbg/okg#1795; packaged installer integration has another owner.
+affected_code:
+- python/archi/sources/cmssw.py
+- python/tests/sources/test_cmssw.py
+- bundles/cern-team/source-defaults/cmssw_releases_frozen.yaml.example
+- docs/frozen-cmssw-input.md
+- docs/okg-alignment.md
+- pact/changes/frozen-cmssw-input/
+requirements:
+- id: frozen-contract
+  statement: >-
+    An explicit map_cache_digest pin requires a map cache path, a valid SHA256
+    digest and fetch=False. Preflight and run independently reject absent or
+    changed selected bytes without network fallback. Existing unpinned source
+    modes retain their emission and fetching behavior.
+- id: verified-emission
+  statement: >-
+    Frozen ingestion parses the same bytes it verified and derives content_hash
+    and source revision from that same read. Emitted release/family identities,
+    supersedes edges, skipped-row and truncated-scope behavior follow the existing
+    source rules. The change probe includes the frozen binding identity.
+- id: integration-contract
+  statement: >-
+    A packaged consumer example and documentation define the path/digest/fetch
+    interface for the separately owned installer. Tests and artifact checks prove
+    the consumer contract; unavailable real historical catalog or publish proof
+    remains explicitly unproven and is never replaced by synthetic baseline data.
+tasks:
+- id: reject-unverified-input
+  requirement: frozen-contract
+  verification: >-
+    Exercise valid, malformed, missing, mismatched and conflicting frozen bindings
+    in preflight and run with a network call trap. Verify unpinned live/cache tests.
+- id: verify-same-buffer-emission
+  requirement: verified-emission
+  verification: >-
+    Compare exact fixture identity/edge sets and revision hashes; change the file
+    after its read to prove parsing and revision remain bound to verified bytes.
+    Verify changed pins affect probe configuration and scope degradation persists.
+- id: package-and-handoff
+  requirement: integration-contract
+  verification: >-
+    Build the existing wheel, inspect the installed example and adapter outside
+    authoring checkouts, run focused and relevant repository checks, and obtain
+    independent adversarial review. Record real input/publication dependencies
+    and coordinate the installer interface without modifying its entrypoints.
+evidence: []
