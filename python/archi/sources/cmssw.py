@@ -67,8 +67,10 @@ into the deployment; ``output_scope_summary`` must accompany
         default_event_mode: scope_complete
         reconcile_mode: scope_complete
 """
+
 from __future__ import annotations
 
+import hashlib
 import re
 import urllib.request
 from dataclasses import dataclass
@@ -76,11 +78,11 @@ from datetime import datetime, timezone
 from typing import Any, Iterator
 
 from okg.deployment import (
+    ConnectorHealth,
+    ConnectorRun,
     EdgeFact,
     NodeFact,
-    ConnectorHealth,
     PreflightResult,
-    ConnectorRun,
 )
 
 from archi.auth.cache import (
@@ -96,8 +98,7 @@ RELEASES_MAP_URL = (
 )
 
 _VERSION_RE = re.compile(
-    r"^CMSSW_(\d+)_(\d+)_(\d+)"
-    r"(?:_(patch\d+|pre\d+|hltpatch\d+|ROOT\d+.*|.*))?$"
+    r"^CMSSW_(\d+)_(\d+)_(\d+)" r"(?:_(patch\d+|pre\d+|hltpatch\d+|ROOT\d+.*|.*))?$"
 )
 
 
@@ -140,13 +141,24 @@ class CMSSWReleaseSource:
         limit: int = 0,
         base: str | None = None,
         cache_path: str | None = None,
+        map_cache_digest: str | None = None,
     ) -> None:
         # W1 compatibility: `cache_path` was the W1 name for the
         # releases.map cache location.
         if cache_path is not None and map_cache_path is None:
             map_cache_path = cache_path
+        if map_cache_digest is not None:
+            if not isinstance(map_cache_digest, str) or not re.fullmatch(
+                r"sha256:[0-9a-f]{64}", map_cache_digest
+            ):
+                raise ValueError("map_cache_digest must be sha256:<64 lowercase hex>")
+            if not map_cache_path or fetch:
+                raise ValueError(
+                    "a frozen CMSSW map requires map_cache_path and fetch=False"
+                )
         self.records_path = records_path
         self.map_cache_path = map_cache_path
+        self.map_cache_digest = map_cache_digest
         self.releases_map_url = releases_map_url
         self.fetch = bool(fetch)
         self.limit = int(limit)
@@ -158,6 +170,8 @@ class CMSSWReleaseSource:
                 "map_cache_path": self.map_cache_path,
                 "releases_map_url": self.releases_map_url,
                 "limit": self.limit,
+                "map_cache_digest": self.map_cache_digest,
+                "input_mode": "frozen" if self.map_cache_digest else "unpinned",
             },
             emit_targets=CMSSWReleaseSource,
             base=base,
@@ -171,9 +185,7 @@ class CMSSWReleaseSource:
 
     def preflight(self, mode: str = "live") -> PreflightResult:
         path = resolve_repo_path(self.cache_paths[0], base=self.base)
-        if not path.is_file() and not (
-            self.map_cache_path is not None and self.fetch
-        ):
+        if not path.is_file() and not (self.map_cache_path is not None and self.fetch):
             return PreflightResult(
                 source_name=self.name,
                 status="cache_missing",
@@ -193,26 +205,36 @@ class CMSSWReleaseSource:
                 reason="releases.map will be fetched from cms-bot",
                 checked_at=_checked_at(),
             )
-        records = self._records()
+        if self.map_cache_digest is not None:
+            records, _, _, revision_hash = self._read_frozen_map()
+        else:
+            records = self._records()
+            revision_hash = content_hash(self.cache_paths, base=self.base)
         return PreflightResult(
             source_name=self.name,
             status="ok",
             mode="cache",
             required=True,
             record_count=len(records),
-            content_hash=content_hash(self.cache_paths, base=self.base),
+            content_hash=revision_hash,
             reason="local CMSSW release cache present",
             checked_at=_checked_at(),
         )
 
     def run(self, run_id: str, *, mode: str = "cursor") -> ConnectorRun:
-        records, skipped, truncated = self._records_with_details()
+        if self.map_cache_digest is not None:
+            records, skipped, truncated, revision_hash = self._read_frozen_map()
+        else:
+            records, skipped, truncated = self._records_with_details()
+            revision_hash = content_hash(self.cache_paths, base=self.base)
         revision = {
             "run_id": run_id,
-            "content_hash": content_hash(self.cache_paths, base=self.base),
+            "content_hash": revision_hash,
             "n_records": len(records),
             "n_release_families": len(_release_families(records)),
         }
+        if self.map_cache_digest is not None:
+            revision["map_cache_digest"] = self.map_cache_digest
 
         def _facts() -> Iterator[Any]:
             for family in _release_families(records):
@@ -263,13 +285,13 @@ class CMSSWReleaseSource:
         self,
     ) -> tuple[list[CMSSWReleaseRecord], int, bool]:
         """Records plus (skipped_item_count, limit_truncated)."""
+        if self.map_cache_digest is not None:
+            return self._read_frozen_map()[:3]
         if self.map_cache_path is not None:
             return self._records_from_map()
         payload = load_json(self.records_path, base=self.base)
         if not isinstance(payload, list):
-            raise ValueError(
-                f"{self.records_path}: expected a JSON list of releases"
-            )
+            raise ValueError(f"{self.records_path}: expected a JSON list of releases")
         records: list[CMSSWReleaseRecord] = []
         skipped = 0
         for item in payload:
@@ -285,15 +307,34 @@ class CMSSWReleaseSource:
                 architecture = (architecture_raw,)
             else:
                 architecture = tuple(str(v) for v in architecture_raw)
-            records.append(CMSSWReleaseRecord(
-                label=label,
-                xml_type=str(item.get("type") or ""),
-                state=str(item.get("state") or ""),
-                architecture=architecture,
-                release_notes=str(item.get("release_notes") or ""),
-                release_date=str(item.get("release_date") or ""),
-            ))
+            records.append(
+                CMSSWReleaseRecord(
+                    label=label,
+                    xml_type=str(item.get("type") or ""),
+                    state=str(item.get("state") or ""),
+                    architecture=architecture,
+                    release_notes=str(item.get("release_notes") or ""),
+                    release_date=str(item.get("release_date") or ""),
+                )
+            )
         return records, skipped, False
+
+    def _read_frozen_map(
+        self,
+    ) -> tuple[list[CMSSWReleaseRecord], int, bool, str]:
+        """Verify, parse and describe one buffer without fetching or rereading it."""
+        path = resolve_repo_path(self.map_cache_path, base=self.base)
+        body = path.read_bytes()
+        if "sha256:" + hashlib.sha256(body).hexdigest() != self.map_cache_digest:
+            raise ValueError("frozen CMSSW map digest mismatch")
+        full, skipped = _parse_map_with_skips(body.decode("utf-8"))
+        records = full[-self.limit :] if self.limit > 0 else full
+        # Keep the cache helper's path-aware revision format, using the bytes
+        # already verified rather than reading a potentially changed file.
+        revision_hash = hashlib.sha256(
+            str(self.map_cache_path).encode("utf-8") + b"\0" + body + b"\0"
+        ).hexdigest()
+        return records, skipped, len(records) < len(full), revision_hash
 
     def _records_from_map(
         self,
@@ -302,13 +343,11 @@ class CMSSWReleaseSource:
         path = resolve_repo_path(self.map_cache_path, base=self.base)
         if self.fetch or not path.is_file():
             path.parent.mkdir(parents=True, exist_ok=True)
-            with urllib.request.urlopen(
-                self.releases_map_url, timeout=60
-            ) as resp:
+            with urllib.request.urlopen(self.releases_map_url, timeout=60) as resp:
                 path.write_bytes(resp.read())
         raw = path.read_text(encoding="utf-8", errors="replace")
         full, skipped = _parse_map_with_skips(raw)
-        records = full[-self.limit:] if self.limit > 0 else full
+        records = full[-self.limit :] if self.limit > 0 else full
         return records, skipped, len(records) < len(full)
 
 
@@ -336,9 +375,7 @@ def _parse_map_with_skips(
         line = line.strip()
         if not line:
             continue
-        fields = dict(
-            part.split("=", 1) for part in line.split(";") if "=" in part
-        )
+        fields = dict(part.split("=", 1) for part in line.split(";") if "=" in part)
         label = fields.get("label", "")
         if not _VERSION_RE.match(label):
             skipped += 1
