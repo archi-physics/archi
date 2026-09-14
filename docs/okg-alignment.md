@@ -20,6 +20,14 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**Frozen CMSSW input contract (2026-09-14, OKG#1795).** This change adds an explicit
+path and SHA256 binding that never fetches in frozen mode. It preserves the live
+profile and existing CI pin. The separately owned packaged installer must support
+the new consumer wheel identity and frozen declaration inventory before claiming
+end-to-end frozen installation. The historical CMSSW cache is still unavailable;
+unit fixtures are not real-deployment baseline evidence. See
+[frozen CMSSW inputs](frozen-cmssw-input.md).
+
 *Last updated 2026-09-10, tested against okg `dev` @ `34efbad1b`; archi branch
 `archi_v3` with PRs #610–#639 merged.*
 

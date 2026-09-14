@@ -1,0 +1,1951 @@
+{
+  "schema": "archi.frozen-cmssw-test-evidence.v1",
+  "head": "378ff1c897a3d7abd10efac2c4fd3ff27e08318c",
+  "framework_wheel_sha256": "ee10bed78ed7f974345ddc093e984a0dfae65b69c980d81df69fd94c77559932",
+  "framework_source": "528279f6abfd53ed2563ae72be0a3db3ac6e0e2a",
+  "hosted_framework_pin_is_distinct": "34efbad1b5768fd3ca635992173694a9cc91ebd2",
+  "python": "3.12.13",
+  "runs": [
+    {
+      "phase": "focused",
+      "command": "python -m pytest python/tests/sources/test_cmssw.py -q --junitxml=<task-focused.xml>",
+      "exit": 0,
+      "passed": 26,
+      "skipped": 0,
+      "failed": 0,
+      "errors": 0,
+      "junit_sha256": "cec9de40bf4fb14f0afdad1292ca43112ec0e8bede526486cf7f6d3ab91f2eb6",
+      "testcases": [
+        {
+          "nodeid": "tests.sources.test_cmssw::test_cache_backed_records_families_and_supersedes",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_releases_map_mode_same_emission_shape",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_parse_releases_map_limit",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_limit_truncation_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_map_skipped_lines_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_map_zero_parse_from_nonempty_map_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_verified_emission_and_revision",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[]",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[abc]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[sha256:000000000000000000000000000000000000000000000000000000000000000]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[1]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_requires_path_and_disallows_fetch[kwargs0]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_requires_path_and_disallows_fetch[kwargs1]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_missing_never_fetches",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_changed_after_preflight_refuses",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_revision_uses_verified_buffer",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[architecture=el8_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=1;\\narchitecture=el9_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=0;\\narchitecture=el8_amd64_gcc12;label=CMSSW_14_0_2;type=Production;state=Announced;prodarch=1;\\narchitecture=el8_amd64_gcc12;label=NOT_A_RELEASE;type=Production;state=Announced;\\n-0]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[architecture=el8_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=1;\\narchitecture=el9_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=0;\\narchitecture=el8_amd64_gcc12;label=CMSSW_14_0_2;type=Production;state=Announced;prodarch=1;-1]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[tag=unknown-0]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_invalid_utf8_refuses",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_probe_binding_and_file_changes",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_accepts_cache_path_alias",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_unpinned_live_map_still_fetches",
+          "outcome": "passed",
+          "seconds": 0.007
+        }
+      ]
+    },
+    {
+      "phase": "full",
+      "command": "python -m pytest python/tests -q --junitxml=<task-full.xml>",
+      "exit": 0,
+      "passed": 357,
+      "skipped": 0,
+      "failed": 0,
+      "errors": 0,
+      "junit_sha256": "84f36b099f7abc138e2959c24472d7dac66f997ce4f5e0928ca6610029d685a3",
+      "testcases": [
+        {
+          "nodeid": "tests.auth.test_cache::test_resolve_absolute_path_passes_through",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_resolve_with_explicit_base",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_resolve_env_data_root",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_explicit_base_wins_over_env",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_resolve_falls_back_to_cwd",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_load_json",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_content_hash_stable_and_order_insensitive",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_content_hash_changes_with_content",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_content_hash_is_label_sensitive",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_content_hash_change_probe_tracks_file_content",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_forced_live_probe_without_cache_always_advances",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.auth.test_cache::test_forced_live_probe_with_cache_uses_content_hash",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_load_cookie_jar_keeps_expired_cookies",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_missing_file",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_unparseable_file",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_fresh_cookie_file",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_all_expired",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_domain_filter",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_check_max_age",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_session_cookies_count_as_live",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_looks_like_login_url",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_looks_like_login_page",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_cookies::test_acquisition_command_mentions_official_tool",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_token_kind",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_file_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_all_env_kind",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_any_file_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_ca_bundle_missing_is_tls_failed",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cache_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_sso_cookie_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_x509_proxy_kind",
+          "outcome": "passed",
+          "seconds": 0.079
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_x509_proxy_undecodable_is_auth_failed",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cern_sso_http_corrupt_cookie_is_auth_failed",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cern_sso_http_authenticated",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cern_sso_http_login_page_is_auth_failed",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cern_sso_http_error_statuses",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_cern_tls_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_x509_http_expired_proxy_skips_network",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_x509_http_valid_proxy",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_x509_http_ssl_error_vocabulary",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_https_kind",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_unknown_kind_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_missing_params_raise",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_run_emits_no_facts",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.auth.test_preflight::test_profile_is_live_overlay",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_direct_type_scoped_matches",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_type_mismatch_and_unknowns_return_empty",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_hostname_resolves_endpoint_with_and_without_port",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_dataset_index_is_lazy_and_cached",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_dataset_alias_is_case_sensitive",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_non_dataset_matching_stays_case_insensitive",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_alias::test_dataset_misses_are_not_cached",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_redacts_email_name_and_jira_mention",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_known_names_case_insensitive_word_bounded",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_markup_pass_strips_author_constructs",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_construction_never_imports_spacy_eagerly",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_email_local_part_never_leaks_fragments",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_encoded_and_nbsp_variants_redacted",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_ner_off_author_shapes_redacted",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_operational_lines_survive_greeting_signoff_filters",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_greeting_prefixed_operational_lines_survive",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_anonymizer::test_real_greetings_and_signoffs_still_stripped",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_load_all_loads_every_default",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_extraction_rules_shape_and_regexes",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_dqm_extraction_rules_are_the_wisdqm_extras",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_identifier_patterns_compile_and_cover_cms_ids",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_linker_config_routes_reference_document_chunk",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_cross_link_rules_file_and_unknown_name",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_global_tag_release_linker_treats_empty_rule_sources_as_absent",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_global_tag_release_linker_honors_explicit_rule_sources",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_defaults::test_global_tag_release_linker_wraps_packaged_rule",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_chunk_reference_rollup_transform",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_chunk_reference_rollup_no_candidates",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_jira_affects_transform",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_jira_affects_empty_incremental_scope_short_circuits",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_dqm_run_range_transform",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_meeting_document_reference_rollup_transform",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_historical_names_kept_for_cutover_parity[JiraChunkReferenceRollup-cms_jira_chunk_reference_rollup]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_historical_names_kept_for_cutover_parity[JiraAffectsFromReferences-cms_jira_affects_from_references]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_historical_names_kept_for_cutover_parity[DQMRunRangeLinker-cms_dqm_run_range_linker]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.enrichment.test_enrichers::test_historical_names_kept_for_cutover_parity[MeetingDocumentReferenceRollup-cms_meeting_document_reference_rollup]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_cache_backed_records_families_and_supersedes",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_releases_map_mode_same_emission_shape",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_parse_releases_map_limit",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_limit_truncation_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_map_skipped_lines_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_map_zero_parse_from_nonempty_map_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_verified_emission_and_revision",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[abc]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[sha256:000000000000000000000000000000000000000000000000000000000000000]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_rejects_malformed_pin[1]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_requires_path_and_disallows_fetch[kwargs0]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_requires_path_and_disallows_fetch[kwargs1]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_missing_never_fetches",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_changed_after_preflight_refuses",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_revision_uses_verified_buffer",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[architecture=el8_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=1;\\narchitecture=el9_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=0;\\narchitecture=el8_amd64_gcc12;label=CMSSW_14_0_2;type=Production;state=Announced;prodarch=1;\\narchitecture=el8_amd64_gcc12;label=NOT_A_RELEASE;type=Production;state=Announced;\\n-0]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[architecture=el8_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=1;\\narchitecture=el9_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=0;\\narchitecture=el8_amd64_gcc12;label=CMSSW_14_0_2;type=Production;state=Announced;prodarch=1;-1]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_incomplete_input_never_claims_scope[tag=unknown-0]",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_invalid_utf8_refuses",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_probe_binding_and_file_changes",
+          "outcome": "passed",
+          "seconds": 0.014
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_frozen_map_accepts_cache_path_alias",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cmssw::test_unpinned_live_map_still_fetches",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_conddb::test_tag_nodes_supersedes_and_release_dependency",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_conddb::test_missing_cmssw_cache_emits_conddb_only_family_node",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_conddb::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.042
+        },
+        {
+          "nodeid": "tests.sources.test_conddb::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_conddb::test_change_probe_covers_cmssw_cache",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_cric::test_cric_topology_nodes_and_edges",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_cric::test_cric_preflight_missing_cache",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_cric::test_drifted_responsibilities_payload_fails_loud",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_cric::test_cric_core_services_and_federations",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_dbs::test_dataset_nodes_and_tier_chain_edges",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_dbs::test_preflight_optional_cache",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_dbs::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_dbs::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_page_node_ids_and_attrs",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_payload_dedup_and_junk_tolerance",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_repo_node_and_contains_edge",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_repo_base_url_param",
+          "outcome": "passed",
+          "seconds": 0.016
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_chunk_emission_ids_and_windowing",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_reference_edges_all_four_kinds",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_missing_reference_caches_mean_no_reference_edges",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_configured_but_missing_reference_cache_raises[sites_path]",
+          "outcome": "passed",
+          "seconds": 0.016
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_configured_but_missing_reference_cache_raises[releases_path]",
+          "outcome": "passed",
+          "seconds": 0.016
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_configured_but_missing_reference_cache_raises[services_path]",
+          "outcome": "passed",
+          "seconds": 0.016
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_completed_scope_by_mode",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_missing_cache_run_is_safe",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_preflight",
+          "outcome": "passed",
+          "seconds": 0.016
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_docsite_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_source_name_param_renames_health",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_preflight_missing_cookie_env",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_preflight_fresh_and_expired_cookie",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_run_wires_cookie_jar_and_crawls_sitemap",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_partial_crawl_never_claims_complete_scope",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_clean_crawl_claims_complete_scope",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_login_lookalike_pages_are_ingested_not_bounced",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_run_honors_max_pages",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_max_pages_truncation_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_non_html_sitemap_entries_skipped_not_ingested",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_sitemap_login_bounce_raises",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_run_without_cookie_yields_no_records",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_run_missing_or_unparseable_cookie_never_completes_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_docs::test_sso_required_params",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_dqm::test_certification_run_and_dataset_emission",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_dqm::test_preflight_ok_with_hash",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_dqm::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_dqm::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_github_repos::test_repo_identity_emission",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.sources.test_github_repos::test_defaults_dedupe_and_invalid_slugs",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_gocdb::test_downtime_dedup_and_affects_edges",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_gocdb::test_preflight_reports_missing_records_cache",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_gocdb::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_gocdb::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_gocdb::test_scheme_prefixed_endpoint_maps_hostname_to_service",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_thread_node_and_chunk_emission_from_cache",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_reference_edges_with_configured_targets",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_missing_cache_and_cookie_reports_not_ok_and_no_facts",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_forum_listing_failure_degrades_and_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_total_fetch_failure_writes_no_cache_and_fails_loud",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_zero_threads_across_forums_is_failure_not_empty_success",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_failed_hydration_drops_record_instead_of_blanking_it",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_empty_cache_refuses_complete_scope",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_preflight_empty_cache_matches_run_refusal",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_clean_live_crawl_claims_scope_writes_cache_and_replays",
+          "outcome": "passed",
+          "seconds": 0.023
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_cache_skips_unparseable_items_without_scope_claim",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_hypernews::test_max_threads_truncation_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_indico::test_meeting_document_and_chunk_emission",
+          "outcome": "passed",
+          "seconds": 0.006
+        },
+        {
+          "nodeid": "tests.sources.test_indico::test_url_fallback_uses_base_url_and_preflight",
+          "outcome": "passed",
+          "seconds": 0.006
+        },
+        {
+          "nodeid": "tests.sources.test_indico::test_identical_pdf_text_in_different_events_gets_distinct_chunks",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_indico::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_indico::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.005
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_issue_nodes_ids_subtypes_and_attrs",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_person_nodes_and_role_edges",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_chunk_ids_use_parity_separator",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_chunk_text_carries_link_surface_and_extracted_keys",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_reference_edges_from_chunks",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_omitted_project_keys_bound_extraction_to_cache_projects",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_no_reference_targets_configured_means_no_reference_edges",
+          "outcome": "passed",
+          "seconds": 0.019
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_completed_scope_by_mode",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_missing_cache_run_emits_nothing_and_never_completes_scope",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_run_health_ok_with_content_hash",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_meta_record_count_mismatch_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.011
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_meta_without_record_count_stays_clean",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_meta_record_count_match_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_preflight_cache_missing_reports_expected_count",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_preflight_corrupt_meta_reports_instead_of_raising",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_preflight_ok",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_custom_credential_ref",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_probe_forces_live_read_without_cache",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_probe_tracks_cache_content_when_present",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_valid",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[CMSPROD]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value1]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value2]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value3]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value4]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value5]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_parse_jira_project_keys_invalid[value6]",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_quote_jql_string_escapes",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_format_jira_datetime",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_issues_jql",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_issue_key_pattern_generic_and_restricted",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_jira::test_api_parent_dict_yields_key_not_repr",
+          "outcome": "passed",
+          "seconds": 0.01
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_cache_raw_response_parse_and_emission",
+          "outcome": "passed",
+          "seconds": 0.021
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_cache_list_of_records",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_completed_scope_by_mode",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_missing_credential_never_completes_scope",
+          "outcome": "passed",
+          "seconds": 0.019
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_corrupt_cache_is_endpoint_failed_not_complete",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_empty_result_is_skipped_optional",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_preflight_states",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_live_query_and_auth_header",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_live_opensearch_error_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_monit_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.039
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_source_name_param",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_condor_cache_raw_response",
+          "outcome": "passed",
+          "seconds": 0.021
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_transfer_rse_merge_and_edges",
+          "outcome": "passed",
+          "seconds": 0.022
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_transfer_list_cache_dedupes",
+          "outcome": "passed",
+          "seconds": 0.021
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_cache_raw_response",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_exclude_patterns_param",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_missing_credential",
+          "outcome": "passed",
+          "seconds": 0.023
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_live_pagination_progress_and_page_cache",
+          "outcome": "passed",
+          "seconds": 0.025
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_list_cache_records",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_required_kwonly_and_no_positional_params",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_live_timed_out_response_degrades_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_condor_live_shard_failures_degrade_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_transfer_live_terms_truncation_degrades_scope",
+          "outcome": "passed",
+          "seconds": 0.022
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_nested_terms_truncation_is_detected",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_cached_raw_response_with_partial_markers_degrades_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_live_zero_buckets_never_claims_empty_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_sam_empty_cache_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.02
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_live_zero_buckets_never_claims_empty_scope",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_live_partial_first_page_fails_run",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_live_partial_later_page_raises_midstream",
+          "outcome": "passed",
+          "seconds": 0.025
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_page_cache_is_day_scoped",
+          "outcome": "passed",
+          "seconds": 0.069
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_page_cache_honors_ttl",
+          "outcome": "passed",
+          "seconds": 0.121
+        },
+        {
+          "nodeid": "tests.sources.test_monit::test_rucio_dataset_page_cache_entry_without_cached_at_is_stale",
+          "outcome": "passed",
+          "seconds": 0.048
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_fixture_records_emit_site_config_and_contains_edge",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_unknown_site_gets_node_but_no_edge_and_preflight_fixture",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_empty_project_list_fails_loud_instead_of_empty_scope",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_zero_parsed_records_from_projects_fails_loud",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_preflight_group_probe_flags_invisible_group",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_preflight_group_probe_includes_subgroups_like_the_crawl",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_siteconf::test_max_projects_truncation_never_claims_scope",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_strip_twiki_cms_defaults_byte_parity",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_strip_twiki_markdown_preserve_keeps_structure",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_strip_twiki_inline_code_ignores_assignments",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_strip_twiki_bare_heading_marker_never_absorbs_next_line",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_strip_twiki_rejects_unknown_flags",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_parse_meta_from_meta_fixture",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_wiki_link_and_bare_wikiword_extraction",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_url_canonicalization_and_page_ids",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_default_skip_patterns",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_skip_patterns_are_immutable_and_overridable",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_page_nodes_meta_attrs_and_skip_patterns",
+          "outcome": "passed",
+          "seconds": 0.014
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_chunks_parity_ids_and_chunker_name",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_page_references_filtered_to_known_ids",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_chunk_entity_references",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_configured_but_missing_reference_cache_raises",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_web_root_param",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_seed_topics_bound_the_walk",
+          "outcome": "passed",
+          "seconds": 0.068
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_seed_validation",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_max_files_validation",
+          "outcome": "passed",
+          "seconds": 0.024
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_missing_seed_fails_scope",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_all_seeds_missing_is_cache_missing",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_missing_followed_link_target_stays_silent",
+          "outcome": "passed",
+          "seconds": 0.012
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_seeded_preflight_reports_subtree_metrics",
+          "outcome": "passed",
+          "seconds": 0.035
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_run_walks_the_tree_once",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_custom_skip_patterns_exclude_pages",
+          "outcome": "passed",
+          "seconds": 0.014
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_missing_root_is_safe",
+          "outcome": "passed",
+          "seconds": 0.023
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_completed_scope_by_mode_and_chunker_param",
+          "outcome": "passed",
+          "seconds": 0.015
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_eos_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.014
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_required_params_and_validation",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_seeded_depth_bounding_and_emission",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_depth_zero_fetches_seeds_only",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_failure_never_claims_complete_scope",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_dangling_link_404_is_not_a_failure",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_seed_404_is_a_failure",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_oops_redirect_on_followed_link_is_dangling",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_oops_body_is_never_ingested",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_oops_page_on_seed_is_a_failure",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_login_bounce_counts_as_failure",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_login_lookalike_body_is_not_a_bounce",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_max_pages_cap",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_max_pages_truncation_never_claims_complete_scope",
+          "outcome": "passed",
+          "seconds": 0.026
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_missing_charset_defaults_to_utf8",
+          "outcome": "passed",
+          "seconds": 0.026
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_public_web_needs_no_cookie",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_missing_or_unparseable_cookie_is_auth_failed",
+          "outcome": "passed",
+          "seconds": 0.039
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_cookie_jar_is_wired_into_the_session",
+          "outcome": "passed",
+          "seconds": 0.014
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_seed_urls_are_canonicalized",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.sources.test_twiki::test_crawl_probe_declarations",
+          "outcome": "passed",
+          "seconds": 0.015
+        },
+        {
+          "nodeid": "tests.sources.test_wmstats::test_workflow_dataset_and_release_edges",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_wmstats::test_preflight_optional_and_empty_cache",
+          "outcome": "passed",
+          "seconds": 0.007
+        },
+        {
+          "nodeid": "tests.sources.test_wmstats::test_skipped_cache_items_never_claim_scope",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.sources.test_wmstats::test_all_items_unparseable_is_endpoint_failed",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.test_alignment_page::test_documented_import_surface_matches_code",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.test_alignment_page::test_page_carries_last_updated_pins",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_wheel_ships_the_bundle_profile",
+          "outcome": "passed",
+          "seconds": 0.333
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_wheel_ships_playbooks_dereferenced",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_wheel_ships_the_distribution_playbooks",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_paths_helpers_resolve_to_a_real_directory",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_bundle_dir_reports_available_bundles_when_missing",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_artifact_payload::test_wheel_carries_the_bundle_schema_slices",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_bridge_portability::test_shipped_bridges_compose_unmodified[modules0-cern-team]",
+          "outcome": "passed",
+          "seconds": 0.053
+        },
+        {
+          "nodeid": "tests.test_bridge_portability::test_shipped_bridges_compose_unmodified[modules1-cms-compops]",
+          "outcome": "passed",
+          "seconds": 0.042
+        },
+        {
+          "nodeid": "tests.test_bridge_portability::test_compops_superset_gains_narrowings",
+          "outcome": "passed",
+          "seconds": 0.118
+        },
+        {
+          "nodeid": "tests.test_bridge_portability::test_flag_is_scoped_to_varying_endpoints_only",
+          "outcome": "passed",
+          "seconds": 0.11
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_profile_parses_with_required_questions",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_source_defaults_carry_strict_admission_shape",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_playbook_symlinks_resolve",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_no_operator_paths_or_secrets_in_bundle",
+          "outcome": "passed",
+          "seconds": 0.004
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_bundle_ships_schema_slices_matching_the_package",
+          "outcome": "passed",
+          "seconds": 0.009
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_default_sources_need_no_credentials",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.test_bundle_cern_team::test_chat_declares_a_system_prompt_that_ships",
+          "outcome": "passed",
+          "seconds": 0.006
+        },
+        {
+          "nodeid": "tests.test_compops_lint_recheck::test_compops_lint_unchanged_modulo_version_skips",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_packaging::test_package_imports_and_version",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_packaging::test_source_adapter_importable",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_packaging::test_schema_ships_in_package",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_packaging::test_v3_does_not_import_v2",
+          "outcome": "passed",
+          "seconds": 0.003
+        },
+        {
+          "nodeid": "tests.test_packaging::test_v2_tree_removed",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.test_packaging::test_no_operator_paths_in_package",
+          "outcome": "passed",
+          "seconds": 0.013
+        },
+        {
+          "nodeid": "tests.test_packaging::test_wheel_builds",
+          "outcome": "passed",
+          "seconds": 0.254
+        },
+        {
+          "nodeid": "tests.test_skills::test_ported_skill_set_present",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_skills::test_skills_nonempty",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.test_skills::test_skills_have_no_site_markers",
+          "outcome": "passed",
+          "seconds": 0.002
+        },
+        {
+          "nodeid": "tests.test_skills::test_skill_triggers_reference_existing_skills",
+          "outcome": "passed",
+          "seconds": 0.008
+        },
+        {
+          "nodeid": "tests.test_skills::test_skill_triggers_has_no_site_markers",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_rucio_search_wrapper_binding_and_payload",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_condor_search_wrapper_binding",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_wrappers_do_not_expose_endpoint_knobs",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_pagination_and_result_bounds",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_empty_query_short_circuits",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_redacts_token_and_truncates_query",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_opensearch_error_payload",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_timeout_is_structured_error",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_connection_error_is_structured",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_connection_error_is_structured",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_non_json_200_body_is_structured",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_non_json_200_body_is_structured",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_time_window_echo_matches_query_body",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_search_http_401_maps_to_auth_failed_message",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_missing_token_raises",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_rucio_aggregate_terms_keyword_and_formatting",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_keyword_retry_falls_back_to_raw_field",
+          "outcome": "passed",
+          "seconds": 0.001
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_field_error_triggers_raw_retry",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_zero_match_empty_buckets_is_valid_result",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_failing_raw_retry_keeps_valid_empty_result",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_metric_value",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_validation_errors_short_circuit",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_aggregate_opensearch_error_and_timeout",
+          "outcome": "passed",
+          "seconds": 0.0
+        },
+        {
+          "nodeid": "tests.tools.test_monit_live::test_generic_cores_take_endpoint_and_token_env",
+          "outcome": "passed",
+          "seconds": 0.001
+        }
+      ]
+    }
+  ],
+  "resource_handling": "Existing machine mutex and truthful no-database process check held during each suite. Initial inline-wrapper attempt was refused because its own shell argv embedded pytest text; normal task-local execution file resolved that orchestration misclassification without altering guard or process rows.",
+  "scope": "Fixture and regression tests, not real historical catalog or deployment publication."
+}

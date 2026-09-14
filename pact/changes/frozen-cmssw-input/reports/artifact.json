@@ -1,0 +1,33 @@
+{
+  "status": "pass",
+  "fixture_only_not_real_baseline": true,
+  "consumer_origin": "<isolated-installed-environment>/site-packages/archi/sources/cmssw.py",
+  "example_origin": "<isolated-installed-environment>/site-packages/archi/bundles/cern-team/source-defaults/cmssw_releases_frozen.yaml.example",
+  "installed_origin_verified": true,
+  "example_packaged": true,
+  "source_sha256": "9d2dcea9a2878a47aa9beb0522313d41d1d9f6986650020e94ac34096a6a6aeb",
+  "example_sha256": "5284b232acd59352a13e1b4eb993053c617ddef3e37afd0b3f99f3078b1032af",
+  "nodes": [
+    "cmssw_release:CMSSW_14_0_1",
+    "cmssw_release:CMSSW_14_0_2",
+    "cmssw_release:CMSSW_14_0_X"
+  ],
+  "edges": [
+    [
+      "cmssw_release:CMSSW_14_0_2",
+      "cmssw_release:CMSSW_14_0_1",
+      "supersedes"
+    ]
+  ],
+  "map_cache_digest": "sha256:4019a86f5e21257d63b06e8dec1c33df8d316a7257bfe531d587f4f2602406a1",
+  "mismatch_refused": true,
+  "missing_refused": true,
+  "network_trap_active": true,
+  "head": "378ff1c897a3d7abd10efac2c4fd3ff27e08318c",
+  "wheel_sha256": "61e0bfa95e85ad45b6f08b28b324f36d36b11fc18103f69f642ba2a9e5323720",
+  "build_command": "python -m hatchling build -t wheel (working directory: python)",
+  "build_exit": 0,
+  "install_command": "uv pip install --python <isolated-python> --no-index --no-deps <verified-framework-wheel> <built-consumer-wheel>",
+  "validation_command": "<isolated-python> -I <task-installed-check.py> (working directory outside authoring checkouts)",
+  "validation_exit": 0
+}

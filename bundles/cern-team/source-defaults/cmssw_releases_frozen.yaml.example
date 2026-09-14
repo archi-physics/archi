@@ -1,0 +1,45 @@
+# Explicit frozen catalog binding; not loaded by the live profile by default.
+# The installer must supply these reviewed inputs and support this new consumer wheel.
+cmssw_releases:
+  module: archi.sources.cmssw
+  class: CMSSWReleaseSource
+  ownership_id: ${deployment_name}.cmssw-releases
+  admission_policy:
+    producer_id: ${deployment_name}.cmssw-releases
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cern-team
+      source_name: cmssw_releases
+    output_signature:
+      nodes:
+        - {subtype: cmssw_release}
+      edges:
+        - {src_subtype: cmssw_release, edge_type: supersedes, dst_subtype: cmssw_release}
+    output_scope_summary:
+      summary: CMSSW releases, release families, and supersedes chains
+      nodes: [cmssw_release]
+      edges:
+        - cmssw_release supersedes cmssw_release
+  source_class: reference_catalog
+  # NOTE: the substrate's reference_catalog profile only admits
+  # `domain_key` (deployment lint blocker
+  # deployment.source_registry.profile_invalid otherwise); the
+  # cmssw.py docstring template and the w1-scratch proven registry
+  # both use it.
+  record_identity_kind: domain_key
+  record_identity_fields: [release]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    # Select actual immutable bytes and their independently verified raw SHA256.
+    map_cache_path: ${cmssw_map_path}
+    map_cache_digest: ${cmssw_map_digest}
+    fetch: false
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete
