@@ -296,15 +296,21 @@ to find on that side. What remains below is enricher-only, and is blocked on #11
 slice 5 — the enricher read surface, deferred at
 [our own recommendation](https://github.com/mitdbg/okg/issues/1181#issuecomment-5591973861).
 
-**Python imports (all of them).** The first entry is the public SDK; everything
-below it is still private substrate, and all of it is enricher-side.
+**Python imports (all of them).** Deployment and distribution imports are public.
+The remaining substrate imports are enricher-side dependencies.
 
 ```
 okg.deployment:
     NodeFact, EdgeFact, ProgressMarker,
-    ConnectorRun, ConnectorHealth, PreflightResult,
+    ConnectorAdapter, ConnectorRun, ConnectorHealth, PreflightResult,
     ContentHashProbe, MutableApiProbe,
     file_preflight, credential_preflight, http_preflight, redact
+okg.distributions:
+    AssetLocator, CompatibilityMetadata, DistributionObject,
+    DistributionPackageManifest, DistributionPackageProvenance,
+    DistributionPackageSource, DistributionRelease, OwnerQualifiedReference,
+    PackagedAsset, PreparedConfigurationManifest, ProductBundle, TypedAsset,
+    build_distribution_package, canonical_bundle_digest, canonical_release_digest
 okg.substrate.enrichers.base:     EnrichResult, IncrementalContext
 okg.substrate.enrichers.derived_edges:
     DerivedEdgeCandidate, insert_deterministic_edges, mint_edge_id

@@ -49,6 +49,8 @@ class _FrozenAdapter(ConnectorAdapter):
 
 
 class FrozenCMSSWAdapter(_FrozenAdapter):
+    profile = "reference_catalog"
+
     def __init__(self, *, configuration_root: str, snapshot_digests: dict[str, str]):
         verify_cache(configuration_root, snapshot_digests)
         from archi.sources.cmssw import CMSSWReleaseSource
@@ -66,6 +68,8 @@ class FrozenCMSSWAdapter(_FrozenAdapter):
 
 
 class FrozenDocumentationAdapter(_FrozenAdapter):
+    profile = "discovery_crawl"
+
     def __init__(self, *, configuration_root: str, snapshot_digests: dict[str, str]):
         verify_cache(configuration_root, snapshot_digests)
         from archi.sources.docs import DocumentationSource
@@ -83,6 +87,7 @@ class FrozenDocumentationAdapter(_FrozenAdapter):
 
 
 class FrozenJiraAdapter(_FrozenAdapter):
+    profile = "mutable_api"
     requires_live_call_authorization = False
 
     def __init__(self, *, configuration_root: str, snapshot_digests: dict[str, str]):

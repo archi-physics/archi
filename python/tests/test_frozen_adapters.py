@@ -63,6 +63,7 @@ def test_real_sdk_roundtrip_preserves_reader_semantics(tmp_path, adapter, expect
     pins = cache(tmp_path)
     source = adapter(configuration_root=str(tmp_path), snapshot_digests=pins)
     assert isinstance(source, ConnectorAdapter)
+    assert isinstance(adapter.profile, str) and adapter.profile == source._reader.profile
     actual = source.run("test-run", mode="scope_complete")
     direct = source._reader.run("test-run", mode="scope_complete")
     assert actual.completed_scope == direct.completed_scope
