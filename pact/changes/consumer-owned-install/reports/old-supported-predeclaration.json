@@ -2,7 +2,7 @@
   "schema": "archi.install-compatibility-predeclaration/v1",
   "status": "planned-not-executed",
   "input_sha256": "9271234204ecdf9e71783b6b533be2afa997843c2bc6f0ea4c7c87f343ddb4f2",
-  "recipe_sha256": "35af42df28b3800674d5483f1a5d1f9f30280f7490c3fd5e9d4ef0086657b13c",
+  "recipe_sha256": "072dcfa28837ed6862d72d609b6f05cce15cd1e433b740a771e993bea5b493c2",
   "release_files": {
     "install.py": "34246050847b9adf9b973c747a55780853e861f326165921afde7384533224fb",
     "install_launcher.py": "9e1a6fc7ffc1b070c6087071dd86b764698a3f6060a2d000414fbea3ac3954f7",
