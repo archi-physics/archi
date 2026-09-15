@@ -1,0 +1,161 @@
+{
+  "schema": "okg.pact-installed-proof-summary/v1",
+  "scope": "Built framework and consumer wheels installed from the assembled release entry outside any checkout on submit75, into a fresh disposable PostgreSQL; then changed-release refusals against the retained old supported installation.",
+  "framework_commit": "a0bc46d63483750d53b09bb4975d78543e190fd9",
+  "consumer_commit": "3d85d1f06e593f866833e5d50eee00c5e31edb71",
+  "framework_source_archive": "sha256:eeb414ec93581e1b06385f20e63bd94abdaac2b63d284fc33e9f5236e655ade8",
+  "consumer_source_archive": "sha256:974c6f5a427351d917659c6f00907dc4b4eab62d020ba14a5d6cd96a28a75cd9",
+  "wheels": {
+    "okg-0.1.0-py3-none-any.whl": "sha256:37e2746d70f8a2668408aba81e6f8dbf4c7cb11a0a488208736fa6be13500bd8",
+    "archi-3.0.0a1-py3-none-any.whl": "sha256:deedd1e864e96ea89a1a3da5e4035039f93cf7ec712a104c5ccc65725e33345e"
+  },
+  "release_entry_sha256": "sha256:e3699e9b577203f85c520cfd493a3200fe8da0e87fc5d7cb16acb18f1b962fcc",
+  "prepared_packages": {
+    "replacement": {
+      "sha256": "sha256:5facf6ee61cd071f257dc451937f65cf9321d4c4241f479754d10c720d17cedb",
+      "configuration_files": 39,
+      "deployment_name": "issue1906-replacement"
+    },
+    "refusal-copy": {
+      "sha256": "sha256:c28376ce410292dcad1dde19994b854c72ba393bb16172ee9be2f39168dc8605",
+      "configuration_files": 39,
+      "deployment_name": "issue1906-old-supported"
+    }
+  },
+  "snapshot_manifest": "sha256:689203c031b74143021995b7792032534c36048e1cd573ff71baa9b53fb581f5",
+  "source_policy_sha256": "sha256:c90ca87c044556e0ebdb7e9039fd2017730b8eed452fa44971da6dd46ca8dfdd",
+  "machine_guard": {
+    "build": "passed",
+    "deploy": "passed",
+    "refusals": "passed"
+  },
+  "install": {
+    "exit": 0,
+    "seconds": 152.66,
+    "first_generation": "okg:issue1906-replacement:branch:default:gen:20260915T163824170221Z:576e293a8688",
+    "release": {
+      "configuration": "sha256:e6ccd7f6c99ae605c93cfe9154e0afe137b617d5bf6200153cc9b19b6e48aa11",
+      "consumer_wheel": "sha256:deedd1e864e96ea89a1a3da5e4035039f93cf7ec712a104c5ccc65725e33345e",
+      "framework_wheel": "sha256:37e2746d70f8a2668408aba81e6f8dbf4c7cb11a0a488208736fa6be13500bd8",
+      "install_lock": "sha256:c507751b5396966a7493da42aeda3d4293fb01681a02396707c48aa82ac25a1a",
+      "schema": "okg.packaged-release/v1",
+      "translation": "archi-consumer-frozen/v1"
+    }
+  },
+  "inventory_at_first_generation": {
+    "counts": [
+      2418,
+      2111
+    ],
+    "nodes": 2418,
+    "edges": 2111,
+    "current_generation_is_first": true,
+    "matches_captured_input_nodes": true,
+    "matches_captured_input_edges": true
+  },
+  "pinned_search": {
+    "generation_id": "okg:issue1906-replacement:branch:default:gen:20260915T163824170221Z:576e293a8688",
+    "nomos_effect": "allow",
+    "decision_recorded": true,
+    "result_count": 2,
+    "rows_with_lineage": 2
+  },
+  "unchanged_update_jira": {
+    "exit": 0,
+    "publishes": [
+      {
+        "status": "published",
+        "generation_id": "okg:issue1906-replacement:branch:default:gen:20260915T163948412636Z:5469c9d59e96",
+        "nodes_added": 0,
+        "edges_added": 0
+      }
+    ],
+    "after": {
+      "current_generation_id": "okg:issue1906-replacement:branch:default:gen:20260915T163948412636Z:5469c9d59e96",
+      "counts": [
+        2418,
+        2111
+      ],
+      "same_nodes_as_first": true,
+      "same_edges_as_first": true
+    },
+    "assessment": "Observed defect, not a pass: an unchanged scoped update published a new empty generation instead of reporting no change."
+  },
+  "unchanged_reapply": {
+    "exit": 1,
+    "error": {
+      "code": "substrate_error",
+      "message": "packaged installation stage refused",
+      "reason": "install_stage_failed",
+      "stage": "provision",
+      "cause_code": "substrate_error"
+    },
+    "publish_proof_reason": "not every requested source reached an accepted authorized zero-output terminal state (unproven: cmssw_releases, docsite_snapshot, jira_snapshot)",
+    "after": {
+      "current_generation_id": "okg:issue1906-replacement:branch:default:gen:20260915T164154918956Z:73bfb9df2fd8",
+      "counts": [
+        2418,
+        2111
+      ],
+      "same_nodes_as_first": true,
+      "same_edges_as_first": true
+    },
+    "assessment": "Observed defect, not a pass: the reapply published a data-identical generation, then refused because the readers re-emit every record; the refused run's generation became current."
+  },
+  "last_good_search": {
+    "generation_id": "okg:issue1906-replacement:branch:default:gen:20260915T164154918956Z:73bfb9df2fd8",
+    "nomos_effect": "allow",
+    "result_count": 2,
+    "is_current": true
+  },
+  "install_receipt_unchanged_after_repeats": true,
+  "configuration_unchanged_after_repeats": true,
+  "old_installation": {
+    "files": 42,
+    "launcher_refusals": {
+      "launcher-install": {
+        "exit": 1,
+        "launcher_refusal": true
+      },
+      "launcher-update": {
+        "exit": 1,
+        "launcher_refusal": true
+      },
+      "launcher-search": {
+        "exit": 1,
+        "launcher_refusal": true
+      }
+    },
+    "unchanged_after_launcher_refusals": true,
+    "install_layer_refusal_on_byte_copy": {
+      "exit": 1,
+      "reason": "release_or_configuration_drift",
+      "fresh_environment_built": true
+    },
+    "copy_unchanged_after_install_refusal": true,
+    "original_pinned_reader": {
+      "current_generation_is_original": true,
+      "counts": [
+        2418,
+        2111
+      ],
+      "matches_recorded_nodes": true,
+      "matches_recorded_edges": true
+    },
+    "unchanged_at_end": true
+  },
+  "retained_raw_evidence": {
+    "location": "submit75.mit.edu:/work/submit/mohoney/okg-1906-private-evidence/claude-final/",
+    "manifest": "SHA256SUMS",
+    "manifest_sha256": "sha256:642b87b9014978cdf5be407a226f3b63d6d115fda83fc05e42b8ade03b1f39ce",
+    "files": 84,
+    "deploy_record_sha256": "sha256:ecd3bf4a559f8acc35da4643068a8c320ffa628806293874ca1c668c4876edb3",
+    "refusal_record_sha256": "sha256:af6a86574e239b15777938dc5d657573532b1e51c296ef24c781a5805ead0bd4"
+  },
+  "limits": [
+    "The old installation is a new install of the original supported wheel pair with its live-fetched catalogue, not a reproduction of the historical installation.",
+    "Unchanged-repeat defects above are framework replay dependencies and are not counted as passes.",
+    "One Linux host; no same-database in-place release upgrade is claimed.",
+    "Recovery adapter construction was not exercised by this run."
+  ]
+}

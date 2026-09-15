@@ -1,0 +1,31 @@
+{
+  "schema": "okg.pact-test-summary/v1",
+  "consumer_repository": "https://github.com/archi-physics/archi",
+  "consumer_commit": "de8a3600c45835a18b7f09c6117a0c05b3097ed4",
+  "framework_commit": "5b2fd076ccc70b889911aed304c4ebba4944528e",
+  "framework_install": "Fresh CPython 3.12 environment; non-editable install of a git archive of the framework commit, then pip install -e ./python[dev], as .github/workflows/ci.yml does; okg imported from the environment's site-packages",
+  "command": "python -m pytest python/tests -q -p no:cacheprovider -rs --junitxml=archi-merged.xml",
+  "totals": {
+    "passed": 510
+  },
+  "skipped": [],
+  "failed": [],
+  "junit_sha256": "sha256:10cf17d9767513370e2cce0ae58f60b6939cc5369f171f8f8e3f4940097e1cf1",
+  "junit_retained_at": "submit75:/work/submit/mohoney/okg-1906-private-evidence/archi-pin-5b2fd076cc/archi-merged.xml",
+  "selected_file_counts": {
+    "tests/test_agent_pipe_bridge.py": 41,
+    "tests/test_alignment_page.py": 2,
+    "tests/test_consumer_install.py": 20,
+    "tests/test_framework_import_contract.py": 36,
+    "tests/test_frozen_adapters.py": 18,
+    "tests/test_pipe_bridge_benchmark_report.py": 38
+  },
+  "import_contract_run_alone": {
+    "command": "python -m pytest python/tests/test_framework_import_contract.py -q -p no:cacheprovider",
+    "totals": {
+      "passed": 36
+    },
+    "junit_sha256": "sha256:6854becc0d8462d5728b22939c96a8b685c24665c44a79ede0c01fc9247df48a"
+  },
+  "platform": "macOS arm64, CPython 3.12.11"
+}
