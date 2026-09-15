@@ -151,3 +151,31 @@ def test_consumer_configuration_contains_complete_frozen_bindings(tmp_path):
         assert "credential_refs" not in entry
     assert registry["github_repo"]["params"]["url"] == ""
     assert registry["github_repo"]["required_for_baseline"] is False
+
+
+def test_documented_private_policy_example_prepares_configuration(tmp_path):
+    """The operator example stays usable with the producer it documents."""
+    from pathlib import Path
+
+    import yaml
+    from test_frozen_adapters import snapshot
+
+    from archi.install.configuration import prepare_configuration
+
+    example = (
+        Path(__file__).resolve().parents[2]
+        / "docs/cern-team-private-source-policy.example.yaml"
+    )
+    policy = yaml.safe_load(example.read_text())
+    files, _ = prepare_configuration(
+        instance_name="example",
+        instance_root=tmp_path / "instance",
+        snapshot=snapshot(),
+        source_policy=policy,
+    )
+    registry = yaml.safe_load(files["source_registry.yaml"])["sources"]
+    for name, entry in registry.items():
+        declared = entry["source_policy"]
+        assert declared == policy["sources"][name]["source_policy"]
+        assert "redaction" in declared["privacy_obligations"]
+        assert declared["store_raw"] is False and declared["live_call_allowed"] is False

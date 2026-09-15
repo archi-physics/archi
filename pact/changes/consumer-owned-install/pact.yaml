@@ -10,9 +10,11 @@ affected_code:
 - python/tests/test_pipe_bridge_benchmark_report.py
 - python/tests/test_consumer_install.py
 - python/tests/test_frozen_adapters.py
+- python/tests/test_framework_import_contract.py
 - bundles/cern-team/prepared-deployment.yaml
 - docs/okg-alignment.md
 - docs/consumer-install.md
+- docs/cern-team-private-source-policy.example.yaml
 requirements:
 - id: producer
   statement: Archi owns exact snapshot validation, derived cache preparation, profile configuration, release identity selection and immutable package production through public OKG distribution interfaces. No private host imports or callbacks are introduced; live profile defaults remain unchanged.

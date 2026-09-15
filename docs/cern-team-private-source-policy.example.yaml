@@ -1,0 +1,91 @@
+# Operator-owned example source policy for the frozen cern-team installation.
+# Review it, then pass it explicitly to archi.install.configuration.prepare_configuration.
+# It is never applied by default. Every one of the five registry sources must appear.
+sources:
+  cmssw_releases:
+    source_policy:
+      sensitivity: local_private
+      data_classification: private
+      credential_ref_policy: none
+      live_call_allowed: false
+      exportability: no_export
+      retention: normal
+      provenance: local_filesystem
+      privacy_obligations:
+      - audit
+      - no_export
+      - redaction
+      store_raw: false
+      pii_classes:
+        text: free_text
+        label: free_text
+        name: free_text
+  docsite_snapshot:
+    source_policy:
+      sensitivity: local_private
+      data_classification: private
+      credential_ref_policy: none
+      live_call_allowed: false
+      exportability: no_export
+      retention: normal
+      provenance: local_filesystem
+      privacy_obligations:
+      - audit
+      - no_export
+      - redaction
+      store_raw: false
+      pii_classes:
+        text: free_text
+        body: free_text
+        title: free_text
+        label: free_text
+        heading_path: free_text
+  jira_snapshot:
+    source_policy:
+      sensitivity: local_private
+      data_classification: private
+      credential_ref_policy: none
+      live_call_allowed: false
+      exportability: no_export
+      retention: normal
+      provenance: local_filesystem
+      privacy_obligations:
+      - audit
+      - no_export
+      - redaction
+      store_raw: false
+      pii_classes:
+        text: free_text
+        summary: free_text
+        description: free_text
+        label: free_text
+  github_repo:
+    source_policy:
+      sensitivity: local_private
+      data_classification: private
+      credential_ref_policy: none
+      live_call_allowed: false
+      exportability: no_export
+      retention: normal
+      provenance: local_filesystem
+      privacy_obligations:
+      - audit
+      - no_export
+      - redaction
+      store_raw: false
+      pii_classes: {}
+  gitlab_repo:
+    source_policy:
+      sensitivity: local_private
+      data_classification: private
+      credential_ref_policy: none
+      live_call_allowed: false
+      exportability: no_export
+      retention: normal
+      provenance: local_filesystem
+      privacy_obligations:
+      - audit
+      - no_export
+      - redaction
+      store_raw: false
+      pii_classes: {}

@@ -12,7 +12,8 @@ its input digests. `prepare_configuration` composes the cache, consumer schemas,
 skills, invariant and all five explicit source policies. Three frozen readers
 are selected: CMSSW `release_new`, documentation `scope_complete`, Jira
 `reconcile`. Optional repository entries remain unselected; no live authority is
-added. The generic installer must audit the prepared policy before writing or
+added. `docs/cern-team-private-source-policy.example.yaml` is a reviewed
+example of the explicit policy for a private instance; it is never a default. The generic installer must audit the prepared policy before writing or
 publishing. A package build is not a successful policy audit or install.
 
 `build_prepared_package` takes those bytes, exact target, framework wheel digest
