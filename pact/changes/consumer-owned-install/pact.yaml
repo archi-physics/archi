@@ -2,7 +2,9 @@ pact_version: 5
 id: consumer-owned-install
 title: Own frozen installation preparation and connector compatibility in Archi
 tier: 2
-why: Consumer profile translation and compatibility currently execute inside the host framework. Archi must produce its own verified package and SDK adapters through consumer-neutral interfaces, preserving installed-release authority and explicit transition behavior.
+why: Consumer profile translation and compatibility currently execute inside the host framework.
+  Archi must produce its own verified package and SDK adapters through consumer-neutral interfaces,
+  preserving installed-release authority and explicit transition behavior.
 affected_code:
 - .github/workflows/ci.yml
 - python/archi/install/
@@ -18,30 +20,115 @@ affected_code:
 - docs/cern-team-private-source-policy.example.yaml
 requirements:
 - id: producer
-  statement: Archi owns exact snapshot validation, derived cache preparation, profile configuration, release identity selection and immutable package production through public OKG distribution interfaces. No private host imports or callbacks are introduced; live profile defaults remain unchanged.
+  statement: Archi owns exact snapshot validation, derived cache preparation, profile configuration,
+    release identity selection and immutable package production through public OKG distribution
+    interfaces. No private host imports or callbacks are introduced; live profile defaults
+    remain unchanged.
 - id: adapters
-  statement: Archi-owned SDK wrappers adapt the bounded CMSSW, documentation and Jira readers without changing completion, probe-safety, authorization or failure semantics. No host special-case bridge is required for the new adapters.
+  statement: Archi-owned SDK wrappers adapt the bounded CMSSW, documentation and Jira readers
+    without changing completion, probe-safety, authorization or failure semantics. No host
+    special-case bridge is required for the new adapters.
 - id: pipe-compatibility
-  statement: The existing standard-library-only external-agent pipe compatibility implementation and its consumer protocol acceptance tests move to Archi without changing tool authorization or message semantics; framework safety prohibitions remain intact.
+  statement: The existing standard-library-only external-agent pipe compatibility implementation
+    and its consumer protocol acceptance tests move to Archi without changing tool authorization
+    or message semantics; framework safety prohibitions remain intact.
 - id: transition
-  statement: Existing sealed installations retain their exact original launcher, environment, configuration, key and database authority. A changed release refuses ordinary reapply/update into that installation; the supported transition is a separately provisioned replacement with explicit operator cutover, not in-place release adoption.
+  statement: Existing sealed installations retain their exact original launcher, environment,
+    configuration, key and database authority. A changed release refuses ordinary reapply/update
+    into that installation; the supported transition is a separately provisioned replacement
+    with explicit operator cutover, not in-place release adoption.
 - id: installed-proof
-  statement: Actual consumer and framework artifacts outside checkouts prove bounded authentic installation, expected publication and pinned lineage reads, supported scoped update/search, changed-release refusal and original-last-good preservation. Unchanged-repeat defects remain failures and dependencies.
+  statement: Actual consumer and framework artifacts outside checkouts prove bounded authentic
+    installation, expected publication and pinned lineage reads, supported scoped update/search,
+    changed-release refusal and original-last-good preservation. Unchanged-repeat defects
+    remain failures and dependencies.
 tasks:
 - id: producer-tests
   requirement: producer
-  verification: Consumer tests verify exact snapshot shapes and hashes, cache paths and fetch false, strict package identities, neutral manifest membership, deterministic output and rejection of tamper/symlink/unknown bindings; test alignment and built wheel payload.
+  verification: Consumer tests verify exact snapshot shapes and hashes, cache paths and fetch
+    false, strict package identities, neutral manifest membership, deterministic output and
+    rejection of tamper/symlink/unknown bindings; test alignment and built wheel payload.
 - id: sdk-tests
   requirement: adapters
-  verification: Exercise all three real consumer wrappers through public ConnectorAdapter, normal and recovery construction, partial health/completion and unchanged probe flags; no source mutation solely to make repeats pass.
+  verification: Exercise all three real consumer wrappers through public ConnectorAdapter,
+    normal and recovery construction, partial health/completion and unchanged probe flags;
+    no source mutation solely to make repeats pass.
 - id: pipe-tests
   requirement: pipe-compatibility
-  verification: Port existing compatibility tests, compare behavior and public authorization contracts, and confirm the moved module remains free of framework imports; do not create a new chat framework.
+  verification: Port existing compatibility tests, compare behavior and public authorization
+    contracts, and confirm the moved module remains free of framework imports; do not create
+    a new chat framework.
 - id: transition-tests
   requirement: transition
-  verification: Review the release compatibility matrix and execute changed-release refusal against a disposable retained installation, compare original receipt/key/config bytes and independently query its original pinned reader.
+  verification: Review the release compatibility matrix and execute changed-release refusal
+    against a disposable retained installation, compare original receipt/key/config bytes
+    and independently query its original pinned reader.
 - id: real-install
   requirement: installed-proof
-  verification: Build pinned real artifacts after generic entry delivery; run existing assembled installer and retained-release update/search on a fresh disposable instance under machine guard/mutex, retaining exact exits/generations/reader and resource evidence separately from concise source-PR reports.
-evidence: []
+  verification: Build pinned real artifacts after generic entry delivery; run existing assembled
+    installer and retained-release update/search on a fresh disposable instance under machine
+    guard/mutex, retaining exact exits/generations/reader and resource evidence separately
+    from concise source-PR reports.
+evidence:
+- kind: executed_test
+  requirement: producer
+  status: pass
+  command: python -m pytest python/tests -q -p no:cacheprovider -rs against okg 5b2fd076cc
+    installed as CI installs it (510 passed, 0 skipped; import contract alone 36 passed; summary
+    in reports/tests.json)
+  artifact: pact/changes/consumer-owned-install/reports/tests.json
+  sha256: 725f24838d41bd7c290f84ce4db46599b4eb633389b57602872e576fdb3f6c3a
+  head: de8a3600c45835a18b7f09c6117a0c05b3097ed4
+  at: '2026-09-15T20:40:21+00:00'
+- kind: executed_test
+  requirement: adapters
+  status: pass
+  command: python -m pytest python/tests -q -p no:cacheprovider -rs against okg 5b2fd076cc
+    installed as CI installs it (510 passed, 0 skipped; import contract alone 36 passed; summary
+    in reports/tests.json)
+  artifact: pact/changes/consumer-owned-install/reports/tests.json
+  sha256: 725f24838d41bd7c290f84ce4db46599b4eb633389b57602872e576fdb3f6c3a
+  head: de8a3600c45835a18b7f09c6117a0c05b3097ed4
+  at: '2026-09-15T20:40:36+00:00'
+- kind: executed_test
+  requirement: pipe-compatibility
+  status: pass
+  command: python -m pytest python/tests -q -p no:cacheprovider -rs against okg 5b2fd076cc
+    installed as CI installs it (510 passed, 0 skipped; import contract alone 36 passed; summary
+    in reports/tests.json)
+  artifact: pact/changes/consumer-owned-install/reports/tests.json
+  sha256: 725f24838d41bd7c290f84ce4db46599b4eb633389b57602872e576fdb3f6c3a
+  head: de8a3600c45835a18b7f09c6117a0c05b3097ed4
+  at: '2026-09-15T20:40:36+00:00'
+- kind: published_generation
+  requirement: installed-proof
+  status: pass
+  command: submit75 run-all.sh (build.py, prepare.py, deploy.py, refusals.py) under the machine
+    guard; wheels from archi 3d85d1f0 and okg a0bc46d634, which has no src/ difference from
+    merged 5b2fd076cc; install, exact inventory, pinned search; unchanged repeats recorded
+    as defects; raw records with SHA256SUMS 642b87b9
+  artifact: pact/changes/consumer-owned-install/reports/installed-proof.json
+  sha256: 4909fffc0d7309aeda2a5ab3dd9eea8598d07c010c686b79120c24d3d8f2a069
+  head: 3d85d1f06e593f866833e5d50eee00c5e31edb71
+  at: '2026-09-15T20:40:36+00:00'
+- kind: published_generation
+  requirement: transition
+  status: pass
+  command: 'submit75 refusals.py: the new release was refused against the retained old installation
+    by the launcher (install, update, search) and by the installer (release_or_configuration_drift)
+    on a byte copy; the old installation stayed byte-identical and its pinned reader returned
+    its recorded inventory (reports/installed-proof.json)'
+  artifact: pact/changes/consumer-owned-install/reports/installed-proof.json
+  sha256: 4909fffc0d7309aeda2a5ab3dd9eea8598d07c010c686b79120c24d3d8f2a069
+  head: 3d85d1f06e593f866833e5d50eee00c5e31edb71
+  at: '2026-09-15T20:40:36+00:00'
+- kind: design_review
+  requirement: producer
+  status: pass
+  command: Independent adversarial review of origin/archi_v3..5a7c153c; fixes in 3d85d1f0;
+    findings and dispositions in reports/review.md
+  artifact: pact/changes/consumer-owned-install/reports/review.md
+  sha256: 6a0e2b71126ef03dce1bf19a1efff88f43bd5163a05e35ed21ecb5ed8c01860d
+  head: 3d85d1f06e593f866833e5d50eee00c5e31edb71
+  at: '2026-09-15T20:40:37+00:00'
 decisions: []
