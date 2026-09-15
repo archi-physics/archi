@@ -20,16 +20,26 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**Archi installs as-is on current okg (2026-09-15, OKG#1906).** okg `dev` @
+`5b2fd076c` removed the framework's Archi-specific install code. Archi needed no
+change: the full suite passes against that commit, and `okg install --profile
+cern-team` still plans cleanly. A test deployment that needs repeatable data uses
+this normal install with the cache-backed Jira and documentation sources and the
+hash-pinned CMSSW option below, and records the data hashes in its own evidence.
+A consumer-side frozen install package (#643) was closed unmerged.
+
 **Frozen CMSSW input contract (2026-09-14, OKG#1795).** This change adds an explicit
 path and SHA256 binding that never fetches in frozen mode. It preserves the live
-profile and existing CI pin. The separately owned packaged installer must support
-the new consumer wheel identity and frozen declaration inventory before claiming
-end-to-end frozen installation. The historical CMSSW cache is still unavailable;
-unit fixtures are not real-deployment baseline evidence. See
-[frozen CMSSW inputs](frozen-cmssw-input.md).
+profile. The historical CMSSW cache is still unavailable; unit fixtures are not
+real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-09-10, tested against okg `dev` @ `34efbad1b`; archi branch
-`archi_v3` with PRs #610–#639 merged.*
+*Last updated 2026-09-15, tested against okg `dev` @ `5b2fd076c`; archi branch
+`archi_v3` @ `e1f65bf9` (through PR #642).*
+
+**Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15), OKG#1906.** The fork was
+synced to okg `dev` first; it had no commits of its own. Full archi suite
+**357 passed** with none skipped, `test_alignment_page.py` included. No source
+change needed.
 
 **Pin bumped `1475c87d5` → `34efbad1b` (2026-09-10), Sprint 11's 45 merges.** Full
 archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarded
@@ -46,8 +56,8 @@ import name 'EdgeFact'` — the SDK did not exist in the pinned commit.
 **The fork cannot be removed**, which is the uncomfortable part. `OKG_REPO_TOKEN` is
 scoped to that account's own repositories, so pointing CI at `mitdbg/okg` returns 403
 (measured, run `34494575759`). CI can only read the fork, and the fork only tracks
-upstream when someone syncs it by hand. The pin is now `34efbad1b`, matching this
-page, and the workflow carries the sync command plus the rule that the two must stay
+upstream when someone syncs it by hand. The workflow pin matches the commit in the
+*Last updated* line above, and the workflow carries the sync command plus the rule that the two must stay
 equal — but the structural fix is a token that can read `mitdbg/okg` directly, which
 needs a classic PAT rather than the current fine-grained one.
 
