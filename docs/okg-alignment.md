@@ -20,18 +20,18 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
-**Consumer-owned installation migration (2026-09-14, OKG#1906; under review).**
+**Consumer-owned installation migration (2026-09-15, OKG#1906; under review).**
 The new `archi.install` producer owns frozen snapshot/cache preparation, SDK
 wrappers, configuration and immutable package production. `archi.compat.agent_pipe`
 owns external-agent protocol compatibility. New imports use public
-`okg.distributions`, `okg.deployment` and the proposed `okg.chat` contract.
-The framework helper/facade are currently local reviewed candidates, not a
-released dependency. CI still pins `34efbad1b`; it must move together with this
-page to the final framework commit reachable through the authorized private fork.
-The new tests must execute there without skips before merge. Local synthetic
-contract tests do not establish installed artifact or private-policy acceptance.
-The transition creates a new target, environment and database while retaining
-old release authority; no in-place release upgrade is implemented.
+`okg.distributions`, `okg.deployment` and `okg.chat`. The framework side merged
+into okg `dev` as `5b2fd076c` (mitdbg/okg#1920), which removed the framework's
+Archi installer branch, profile translation and pipe helper. CI now pins that
+commit through the synced private fork, and the new tests must execute there
+without skips before merge. Local synthetic contract tests do not establish
+installed artifact or private-policy acceptance. The transition creates a new
+target, environment and database while retaining old release authority; no
+in-place release upgrade is implemented.
 
 **Frozen CMSSW input contract (2026-09-14, OKG#1795).** This change adds an explicit
 path and SHA256 binding that never fetches in frozen mode. It preserves the live
@@ -41,8 +41,15 @@ end-to-end frozen installation. The historical CMSSW cache is still unavailable;
 unit fixtures are not real-deployment baseline evidence. See
 [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-09-10, tested against okg `dev` @ `34efbad1b`; archi branch
-`archi_v3` with PRs #610–#639 merged.*
+*Last updated 2026-09-15, tested against okg `dev` @ `5b2fd076c`; archi branch
+`archi_v3` @ `e1f65bf9` plus the OKG#1906 consumer-owned install change.*
+
+**Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15), OKG#1906 framework merge.**
+The fork was synced to okg `dev` first; it had no commits of its own, so nothing
+was dropped. The framework at this pin no longer carries the Archi installer
+branch, profile translation or pipe helper; installation goes through the
+consumer-owned code in this change. Test counts for this pin are in
+`pact/changes/consumer-owned-install/reports/tests.json`.
 
 **Pin bumped `1475c87d5` → `34efbad1b` (2026-09-10), Sprint 11's 45 merges.** Full
 archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarded

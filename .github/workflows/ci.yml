@@ -73,7 +73,7 @@ jobs:
           # commit named in docs/okg-alignment.md; if they differ, the page is
           # describing a build that never ran.
           python -m pip install --upgrade pip
-          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/lucalavezzo/okg@34efbad1b5768fd3ca635992173694a9cc91ebd2"
+          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/lucalavezzo/okg@5b2fd076ccc70b889911aed304c4ebba4944528e"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"

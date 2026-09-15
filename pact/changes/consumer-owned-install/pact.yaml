@@ -4,6 +4,7 @@ title: Own frozen installation preparation and connector compatibility in Archi
 tier: 2
 why: Consumer profile translation and compatibility currently execute inside the host framework. Archi must produce its own verified package and SDK adapters through consumer-neutral interfaces, preserving installed-release authority and explicit transition behavior.
 affected_code:
+- .github/workflows/ci.yml
 - python/archi/install/
 - python/archi/compat/
 - python/tests/test_agent_pipe_bridge.py
