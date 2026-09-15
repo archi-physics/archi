@@ -65,7 +65,7 @@ from archi.compat.agent_pipe import (
 )
 from okg.chat import CHAT_DEFAULT_TOOLS
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = (
     REPO_ROOT
     / "pact/changes/archi-agent-pipe-bridge/reports/path-a-vs-path-b.json"

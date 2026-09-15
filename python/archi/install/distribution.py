@@ -140,7 +140,9 @@ def build_prepared_package(
     assets, objects, sources = [], {}, {}
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="archi-package-") as temporary:
-        root = Path(temporary)
+        # The package builder refuses symlinked path components, and the system
+        # temporary directory can sit behind one (macOS /var -> /private/var).
+        root = Path(temporary).resolve()
         for name, kind, body in payloads:
             if not isinstance(body, bytes):
                 raise ValueError("prepared configuration must contain bytes")
