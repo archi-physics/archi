@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import copy
+import re
 from pathlib import Path
-from string import Template
 
 import yaml
 
@@ -25,9 +25,36 @@ SOURCE_MODES = {
 }
 
 
+#: Fields the framework installer's source-policy audit requires, plus the two
+#: privacy fields its prepared-configuration check reads. A frozen private
+#: instance must declare every one explicitly.
+POLICY_FIELDS = frozenset(
+    {
+        "sensitivity",
+        "data_classification",
+        "credential_ref_policy",
+        "live_call_allowed",
+        "exportability",
+        "retention",
+        "provenance",
+        "privacy_obligations",
+        "store_raw",
+        "pii_classes",
+    }
+)
+_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
 def _substitute(value, answers):
     if isinstance(value, str):
-        return Template(value).substitute(answers)
+
+        def replacement(match):
+            name = match.group(1)
+            if name not in answers:
+                raise ValueError(f"template placeholder {name!r} has no value")
+            return answers[name]
+
+        return _PLACEHOLDER.sub(replacement, value)
     if isinstance(value, list):
         return [_substitute(item, answers) for item in value]
     if isinstance(value, dict):
@@ -95,17 +122,9 @@ def prepare_configuration(
                 + "."
                 + ("cmssw-releases" if name == "cmssw_releases" else name)
             )
-            source.update(
-                module="archi.install.adapters",
-                **{"class": adapter},
-                ownership_id=ownership,
-                required_for_baseline=True,
-                params=dict(
-                    configuration_root=str(configuration_root), snapshot_digests=pins
-                ),
+            params = dict(
+                configuration_root=str(configuration_root), snapshot_digests=pins
             )
-            source.pop("credential_refs", None)
-            source.pop("credential_aliases", None)
             authority = dict(
                 source_family="cern-team-bounded-snapshot",
                 source_name=name,
@@ -120,6 +139,18 @@ def prepare_configuration(
                 authority["record_allowlist"] = [
                     "https://fts3-docs.web.cern.ch/fts3-docs/"
                 ]
+            if "record_allowlist" in authority:
+                # The adapter enforces the same allowlist before every run.
+                params["record_allowlist"] = list(authority["record_allowlist"])
+            source.update(
+                module="archi.install.adapters",
+                **{"class": adapter},
+                ownership_id=ownership,
+                required_for_baseline=True,
+                params=params,
+            )
+            source.pop("credential_refs", None)
+            source.pop("credential_aliases", None)
             source["admission_policy"].update(
                 producer_id=ownership, authority_scope=authority
             )
@@ -141,13 +172,20 @@ def prepare_configuration(
                 "each explicit policy entry must contain only source_policy"
             )
         policy = entry["source_policy"]
+        missing = sorted(POLICY_FIELDS - set(policy))
+        if missing:
+            raise ValueError(f"source policy for {name!r} lacks {', '.join(missing)}")
+        obligations = policy["privacy_obligations"]
         if (
-            policy.get("store_raw") is not False
-            or policy.get("live_call_allowed") is not False
-            or not isinstance(policy.get("pii_classes"), dict)
+            policy["store_raw"] is not False
+            or policy["live_call_allowed"] is not False
+            or not isinstance(policy["pii_classes"], dict)
+            or not isinstance(obligations, list)
+            or "redaction" not in obligations
         ):
             raise ValueError(
-                "frozen private configuration requires explicit redaction and no live calls"
+                "frozen private configuration requires redaction with store_raw false "
+                "and no live calls"
             )
         sources[name]["source_policy"] = copy.deepcopy(policy)
     modules = [

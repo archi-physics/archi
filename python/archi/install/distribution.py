@@ -32,6 +32,9 @@ from okg.distributions import (
     canonical_release_digest,
 )
 
+import yaml
+
+from .configuration import SOURCE_MODES
 from .snapshots import digest, read_regular, strict_json
 
 TRANSLATION = "archi-consumer-frozen/v1"
@@ -89,6 +92,62 @@ def verify_release_receipt(wheel: Path, receipt: bytes) -> dict:
     return data
 
 
+def check_configuration(
+    *,
+    configuration: dict[str, bytes],
+    instance_root: Path,
+    instance_name: str,
+    modules: list[str],
+    source_modes: dict[str, str],
+) -> None:
+    """Refuse bytes prepared for another target, name, module set or selection.
+
+    The framework binds the target and name it is given, but it cannot read the
+    frozen adapters' parameters. Without this check a package for one target
+    would silently read another target's cache.
+    """
+    if source_modes != SOURCE_MODES:
+        raise ValueError("source modes must select exactly the three frozen readers")
+    try:
+        deployment = yaml.safe_load(configuration["deployment.yaml"])
+        sources = yaml.safe_load(configuration["source_registry.yaml"])["sources"]
+    except (KeyError, TypeError, yaml.YAMLError) as exc:
+        raise ValueError(
+            "configuration lacks a readable deployment or registry"
+        ) from exc
+    if (
+        not isinstance(deployment, dict)
+        or deployment.get("name") != instance_name
+        or deployment.get("modules") != modules
+    ):
+        raise ValueError(
+            "configuration was prepared for another instance or module set"
+        )
+    root = str(instance_root / "configuration")
+    for name in SOURCE_MODES:
+        entry = sources.get(name) if isinstance(sources, dict) else None
+        if not isinstance(entry, dict):
+            raise ValueError(f"selected frozen source {name!r} is absent")
+        params = entry.get("params") or {}
+        scope = (entry.get("admission_policy") or {}).get("authority_scope") or {}
+        if (
+            params.get("configuration_root") != root
+            or scope.get("configuration_root") != root
+            or not str(entry.get("ownership_id", "")).startswith(instance_name + ".")
+        ):
+            raise ValueError("configuration was prepared for a different target")
+        pins = params.get("snapshot_digests")
+        if not isinstance(pins, dict) or pins != scope.get("snapshot_digests"):
+            raise ValueError("adapter digests differ from the declared authority scope")
+        if params.get("record_allowlist") != scope.get("record_allowlist"):
+            raise ValueError(
+                "adapter allowlist differs from the declared authority scope"
+            )
+        for path, pin in pins.items():
+            if path not in configuration or digest(configuration[path]) != pin:
+                raise ValueError("cache bytes differ from the pinned digests")
+
+
 def build_prepared_package(
     *,
     wheel: Path,
@@ -108,6 +167,13 @@ def build_prepared_package(
     configuration paths, selections, plan/lock and installed wheel identities.
     """
     release = verify_release_receipt(wheel, release_receipt)
+    check_configuration(
+        configuration=configuration,
+        instance_root=instance_root,
+        instance_name=instance_name,
+        modules=modules,
+        source_modes=source_modes,
+    )
     file_refs = {
         name: f"{OWNER}:file-{index:04d}"
         for index, name in enumerate(sorted(configuration))

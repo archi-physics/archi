@@ -51,8 +51,11 @@ def read_regular(path: Path, expected: str, limit: int = MAX_BYTES) -> bytes:
     if not path.is_absolute() or any(part in {".", ".."} for part in path.parts):
         raise ValueError("snapshot path must be absolute and normalized")
     # Anchor every directory component so a concurrent rename cannot redirect
-    # the read through a replacement symlink. NONBLOCK prevents FIFO hangs
-    # before fstat can refuse a non-regular final member.
+    # this read through a replacement symlink. NONBLOCK prevents FIFO hangs
+    # before fstat can refuse a non-regular final member. This protects only
+    # the bytes returned here: the Jira and documentation readers reopen their
+    # files by path afterwards, so the configuration tree must stay private to
+    # the installation owner between verification and the run.
     parent = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
     try:
         for part in path.parts[1:-1]:
@@ -81,16 +84,11 @@ def read_snapshot(path: Path, expected_digest: str) -> dict[str, bytes]:
     manifest = strict_json(read_regular(path, expected_digest, 1024 * 1024))
     if not isinstance(manifest, dict) or set(manifest) != {"schema", "files"}:
         raise ValueError("unsupported snapshot manifest")
-    schemas = {
-        "archi.frozen-snapshot/v1": FILES,
-        "okg.cern-snapshot-input/v2": FILES,
-        "okg.cern-snapshot-input/v1": FILES - {"releases.map"},
-    }
-    expected = schemas.get(manifest["schema"])
+    # Only the complete five-file shape can prepare a frozen installation.
     if (
-        expected is None
+        manifest["schema"] != "archi.frozen-snapshot/v1"
         or not isinstance(manifest["files"], dict)
-        or set(manifest["files"]) != expected
+        or set(manifest["files"]) != FILES
     ):
         raise ValueError("snapshot inventory does not match schema")
     return {
@@ -161,7 +159,30 @@ def prepare_caches(snapshot: dict[str, bytes]) -> dict[str, bytes]:
     cache.update(
         {"snapshots/receipts/" + name: value for name, value in snapshot.items()}
     )
+    # verify_cache reads every member under the same limit; refuse here rather
+    # than package a cache that every later run would reject.
+    if any(len(value) > MAX_BYTES for value in cache.values()):
+        raise ValueError("derived snapshot cache member exceeds the size limit")
     return cache
+
+
+def verify_records(
+    root: str, files: dict[str, str], member: str, key: str, allowlist: list[str]
+) -> None:
+    """Refuse a verified cache whose record identifiers differ from the allowlist."""
+    if (
+        not isinstance(allowlist, list)
+        or not allowlist
+        or not all(isinstance(item, str) and item for item in allowlist)
+    ):
+        raise ValueError("record allowlist must be a non-empty list of identifiers")
+    records = strict_json(read_regular(Path(root) / member, files[member]))
+    if (
+        not isinstance(records, list)
+        or [item.get(key) if isinstance(item, dict) else None for item in records]
+        != allowlist
+    ):
+        raise ValueError("snapshot record identifiers differ from the allowlist")
 
 
 def verify_cache(root: str, files: dict[str, str]) -> None:

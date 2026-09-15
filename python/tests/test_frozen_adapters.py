@@ -42,6 +42,26 @@ def snapshot():
     }
 
 
+ALLOWLISTS = {
+    "FrozenDocumentationAdapter": ["https://fts3-docs.web.cern.ch/fts3-docs/"],
+    "FrozenJiraAdapter": ["CMSPROD-101"],
+}
+#: The run mode each reader is installed with (archi.install.configuration).
+MODES = {
+    "FrozenCMSSWAdapter": "release_new",
+    "FrozenDocumentationAdapter": "scope_complete",
+    "FrozenJiraAdapter": "reconcile",
+}
+
+
+def build(adapter, root, pins, **overrides):
+    params = dict(configuration_root=str(root), snapshot_digests=pins)
+    if adapter.__name__ in ALLOWLISTS:
+        params["record_allowlist"] = list(ALLOWLISTS[adapter.__name__])
+    params.update(overrides)
+    return adapter(**params)
+
+
 def cache(tmp_path):
     values = prepare_caches(snapshot())
     for name, body in values.items():
@@ -61,11 +81,14 @@ def cache(tmp_path):
 )
 def test_real_sdk_roundtrip_preserves_reader_semantics(tmp_path, adapter, expected):
     pins = cache(tmp_path)
-    source = adapter(configuration_root=str(tmp_path), snapshot_digests=pins)
+    source = build(adapter, tmp_path, pins)
     assert isinstance(source, ConnectorAdapter)
-    assert isinstance(adapter.profile, str) and adapter.profile == source._reader.profile
-    actual = source.run("test-run", mode="scope_complete")
-    direct = source._reader.run("test-run", mode="scope_complete")
+    assert (
+        isinstance(adapter.profile, str) and adapter.profile == source._reader.profile
+    )
+    mode = MODES[adapter.__name__]
+    actual = source.run("test-run", mode=mode)
+    direct = source._reader.run("test-run", mode=mode)
     assert actual.completed_scope == direct.completed_scope
     assert actual.health == direct.health
     assert actual.run_mode == direct.run_mode
@@ -81,9 +104,7 @@ def test_real_sdk_roundtrip_preserves_reader_semantics(tmp_path, adapter, expect
 
 
 def test_frozen_cmssw_retains_partial_scope(tmp_path):
-    source = FrozenCMSSWAdapter(
-        configuration_root=str(tmp_path), snapshot_digests=cache(tmp_path)
-    )
+    source = build(FrozenCMSSWAdapter, tmp_path, cache(tmp_path))
     result = source.run("partial", mode="scope_complete")
     assert result.completed_scope is False  # unsupported family row is not hidden
     assert result.health.status != "ok" or "skip" in result.health.reason.lower()
@@ -94,16 +115,14 @@ def test_frozen_cmssw_retains_partial_scope(tmp_path):
 )
 def test_changed_cache_refuses_before_each_run(tmp_path, adapter):
     pins = cache(tmp_path)
-    source = adapter(configuration_root=str(tmp_path), snapshot_digests=pins)
+    source = build(adapter, tmp_path, pins)
     (tmp_path / "snapshots/jira/records.json").write_bytes(b"[]")
     with pytest.raises(ValueError, match="digest"):
         source.run("changed")
 
 
 def test_jira_is_explicitly_cache_only(tmp_path):
-    source = FrozenJiraAdapter(
-        configuration_root=str(tmp_path), snapshot_digests=cache(tmp_path)
-    )
+    source = build(FrozenJiraAdapter, tmp_path, cache(tmp_path))
     assert source.requires_live_call_authorization is False
     assert source.change_probe_kind == "mutable_api"
 
@@ -134,9 +153,9 @@ def test_symlink_and_missing_inventory_refuse(tmp_path):
     (tmp_path / "map").write_bytes(old)
     file.symlink_to(tmp_path / "map")
     with pytest.raises(ValueError, match="symlink"):
-        FrozenCMSSWAdapter(configuration_root=str(tmp_path), snapshot_digests=pins)
+        build(FrozenCMSSWAdapter, tmp_path, pins)
     with pytest.raises(ValueError, match="inventory"):
-        FrozenJiraAdapter(configuration_root=str(tmp_path), snapshot_digests={})
+        build(FrozenJiraAdapter, tmp_path, {})
 
 
 def test_fifo_refused_without_waiting_for_writer(tmp_path):
@@ -148,3 +167,62 @@ def test_fifo_refused_without_waiting_for_writer(tmp_path):
     os.mkfifo(path)
     with pytest.raises(ValueError, match="regular"):
         read_regular(path, digest(b""))
+
+
+@pytest.mark.parametrize(
+    "adapter,member,rows",
+    [
+        (
+            FrozenJiraAdapter,
+            "snapshots/jira/records.json",
+            [{"key": "CMSPROD-101"}, {"key": "CMSPROD-102"}],
+        ),
+        (
+            FrozenDocumentationAdapter,
+            "snapshots/docsite/records.json",
+            [{"url": "https://example.org/other"}],
+        ),
+    ],
+)
+def test_records_outside_the_allowlist_refuse(tmp_path, adapter, member, rows):
+    pins = cache(tmp_path)
+    body = json.dumps(rows).encode()
+    (tmp_path / member).write_bytes(body)
+    pins[member] = digest(body)
+    with pytest.raises(ValueError, match="allowlist"):
+        build(adapter, tmp_path, pins)
+
+
+@pytest.mark.parametrize("allowlist", [[], ["CMSPROD-101", "CMSPROD-101"], [""]])
+def test_record_allowlist_must_name_exactly_the_records(tmp_path, allowlist):
+    with pytest.raises(ValueError, match="allowlist"):
+        build(FrozenJiraAdapter, tmp_path, cache(tmp_path), record_allowlist=allowlist)
+
+
+@pytest.mark.parametrize(
+    "schema,names",
+    [
+        (
+            "okg.cern-snapshot-input/v1",
+            [
+                "records.json",
+                "fetch-receipt.json",
+                "documentation.html",
+                "documentation-fetch-receipt.json",
+            ],
+        ),
+        ("okg.cern-snapshot-input/v2", None),
+    ],
+)
+def test_only_the_five_file_snapshot_schema_is_read(tmp_path, schema, names):
+    values = snapshot()
+    if names is not None:
+        values = {name: values[name] for name in names}
+    for name, body in values.items():
+        (tmp_path / name).write_bytes(body)
+    manifest = json.dumps(
+        {"schema": schema, "files": {k: digest(v) for k, v in values.items()}}
+    ).encode()
+    (tmp_path / "snapshot.json").write_bytes(manifest)
+    with pytest.raises(ValueError, match="schema"):
+        read_snapshot(tmp_path / "snapshot.json", digest(manifest))
