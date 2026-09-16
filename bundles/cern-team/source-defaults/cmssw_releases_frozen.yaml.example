@@ -2,7 +2,7 @@
 # The installer must supply these reviewed inputs and support this new consumer wheel.
 cmssw_releases:
   module: archi.sources.cmssw
-  class: CMSSWReleaseSource
+  class: CMSSWReleaseAdapter
   ownership_id: ${deployment_name}.cmssw-releases
   admission_policy:
     producer_id: ${deployment_name}.cmssw-releases

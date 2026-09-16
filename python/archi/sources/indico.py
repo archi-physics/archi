@@ -92,6 +92,7 @@ from archi.auth.cache import (
     resolve_repo_path,
 )
 from archi.sources._cache_report import skipped_items_status
+from archi.sources._sdk_adapter import ReaderAdapter
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -496,3 +497,14 @@ def _chunks(text: str) -> Iterator[tuple[int, int, str]]:
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+class IndicoAdapter(ReaderAdapter):
+    """Registry adapter for :class:`IndicoSource`.
+
+    The bundle's `indico` source names this class. The reader's behavior is unchanged; this class only
+    drives it through the substrate's adapter contract.
+    """
+
+    reader_class = IndicoSource
+    profile = IndicoSource.profile
+    change_probe_kind = IndicoSource.change_probe_kind

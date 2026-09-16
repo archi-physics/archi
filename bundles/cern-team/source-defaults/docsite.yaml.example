@@ -6,7 +6,7 @@
 # (issue keys cited in page text resolve against the jira cache).
 docsite:
   module: archi.sources.docs
-  class: DocumentationSource
+  class: DocumentationAdapter
   ownership_id: ${deployment_name}.docsite
   admission_policy:
     producer_id: ${deployment_name}.docsite

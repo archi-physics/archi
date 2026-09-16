@@ -10,7 +10,7 @@
 # schema slices copied into <deployment>/schemas{,/bridges}/.
 jira:
   module: archi.sources.jira
-  class: JiraIssueSource
+  class: JiraIssueAdapter
   ownership_id: ${deployment_name}.jira
   admission_policy:
     producer_id: ${deployment_name}.jira

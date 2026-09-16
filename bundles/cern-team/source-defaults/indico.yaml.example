@@ -19,7 +19,7 @@
 # silently ignored, okg#1282).
 indico:
   module: archi.sources.indico
-  class: IndicoSource
+  class: IndicoAdapter
   ownership_id: ${deployment_name}.indico
   admission_policy:
     producer_id: ${deployment_name}.indico

@@ -92,6 +92,7 @@ from archi.auth.cache import (
     resolve_repo_path,
 )
 from archi.sources._cache_report import skipped_items_status
+from archi.sources._sdk_adapter import ReaderAdapter
 
 RELEASES_MAP_URL = (
     "https://raw.githubusercontent.com/cms-sw/cms-bot/master/releases.map"
@@ -585,3 +586,14 @@ def _find_predecessor(label: str) -> str | None:
         return base
 
     return base
+
+class CMSSWReleaseAdapter(ReaderAdapter):
+    """Registry adapter for :class:`CMSSWReleaseSource`.
+
+    The bundle's `cmssw_releases` source names this class. The reader's behavior is unchanged; this class only
+    drives it through the substrate's adapter contract.
+    """
+
+    reader_class = CMSSWReleaseSource
+    profile = CMSSWReleaseSource.profile
+    change_probe_kind = CMSSWReleaseSource.change_probe_kind

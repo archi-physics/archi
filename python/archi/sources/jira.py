@@ -178,6 +178,7 @@ from okg.deployment import (
     ConnectorRun,
 )
 
+from archi.sources._sdk_adapter import ReaderAdapter
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
     content_hash,
@@ -851,3 +852,14 @@ def _person_node(
         source_record_id={"person": display_name},
         source_revision=revision,
     )
+
+class JiraIssueAdapter(ReaderAdapter):
+    """Registry adapter for :class:`JiraIssueSource`.
+
+    The bundle's `jira` source names this class. The reader's behavior is unchanged; this class only
+    drives it through the substrate's adapter contract.
+    """
+
+    reader_class = JiraIssueSource
+    profile = JiraIssueSource.profile
+    change_probe_kind = JiraIssueSource.change_probe_kind

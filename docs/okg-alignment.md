@@ -300,6 +300,7 @@ below it is still private substrate, and all of it is enricher-side.
 okg.deployment:
     NodeFact, EdgeFact, ProgressMarker,
     ConnectorRun, ConnectorHealth, PreflightResult,
+    ConnectorAdapter,
     ContentHashProbe, MutableApiProbe,
     file_preflight, credential_preflight, http_preflight, redact
 okg.substrate.enrichers.base:     EnrichResult, IncrementalContext
@@ -310,10 +311,18 @@ okg.substrate.library.linkers.declarative: DeclarativeLinker
 okg.substrate.alias.protocol:     AliasMatch
 ```
 
+**The dropped fields are read by the substrate, not by us (2026-09-16).** Archi
+never referenced `next_cursor`, but the runner does, on the result of whatever
+class a source registry names. So a reader that returns `ConnectorRun` cannot be
+registered directly: every run raised `AttributeError: 'ConnectorRun' object has
+no attribute 'next_cursor'` from the connector migration until this was fixed.
+`ConnectorAdapter` is the framework's bridge, and `bundles/cern-team/source-defaults`
+now names one `<Reader>Adapter` per reader. The readers themselves are unchanged.
+
 Every SDK name above was verified to be the *same object* as the substrate name it
 replaced, except `ConnectorRun`, which is a genuinely narrower type: it drops
 `next_cursor`, `effective_scope_complete`, `bootstrap_identity` and three
-`applied_token_*` fields — none of which Archi ever referenced — and retains
+`applied_token_*` fields — which Archi does not reference directly — and retains
 `record_authority_stream`, `record_set` and `record_set_replacement_keys`, the
 fields #1181's design note warned would cost incremental sources their changed-slice
 retractions.

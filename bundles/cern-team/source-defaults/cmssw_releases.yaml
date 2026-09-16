@@ -6,7 +6,7 @@
 # it. Emits release + family nodes and deterministic supersedes edges.
 cmssw_releases:
   module: archi.sources.cmssw
-  class: CMSSWReleaseSource
+  class: CMSSWReleaseAdapter
   ownership_id: ${deployment_name}.cmssw-releases
   admission_policy:
     producer_id: ${deployment_name}.cmssw-releases
