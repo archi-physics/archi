@@ -245,15 +245,21 @@ The bundle already declares the chat site, so there is nothing to write.
 The chat app needs **its own** database, separate from the graph; okg
 checks they really are distinct and refuses if not.
 
-**Read the note under the block before running it** — the `0.0.0.0` is
-deliberate and the reason matters.
+**Read the note under the block before running it** — the published
+addresses are deliberate and the reason matters.
 
 ```bash
 export CHAT_DB_PASSWORD='pick-your-own-here'
 
+# The address the chat container reaches this host at. Publishing there
+# instead of on every address keeps the database off your network.
+export CONTAINER_GATEWAY="$(podman network inspect podman \
+  --format '{{(index .Subnets 0).Gateway}}')"
+
 podman run -d --name myteam-chat-pg \
   -e POSTGRES_PASSWORD="$CHAT_DB_PASSWORD" -e POSTGRES_DB=okg_chat_app \
-  -p 0.0.0.0:5458:5432 docker.io/library/postgres:16
+  -p 127.0.0.1:5458:5432 -p "$CONTAINER_GATEWAY":5458:5432 \
+  docker.io/library/postgres:16
 
 export OKG_CHAT_APP_DATABASE_URL="postgresql://postgres:$CHAT_DB_PASSWORD@127.0.0.1:5458/okg_chat_app"
 export OKG_CHAT_WEBUI_SECRET_KEY='choose-anything'
@@ -280,14 +286,53 @@ so a value that changes between `podman run` and the DSN gives
 crashed chat container while `chat-instance up` polls on, looking like a
 hang. The check above catches it immediately instead.
 
-**Why `0.0.0.0` here and nowhere else.** This database is read from
-*inside* a container, and under rootless podman a loopback-only published
-port is not reachable from one. Get this wrong and the chat container
-crashes on startup — *"server closed the connection unexpectedly"* — while
-`chat-instance up` keeps polling until its timeout, which looks exactly
-like a hang. Binding beyond loopback means other machines can reach it, so
-choose a real password. The graph database is read from the host and stays
-loopback-only.
+**Why two addresses here and nowhere else.** This database is read from
+two places, and one address cannot serve both:
+
+* `127.0.0.1` — you, on this host: the credential check above, `psql`,
+  backups.
+* the container gateway — the chat container. Inside a container
+  `127.0.0.1` means *that container*, so a loopback-only published port is
+  invisible to it. Get this wrong and the chat container crashes on startup
+  — *"server closed the connection unexpectedly"* — while
+  `chat-instance up` keeps polling until its timeout, which looks exactly
+  like a hang.
+
+Neither address is reachable from another machine. Under docker the
+gateway is usually `172.17.0.1`; read it with
+`docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'`.
+
+**Do not publish this on `0.0.0.0`.** That is every address this host has,
+including the one your institution's network can reach — and this database
+holds every conversation and, once single sign-on is wired up, each
+person's cached provider tokens. Only the database password would stand
+between a stranger and all of it. Prove it is closed, from a different
+machine:
+
+```bash
+nc -zv <this-host> 5458     # must fail
+```
+
+If your runtime offers no gateway address the host can publish on, and
+`0.0.0.0` is the only way the container can reach the database, block the
+port at the host firewall and re-run that check.
+
+**Already running an installation published on `0.0.0.0`?** Re-publish it
+without losing anything. `podman rm` keeps the data volume, so pass the
+same volume to the new container:
+
+```bash
+VOLUME="$(podman inspect myteam-chat-pg --format '{{(index .Mounts 0).Name}}')"
+podman rm -f myteam-chat-pg
+podman run -d --name myteam-chat-pg \
+  -e POSTGRES_PASSWORD="$CHAT_DB_PASSWORD" -e POSTGRES_DB=okg_chat_app \
+  -v "$VOLUME":/var/lib/postgresql/data \
+  -p 127.0.0.1:5458:5432 -p "$CONTAINER_GATEWAY":5458:5432 \
+  docker.io/library/postgres:16
+```
+
+The graph database is read from the host only, which is why okg publishes
+it on `127.0.0.1` itself.
 
 **The DSN still says `127.0.0.1`, and that is correct.** okg validates the
 database from the host, then rewrites the container's copy to reach back
@@ -339,13 +384,16 @@ export OKG_CHAT_MCP_TOKEN='choose-anything'   # the value you used above
 
 okg-venv/bin/okg mcp-serve --deployment myteam \
   --transport streamable-http \
-  --host 0.0.0.0 --port 8765 \
+  --host "$CONTAINER_GATEWAY" --port 8765 \
   --auth-token-env OKG_CHAT_MCP_TOKEN
 ```
 
-`--host 0.0.0.0` for the same reason as the chat database: the chat
-container reaches this from inside, where a loopback-only port is not
-reachable.
+**Bind the gateway, not `0.0.0.0`**, for the same reason as the chat
+database: the chat container reaches this from inside, where a
+loopback-only port is not reachable — but every other machine has no
+business reaching it. `$CONTAINER_GATEWAY` is the value exported above; in
+a new terminal, export it again. The bearer token is required either way,
+so this is defence in depth rather than the only lock.
 
 **The port must be 8765**, because that is what the bundle declares in
 `chat.mcp.port`. `chat sync` looks for the endpoint there and nowhere else —
