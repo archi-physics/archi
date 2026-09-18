@@ -1,4 +1,6 @@
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 import yaml
@@ -35,6 +37,20 @@ def _write_config(tmp_path, services):
     return config_path
 
 
+def _valid_services_config():
+    return {
+        "jira_ticket_responder": {
+            "url": "https://jira.example/",
+            "projects": ["CMSTZ"],
+            "visible_to_role": "Developers",
+        },
+        "chat_app": {
+            "default_provider": "openai",
+            "default_model": "gpt-5",
+        },
+    }
+
+
 class TestResolveJiraPat:
     def test_uses_service_pat(self, monkeypatch):
         secrets = {
@@ -51,6 +67,125 @@ class TestResolveJiraPat:
 
         with pytest.raises(ValueError, match="JIRA_TICKET_RESPONDER_PAT"):
             service_jira.resolve_jira_pat()
+
+
+class TestJiraServiceStartup:
+    def test_main_ensures_trigger_schema_before_polling(self, monkeypatch):
+        order = []
+        factory = SimpleNamespace(connection_pool=SimpleNamespace())
+        agent_config = SimpleNamespace()
+        trigger_store_instances = []
+
+        class FakeTriggerStore:
+            def __init__(self, postgres_factory):
+                assert postgres_factory is factory
+                trigger_store_instances.append(self)
+
+            def ensure_schema(self):
+                order.append("ensure_schema")
+
+        class FakeResponderService:
+            def __init__(self, **kwargs):
+                assert kwargs["postgres_factory"] is factory
+                assert kwargs["trigger_store"] is trigger_store_instances[0]
+                assert kwargs["archi_instance"] == "archi"
+                assert kwargs["agent_config"] is agent_config
+
+            def poll_once(self):
+                order.append("poll_once")
+                raise StopIteration
+
+        monkeypatch.setattr(service_jira, "read_secret", lambda name: "pg-password")
+        monkeypatch.setattr(
+            service_jira.PostgresServiceFactory,
+            "from_env",
+            Mock(return_value=factory),
+        )
+        monkeypatch.setattr(
+            service_jira.PostgresServiceFactory,
+            "set_instance",
+            Mock(),
+        )
+        monkeypatch.setattr(
+            service_jira, "get_services_config", lambda: _valid_services_config()
+        )
+        monkeypatch.setattr(service_jira, "resolve_jira_pat", Mock(return_value="pat"))
+        monkeypatch.setattr(
+            service_jira.responder_config,
+            "resolve_jira_agent_config",
+            Mock(return_value=agent_config),
+        )
+        monkeypatch.setattr(
+            service_jira.archi_factory,
+            "build_archi_for_jira",
+            Mock(return_value="archi"),
+        )
+        monkeypatch.setattr(
+            service_jira, "JiraIssueClient", Mock(return_value="issue-client")
+        )
+        monkeypatch.setattr(
+            service_jira.responder_store, "JiraTriggerStore", FakeTriggerStore
+        )
+        monkeypatch.setattr(
+            service_jira.responder_service,
+            "JiraTicketResponderService",
+            FakeResponderService,
+        )
+
+        with pytest.raises(StopIteration):
+            service_jira.main()
+
+        assert order == ["ensure_schema", "poll_once"]
+        service_jira.responder_config.resolve_jira_agent_config.assert_called_once_with(
+            _valid_services_config()
+        )
+        service_jira.archi_factory.build_archi_for_jira.assert_called_once_with(
+            agent_config
+        )
+
+    def test_main_fails_before_polling_when_schema_ensure_fails(self, monkeypatch):
+        order = []
+        factory = SimpleNamespace(connection_pool=SimpleNamespace())
+        issue_client_cls = Mock(return_value="issue-client")
+        responder_cls = Mock()
+
+        class FailingTriggerStore:
+            def __init__(self, postgres_factory):
+                assert postgres_factory is factory
+
+            def ensure_schema(self):
+                order.append("ensure_schema")
+                raise RuntimeError("schema failed")
+
+        monkeypatch.setattr(service_jira, "read_secret", lambda name: "pg-password")
+        monkeypatch.setattr(
+            service_jira.PostgresServiceFactory,
+            "from_env",
+            Mock(return_value=factory),
+        )
+        monkeypatch.setattr(
+            service_jira.PostgresServiceFactory,
+            "set_instance",
+            Mock(),
+        )
+        monkeypatch.setattr(
+            service_jira, "get_services_config", lambda: _valid_services_config()
+        )
+        monkeypatch.setattr(service_jira, "resolve_jira_pat", Mock(return_value="pat"))
+        monkeypatch.setattr(
+            service_jira.responder_store, "JiraTriggerStore", FailingTriggerStore
+        )
+        monkeypatch.setattr(service_jira, "JiraIssueClient", issue_client_cls)
+        monkeypatch.setattr(
+            service_jira.responder_service, "JiraTicketResponderService", responder_cls
+        )
+
+        with pytest.raises(RuntimeError, match="schema failed"):
+            service_jira.main()
+
+        assert order == ["ensure_schema"]
+        issue_client_cls.assert_not_called()
+        responder_cls.assert_not_called()
 
 
 class TestJiraServiceBuilder:
@@ -111,8 +246,55 @@ class TestJiraConfigValidation:
         assert jira_config["default_model"] == "gpt-5"
         assert jira_config["poll_interval_minutes"] == 1
         assert jira_config["lookback_days"] == 7
+        assert jira_config["respond_to_mentions"] is False
+        assert jira_config["mention_allowed_roles"] == []
         assert jira_config["eligible_statuses"] == ["Open", "In Progress"]
         assert jira_config["projects"] == ["CMSTZ", "CMSDM"]
+
+    def test_base_config_renders_explicit_respond_to_mentions(self):
+        rendered = (
+            _template_env()
+            .get_template("base-config.yaml")
+            .render(
+                services={
+                    "jira_ticket_responder": {
+                        "url": "https://jira.example/",
+                        "projects": ["CMSTZ"],
+                        "visible_to_role": "Developers",
+                        "respond_to_mentions": True,
+                        "mention_allowed_roles": ["Developers", "Administrators"],
+                    },
+                }
+            )
+        )
+
+        config = yaml.safe_load(rendered)
+
+        assert (
+            config["services"]["jira_ticket_responder"]["respond_to_mentions"] is True
+        )
+        assert config["services"]["jira_ticket_responder"]["mention_allowed_roles"] == [
+            "Developers",
+            "Administrators",
+        ]
+
+    def test_base_config_renders_public_visibility_when_role_is_omitted(self):
+        rendered = (
+            _template_env()
+            .get_template("base-config.yaml")
+            .render(
+                services={
+                    "jira_ticket_responder": {
+                        "url": "https://jira.example/",
+                        "projects": ["CMSTZ"],
+                    },
+                }
+            )
+        )
+
+        config = yaml.safe_load(rendered)
+
+        assert config["services"]["jira_ticket_responder"]["visible_to_role"] == ""
 
     def test_base_config_renders_explicit_jira_agent_class(self):
         rendered = (
@@ -202,6 +384,65 @@ class TestJiraConfigValidation:
 
         manager.validate_configs(["jira_ticket_responder"], [])
 
+    def test_validate_jira_config_accepts_explicit_respond_to_mentions(self, tmp_path):
+        config_path = _write_config(
+            tmp_path,
+            {
+                "jira_ticket_responder": {
+                    "url": "https://jira.example/",
+                    "projects": ["CMSTZ"],
+                    "visible_to_role": "Developers",
+                    "respond_to_mentions": True,
+                }
+            },
+        )
+        manager = ConfigurationManager([str(config_path)], _template_env())
+
+        manager.validate_configs(["jira_ticket_responder"], [])
+
+    def test_validate_jira_config_accepts_optional_visibility_and_mention_roles(
+        self, tmp_path
+    ):
+        config_path = _write_config(
+            tmp_path,
+            {
+                "jira_ticket_responder": {
+                    "url": "https://jira.example/",
+                    "projects": ["CMSTZ"],
+                    "respond_to_mentions": True,
+                    "mention_allowed_roles": ["Developers"],
+                }
+            },
+        )
+        manager = ConfigurationManager([str(config_path)], _template_env())
+
+        manager.validate_configs(["jira_ticket_responder"], [])
+
+    @pytest.mark.parametrize(
+        "value",
+        ["Developers", [""], ["Developers", 7], [None]],
+    )
+    def test_validate_jira_config_rejects_invalid_mention_allowed_roles(
+        self, tmp_path, value
+    ):
+        config_path = _write_config(
+            tmp_path,
+            {
+                "jira_ticket_responder": {
+                    "url": "https://jira.example/",
+                    "projects": ["CMSTZ"],
+                    "mention_allowed_roles": value,
+                }
+            },
+        )
+        manager = ConfigurationManager([str(config_path)], _template_env())
+
+        with pytest.raises(
+            ValueError,
+            match="services.jira_ticket_responder.mention_allowed_roles",
+        ):
+            manager.validate_configs(["jira_ticket_responder"], [])
+
     @pytest.mark.parametrize(
         "projects",
         [
@@ -267,6 +508,28 @@ class TestJiraConfigValidation:
 
         with pytest.raises(
             ValueError, match="services.jira_ticket_responder.lookback_days"
+        ):
+            manager.validate_configs(["jira_ticket_responder"], [])
+
+    @pytest.mark.parametrize("value", ["true", "false", 1, 0, None])
+    def test_validate_jira_config_rejects_non_boolean_respond_to_mentions(
+        self, tmp_path, value
+    ):
+        config_path = _write_config(
+            tmp_path,
+            {
+                "jira_ticket_responder": {
+                    "url": "https://jira.example/",
+                    "projects": ["CMSTZ"],
+                    "visible_to_role": "Developers",
+                    "respond_to_mentions": value,
+                }
+            },
+        )
+        manager = ConfigurationManager([str(config_path)], _template_env())
+
+        with pytest.raises(
+            ValueError, match="services.jira_ticket_responder.respond_to_mentions"
         ):
             manager.validate_configs(["jira_ticket_responder"], [])
 

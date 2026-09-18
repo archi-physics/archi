@@ -45,6 +45,16 @@ if [[ -z "${config_name}" ]]; then
   echo "[combined-smoke] ERROR: ARCHI_CONFIG_NAME is required for container tool checks" >&2
   exit 1
 fi
+info "Running Jira trigger store smoke check..."
+"${tool}" exec -i -w /root/archi \
+  -e PGHOST="${PGHOST}" \
+  -e PGPORT="${PGPORT:-5432}" \
+  -e PGUSER="${PGUSER}" \
+  -e PGPASSWORD="${PGPASSWORD}" \
+  -e PGDATABASE="${PGDATABASE}" \
+  "${container_name}" \
+  python3 - < tests/smoke/test_jira_trigger_store.py
+
 ollama_host="${OLLAMA_HOST:-${OLLAMA_URL}}"
 if [[ -n "${ollama_host}" ]]; then
   info "Checking Ollama connectivity from container (${ollama_host})..."

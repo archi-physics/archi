@@ -362,6 +362,25 @@ CREATE TABLE IF NOT EXISTS conversation_metadata (
 CREATE INDEX IF NOT EXISTS idx_conv_meta_user ON conversation_metadata(user_id);
 CREATE INDEX IF NOT EXISTS idx_conv_meta_client ON conversation_metadata(client_id);
 
+CREATE TABLE IF NOT EXISTS jira_responder_triggers (
+    trigger_key TEXT PRIMARY KEY,
+    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('issue','mention_comment')),
+    issue_key TEXT NOT NULL,
+    trigger_comment_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('answering','answered','failed')),
+    retry_used BOOLEAN NOT NULL DEFAULT FALSE,
+    last_error TEXT,
+    conversation_id INTEGER REFERENCES conversation_metadata(conversation_id) ON DELETE SET NULL,
+    response_comment_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_jira_responder_triggers_issue
+    ON jira_responder_triggers(issue_key);
+CREATE INDEX IF NOT EXISTS idx_jira_responder_triggers_status
+    ON jira_responder_triggers(status, updated_at);
+
 -- Add FK to conversation_doc_overrides now that conversation_metadata exists
 DO $$
 BEGIN

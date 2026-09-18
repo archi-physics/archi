@@ -7,8 +7,8 @@ import yaml
 
 from src.cli.managers.templates_manager import BASE_CONFIG_TEMPLATE
 from src.cli.source_registry import source_registry
+from src.services.jira_ticket_responder.config import JiraServiceConfig
 from src.utils.ab_testing import ABPool, ABPoolError, load_ab_pool_state
-from src.utils.jira import parse_jira_project_keys
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -111,12 +111,15 @@ class ConfigurationManager:
         services = default_config["services"]
         service_fields = {}
         optional_keys = {"agents_dir"}
+        optional_fields = {("jira_ticket_responder", "visible_to_role")}
 
         for service_name, service_configs in services.items():
             blank_configs = [
                 key
                 for key, value in service_configs.items()
-                if ((value is None) or (value == "")) and key not in optional_keys
+                if ((value is None) or (value == ""))
+                and key not in optional_keys
+                and (service_name, key) not in optional_fields
             ]
             service_fields[service_name] = [
                 f"services.{service_name}.{key}" for key in blank_configs
@@ -328,39 +331,7 @@ class ConfigurationManager:
         services_cfg = config.get("services", {}) or {}
         jira_cfg = services_cfg.get("jira_ticket_responder", {}) or {}
 
-        required = [
-            ("url", "services.jira_ticket_responder.url"),
-            ("projects", "services.jira_ticket_responder.projects"),
-            ("visible_to_role", "services.jira_ticket_responder.visible_to_role"),
-        ]
-        for key, path in required:
-            value = jira_cfg.get(key)
-            if value in (None, ""):
-                raise ValueError(
-                    f"Missing required field: '{path}' in the configuration"
-                )
-        parse_jira_project_keys(
-            jira_cfg.get("projects"),
-            "Invalid field: 'services.jira_ticket_responder.projects' must be a non-empty list of Jira project keys",
-        )
-        for key in ("poll_interval_minutes", "lookback_days"):
-            value = jira_cfg.get(key)
-            if value in (None, ""):
-                continue
-            if isinstance(value, bool):
-                raise ValueError(
-                    f"Invalid field: 'services.jira_ticket_responder.{key}' must be a positive integer"
-                )
-            try:
-                parsed_value = int(value)
-            except (TypeError, ValueError):
-                raise ValueError(
-                    f"Invalid field: 'services.jira_ticket_responder.{key}' must be a positive integer"
-                )
-            if parsed_value <= 0:
-                raise ValueError(
-                    f"Invalid field: 'services.jira_ticket_responder.{key}' must be a positive integer"
-                )
+        JiraServiceConfig.from_config(jira_cfg)
 
     def _validate_source_fields(
         self, config: Dict[str, Any], sources: List[str]
