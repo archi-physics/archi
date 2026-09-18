@@ -1,6 +1,6 @@
 import threading
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.utils.playbook_service import (
     Playbook, PlaybookNotFoundError, PlaybookConflictError, PlaybookValidationError,
@@ -418,6 +418,38 @@ def _mixin_agent():
     class _PB(SupportsPlaybooks, BaseReActAgent):
         pass
     return _PB.__new__(_PB)
+
+
+def test_mixin_initializes_service_only_for_selected_playbook_tools():
+    from src.archi.pipelines.agents.playbook_mixin import SupportsPlaybooks
+
+    class _Base:
+        def __init__(self, selected_tool_names):
+            self.selected_tool_names = selected_tool_names
+
+        def _build_static_tools(self):
+            return []
+
+        def _build_static_middleware(self):
+            return []
+
+    class _PB(SupportsPlaybooks, _Base):
+        pass
+
+    with patch.object(_PB, "_init_playbook_service") as initializer:
+        agent = _PB(["mcp"])
+
+    initializer.assert_not_called()
+    assert agent._playbook_service is None
+
+    service = MagicMock()
+    with patch.object(
+        _PB, "_init_playbook_service", return_value=service
+    ) as initializer:
+        agent = _PB(["save_playbook"])
+
+    initializer.assert_called_once_with()
+    assert agent._playbook_service is service
 
 
 def test_base_agent_has_no_playbook_tools():
