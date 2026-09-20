@@ -124,6 +124,20 @@ def test_default_install_declares_standalone_release_authority():
     assert defaults["release"] == {"kind": "standalone"}
 
 
+def test_blocking_floor_matches_the_default_source_set():
+    """Optional sources must not block a bare bundle publish."""
+    invariants = yaml.safe_load((BUNDLE / "invariants.yaml").read_text())
+    floor = next(
+        item
+        for item in invariants["invariants"]
+        if item["name"] == "cern_team_core_pages_floor"
+    )
+    assert floor["severity"] == "error"
+    assert "('cmssw_release')" in floor["sql"]
+    assert "documentation_page" not in floor["sql"]
+    assert "jira_issue" not in floor["sql"]
+
+
 def test_chat_declares_a_system_prompt_that_ships():
     """`okg chat sync` REFUSES a deployment with no prompt source.
 
