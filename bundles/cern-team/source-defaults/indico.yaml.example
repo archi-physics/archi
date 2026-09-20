@@ -45,9 +45,25 @@ indico:
         - meeting_minutes contains document
         - document contains document_chunk
         - document_chunk member_of document
+  # discovery_crawl is what this reader does: it walks a scope (the local
+  # records cache) in full every run and diffs it by content hash, and an
+  # event absent from a completed scope is retracted. The profile matrix
+  # allows only `scoped_locator` identity with it, and that is honest here —
+  # a meeting is located at `event/<id>` inside the instance named by
+  # `base_url`, which is what the reader emits as `source_record_id`.
+  # It is NOT `remote_id`/`mutable_api`: nothing queries an API and there is
+  # no cursor.
+  #
+  # One limit worth knowing: an attachment's locator is POSITIONAL —
+  # `event/<id>/pdf/<n>.pdf`, where n is its index in the cached event. If a
+  # meeting's attachments are re-ordered upstream, the same documents come
+  # back under different record keys, which reads as a retraction plus an
+  # insert rather than a move. The cache carries no stable per-attachment id
+  # to key on instead. Unchanged behaviour; recorded here so it is not a
+  # surprise.
   source_class: discovery_crawl
-  record_identity_kind: remote_id
-  record_identity_fields: [event_id]
+  record_identity_kind: scoped_locator
+  record_identity_fields: [path]
   source_revision_kind: content_hash
   deletion_semantics: missing_from_completed_scope
   publication_mode: published_generation
