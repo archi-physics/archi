@@ -11,7 +11,28 @@ params:
   fetch: false
 ```
 
-Replace the path and digest with the actual authorized snapshot and independently verified hash. Relative paths resolve against the source's existing `base` or `ARCHI_DATA_ROOT`; the existing `cache_path` alias also works. The packaged example is `archi/bundles/cern-team/source-defaults/cmssw_releases_frozen.yaml.example`. It is separate from the live default and needs `cmssw_map_path` and `cmssw_map_digest` values when rendered.
+Replace the path and digest with the actual authorized snapshot and independently verified hash. Relative paths resolve against the source's existing `base` or `ARCHI_DATA_ROOT`; the existing `cache_path` alias also works.
+
+## Enabling it in the cern-team bundle
+
+The packaged example is `archi/bundles/cern-team/source-defaults/cmssw_releases_frozen.yaml.example`.
+
+**Enabling it replaces the live default; it does not add to it.** Both files declare the same source id (`cmssw_releases`), and the installer merges source-defaults by that id, so leaving both in place lets one silently win and discards the other without a warning. Delete `cmssw_releases.yaml` when you rename the example.
+
+The path and the digest are install answers, so no shipped file needs hand-editing:
+
+```bash
+rm  "$OKG_PROFILES_DIR/cern-team/source-defaults/cmssw_releases.yaml"
+mv  "$OKG_PROFILES_DIR/cern-team/source-defaults/cmssw_releases_frozen.yaml.example" \
+    "$OKG_PROFILES_DIR/cern-team/source-defaults/cmssw_releases_frozen.yaml"
+
+okg install --profile cern-team --deployment-name <slug> \
+  --postgres-dsn "$OKG_DSN" \
+  --cmssw-map-path /owned/catalog/releases.map \
+  --cmssw-map-digest "sha256:$(shasum -a 256 /owned/catalog/releases.map | cut -d' ' -f1)"
+```
+
+`$OKG_PROFILES_DIR` has to be a writable copy of the bundle, not the one inside the installed wheel. Both answers default to empty and the live default ignores them, so an ordinary install is unaffected. An empty digest is not "unpinned": the source refuses to construct with `map_cache_digest must be sha256:<64 lowercase hex>`, so forgetting it fails loudly rather than quietly reading unverified bytes. Take the digest from your own reading of the file, not from whoever supplied it.
 
 A digest without a map path, a malformed digest, or `fetch: true` is rejected. A missing file yields `cache_missing` during preflight and refuses ingestion. A digest mismatch refuses both preflight and ingestion; neither path contacts the network. Frozen files must be valid UTF-8. Unpinned live/cache behavior retains its existing decoding and fetching rules.
 

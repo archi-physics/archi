@@ -1,5 +1,24 @@
-# Explicit frozen catalog binding; not loaded by the live profile by default.
-# The installer must supply these reviewed inputs and support this new consumer wheel.
+# OPTIONAL — CMSSW release catalog pinned to reviewed, immutable bytes
+# instead of the live cms-bot fetch. Not loaded by default.
+#
+# ENABLING THIS REPLACES cmssw_releases.yaml; IT DOES NOT ADD TO IT.
+# Both files declare the same source id (`cmssw_releases:`), and the
+# installer merges source-defaults by that id — so if you leave the live
+# file in place, one of the two silently wins and the other is discarded
+# with no warning. Delete (or move aside) cmssw_releases.yaml when you
+# rename this file to cmssw_releases_frozen.yaml.
+#
+# Supply the two inputs as install answers — no hand-editing of this file:
+#
+#   okg install --profile cern-team --deployment-name <slug> \
+#     --postgres-dsn "$OKG_DSN" \
+#     --cmssw-map-path /reviewed/path/releases.map \
+#     --cmssw-map-digest "sha256:$(shasum -a 256 /reviewed/path/releases.map | cut -d' ' -f1)"
+#
+# Both default to empty. That is deliberate and safe: an empty digest is
+# not "unpinned" — the reader rejects it with `map_cache_digest must be
+# sha256:<64 lowercase hex>` rather than falling back to reading unverified
+# bytes. Leaving the digest off is a loud failure, never a silent one.
 cmssw_releases:
   module: archi.sources.cmssw
   class: CMSSWReleaseAdapter
@@ -35,9 +54,18 @@ cmssw_releases:
   publication_mode: published_generation
   required_for_baseline: true
   params:
-    # Select actual immutable bytes and their independently verified raw SHA256.
-    map_cache_path: ${cmssw_map_path}
-    map_cache_digest: ${cmssw_map_digest}
+    # Reviewed immutable bytes and their independently verified raw SHA256.
+    # SINGLE-quoted, and that matters. Install answers are substituted into
+    # this file as TEXT and the result is then parsed as YAML, so the quoting
+    # style decides how the answer is read. In a double-quoted scalar YAML
+    # would apply backslash escapes: `C:\reviewed\releases.map` would become
+    # `C:` + a carriage return + `eviewed...`, and the only symptom would be a
+    # puzzling cache_missing. Single quotes take backslashes literally.
+    # (Trade-off: an answer containing an apostrophe breaks the parse. That is
+    # a loud YAML error naming this file, which beats a silently wrong path.)
+    # The quotes also keep an unanswered question as "" rather than a null.
+    map_cache_path: '${cmssw_map_path}'
+    map_cache_digest: '${cmssw_map_digest}'
     fetch: false
   sync:
     triggers: [manual, reconcile]

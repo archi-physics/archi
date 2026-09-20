@@ -78,6 +78,34 @@ init_questions:
       cache resolver anchors relative paths there. Pass an absolute
       path to decouple the data root from the deployment dir.
 
+  - id: cmssw_map_path
+    prompt: path to a reviewed, immutable CMSSW releases.map (frozen mode
+      only; leave blank for the live fetch)
+    type: path
+    required: false
+    default: ""
+    description: |
+      Only used by source-defaults/cmssw_releases_frozen.yaml.example,
+      which pins the release catalog to bytes you have reviewed instead
+      of fetching cms-bot live. Leave blank unless you enabled that file
+      — the live default ignores this answer entirely.
+
+  - id: cmssw_map_digest
+    prompt: sha256:<64 hex> of that releases.map (frozen mode only)
+    type: string
+    required: false
+    default: ""
+    description: |
+      The digest the reader verifies the file against before parsing a
+      byte of it, as `sha256:` plus 64 lowercase hex characters:
+      `sha256:$(shasum -a 256 <file> | cut -d' ' -f1)`.
+
+      Blank does NOT mean "skip verification". Frozen mode with an empty
+      digest is refused (`map_cache_digest must be sha256:<64 lowercase
+      hex>`), so forgetting it fails loudly rather than quietly ingesting
+      unverified bytes. Verify the digest independently of whoever handed
+      you the file — a digest taken from the same source proves nothing.
+
   - id: twiki_base_url
     prompt: TWiki base URL to crawl
     type: string

@@ -17,6 +17,8 @@ import hashlib
 import importlib
 import inspect
 import json
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -186,6 +188,68 @@ def test_every_shipped_source_default_declares_a_legal_profile_tuple():
         "deployment.source_registry.profile_invalid:\n\n"
         + "\n\n".join(failures)
     )
+
+
+def test_every_placeholder_has_an_install_answer_behind_it():
+    """A `${...}` with no init_question makes its source uninstallable.
+
+    `build_plan` interpolates every `*.yaml` in source-defaults/ against the
+    validated answers, and `interpolate` refuses an unknown reference
+    outright (okg `substrate/catalog/profile.py` `replace_match`) rather than
+    leaving it verbatim. So a placeholder the profile never asks about does
+    not degrade -- it aborts the whole install with `ProfileError: undefined
+    variable reference`. That is what `cmssw_releases_frozen.yaml.example`
+    did: it referenced `${cmssw_map_path}` and `${cmssw_map_digest}`, which
+    no init_question declared, so enabling frozen mode was impossible without
+    hand-editing the shipped file.
+
+    The `.example` files are checked too: renaming one is exactly how an
+    operator enables it, and that is when the reference has to resolve.
+
+    `deployment_name` and `HOME` are injected by `build_plan` itself rather
+    than declared as questions.
+    """
+    profile = yaml.safe_load(
+        (SOURCE_DEFAULTS.parent / "profile.yaml").read_text(encoding="utf-8")
+    )
+    known = {q["id"] for q in profile["init_questions"]} | {"deployment_name", "HOME"}
+    pattern = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+    missing = {}
+    for path in sorted(SOURCE_DEFAULTS.iterdir()):
+        if not path.is_file():
+            continue
+        unknown = sorted(set(pattern.findall(path.read_text(encoding="utf-8"))) - known)
+        if unknown:
+            missing[path.name] = unknown
+    assert not missing, (
+        "these source-defaults reference install answers the profile never "
+        f"asks for, so enabling them aborts `okg install`: {missing}"
+    )
+
+
+def test_the_frozen_cmssw_example_replaces_the_live_default():
+    """Both files declare one source id, so enabling frozen is a swap.
+
+    The installer keys source-defaults by the id inside the file, not by
+    filename, so leaving both in place lets one silently win and discards the
+    other. Nothing in okg warns about it. This test pins the collision as a
+    known fact and fails if someone renames one of the ids and leaves the
+    'replaces, does not add' instructions in the header saying otherwise.
+    """
+    live = yaml.safe_load(
+        (SOURCE_DEFAULTS / "cmssw_releases.yaml").read_text(encoding="utf-8")
+    )
+    frozen_text = (
+        SOURCE_DEFAULTS / "cmssw_releases_frozen.yaml.example"
+    ).read_text(encoding="utf-8")
+    frozen = yaml.safe_load(frozen_text)
+    assert set(live) == set(frozen) == {"cmssw_releases"}
+    assert "REPLACES cmssw_releases.yaml" in frozen_text, (
+        "the collision is only survivable if the header says so"
+    )
+    # Frozen mode means reviewed bytes, never a live fetch.
+    assert frozen["cmssw_releases"]["params"]["fetch"] is False
+    assert live["cmssw_releases"]["params"]["fetch"] is True
 
 
 def test_the_indico_record_key_is_the_locator_it_declares():
@@ -432,3 +496,54 @@ def test_the_substrate_strict_admission_check_consumes_every_parameter():
         assert set(raw_entry.get("params") or {}) <= set(params), (
             f"{filename}: {name} lost an authored parameter on the strict path"
         )
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        r"C:\reviewed\releases.map",
+        "/a path/with spaces/releases.map",
+        "/plain/releases.map",
+    ],
+    ids=["backslashes", "spaces", "plain"],
+)
+def test_an_install_answer_reaches_the_source_byte_for_byte(tmp_path, answer):
+    """Answers are substituted as text, so the quoting style is load-bearing.
+
+    `build_plan` interpolates each source-default's TEXT and parses the result
+    as YAML, and the substitution escapes nothing (okg
+    `substrate/catalog/profile.py`, `replace_match` returns `str(v)` as-is).
+    A double-quoted placeholder therefore hands the answer to YAML's escape
+    rules: the Windows path below came back with a carriage return where its
+    `\\r` had been, and the only symptom was an unexplained cache_missing.
+    Single quotes take the bytes literally.
+    """
+    import shutil
+
+    from okg.substrate.deployment_bootstrap.profile_init import (
+        build_plan,
+        discover_profile,
+    )
+
+    profiles = tmp_path / "profiles"
+    shutil.copytree(SOURCE_DEFAULTS.parent.parent, profiles)
+    sd = profiles / "cern-team" / "source-defaults"
+    (sd / "cmssw_releases.yaml").unlink()
+    (sd / "cmssw_releases_frozen.yaml.example").rename(sd / "cmssw_releases.yaml")
+    os.environ["OKG_PROFILES_DIR"] = str(profiles)
+    digest = "sha256:" + "0" * 64
+    plan = build_plan(
+        profile=discover_profile("cern-team"),
+        deployment_name="qt",
+        deployments_root=tmp_path / "deployments",
+        raw_answers={
+            "deployment_name": "qt",
+            "postgres_dsn": "postgresql://localhost/qt",
+            "cmssw_map_path": answer,
+            "cmssw_map_digest": digest,
+        },
+    )
+    body = yaml.safe_load(plan.source_defaults["cmssw_releases"])
+    params = body["cmssw_releases"]["params"]
+    assert params["map_cache_path"] == answer
+    assert params["map_cache_digest"] == digest
