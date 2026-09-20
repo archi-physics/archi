@@ -23,12 +23,16 @@
 # which meant re-doing the rest of the install by hand as well. The
 # `schemas:` slot below removed that.
 #
-# The three connectors selected by default need no credentials, so a bare
-# install reaches a published generation on its own (ADR 0001 W6: an
-# instance with nothing configured must start cleanly). Sources needing a
-# credential or a prebuilt cache ship as `.yaml.example` in
-# source-defaults/ — rename one to `.yaml` to opt in, and supply its
-# credential by environment variable.
+# One connector is selected by default — the CMSSW release catalog, which
+# needs no credential — so a bare install reaches a published generation on
+# its own (ADR 0001 W6: an instance with nothing configured must start
+# cleanly). Everything else ships as `.yaml.example` in source-defaults/:
+# rename one to `.yaml` to opt in, and supply its credential, cache or URL.
+#
+# There is no such thing as an installed-but-inactive source. Every source
+# the installer writes is selected, and one that cannot read its input fails
+# the completeness gate, which blocks the publish for all the others. So a
+# source you cannot feed must not be installed at all.
 
 name: cern-team
 version: 0.1.0
@@ -155,7 +159,12 @@ init_questions:
       The connector clones this itself and fast-forwards it on later
       runs — you never run `git clone` by hand. A private repository
       uses your own git credentials, so no token reaches the instance.
-      Leave blank to install without this source.
+
+      Only used if you enabled source-defaults/github_repo.yaml.example
+      by renaming it. Leaving this blank does NOT install without the
+      source: a source with no URL fails admission with `checkout
+      unavailable` and blocks the whole publish. Enable the file and
+      answer this, or leave the file as an example.
 
   - id: gitlab_repo_name
     prompt: short name for the GitLab repository (graph identity)
@@ -174,7 +183,12 @@ init_questions:
       The connector clones this itself and fast-forwards it on later
       runs — you never run `git clone` by hand. A private repository
       uses your own git credentials, so no token reaches the instance.
-      Leave blank to install without this source.
+
+      Only used if you enabled source-defaults/gitlab_repo.yaml.example
+      by renaming it. Leaving this blank does NOT install without the
+      source: a source with no URL fails admission with `checkout
+      unavailable` and blocks the whole publish. Enable the file and
+      answer this, or leave the file as an example.
 
   - id: chat_site_name
     prompt: name for the chat site

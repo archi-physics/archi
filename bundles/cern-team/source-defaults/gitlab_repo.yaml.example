@@ -1,5 +1,13 @@
-# Code repository connector — GitHub clone, via the substrate's own
-# git_graph adapter.
+# OPTIONAL — Code repository connector, GitLab clone, via the
+# substrate's own git_graph adapter. Rename to gitlab_repo.yaml to
+# enable, AND answer `gitlab_repo_url` at install time. Both steps are needed.
+#
+# A blank URL does NOT mean "install without this source" — there is no
+# such thing. Every installed source is selected, and this one with no
+# URL fails admission with `source_health_not_healthy: checkout
+# unavailable`, which fails the completeness gate and blocks the publish
+# for every other source too. The only safe way not to have this source
+# is not to install it, which is why it ships as an example.
 #
 # Why not archi/sources/github_repos.py: that connector emits repo
 # *identity* nodes only. It records that a repository exists; it does not
@@ -23,18 +31,18 @@
 #
 # Needs the `git_graph` module composed (modules.yaml).
 
-github_repo:
+gitlab_repo:
   module: okg.substrate.library.sources.git_graph_files
   class: GitFilesSource
-  ownership_id: ${deployment_name}.github-repo
+  ownership_id: ${deployment_name}.gitlab-repo
   admission_policy:
-    producer_id: ${deployment_name}.github-repo
+    producer_id: ${deployment_name}.gitlab-repo
     producer_kind: source
     trust_label: implicit_legacy_trusted
     admission_mode: fast_track
     authority_scope:
       source_family: cern-team
-      source_name: github_repo
+      source_name: gitlab_repo
     output_signature:
       nodes:
         - {subtype: source_file}
@@ -42,7 +50,7 @@ github_repo:
       edges:
         - {src_subtype: source_file, edge_type: member_of, dst_subtype: git_branch}
     output_scope_summary:
-      summary: tracked files of the configured GitHub repository and the branch they belong to
+      summary: tracked files of the configured GitLab repository and the branch they belong to
       nodes: [source_file, git_branch]
       edges:
         - source_file member_of git_branch
@@ -54,12 +62,15 @@ github_repo:
   publication_mode: published_generation
   required_for_baseline: false
   params:
-    repo: "${github_repo_name}"
-    url: "${github_repo_url}"
+    repo: '${gitlab_repo_name}'
+    url: '${gitlab_repo_url}'
     manage_checkout: true
-    # Quoted: interpolation is textual, so an unquoted path containing a
-    # `#` would be truncated by the YAML parser without a word of warning.
-    repo_root: "${archi_data_root}/repos/${github_repo_name}"
+    # SINGLE-quoted. Answers are substituted as text and the result is then
+    # parsed as YAML: unquoted, a path containing `#` would be truncated as a
+    # comment; double-quoted, a backslash in a Windows path would be read as
+    # an escape and silently corrupt the value. Single quotes take both
+    # literally. An apostrophe in an answer breaks the parse loudly.
+    repo_root: '${archi_data_root}/repos/${gitlab_repo_name}'
     include_untracked: false
     exclude_globs:
       - "**/__pycache__/**"

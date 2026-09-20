@@ -1,16 +1,20 @@
 # Invariants for the cern-team bundle.
 #
-# The floor may only name subtypes a bare install actually produces. Three
-# sources install by default: cmssw_releases (always emits), and github_repo /
-# gitlab_repo, which emit nothing until the operator supplies a repository URL
-# (both default to blank). Every source that emits documentation_page or
-# jira_issue -- docsite, twiki_crawl, twiki_eos, jira, indico -- ships as
-# `.yaml.example` and is off until an operator renames it.
+# The floor may only name subtypes a bare install actually produces. One
+# source installs by default -- cmssw_releases, which always emits. Every
+# other source, github_repo and gitlab_repo included, ships as
+# `.yaml.example` and is off until an operator renames it. There is no
+# installed-but-inactive source: one that cannot read its input fails
+# admission and blocks the publish for every other source too.
 #
-# So the old floor required rows from sources that were not installed, and a
+# An earlier floor required rows from sources that were not installed, so a
 # bare instance could never reach a green publish. cmssw_release is the only
 # subtype a bare install is guaranteed to have. Coverage for an optional source
 # belongs to an invariant installed alongside it.
+#
+# An instance that DROPS cmssw_releases -- a documentation-only or TWiki-only
+# install -- must remove or replace this invariant, or it carries a permanent
+# error-severity failure for a source it does not have.
 #
 # Cold-start note unchanged: this fires until the first ingest has published;
 # run the ingest before the first publish, as the install runbook does.
