@@ -245,3 +245,31 @@ def test_cmssw_source_runs_from_its_shipped_frozen_parameters(tmp_path):
         "CMSSW_14_0_X",
     }
     assert [f for f in facts if isinstance(f, EdgeFact) and f.edge_type == "supersedes"]
+
+
+@pytest.mark.parametrize(("filename", "name", "entry"), ENTRIES, ids=ENTRY_IDS)
+def test_every_entry_binds_against_its_adapter_signature(filename, name, entry):
+    """Each adapter must expose the parameters its registry entry authors.
+
+    The adapter takes ``**params``, which the substrate refuses under strict
+    admission -- ``source_param_unconsumed``, "**kwargs is not proof of
+    consumption" -- and which also stops a misspelled parameter being caught
+    when the adapter is bound. The adapters therefore publish the wrapped
+    reader's signature, and this binds the shipped parameters against it.
+    """
+    cls = _adapter_class(entry)
+    signature = inspect.signature(cls)
+    assert not any(
+        p.kind is inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values()
+    ), f"{filename}: {entry['class']} still exposes **kwargs to the substrate"
+    # Shipped params only; placeholders are strings either way, and binding
+    # does not read the values.
+    signature.bind(**(entry.get("params") or {}))
+
+
+def test_a_misspelled_parameter_fails_when_the_adapter_is_bound():
+    from archi.sources.jira import JiraIssueAdapter
+
+    with pytest.raises(TypeError) as excinfo:
+        JiraIssueAdapter(records_pathh="/tmp/records.json")
+    assert "records_pathh" in str(excinfo.value)

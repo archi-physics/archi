@@ -19,6 +19,7 @@ through the supported contract.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from okg.deployment import ConnectorAdapter
@@ -64,7 +65,34 @@ class ReaderAdapter(ConnectorAdapter):
 
     reader_class: Any = None
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Publish the wrapped reader's real signature on the subclass.
+
+        ``__init__`` below takes ``**params`` only, and the substrate refuses
+        that under strict admission: ``source_param_unconsumed`` --
+        "**kwargs is not proof of consumption" (okg
+        ``substrate/ingest/adapter_factory.py``, which reads the constructor
+        with ``inspect.signature`` and requires a NAMED keyword parameter for
+        every authored param). cern-team is still on the legacy admission path,
+        so the refusal is dormant, but the same ``**kwargs`` also means a
+        misspelled registry parameter is no longer caught when the adapter is
+        bound -- it travels as far as the reader.
+
+        ``inspect.signature`` honours ``__signature__``, so declaring the
+        reader's own signature here makes both work. The claim cannot drift:
+        ``__init__`` forwards ``params`` to ``reader_class`` untouched, so the
+        reader's signature IS the adapter's accepted parameter set.
+        """
+        super().__init_subclass__(**kwargs)
+        reader = cls.__dict__.get("reader_class")
+        if reader is not None:
+            cls.__signature__ = inspect.signature(reader)
+
     def __init__(self, **params: Any) -> None:
+        # Bind before constructing so an unexpected parameter is reported
+        # against the declared signature, naming the adapter the registry
+        # names rather than the reader it happens to wrap.
+        inspect.signature(type(self)).bind(**params)
         reader = type(self).reader_class(**params)
         super().__init__(_ReaderConnector(reader))
         #: The wrapped reader. Preflight and change probes stay the reader's
