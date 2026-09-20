@@ -8,6 +8,12 @@
 runtime:
   enabled: false
 
+# A profile install materialises outside a Git checkout by default. Declare
+# that release authority explicitly so the first publish records unavailable
+# repository provenance instead of trying (and failing) to resolve Git state.
+release:
+  kind: standalone
+
 # Nomos rollout: deferred, with a structured owner and a review date,
 # matching the w1-scratch proven shape. The rollout audit requires
 # owner.name + owner.contact + review_by; edit the contact to your

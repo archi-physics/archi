@@ -119,6 +119,11 @@ def test_default_sources_need_no_credentials():
         )
 
 
+def test_default_install_declares_standalone_release_authority():
+    defaults = yaml.safe_load((BUNDLE / "deployment-defaults.yaml").read_text())
+    assert defaults["release"] == {"kind": "standalone"}
+
+
 def test_chat_declares_a_system_prompt_that_ships():
     """`okg chat sync` REFUSES a deployment with no prompt source.
 
