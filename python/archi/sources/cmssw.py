@@ -587,13 +587,19 @@ def _find_predecessor(label: str) -> str | None:
 
     return base
 
+
 class CMSSWReleaseAdapter(ReaderAdapter):
     """Registry adapter for :class:`CMSSWReleaseSource`.
 
-    The bundle's `cmssw_releases` source names this class. The reader's behavior is unchanged; this class only
-    drives it through the substrate's adapter contract.
+    The bundle's `cmssw_releases` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
     """
 
     reader_class = CMSSWReleaseSource
-    profile = CMSSWReleaseSource.profile
-    change_probe_kind = CMSSWReleaseSource.change_probe_kind
+    profile = "reference_catalog"
+    change_probe_kind = "content_hash"

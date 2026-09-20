@@ -1330,24 +1330,36 @@ def _records_hash(records: list[TwikiRecord]) -> str:
     )
     return _sha256(payload)
 
+
 class TwikiEOSAdapter(ReaderAdapter):
     """Registry adapter for :class:`TwikiEOSSource`.
 
-    The bundle's `twiki_eos` source names this class. The reader's behavior is unchanged; this class only
-    drives it through the substrate's adapter contract.
+    The bundle's `twiki_eos` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
     """
 
     reader_class = TwikiEOSSource
-    profile = TwikiEOSSource.profile
-    change_probe_kind = TwikiEOSSource.change_probe_kind
+    profile = "discovery_crawl"
+    change_probe_kind = "content_hash"
+
 
 class TwikiCrawlAdapter(ReaderAdapter):
     """Registry adapter for :class:`TwikiCrawlSource`.
 
-    The bundle's `twiki_crawl` source names this class. The reader's behavior is unchanged; this class only
-    drives it through the substrate's adapter contract.
+    The bundle's `twiki_crawl` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
     """
 
     reader_class = TwikiCrawlSource
-    profile = TwikiCrawlSource.profile
-    change_probe_kind = TwikiCrawlSource.change_probe_kind
+    profile = "discovery_crawl"
+    change_probe_kind = "mutable_api"

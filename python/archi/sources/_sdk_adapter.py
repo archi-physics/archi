@@ -46,9 +46,20 @@ class _ReaderConnector:
 class ReaderAdapter(ConnectorAdapter):
     """Construct one reader from its registry parameters and drive it.
 
-    Subclasses set ``reader_class`` and mirror the reader's ``profile`` and
-    ``change_probe_kind`` as class attributes: the substrate reads both from
-    the class, without instantiating it, before it constructs anything.
+    Subclasses set ``reader_class`` and declare the reader's ``profile`` and
+    ``change_probe_kind`` as class-level string LITERALS: the substrate reads
+    ``change_probe_kind`` by parsing the module's AST (it imports nothing) and
+    ``profile`` with ``inspect.getattr_static``, both before it constructs
+    anything. A reference such as ``profile = Reader.profile`` parses as an
+    ``ast.Attribute`` and reads as absent.
+
+    The adapter deliberately forwards nothing but ``preflight`` and the
+    change probe. ``cache_paths`` is NOT forwarded: it is this distribution's
+    own reader detail (the readers that have it pass it to their preflight and
+    content hash), the substrate never reads it, and two of the wrapped
+    readers -- ``TwikiCrawlSource`` and ``TwikiEOSSource`` -- do not define it
+    at all, so forwarding it raised ``AttributeError`` for anything that
+    touched it.
     """
 
     reader_class: Any = None
@@ -56,14 +67,10 @@ class ReaderAdapter(ConnectorAdapter):
     def __init__(self, **params: Any) -> None:
         reader = type(self).reader_class(**params)
         super().__init__(_ReaderConnector(reader))
-        #: The wrapped reader. Preflight, change probes and cache paths stay
-        #: the reader's own behavior; this class adds no source semantics.
+        #: The wrapped reader. Preflight and change probes stay the reader's
+        #: own behavior; this class adds no source semantics.
         self.reader = reader
         self.change_probe = reader.change_probe
 
     def preflight(self, *args: Any, **kwargs: Any) -> Any:
         return self.reader.preflight(*args, **kwargs)
-
-    @property
-    def cache_paths(self) -> tuple[str, ...]:
-        return self.reader.cache_paths

@@ -1208,13 +1208,19 @@ def _sha256(text: str) -> str:
 def _pg_text(text: str) -> str:
     return text.replace("\x00", " ")
 
+
 class DocumentationAdapter(ReaderAdapter):
     """Registry adapter for :class:`DocumentationSource`.
 
-    The bundle's `docsite` source names this class. The reader's behavior is unchanged; this class only
-    drives it through the substrate's adapter contract.
+    The bundle's `docsite` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
     """
 
     reader_class = DocumentationSource
-    profile = DocumentationSource.profile
-    change_probe_kind = DocumentationSource.change_probe_kind
+    profile = "discovery_crawl"
+    change_probe_kind = "content_hash"

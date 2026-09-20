@@ -12,6 +12,7 @@ three cache-backed sources run from their shipped parameters and return a
 result carrying the substrate's own fields.
 """
 
+import ast
 import hashlib
 import importlib
 import inspect
@@ -58,6 +59,76 @@ def test_every_bundle_source_names_a_runnable_adapter(filename, name, entry):
     # The substrate reads both off the class, without constructing it.
     assert inspect.getattr_static(cls, "profile") == entry["source_class"]
     assert isinstance(inspect.getattr_static(cls, "change_probe_kind"), str)
+
+
+def _class_level_constant(source_path, class_name, attr):
+    """Return a class-level ``attr`` only when it is a string LITERAL.
+
+    This is the substrate's own acceptance rule, reimplemented so the test
+    proves it without depending on a private okg symbol: okg's
+    ``substrate/deployment_lint.py`` reads ``change_probe_kind`` by parsing
+    this file (``_class_level_str_attr``), and accepts only an
+    ``ast.Constant`` whose value is a ``str``. Anything else -- notably
+    ``profile = SomeReader.profile``, which parses as an ``ast.Attribute`` --
+    reads as absent and fails the source-registry lint with
+    ``deployment.source_registry.probe_missing``.
+    """
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    for node in tree.body:
+        if not (isinstance(node, ast.ClassDef) and node.name == class_name):
+            continue
+        for stmt in node.body:
+            targets = []
+            if isinstance(stmt, ast.Assign):
+                targets = [t for t in stmt.targets if isinstance(t, ast.Name)]
+            elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                targets = [stmt.target]
+            if not any(t.id == attr for t in targets):
+                continue
+            value = stmt.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                return value.value
+            raise AssertionError(
+                f"{class_name}.{attr} is {ast.dump(value)}, not a string literal; "
+                "the substrate parses this file and accepts only a literal, so a "
+                "reference to the reader's attribute reads as absent"
+            )
+    raise AssertionError(f"{class_name} declares no class-level {attr}")
+
+
+@pytest.mark.parametrize(("filename", "name", "entry"), ENTRIES, ids=ENTRY_IDS)
+def test_adapter_authority_is_a_literal_that_matches_its_reader(filename, name, entry):
+    """Both attributes must be literals, and must not drift from the reader.
+
+    A literal cannot be computed from the reader, so nothing but this test
+    keeps the two in step: if a reader's profile or probe kind changes and the
+    adapter's literal does not, the registry entry and the reader disagree and
+    the substrate refuses the source (``source_class_profile_mismatch``) or
+    probes the wrong way.
+    """
+    cls = _adapter_class(entry)
+    source_path = Path(importlib.import_module(entry["module"]).__file__)
+    reader = inspect.getattr_static(cls, "reader_class")
+    for attr in ("profile", "change_probe_kind"):
+        literal = _class_level_constant(source_path, entry["class"], attr)
+        assert literal == getattr(reader, attr), (
+            f"{filename}: {entry['class']}.{attr} is {literal!r} but "
+            f"{reader.__name__}.{attr} is {getattr(reader, attr)!r}"
+        )
+        # And the literal is what the class actually exposes.
+        assert inspect.getattr_static(cls, attr) == literal
+
+
+def test_the_adapter_forwards_nothing_the_readers_do_not_all_define():
+    """``cache_paths`` is a reader detail the substrate never reads.
+
+    Two wrapped readers (``TwikiCrawlSource``, ``TwikiEOSSource``) do not
+    define it, so a forwarding property on the shared base raised
+    ``AttributeError`` for them. Nothing in the substrate reads the attribute.
+    """
+    from archi.sources._sdk_adapter import ReaderAdapter
+
+    assert not hasattr(ReaderAdapter, "cache_paths")
 
 
 def _entry(source_name, filename):

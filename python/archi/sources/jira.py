@@ -853,13 +853,19 @@ def _person_node(
         source_revision=revision,
     )
 
+
 class JiraIssueAdapter(ReaderAdapter):
     """Registry adapter for :class:`JiraIssueSource`.
 
-    The bundle's `jira` source names this class. The reader's behavior is unchanged; this class only
-    drives it through the substrate's adapter contract.
+    The bundle's `jira` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
     """
 
     reader_class = JiraIssueSource
-    profile = JiraIssueSource.profile
-    change_probe_kind = JiraIssueSource.change_probe_kind
+    profile = "mutable_api"
+    change_probe_kind = "mutable_api"
