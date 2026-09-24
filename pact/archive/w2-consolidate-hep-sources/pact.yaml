@@ -1,0 +1,505 @@
+pact_version: 4
+target_pact_version: 4
+change:
+  id: w2-consolidate-hep-sources
+  title: 'W2: consolidate HEP sources into the archi package'
+  status: proposal
+  rationale: "ADR 0001 W2: the domain layer is consolidation, not construction. The\
+    \ HEP source code exists in three places \u2014 okg-deployments/cms/cms_sources/\
+    \ (22 adapter classes, 9,328 LOC), archi origin/dev's Scrapy layer (the current\
+    \ scraper design), and cooper (deferred) \u2014 and TWiki parsing alone exists\
+    \ three times. This change consolidates it into the pip-installable archi package\
+    \ proven by w1-prove-the-seam, per the porting matrix (porting-matrix.md in this\
+    \ change)."
+  root_cause: v2 scattered HEP ingestion across archi's collectors, agent tools, and
+    the CMS OKG deployment's local package; nothing is shareable across instances
+    without copy-paste (the wisdqm _cache.py and TWiki-parser forks are the live evidence).
+  tier: 2
+  affected_areas:
+  - python/
+  - pact/changes/w2-consolidate-hep-sources
+  affected_code:
+  - python/archi/**
+requirements:
+- id: req.w2.packaging
+  title: v3 package builds without touching the v2 build
+  statement: The archi v3 distribution builds as a wheel from python/ (its own pyproject)
+    while the v2 root build (setup.py/pyproject.toml, src/) remains untouched and
+    v2 unit tests keep passing on archi_v3.
+  evidence_policy:
+    required:
+    - executed_test
+  scenarios:
+  - id: scn.w2.packaging.coexist
+    title: Both builds coexist on one branch
+    given:
+    - the archi_v3 branch with python/ added
+    when:
+    - the v3 wheel is built and the v2 unit suite runs
+    then:
+    - both succeed with no file overlap between the two builds
+    and: []
+  acceptance:
+  - id: acc.w2.packaging
+    description: python/tests/test_packaging.py passes (wheel builds from python/,
+      v3 never imports v2, schema data ships in the wheel, no operator paths, root
+      build files untouched). CI wiring is deferred by maintainer decision (2026-08-11,
+      "let's not worry about those actions for now") and returns with the OKG_REPO_TOKEN
+      secret.
+    evidence:
+    - executed_test
+- id: req.w2.auth
+  title: CERN auth plumbing is package code, credentials are instance data
+  statement: archi/auth/ consolidates the preflight probes, CERN SSO flows, and the
+    cache utility; no module contains a hardcoded operator path (/Users/, /root/,
+    /home/ literals) or a credential value; credentials arrive only by environment/credential_refs
+    indirection.
+  evidence_policy:
+    required:
+    - executed_test
+  scenarios:
+  - id: scn.w2.auth.no-paths
+    title: No operator paths or secrets in package code
+    given:
+    - archi/auth and archi/sources fully ported
+    when:
+    - the path/secret lint test runs over python/archi
+    then:
+    - zero findings
+    and: []
+  acceptance:
+  - id: acc.w2.auth
+    description: A lint test asserts no hardcoded operator paths or credential literals
+      in python/archi.
+    evidence:
+    - executed_test
+- id: req.w2.sources
+  title: The source families port against the current adapter contract
+  statement: Every source in the porting matrix lands rewritten against the current
+    SourceAdapter + registry contract (sound change probe, producer authority, admission
+    mode), with offline unit tests, a documented registry-entry template, and okg
+    deployment lint green on a scratch registry entry. The parity families (jira,
+    docsite, gitlab_docs) come first; the TWiki three-way merge produces exactly one
+    parser.
+  evidence_policy:
+    required:
+    - executed_test
+  scenarios:
+  - id: scn.w2.sources.lint
+    title: Each ported source lints and ingests on scratch
+    given:
+    - a ported source registered in the w1-style scratch deployment
+    when:
+    - okg deployment lint and okg ingest run
+    then:
+    - lint has no blocker/warning findings for the source and the run is OK
+    and: []
+  acceptance:
+  - id: acc.w2.sources
+    description: Per-source fixture-driven unit tests pass offline; at least the parity
+      families demonstrate a scratch-instance ingest cycle; provenance (source repo
+      + ref + what changed) is recorded per port.
+    evidence:
+    - executed_test
+- id: req.w2.enrichment
+  title: Enrichers and identifier/link defaults are importable package data
+  statement: "The five CMS enrichers, the alias backend, and the extractor/linker/\
+    \ identifier-pattern defaults move into archi/enrichment/, consumable by an instance's\
+    \ config as selectable defaults (wisdqm's DQM patterns included \u2014 the second\
+    \ call site exists)."
+  evidence_policy:
+    required:
+    - executed_test
+  scenarios:
+  - id: scn.w2.enrichment.defaults
+    title: An instance selects packaged defaults
+    given:
+    - archi/enrichment/defaults shipped in the wheel
+    when:
+    - a scratch deployment config references them
+    then:
+    - catalog load composes them without copying files into the deployment
+    and: []
+  acceptance:
+  - id: acc.w2.enrichment
+    description: Unit tests load the defaults from the installed wheel and validate
+      their shape.
+    evidence:
+    - executed_test
+- id: req.w2.compops-unbroken
+  title: The comp-ops instance stays green throughout
+  statement: "W2 does not switch okg-deployments/cms to the package (that is W7);\
+    \ its lint and checks must pass unchanged at every W2 merge (ADR 0001 D10 \u2014\
+    \ breaking comp-ops is a blocking regression)."
+  evidence_policy:
+    required:
+    - executed_test
+  scenarios:
+  - id: scn.w2.compops.green
+    title: comp-ops lint unchanged
+    given:
+    - any W2 merge to archi_v3
+    when:
+    - okg deployment lint runs on okg-deployments/cms
+    then:
+    - findings are identical to the pre-W2 baseline
+    and: []
+  acceptance:
+  - id: acc.w2.compops
+    description: The comp-ops lint baseline is recorded before W2 starts and re-checked
+      per merge.
+    evidence:
+    - executed_test
+tasks:
+- id: task.w2.packaging
+  title: python/ package skeleton + CI wheel lane
+  status: done
+  verification: python/tests/test_packaging.py
+  requirements:
+  - req.w2.packaging
+  evidence: []
+  environment:
+  - id: env.w2.okg-repo-token
+    kind: env_var
+    env: OKG_REPO_TOKEN
+    description: CI secret for okg-dependent test lanes (Luca to add to the repo).
+    required: false
+- id: task.w2.auth
+  title: "archi/auth \u2014 preflight, SSO, cache util"
+  status: done
+  verification: python/tests/auth/
+  requirements:
+  - req.w2.auth
+  evidence: []
+  environment: []
+- id: task.w2.sources-parity
+  title: 'Parity families: jira, docs (docsite + gitlab_docs + cmsweb)'
+  status: done
+  verification: python/tests/sources/test_jira.py and python/tests/sources/test_docs.py
+  requirements:
+  - req.w2.sources
+  evidence: []
+  environment: []
+- id: task.w2.sources-twiki
+  title: TWiki three-way merge (cms twiki_eos + cern-twiki + wisdqm parsers)
+  status: done
+  verification: python/tests/sources/test_twiki.py
+  requirements:
+  - req.w2.sources
+  evidence: []
+  environment: []
+- id: task.w2.sources-monit
+  title: MONIT sources + archi/tools/monit.py live tools
+  status: done
+  verification: python/tests/sources/test_monit.py and python/tests/tools/test_monit_live.py
+  requirements:
+  - req.w2.sources
+  evidence: []
+  environment: []
+- id: task.w2.sources-catalogs
+  title: 'Catalogs: cric, cmssw (merge W1 spike), dbs, conddb, dqm, gocdb, siteconf,
+    wmstats, github_repos, hypernews, indico'
+  status: done
+  verification: python/tests/sources/
+  requirements:
+  - req.w2.sources
+  evidence: []
+  environment: []
+- id: task.w2.enrichment
+  title: "archi/enrichment \u2014 enrichers, alias backend, defaults"
+  status: done
+  verification: python/tests/enrichment/
+  requirements:
+  - req.w2.enrichment
+  evidence: []
+  environment: []
+- id: task.w2.compops-baseline
+  title: Record comp-ops lint baseline and re-check per merge
+  status: done
+  verification: okg deployment lint on okg-deployments/cms compared to recorded baseline
+  requirements:
+  - req.w2.compops-unbroken
+  evidence: []
+  environment: []
+dependencies: []
+test_plan:
+- id: test.req-w2-packaging.python-tests-test-packaging
+  requirement: req.w2.packaging
+  test_id: python/tests/test_packaging.py
+  evidence:
+  - pytest
+- id: test.req-w2-auth.python-tests-auth
+  requirement: req.w2.auth
+  test_id: python/tests/auth/
+  evidence:
+  - pytest
+- id: test.req-w2-sources.python-tests-sources
+  requirement: req.w2.sources
+  test_id: python/tests/sources/
+  evidence:
+  - pytest
+- id: test.req-w2-enrichment.python-tests-enrichment
+  requirement: req.w2.enrichment
+  test_id: python/tests/enrichment/
+  evidence:
+  - pytest
+- id: test.req-w2-compops-unbroken.compops-lint-baseline
+  requirement: req.w2.compops-unbroken
+  test_id: pact/changes/w2-consolidate-hep-sources/compops-lint-baseline.json
+  evidence:
+  - graph_report
+formal: []
+waivers: []
+evidence:
+- id: ev.pytest.req-w2-packaging.20260811T210431898899Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.packaging
+  artifact: python/tests/test_packaging.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+    -q
+  summary: '7/7: wheel builds from python/ (hatchling), v3 never imports v2, schema
+    ships in wheel, no operator paths, root build untouched'
+  data:
+    attached_at: '2026-08-11T21:04:31.898947+00:00'
+- id: ev.pytest.req-w2-packaging.20260811T210527248898Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.packaging
+  artifact: python/tests/test_packaging.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+    -q
+  summary: '7/7: wheel builds from python/ (hatchling), v3 never imports v2, schema
+    ships in wheel, no operator paths, root build untouched'
+  data:
+    attached_at: '2026-08-11T21:05:27.249012+00:00'
+- id: ev.pytest.req-w2-auth.20260812T003827308891Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.auth
+  artifact: python/tests/auth/
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth/ -q
+  summary: 46/46 auth tests incl. review-fix regressions; no-operator-paths lint green
+    in packaging suite
+  data:
+    attached_at: '2026-08-12T00:38:27.308914+00:00'
+- id: ev.pytest.req-w2-auth.20260812T003850633918Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.auth
+  artifact: python/tests/auth/
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth/ -q
+  summary: 45/45 auth tests incl. two review-fix regressions (corrects prior entry's
+    46/46 typo); no-operator-paths lint green in packaging suite
+  data:
+    attached_at: '2026-08-12T00:38:50.633941+00:00'
+- id: ev.pytest.req-w2-sources.20260812T124326967398Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.sources
+  artifact: python/tests/sources/
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources/
+    -q
+  summary: '57 source tests pass (jira 30, docs 27) incl. 10 review-fix regressions;
+    scratch-instance ingest cycle proven (see parity-ingest-demonstration.md): lint
+    zero findings, publish gen 20260812T005035..., cross-source references edge, idempotent
+    re-run'
+  data:
+    attached_at: '2026-08-12T12:43:26.967431+00:00'
+- id: ev.pytest.req-w2-sources.20260812T182728402302Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.sources
+  artifact: python/tests/sources/test_twiki.py
+  command: pytest python/tests/sources/test_twiki.py -q
+  summary: '47 twiki tests: parser core fidelity flags w/ cms byte-parity fixture,
+    EOS+crawl sources, completeness/dead-link/truncation discipline (10 review fixes)'
+  data:
+    attached_at: '2026-08-12T18:27:28.402333+00:00'
+- id: ev.pytest.req-w2-sources.20260812T182731280363Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.sources
+  artifact: python/tests/sources/test_monit.py
+  command: pytest python/tests/sources/test_monit.py python/tests/tools/test_monit_live.py
+    -q
+  summary: '36 MONIT tests: four sources faithful to cms (query bodies/retry/emission),
+    four live tools with wiring contract'
+  data:
+    attached_at: '2026-08-12T18:27:31.280388+00:00'
+- id: ev.graph-report.req-w2-compops-unbroken.20260821T152841269273Z
+  kind: graph_report
+  status: pass
+  refs:
+  - req.w2.compops-unbroken
+  artifact: pact/archive/w2-consolidate-hep-sources/compops-lint-recheck-20260821.json
+  command: okg deployment lint cms --json (okg dev@f5ec3b58d) diffed vs compops-lint-baseline.json
+  summary: '30 vs 29 baseline findings; sole delta is a version-introduced ''skipped:
+    reference_routes_not_applicable'' notice; zero new errors/warnings, zero regressions;
+    cms deployment untouched by W2'
+  data:
+    attached_at: '2026-08-21T15:28:41.269330+00:00'
+- id: ev.pytest.req-w2-compops-unbroken.20260821T152918062692Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.compops-unbroken
+  artifact: python/tests/test_compops_lint_recheck.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+    -q
+  summary: 'Deterministic diff of committed baseline vs 2026-08-21 recheck: zero regressions;
+    sole delta is a version-introduced skipped notice'
+  data:
+    attached_at: '2026-08-21T15:29:18.062721+00:00'
+- id: ev.pytest.req-w2-sources.20260821T153146371518Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.sources
+  artifact: python/tests/sources/
+  command: pytest python/tests/sources/ -q
+  summary: 'All 12 connector families ported and fixture-tested (catalogs batch adds
+    25 tests: cric, cmssw, dbs, conddb, dqm, gocdb, siteconf, wmstats, github_repos,
+    hypernews, indico); strict-shape registry templates throughout; schema dedupe
+    complete (each class/narrowing in exactly one file)'
+  data:
+    attached_at: '2026-08-21T15:31:46.371609+00:00'
+- id: ev.pytest.req-w2-enrichment.20260821T153153454622Z
+  kind: pytest
+  status: pass
+  refs:
+  - req.w2.enrichment
+  artifact: python/tests/enrichment/
+  command: pytest python/tests/enrichment/ -q
+  summary: Five enrichers (verbatim lifts), packaged defaults loader (incl. wisdqm
+    DQM patterns), alias backend, dev-branch anonymizer (closes anonymize_data gate);
+    25 tests; defaults ship in wheel
+  data:
+    attached_at: '2026-08-21T15:31:53.454661+00:00'
+- id: ev.executed-test.acc-w2-packaging.20260824T214155736759Z
+  kind: executed_test
+  status: pass
+  refs:
+  - acc.w2.packaging
+  artifact: python/tests/test_packaging.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+    -q
+  summary: '7 passed (2026-08-24 re-run on archi_v3): wheel builds from python/, v3
+    never imports the v2 tree, schema data ships in the wheel, no operator paths,
+    and the v2 build files are gone per the W10 teardown.'
+  data:
+    attached_at: '2026-08-24T21:41:55.736787+00:00'
+- id: ev.executed-test.acc-w2-auth.20260824T214157398786Z
+  kind: executed_test
+  status: pass
+  refs:
+  - acc.w2.auth
+  artifact: python/tests/auth
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth -q
+  summary: '46 passed (2026-08-24 re-run): archi.auth preflight/cache/cookies, including
+    the lint assertion that no hardcoded operator paths or credential literals exist
+    in python/archi.'
+  data:
+    attached_at: '2026-08-24T21:41:57.398833+00:00'
+- id: ev.executed-test.acc-w2-sources.20260824T214158765991Z
+  kind: executed_test
+  status: pass
+  refs:
+  - acc.w2.sources
+  artifact: python/tests/sources
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources
+    -q
+  summary: '202 passed (2026-08-24 re-run): per-connector fixture-driven unit tests
+    for all 12 families offline, including the circle-back scope-claim regressions.'
+  data:
+    attached_at: '2026-08-24T21:41:58.766018+00:00'
+- id: ev.executed-test.acc-w2-enrichment.20260824T214200011306Z
+  kind: executed_test
+  status: pass
+  refs:
+  - acc.w2.enrichment
+  artifact: python/tests/enrichment
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/enrichment
+    -q
+  summary: '36 passed (2026-08-24 re-run): enrichers plus packaged defaults loaded
+    from the installed wheel and shape-validated, including the anonymizer leak corpus.'
+  data:
+    attached_at: '2026-08-24T21:42:00.011344+00:00'
+- id: ev.executed-test.acc-w2-compops.20260824T214201208887Z
+  kind: executed_test
+  status: pass
+  refs:
+  - acc.w2.compops
+  artifact: python/tests/test_compops_lint_recheck.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+    -q
+  summary: '1 passed (2026-08-24 re-run): comp-ops lint re-check against the recorded
+    pre-W2 baseline, zero regressions.'
+  data:
+    attached_at: '2026-08-24T21:42:01.208914+00:00'
+- id: ev.executed-test.req-w2-packaging.20260824T214442853986Z
+  kind: executed_test
+  status: pass
+  refs:
+  - req.w2.packaging
+  artifact: python/tests/test_packaging.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+    -q
+  summary: '7 passed, re-run 2026-08-24 AFTER the circle-back fixes (PR #617) changed
+    python/archi; supersedes the 2026-08-11 evidence the scope-drift guard revoked.'
+  data:
+    attached_at: '2026-08-24T21:44:42.854023+00:00'
+- id: ev.executed-test.req-w2-auth.20260824T214444343077Z
+  kind: executed_test
+  status: pass
+  refs:
+  - req.w2.auth
+  artifact: python/tests/auth
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth -q
+  summary: '46 passed, re-run 2026-08-24 after PR #617; supersedes the revoked 2026-08-12
+    entries.'
+  data:
+    attached_at: '2026-08-24T21:44:44.343107+00:00'
+- id: ev.executed-test.req-w2-sources.20260824T214446194882Z
+  kind: executed_test
+  status: pass
+  refs:
+  - req.w2.sources
+  artifact: python/tests/sources
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources
+    -q
+  summary: '202 passed, re-run 2026-08-24 after PR #617 (includes the new scope-claim
+    regressions); supersedes the revoked 2026-08-12 evidence.'
+  data:
+    attached_at: '2026-08-24T21:44:46.194911+00:00'
+- id: ev.executed-test.req-w2-enrichment.20260824T214448103511Z
+  kind: executed_test
+  status: pass
+  refs:
+  - req.w2.enrichment
+  artifact: python/tests/enrichment
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/enrichment
+    -q
+  summary: '36 passed, re-run 2026-08-24 after PR #617 (includes the anonymizer leak
+    corpus); supersedes the revoked 2026-08-21 entry.'
+  data:
+    attached_at: '2026-08-24T21:44:48.103541+00:00'
+- id: ev.executed-test.req-w2-compops-unbroken.20260824T214450106945Z
+  kind: executed_test
+  status: pass
+  refs:
+  - req.w2.compops-unbroken
+  artifact: python/tests/test_compops_lint_recheck.py
+  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+    -q
+  summary: '1 passed, re-run 2026-08-24 after PR #617: comp-ops lint re-check vs the
+    recorded baseline, zero regressions; supersedes the revoked 2026-08-21 graph report.'
+  data:
+    attached_at: '2026-08-24T21:44:50.106978+00:00'

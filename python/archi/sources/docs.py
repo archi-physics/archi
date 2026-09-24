@@ -124,6 +124,10 @@ ingest); (2) ``output_scope_summary`` must accompany
         # (archi/schemas/operations.yaml + bridges/operations.yaml).
         # sites_path: data/cric/sites.json
         # releases_path: data/cmssw-releases/records.json
+        # A live instance has no releases records.json (the cmssw
+        # connector's live path writes releases.map instead); point at
+        # that map to get the same reference edges:
+        # releases_map_path: data/cmssw-releases/releases.map
         # services_path: data/cric-core/services.json
       sync:
         triggers: [manual, reconcile]
@@ -187,6 +191,10 @@ ingest); (2) ``output_scope_summary`` must accompany
         # jira_records_path: data/jira/records.json
         # sites_path: data/cric/sites.json
         # releases_path: data/cmssw-releases/records.json
+        # A live instance has no releases records.json (the cmssw
+        # connector's live path writes releases.map instead); point at
+        # that map to get the same reference edges:
+        # releases_map_path: data/cmssw-releases/releases.map
         # services_path: data/cric-core/services.json
       sync:
         triggers: [manual, reconcile]
@@ -243,6 +251,10 @@ ingest); (2) ``output_scope_summary`` must accompany
         # jira_records_path: data/jira/records.json
         # sites_path: data/cric/sites.json
         # releases_path: data/cmssw-releases/records.json
+        # A live instance has no releases records.json (the cmssw
+        # connector's live path writes releases.map instead); point at
+        # that map to get the same reference edges:
+        # releases_map_path: data/cmssw-releases/releases.map
         # services_path: data/cric-core/services.json
       sync:
         triggers: [manual, reconcile]
@@ -341,6 +353,7 @@ class DocumentationSource:
         required: bool = True,
         sites_path: str | None = None,
         releases_path: str | None = None,
+        releases_map_path: str | None = None,
         jira_records_path: str | None = None,
         services_path: str | None = None,
         repo_base_url: str = DEFAULT_REPO_BASE_URL,
@@ -352,6 +365,7 @@ class DocumentationSource:
         self.required = required
         self.sites_path = sites_path
         self.releases_path = releases_path
+        self.releases_map_path = releases_map_path
         self.jira_records_path = jira_records_path
         self.services_path = services_path
         self.repo_base_url = repo_base_url.rstrip("/")
@@ -444,6 +458,7 @@ class DocumentationSource:
         return _reference_targets(
             sites_path=self.sites_path,
             releases_path=self.releases_path,
+            releases_map_path=self.releases_map_path,
             jira_records_path=self.jira_records_path,
             services_path=self.services_path,
             base=self.base,
@@ -492,6 +507,7 @@ class SSOCookieDocsSource(DocumentationSource):
         cookie_max_age_hours: float | None = None,
         sites_path: str | None = None,
         releases_path: str | None = None,
+        releases_map_path: str | None = None,
         jira_records_path: str | None = None,
         services_path: str | None = None,
         repo_base_url: str = DEFAULT_REPO_BASE_URL,
@@ -507,6 +523,7 @@ class SSOCookieDocsSource(DocumentationSource):
         self.required = False
         self.sites_path = sites_path
         self.releases_path = releases_path
+        self.releases_map_path = releases_map_path
         self.jira_records_path = jira_records_path
         self.services_path = services_path
         self.repo_base_url = repo_base_url.rstrip("/")
@@ -1031,6 +1048,7 @@ def _reference_targets(
     *,
     sites_path: str | None = None,
     releases_path: str | None = None,
+    releases_map_path: str | None = None,
     jira_records_path: str | None = None,
     services_path: str | None = None,
     base: str | None = None,
@@ -1046,7 +1064,9 @@ def _reference_targets(
     """
     return {
         "site": _known_sites(sites_path, base=base),
-        "release": _known_releases(releases_path, base=base),
+        "release": _known_releases(
+            releases_path, base=base, map_path=releases_map_path
+        ),
         "jira": _known_jira(jira_records_path, base=base),
         "service": _known_services(services_path, base=base),
     }
@@ -1081,7 +1101,34 @@ def _known_sites(path: str | None, *, base: str | None = None) -> set[str]:
     return set()
 
 
-def _known_releases(path: str | None, *, base: str | None = None) -> set[str]:
+def _known_releases(
+    path: str | None,
+    *,
+    base: str | None = None,
+    map_path: str | None = None,
+) -> set[str]:
+    """Release labels for reference edges, from either cache shape.
+
+    A live instance has no ``records.json`` for releases: the CMSSW
+    connector's live path fetches the public cms-bot ``releases.map``
+    and writes *that*. Accepting the map (``map_path``) lets the docs
+    sources emit ``document_chunk references cmssw_release`` edges on a
+    live deployment without a records cache nobody produces. When both
+    are configured the records cache wins; a configured-but-missing
+    file still raises, as for every other reference cache.
+    """
+    if map_path:
+        resolved = resolve_repo_path(map_path, base=base)
+        if not resolved.is_file():
+            raise FileNotFoundError(
+                f"{map_path}: configured reference cache is missing "
+                f"({resolved})"
+            )
+        if not path:
+            from .cmssw import parse_releases_map
+
+            raw = resolved.read_text(encoding="utf-8", errors="replace")
+            return {record.label for record in parse_releases_map(raw)}
     payload = _configured_json(path, base=base)
     if not isinstance(payload, list):
         return set()

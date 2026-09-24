@@ -193,6 +193,41 @@ def test_missing_reference_caches_mean_no_reference_edges(tmp_path):
     assert _edges(facts, "references") == []
 
 
+def test_release_references_resolve_from_the_cms_bot_map(tmp_path):
+    """A live instance has no releases records.json — only the map.
+
+    The cmssw connector's live path writes ``releases.map``; nothing
+    produces ``records.json``. Pointing ``releases_map_path`` at the map
+    must yield the same ``document_chunk references cmssw_release``
+    edges (circleback/live-bring-up finding 2).
+    """
+    _write_docsite(tmp_path, [PAGE_PLAIN], with_targets=False)
+    map_dir = tmp_path / "data" / "cmssw-releases"
+    map_dir.mkdir(parents=True)
+    (map_dir / "releases.map").write_text(
+        "architecture=el8_amd64_gcc12;label=CMSSW_14_0_2;"
+        "type=Production;state=Announced;\n"
+    )
+    source = DocumentationSource(
+        records_path="data/docsite/records.json",
+        base=str(tmp_path),
+        releases_map_path="data/cmssw-releases/releases.map",
+    )
+    edges = _edges(list(source.run("r").facts), "references")
+    assert any(e.dst == "cmssw_release:CMSSW_14_0_2" for e in edges)
+
+
+def test_release_map_configured_but_missing_raises(tmp_path):
+    _write_docsite(tmp_path, [PAGE_PLAIN], with_targets=False)
+    source = DocumentationSource(
+        records_path="data/docsite/records.json",
+        base=str(tmp_path),
+        releases_map_path="data/absent/releases.map",
+    )
+    with pytest.raises(FileNotFoundError, match="data/absent/releases.map"):
+        source.run("r")
+
+
 @pytest.mark.parametrize(
     "param", ["sites_path", "releases_path", "services_path"]
 )
