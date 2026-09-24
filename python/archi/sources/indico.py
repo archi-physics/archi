@@ -54,8 +54,8 @@ come from the ``extraction`` module. ::
             - document contains document_chunk
             - document_chunk member_of document
       source_class: discovery_crawl
-      record_identity_kind: remote_id
-      record_identity_fields: [event_id]
+      record_identity_kind: scoped_locator
+      record_identity_fields: [path]
       source_revision_kind: content_hash
       deletion_semantics: missing_from_completed_scope
       publication_mode: published_generation
@@ -130,6 +130,20 @@ class IndicoEventRecord:
     @property
     def node_id(self) -> str:
         return f"meeting_minutes:{self.event_id}"
+
+    @property
+    def source_path(self) -> str:
+        """Where this record sits inside the source's declared scope.
+
+        The registry declares this source `scoped_locator`-identified, so
+        `source_record_id` has to be a locator within the scope rather than
+        an upstream-assigned id. The scope is the Indico instance named by
+        `base_url`; a meeting is located at `event/<id>` inside it, which is
+        the path half of the URL the reader already builds. Scope-relative
+        on purpose: an absolute URL would re-key every record if an instance
+        moved to a different `base_url`.
+        """
+        return f"event/{self.event_id}"
 
 
 class IndicoSource:
@@ -388,7 +402,7 @@ def _meeting_node(
             "pdf_text_char_count": sum(len(p.text) for p in record.pdf_texts),
             "text": text,
         },
-        source_record_id={"event_id": record.event_id},
+        source_record_id={"path": record.source_path},
         source_revision=revision,
     )
 
@@ -401,11 +415,12 @@ def _pdf_document_facts(
     for pdf in record.pdf_texts:
         doc_id = f"doc:indico:event/{record.event_id}/pdf/{pdf.index}"
         doc_hash = _sha256(pdf.text)
-        path = f"event/{record.event_id}/pdf/{pdf.index}.pdf"
-        source_record_id = {
-            "event_id": record.event_id,
-            "pdf_index": pdf.index,
-        }
+        path = f"{record.source_path}/pdf/{pdf.index}.pdf"
+        # Locator-shaped, like the meeting above: this attachment is at
+        # `event/<id>/pdf/<n>.pdf` inside the instance scope. `path` is the
+        # string this function already computed for the document's own
+        # `path` attribute, so the record key and the attribute agree.
+        source_record_id = {"path": path}
         yield NodeFact(
             node_id=doc_id,
             subtype="document",

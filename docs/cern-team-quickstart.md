@@ -108,6 +108,13 @@ export OKG_DEPLOYMENTS_DIR="$PWD/deployments"
 export ARCHI_DATA_ROOT="$PWD/deployments/myteam"
 export OKG_DSN='postgresql://postgres:okg@127.0.0.1:5433/myteam'
 
+# Want the two repository connectors? Enable them first — they ship as
+# examples, and a URL answer alone does nothing until the file is renamed.
+for f in github_repo gitlab_repo; do
+  mv "$OKG_PROFILES_DIR/cern-team/source-defaults/$f.yaml.example" \
+     "$OKG_PROFILES_DIR/cern-team/source-defaults/$f.yaml"
+done
+
 okg-venv/bin/okg install --profile cern-team \
   --deployment-name myteam \
   --postgres-dsn "$OKG_DSN" \
@@ -115,6 +122,15 @@ okg-venv/bin/okg install --profile cern-team \
   --gitlab-repo-name ci-example \
   --gitlab-repo-url https://gitlab.cern.ch/gitlabci-examples/build_docker_image.git
 ```
+
+`$OKG_PROFILES_DIR` has to be a writable copy of the bundle for the rename to
+work, not the directory inside the installed wheel. Skip the rename block and
+the two `--*-repo-*` flags for a CMSSW-only install; that publishes on its own.
+
+**Renaming a repository connector without answering its URL installs a source
+that cannot read anything.** It fails admission with `checkout unavailable`,
+and because every selected source must finish, it blocks the publish for
+CMSSW too. Both steps or neither.
 
 **This command will fail, and that is expected.** It creates the extensions,
 migrates the database, materialises the distribution's schemas, loads the
@@ -185,8 +201,7 @@ podman exec myteam-pg psql -U postgres -d myteam \
 
 **`okg install` will not re-run over an existing deployment** — it refuses
 rather than overwrite, and `--force --yes` rebuilds the directory. So this
-is the route for any later change, and the recovery if you installed
-without URLs.
+is the route for any later change.
 
 Edit `deployments/myteam/source_registry.yaml`, and under `github_repo` and
 `gitlab_repo` set the two values:
@@ -215,10 +230,12 @@ cd -
 If you forget, the ingest fails with `repository provenance inputs are not
 committed` and names the file you edited. Commit and re-run.
 
-**Not interested in repositories at all?** Install without the URLs — that
-install will end with the publish blocked, which is expected — then exclude
-the two connectors and ingest again. The CMSSW catalog alone publishes
-fine:
+**Not interested in repositories at all?** Then do nothing — they are not
+installed unless you rename their `.yaml.example` files. The CMSSW catalog
+alone publishes fine.
+
+If you already installed them and cannot feed one, exclude it and ingest
+again:
 
 ```bash
 okg-venv/bin/okg ingest --deployment myteam --progress \
@@ -520,8 +537,9 @@ needs the gateway name.
 Every *selected* source must finish or none of them publish — including the
 ones that worked. So a single source you cannot feed blocks everything.
 
-The bundle selects only three by default and none needs a credential. If
-you enabled others, exclude what you cannot feed and re-run:
+The bundle selects one by default — the CMSSW release catalog, which needs
+no credential. If you enabled others, exclude what you cannot feed and
+re-run:
 
 ```bash
 okg-venv/bin/okg ingest --deployment myteam --progress \

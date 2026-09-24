@@ -103,19 +103,66 @@ def test_default_sources_need_no_credentials():
     ADR 0001 W6: "A deployment with no optional connector configured must start
     cleanly." The completeness gate fails the whole batch when any *selected*
     source fails, so a credential-gated default silently makes a fresh install
-    unable to publish at all. Sources needing credentials or a prebuilt cache
-    ship as `.yaml.example` and are opted into by renaming.
+    unable to publish at all. Sources needing credentials, a prebuilt cache or
+    a URL ship as `.yaml.example` and are opted into by renaming.
+
+    github_repo and gitlab_repo used to be defaults with blank URL answers, on
+    the theory that a blank URL meant "install without this source". A live run
+    disproved it: both installed, both failed admission with
+    `source_health_not_healthy: checkout unavailable`, and that blocked the
+    publish for cmssw_releases too. An installed source is always a selected
+    source, so a source needing an operator-supplied input cannot be a default.
     """
     selected = sorted(p.name for p in (BUNDLE / "source-defaults").glob("*.yaml"))
-    assert selected == ["cmssw_releases.yaml", "github_repo.yaml", "gitlab_repo.yaml"], (
-        f"default source set changed: {selected}. Anything needing a credential "
-        "or a prebuilt cache belongs in a .yaml.example."
+    assert selected == ["cmssw_releases.yaml"], (
+        f"default source set changed: {selected}. Anything needing a credential, "
+        "a prebuilt cache or a URL belongs in a .yaml.example."
     )
     for path in (BUNDLE / "source-defaults").glob("*.yaml"):
         entry = next(iter(yaml.safe_load(path.read_text()).values()))
         assert not entry.get("credential_refs"), (
             f"{path.name} is selected by default but declares credential_refs; "
             "a fresh install would fail to publish"
+        )
+
+
+def test_no_default_source_depends_on_an_answer_that_defaults_to_blank():
+    """The general form of the blank-URL defect.
+
+    An install answer that defaults to blank is one the operator may never be
+    asked about. A source selected by default must not depend on one, because
+    it will then install with an empty parameter, fail to read its input, and
+    take the publish down with it -- which is exactly what github_repo and
+    gitlab_repo did with `${github_repo_url}` / `${gitlab_repo_url}`.
+
+    Examples are exempt: renaming one is the operator saying they will supply
+    its inputs.
+    """
+    profile = yaml.safe_load((BUNDLE / "profile.yaml").read_text())
+    blank = {
+        q["id"]
+        for q in profile["init_questions"]
+        if not q.get("required") and not (q.get("default") or "")
+    }
+    offenders = {}
+    for path in sorted((BUNDLE / "source-defaults").glob("*.yaml")):
+        used = set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", path.read_text()))
+        if used & blank:
+            offenders[path.name] = sorted(used & blank)
+    assert not offenders, (
+        "these default sources depend on answers that default to blank, so a "
+        f"plain install would scaffold them empty and block the publish: {offenders}"
+    )
+
+
+def test_the_repository_sources_need_both_a_rename_and_a_url():
+    """Enabling a repository source is two steps, and the file says so."""
+    for host in ("github", "gitlab"):
+        path = BUNDLE / "source-defaults" / f"{host}_repo.yaml.example"
+        text = path.read_text()
+        assert f"${{{host}_repo_url}}" in text
+        assert "Both steps are needed." in text, (
+            f"{path.name} must say that renaming alone is not enough"
         )
 
 

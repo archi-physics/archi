@@ -23,12 +23,16 @@
 # which meant re-doing the rest of the install by hand as well. The
 # `schemas:` slot below removed that.
 #
-# The three connectors selected by default need no credentials, so a bare
-# install reaches a published generation on its own (ADR 0001 W6: an
-# instance with nothing configured must start cleanly). Sources needing a
-# credential or a prebuilt cache ship as `.yaml.example` in
-# source-defaults/ — rename one to `.yaml` to opt in, and supply its
-# credential by environment variable.
+# One connector is selected by default — the CMSSW release catalog, which
+# needs no credential — so a bare install reaches a published generation on
+# its own (ADR 0001 W6: an instance with nothing configured must start
+# cleanly). Everything else ships as `.yaml.example` in source-defaults/:
+# rename one to `.yaml` to opt in, and supply its credential, cache or URL.
+#
+# There is no such thing as an installed-but-inactive source. Every source
+# the installer writes is selected, and one that cannot read its input fails
+# the completeness gate, which blocks the publish for all the others. So a
+# source you cannot feed must not be installed at all.
 
 name: cern-team
 version: 0.1.0
@@ -77,6 +81,34 @@ init_questions:
       dir, or export ARCHI_DATA_ROOT=<deployment dir> so the archi
       cache resolver anchors relative paths there. Pass an absolute
       path to decouple the data root from the deployment dir.
+
+  - id: cmssw_map_path
+    prompt: path to a reviewed, immutable CMSSW releases.map (frozen mode
+      only; leave blank for the live fetch)
+    type: path
+    required: false
+    default: ""
+    description: |
+      Only used by source-defaults/cmssw_releases_frozen.yaml.example,
+      which pins the release catalog to bytes you have reviewed instead
+      of fetching cms-bot live. Leave blank unless you enabled that file
+      — the live default ignores this answer entirely.
+
+  - id: cmssw_map_digest
+    prompt: sha256:<64 hex> of that releases.map (frozen mode only)
+    type: string
+    required: false
+    default: ""
+    description: |
+      The digest the reader verifies the file against before parsing a
+      byte of it, as `sha256:` plus 64 lowercase hex characters:
+      `sha256:$(shasum -a 256 <file> | cut -d' ' -f1)`.
+
+      Blank does NOT mean "skip verification". Frozen mode with an empty
+      digest is refused (`map_cache_digest must be sha256:<64 lowercase
+      hex>`), so forgetting it fails loudly rather than quietly ingesting
+      unverified bytes. Verify the digest independently of whoever handed
+      you the file — a digest taken from the same source proves nothing.
 
   - id: twiki_base_url
     prompt: TWiki base URL to crawl
@@ -127,7 +159,12 @@ init_questions:
       The connector clones this itself and fast-forwards it on later
       runs — you never run `git clone` by hand. A private repository
       uses your own git credentials, so no token reaches the instance.
-      Leave blank to install without this source.
+
+      Only used if you enabled source-defaults/github_repo.yaml.example
+      by renaming it. Leaving this blank does NOT install without the
+      source: a source with no URL fails admission with `checkout
+      unavailable` and blocks the whole publish. Enable the file and
+      answer this, or leave the file as an example.
 
   - id: gitlab_repo_name
     prompt: short name for the GitLab repository (graph identity)
@@ -146,7 +183,12 @@ init_questions:
       The connector clones this itself and fast-forwards it on later
       runs — you never run `git clone` by hand. A private repository
       uses your own git credentials, so no token reaches the instance.
-      Leave blank to install without this source.
+
+      Only used if you enabled source-defaults/gitlab_repo.yaml.example
+      by renaming it. Leaving this blank does NOT install without the
+      source: a source with no URL fails admission with `checkout
+      unavailable` and blocks the whole publish. Enable the file and
+      answer this, or leave the file as an example.
 
   - id: chat_site_name
     prompt: name for the chat site

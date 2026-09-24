@@ -17,6 +17,8 @@ import hashlib
 import importlib
 import inspect
 import json
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -42,6 +44,28 @@ def _bundle_entries():
 
 ENTRIES = list(_bundle_entries())
 ENTRY_IDS = [f"{filename}-{name}" for filename, name, _ in ENTRIES]
+
+
+def _all_bundle_entries():
+    """Every source this bundle ships, whoever owns the adapter.
+
+    Unlike `_bundle_entries` this does NOT filter to `archi.` modules: the
+    profile-tuple contract is the substrate's, so it binds the entries that
+    name a substrate class (github_repo, gitlab_repo) exactly as it binds
+    ours. `.yaml.example` files are included — an operator enables one by
+    renaming it, and an illegal tuple blocks their install just the same.
+    """
+    for path in sorted(SOURCE_DEFAULTS.iterdir()):
+        if not path.is_file():
+            continue
+        body = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for name, entry in body.items():
+            if isinstance(entry, dict) and entry.get("module"):
+                yield path.name, name, entry
+
+
+ALL_ENTRIES = list(_all_bundle_entries())
+ALL_ENTRY_IDS = [f"{filename}-{name}" for filename, name, _ in ALL_ENTRIES]
 
 
 def _adapter_class(entry):
@@ -117,6 +141,135 @@ def test_adapter_authority_is_a_literal_that_matches_its_reader(filename, name, 
         )
         # And the literal is what the class actually exposes.
         assert inspect.getattr_static(cls, attr) == literal
+
+
+def test_every_shipped_source_default_declares_a_legal_profile_tuple():
+    """No source-default may ship a tuple the substrate would refuse.
+
+    `indico.yaml.example` shipped `source_class: discovery_crawl` with
+    `record_identity_kind: remote_id` — a crossbreed of jira's identity half
+    and docsite's revision half. The substrate allows `remote_id` only under
+    `mutable_api`, so `okg install` refused with
+    `deployment.source_registry.profile_invalid` and an operator who enabled
+    Indico could not install at all. Nothing caught it because the tuple only
+    reaches lint once the file has been renamed to `.yaml`.
+
+    This calls the substrate's own `validate_profile_tuple` — the same
+    function `deployment_lint` calls — rather than restating the matrix, so
+    the test tracks the SDK instead of drifting from it. It is checked in one
+    body rather than parametrized so a bad tuple reports every offender at
+    once, not just the first.
+    """
+    from okg.substrate.sources.profiles import (
+        PROFILE_NAMES,
+        validate_profile_tuple,
+    )
+
+    failures = []
+    for filename, name, entry in ALL_ENTRIES:
+        source_class = entry.get("source_class")
+        try:
+            if source_class not in PROFILE_NAMES:
+                raise ValueError(
+                    f"unknown source_class {source_class!r}; "
+                    f"valid profiles: {sorted(PROFILE_NAMES)}"
+                )
+            validate_profile_tuple(
+                source_class=str(source_class),
+                record_identity_kind=entry.get("record_identity_kind"),
+                source_revision_kind=entry.get("source_revision_kind"),
+                deletion_semantics=entry.get("deletion_semantics"),
+                publication_mode=entry.get("publication_mode"),
+            )
+        except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+            failures.append(f"{filename} [{name}]: {exc}")
+    assert not failures, (
+        "these source-defaults would fail `okg install` with "
+        "deployment.source_registry.profile_invalid:\n\n"
+        + "\n\n".join(failures)
+    )
+
+
+def test_every_placeholder_has_an_install_answer_behind_it():
+    """A `${...}` with no init_question makes its source uninstallable.
+
+    `build_plan` interpolates every `*.yaml` in source-defaults/ against the
+    validated answers, and `interpolate` refuses an unknown reference
+    outright (okg `substrate/catalog/profile.py` `replace_match`) rather than
+    leaving it verbatim. So a placeholder the profile never asks about does
+    not degrade -- it aborts the whole install with `ProfileError: undefined
+    variable reference`. That is what `cmssw_releases_frozen.yaml.example`
+    did: it referenced `${cmssw_map_path}` and `${cmssw_map_digest}`, which
+    no init_question declared, so enabling frozen mode was impossible without
+    hand-editing the shipped file.
+
+    The `.example` files are checked too: renaming one is exactly how an
+    operator enables it, and that is when the reference has to resolve.
+
+    `deployment_name` and `HOME` are injected by `build_plan` itself rather
+    than declared as questions.
+    """
+    profile = yaml.safe_load(
+        (SOURCE_DEFAULTS.parent / "profile.yaml").read_text(encoding="utf-8")
+    )
+    known = {q["id"] for q in profile["init_questions"]} | {"deployment_name", "HOME"}
+    pattern = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+    missing = {}
+    for path in sorted(SOURCE_DEFAULTS.iterdir()):
+        if not path.is_file():
+            continue
+        unknown = sorted(set(pattern.findall(path.read_text(encoding="utf-8"))) - known)
+        if unknown:
+            missing[path.name] = unknown
+    assert not missing, (
+        "these source-defaults reference install answers the profile never "
+        f"asks for, so enabling them aborts `okg install`: {missing}"
+    )
+
+
+def test_the_frozen_cmssw_example_replaces_the_live_default():
+    """Both files declare one source id, so enabling frozen is a swap.
+
+    The installer keys source-defaults by the id inside the file, not by
+    filename, so leaving both in place lets one silently win and discards the
+    other. Nothing in okg warns about it. This test pins the collision as a
+    known fact and fails if someone renames one of the ids and leaves the
+    'replaces, does not add' instructions in the header saying otherwise.
+    """
+    live = yaml.safe_load(
+        (SOURCE_DEFAULTS / "cmssw_releases.yaml").read_text(encoding="utf-8")
+    )
+    frozen_text = (
+        SOURCE_DEFAULTS / "cmssw_releases_frozen.yaml.example"
+    ).read_text(encoding="utf-8")
+    frozen = yaml.safe_load(frozen_text)
+    assert set(live) == set(frozen) == {"cmssw_releases"}
+    assert "REPLACES cmssw_releases.yaml" in frozen_text, (
+        "the collision is only survivable if the header says so"
+    )
+    # Frozen mode means reviewed bytes, never a live fetch.
+    assert frozen["cmssw_releases"]["params"]["fetch"] is False
+    assert live["cmssw_releases"]["params"]["fetch"] is True
+
+
+def test_the_indico_record_key_is_the_locator_it_declares():
+    """The identity kind and the emitted record key must agree.
+
+    Declaring `scoped_locator` while emitting the upstream event id would
+    fix the lint and keep the lie. The reader emits a scope-relative path,
+    so this holds the two together.
+    """
+    from archi.sources.indico import IndicoEventRecord, _meeting_node
+
+    record = IndicoEventRecord(
+        event_id="654321", title="Weekly ops", url="", description="",
+        date="", end_date="", event_type="", category="", category_id=None,
+    )
+    node = _meeting_node(record, {"run_id": "r1"})
+    assert node.source_record_id == {"path": "event/654321"}
+    # The node id is NOT keyed by the locator: it stays event-id shaped, so
+    # this change does not re-identify any graph node.
+    assert node.node_id == "meeting_minutes:654321"
 
 
 def test_the_adapter_forwards_nothing_the_readers_do_not_all_define():
@@ -273,3 +426,124 @@ def test_a_misspelled_parameter_fails_when_the_adapter_is_bound():
     with pytest.raises(TypeError) as excinfo:
         JiraIssueAdapter(records_pathh="/tmp/records.json")
     assert "records_pathh" in str(excinfo.value)
+
+
+#: Entries that strict admission still refuses, and why. NOT about the
+#: adapter signature: these two author `source_name` in `params`, which is a
+#: substrate-owned key (`RESERVED_ADAPTER_PARAM_NAMES`), so the substrate
+#: refuses them with `source_param_reserved` before it ever looks at the
+#: constructor. Pre-existing and dormant -- cern-team ships on the legacy
+#: admission contract -- and fixing it changes which name the readers emit,
+#: so it is tracked separately rather than bundled in here. Remove an entry
+#: from this set when it is fixed; the test will tell you if you forget.
+STRICT_PATH_KNOWN_REFUSALS = {
+    ("docsite.yaml.example", "docsite"): "source_param_reserved",
+    ("twiki_crawl.yaml.example", "twiki_crawl"): "source_param_reserved",
+}
+
+
+def test_the_substrate_strict_admission_check_consumes_every_parameter():
+    """Exercise okg's own refusal, not a restatement of it.
+
+    `source_adapter_init_params` is the function that raises
+    `source_param_unconsumed`. It takes the strict path only for an entry whose
+    admission contract is `strict_v1`, so the entry is relabelled here; nothing
+    else about it changes and no database is touched. cern-team ships on the
+    legacy contract today, which is why the refusal was dormant rather than
+    absent.
+
+    The assertion is specifically that no entry fails for an unconsumed
+    parameter. Entries with a different known refusal are listed above with
+    their reason, so this cannot quietly become a test that asserts nothing.
+    """
+    import dataclasses
+
+    from okg.substrate.ingest.adapter_factory import source_adapter_init_params
+    from okg.substrate.sources.registry import (
+        STRICT_ADMISSION_CONTRACT,
+        admit_source_registry_document,
+    )
+
+    for filename, name, raw_entry in ENTRIES:
+        admission = admit_source_registry_document(
+            {"sources": {name: raw_entry}}, registry_path=Path(filename)
+        )
+        strict = dataclasses.replace(
+            admission.entries[name], admission_contract=STRICT_ADMISSION_CONTRACT
+        )
+        expected = STRICT_PATH_KNOWN_REFUSALS.get((filename, name))
+        try:
+            params = source_adapter_init_params(
+                strict,
+                dsn="postgresql://localhost/unused",
+                deployment="unused",
+                adapter_class=_adapter_class(raw_entry),
+            )
+        except ValueError as exc:
+            code = str(exc).split(":", 1)[0]
+            assert code != "source_param_unconsumed", (
+                f"{filename}: {name} — {exc}"
+            )
+            assert code == expected, (
+                f"{filename}: {name} hits an unlisted strict refusal {code!r}: "
+                f"{exc}"
+            )
+            continue
+        assert expected is None, (
+            f"{filename}: {name} no longer fails with {expected!r}; remove it "
+            "from STRICT_PATH_KNOWN_REFUSALS"
+        )
+        assert set(raw_entry.get("params") or {}) <= set(params), (
+            f"{filename}: {name} lost an authored parameter on the strict path"
+        )
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        r"C:\reviewed\releases.map",
+        "/a path/with spaces/releases.map",
+        "/plain/releases.map",
+    ],
+    ids=["backslashes", "spaces", "plain"],
+)
+def test_an_install_answer_reaches_the_source_byte_for_byte(tmp_path, answer):
+    """Answers are substituted as text, so the quoting style is load-bearing.
+
+    `build_plan` interpolates each source-default's TEXT and parses the result
+    as YAML, and the substitution escapes nothing (okg
+    `substrate/catalog/profile.py`, `replace_match` returns `str(v)` as-is).
+    A double-quoted placeholder therefore hands the answer to YAML's escape
+    rules: the Windows path below came back with a carriage return where its
+    `\\r` had been, and the only symptom was an unexplained cache_missing.
+    Single quotes take the bytes literally.
+    """
+    import shutil
+
+    from okg.substrate.deployment_bootstrap.profile_init import (
+        build_plan,
+        discover_profile,
+    )
+
+    profiles = tmp_path / "profiles"
+    shutil.copytree(SOURCE_DEFAULTS.parent.parent, profiles)
+    sd = profiles / "cern-team" / "source-defaults"
+    (sd / "cmssw_releases.yaml").unlink()
+    (sd / "cmssw_releases_frozen.yaml.example").rename(sd / "cmssw_releases.yaml")
+    os.environ["OKG_PROFILES_DIR"] = str(profiles)
+    digest = "sha256:" + "0" * 64
+    plan = build_plan(
+        profile=discover_profile("cern-team"),
+        deployment_name="qt",
+        deployments_root=tmp_path / "deployments",
+        raw_answers={
+            "deployment_name": "qt",
+            "postgres_dsn": "postgresql://localhost/qt",
+            "cmssw_map_path": answer,
+            "cmssw_map_digest": digest,
+        },
+    )
+    body = yaml.safe_load(plan.source_defaults["cmssw_releases"])
+    params = body["cmssw_releases"]["params"]
+    assert params["map_cache_path"] == answer
+    assert params["map_cache_digest"] == digest
