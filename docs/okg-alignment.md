@@ -300,6 +300,7 @@ below it is still private substrate, and all of it is enricher-side.
 okg.deployment:
     NodeFact, EdgeFact, ProgressMarker,
     ConnectorRun, ConnectorHealth, PreflightResult,
+    ConnectorAdapter,
     ContentHashProbe, MutableApiProbe,
     file_preflight, credential_preflight, http_preflight, redact
 okg.substrate.enrichers.base:     EnrichResult, IncrementalContext
@@ -310,10 +311,34 @@ okg.substrate.library.linkers.declarative: DeclarativeLinker
 okg.substrate.alias.protocol:     AliasMatch
 ```
 
+**The dropped fields are read by the substrate, not by us (2026-09-16).** Archi
+never referenced `next_cursor`, but the runner does, on the result of whatever
+class a source registry names. So a reader that returns `ConnectorRun` cannot be
+registered directly: every run raised `AttributeError: 'ConnectorRun' object has
+no attribute 'next_cursor'` from the connector migration until this was fixed.
+`ConnectorAdapter` is the framework's bridge, and `bundles/cern-team/source-defaults`
+now names one `<Reader>Adapter` per reader. The readers themselves are unchanged.
+
+**An adapter's authority must be a string literal (2026-09-20).** The substrate
+reads a source's `profile` and `change_probe_kind` off the class *before* it
+imports or constructs anything, so neither may be computed. `change_probe_kind`
+it reads by parsing the module's AST — `_class_level_str_attr` in okg
+`substrate/deployment_lint.py` accepts only an `ast.Constant` string — and
+`profile` it reads with `inspect.getattr_static` in
+`substrate/ingest/adapter_factory.py`. Mirroring the reader with
+`profile = Reader.profile` parses as an `ast.Attribute`, reads as absent, and
+fails every source with `deployment.source_registry.probe_missing`. Each adapter
+therefore declares both as literals, and `test_bundle_source_adapters.py` parses
+the source files to hold them equal to the reader's own values.
+
+The adapters forward nothing else. `cache_paths` is an Archi reader detail — the
+readers that have it pass it to their own preflight and content hash — and the
+name appears nowhere in okg, so there is nothing on the substrate side to bridge.
+
 Every SDK name above was verified to be the *same object* as the substrate name it
 replaced, except `ConnectorRun`, which is a genuinely narrower type: it drops
 `next_cursor`, `effective_scope_complete`, `bootstrap_identity` and three
-`applied_token_*` fields — none of which Archi ever referenced — and retains
+`applied_token_*` fields — which Archi does not reference directly — and retains
 `record_authority_stream`, `record_set` and `record_set_replacement_keys`, the
 fields #1181's design note warned would cost incremental sources their changed-slice
 retractions.

@@ -15,7 +15,7 @@
 # preflight loudly instead of silently shrinking scope.
 twiki_eos:
   module: archi.sources.twiki
-  class: TwikiEOSSource
+  class: TwikiEOSAdapter
   ownership_id: ${deployment_name}.twiki-eos
   admission_policy:
     producer_id: ${deployment_name}.twiki-eos

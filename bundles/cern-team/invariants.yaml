@@ -1,11 +1,19 @@
-# Invariants for the cern-team bundle — minimal: the core pages
-# floor. Severity is calibrated for a fresh team instance: after the
-# first real ingest+publish these subtypes must each have at least one
-# live row; a long-running instance where any goes to zero has a
-# source-coverage regression. A publish attempted before the first
-# ingest (empty generation) fires YELLOW/RED — expected cold-start
-# behavior; run the ingest before the first publish (the install
-# runbook does).
+# Invariants for the cern-team bundle.
+#
+# The floor may only name subtypes a bare install actually produces. Three
+# sources install by default: cmssw_releases (always emits), and github_repo /
+# gitlab_repo, which emit nothing until the operator supplies a repository URL
+# (both default to blank). Every source that emits documentation_page or
+# jira_issue -- docsite, twiki_crawl, twiki_eos, jira, indico -- ships as
+# `.yaml.example` and is off until an operator renames it.
+#
+# So the old floor required rows from sources that were not installed, and a
+# bare instance could never reach a green publish. cmssw_release is the only
+# subtype a bare install is guaranteed to have. Coverage for an optional source
+# belongs to an invariant installed alongside it.
+#
+# Cold-start note unchanged: this fires until the first ingest has published;
+# run the ingest before the first publish, as the install runbook does.
 
 invariants:
   - name: cern_team_core_pages_floor
@@ -13,17 +21,12 @@ invariants:
     scope: cross
     timeout_ms: 5000
     description: >-
-      Core cern-team subtypes must have at least one live row each:
-      documentation_page (twiki/docsite), jira_issue (jira), and
-      cmssw_release (cmssw_releases). A missing entry signals a
-      connector-coverage regression. Cold-start note: fires until the
-      first ingest has published.
+      The default CMSSW release source must have at least one live row. A
+      missing entry signals a connector-coverage regression. Optional source
+      coverage belongs to invariants installed with those sources.
     sql: |
       WITH required(subtype) AS (
-        VALUES
-          ('documentation_page'),
-          ('jira_issue'),
-          ('cmssw_release')
+        VALUES ('cmssw_release')
       ),
       counts AS (
         SELECT subtype, count(*) AS n

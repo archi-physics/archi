@@ -228,6 +228,7 @@ from okg.deployment import (
 from okg.deployment import ContentHashProbe
 from okg.deployment import file_preflight
 
+from archi.sources._sdk_adapter import ReaderAdapter
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
     resolve_repo_path,
@@ -1328,3 +1329,37 @@ def _records_hash(records: list[TwikiRecord]) -> str:
         sort_keys=True,
     )
     return _sha256(payload)
+
+
+class TwikiEOSAdapter(ReaderAdapter):
+    """Registry adapter for :class:`TwikiEOSSource`.
+
+    The bundle's `twiki_eos` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
+    """
+
+    reader_class = TwikiEOSSource
+    profile = "discovery_crawl"
+    change_probe_kind = "content_hash"
+
+
+class TwikiCrawlAdapter(ReaderAdapter):
+    """Registry adapter for :class:`TwikiCrawlSource`.
+
+    The bundle's `twiki_crawl` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
+    """
+
+    reader_class = TwikiCrawlSource
+    profile = "discovery_crawl"
+    change_probe_kind = "mutable_api"

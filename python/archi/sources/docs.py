@@ -285,6 +285,7 @@ from okg.deployment import (
     ConnectorRun,
 )
 
+from archi.sources._sdk_adapter import ReaderAdapter
 from archi.auth.cache import (
     cache_or_forced_live_change_probe,
     content_hash,
@@ -1253,3 +1254,20 @@ def _sha256(text: str) -> str:
 
 def _pg_text(text: str) -> str:
     return text.replace("\x00", " ")
+
+
+class DocumentationAdapter(ReaderAdapter):
+    """Registry adapter for :class:`DocumentationSource`.
+
+    The bundle's `docsite` source names this class. The reader's
+    behavior is unchanged; this class only drives it through the
+    substrate's adapter contract.
+
+    ``profile`` and ``change_probe_kind`` must be string literals; see
+    ``ReaderAdapter``. ``test_bundle_source_adapters.py`` parses this
+    file and holds them equal to the reader's own values.
+    """
+
+    reader_class = DocumentationSource
+    profile = "discovery_crawl"
+    change_probe_kind = "content_hash"
