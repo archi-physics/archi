@@ -43,16 +43,201 @@ RELEASES_MAP = "\n".join(
         "architecture=el8_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=1;",
         "architecture=el9_amd64_gcc12;label=CMSSW_14_0_1;type=Production;state=Announced;prodarch=0;",
         "architecture=el8_amd64_gcc12;label=CMSSW_14_0_2;type=Production;state=Announced;prodarch=1;",
-        "architecture=el8_amd64_gcc12;label=NOT_A_RELEASE;type=Production;state=Announced;",
+        "architecture=el8_amd64_gcc12;label=CMSSW_BAD;type=Production;state=Announced;",
         "",
     ]
 )
 
-# Same map without the NOT_A_RELEASE junk line: a fully parseable map,
+# Same map without the malformed CMSSW label: a fully parseable map,
 # for tests that assert an intact completed-scope claim.
 CLEAN_RELEASES_MAP = "\n".join(
-    line for line in RELEASES_MAP.splitlines() if "NOT_A_RELEASE" not in line
+    line for line in RELEASES_MAP.splitlines() if "CMSSW_BAD" not in line
 )
+
+
+def test_map_ignores_declared_family_rows_and_non_cmssw_products(tmp_path):
+    root = tmp_path / "data" / "cmssw-releases"
+    root.mkdir(parents=True)
+    (root / "releases.map").write_text(
+        CLEAN_RELEASES_MAP
+        + "\narchitecture=el9;label=CMSSW_20_1_X;type=Development;"
+        + "\narchitecture=slc6;label=CMSSW_6_2_X_SLHC;type=Development;"
+        + "\narchitecture=slc3;label=ECALTBH4_0_2_2;type=Development;"
+    )
+    source = CMSSWReleaseSource(
+        map_cache_path="data/cmssw-releases/releases.map",
+        fetch=False,
+        base=str(tmp_path),
+    )
+    run = source.run("run-1", mode="scope_complete")
+    assert run.completed_scope is True
+
+
+def _run_map(tmp_path, body):
+    root = tmp_path / "data" / "cmssw-releases"
+    root.mkdir(parents=True)
+    (root / "releases.map").write_text(body)
+    source = CMSSWReleaseSource(
+        map_cache_path="data/cmssw-releases/releases.map",
+        fetch=False,
+        base=str(tmp_path),
+    )
+    return source, source.run("run-1", mode="scope_complete")
+
+
+def test_family_rows_keep_the_scope_claim_but_malformed_rows_still_break_it(
+    tmp_path,
+):
+    """The live map's family rows must not cost the run its scope claim.
+
+    The real cms-bot map carries 63 labels this parser could not read as
+    releases: 60 integration-build family rows (`CMSSW_20_1_X` and friends,
+    including `CMSSW_9_4_AN_X` and `CMSSW_6_2_X_SLHC`) and 3 rows for another
+    product entirely (`ECALTBH4_*`). Counting them as unparseable made
+    `completed_scope` False on every run, which made the second ingest of any
+    cern-team deployment a zero-fact `partial` that admission rejects -- and
+    because cmssw_releases is required_for_baseline, that blocked the publish
+    and left the deployment in repair_required. A deployment could be ingested
+    exactly once.
+
+    The claim has to stay honest in the other direction, so the second half
+    asserts a genuinely unreadable CMSSW row still degrades the scope.
+    """
+    families = (
+        "\narchitecture=el9;label=CMSSW_20_1_X;type=Development;"
+        "\narchitecture=slc6;label=CMSSW_9_4_AN_X;type=Development;"
+        "\narchitecture=slc6;label=CMSSW_6_2_X_SLHC;type=Development;"
+        "\narchitecture=slc3;label=ECALTBH4_0_2_2;type=Development;"
+    )
+    _source, run = _run_map(tmp_path, CLEAN_RELEASES_MAP + families)
+    facts = list(run.facts)
+    assert run.completed_scope is True
+    assert "unparseable" not in (run.health.reason or "")
+    # Dropped, not turned into releases: the family nodes this connector emits
+    # are derived from the concrete releases, so a family ROW would duplicate
+    # one. CMSSW_20_1_X has no concrete release here and must not appear.
+    labels = {
+        n.attrs["label"]
+        for n in facts
+        if isinstance(n, NodeFact) and n.subtype == "cmssw_release"
+    }
+    assert labels == {"CMSSW_14_0_1", "CMSSW_14_0_2", "CMSSW_14_0_X"}
+
+    _source2, degraded = _run_map(
+        tmp_path / "second",
+        CLEAN_RELEASES_MAP
+        + families
+        + "\narchitecture=el9;label=CMSSW_NOT_A_VERSION;type=Production;",
+    )
+    list(degraded.facts)
+    assert degraded.completed_scope is False
+    assert "unparseable" in (degraded.health.reason or "")
+
+
+def test_a_wholesale_label_rename_degrades_the_scope(tmp_path):
+    """Schema drift must never look like "the catalog is empty, and I'm sure".
+
+    `deletion_semantics: missing_from_completed_scope` turns a completed scope
+    into a retraction order for everything absent from it. So a map whose only
+    change is a renamed label prefix -- every row `CMSSW14_0_1` instead of
+    `CMSSW_14_0_1` -- must not parse to an empty record set under a healthy
+    claim, or the next publish would retract every release in the graph and
+    report success.
+
+    Two guards are checked, because either alone would miss a variant of this:
+    an unrecognised label counts as a skip, AND an empty record set never
+    claims a complete scope.
+    """
+    renamed = CLEAN_RELEASES_MAP.replace("label=CMSSW_", "label=CMSSW")
+    _source, run = _run_map(tmp_path, renamed)
+    assert list(run.facts) == []
+    assert run.completed_scope is False
+
+    # The second guard on its own: nothing to skip, still no claim.
+    _source2, empty = _run_map(tmp_path / "empty", "")
+    assert list(empty.facts) == []
+    assert empty.completed_scope is False
+    assert "no complete scope claimed" in (empty.health.reason or "")
+
+
+def test_only_known_other_products_are_waived(tmp_path):
+    """The out-of-scope product list is closed, so a new one gets noticed.
+
+    The three `ECALTBH4_*` rows cms-bot ships are waived by name -- they are
+    not CMSSW releases and never were. A product nobody has looked at yet is
+    an unknown, so it degrades the scope until someone adds it deliberately.
+    Waiving "anything that is not CMSSW_" is what let a wholesale rename past.
+    """
+    known = (
+        "\narchitecture=slc3;label=ECALTBH4_0_2_0_pre2;type=Development;"
+        "\narchitecture=slc3;label=ECALTBH4_0_2_2;type=Development;"
+        "\narchitecture=slc3;label=ECALTBH4_0_4_0;type=Development;"
+    )
+    _source, run = _run_map(tmp_path, CLEAN_RELEASES_MAP + known)
+    list(run.facts)
+    assert run.completed_scope is True
+    assert "unparseable" not in (run.health.reason or "")
+
+    _source2, unknown = _run_map(
+        tmp_path / "unknown",
+        CLEAN_RELEASES_MAP
+        + "\narchitecture=el9;label=NEWPRODUCT_1_0;type=Production;",
+    )
+    list(unknown.facts)
+    assert unknown.completed_scope is False
+    assert "unparseable" in (unknown.health.reason or "")
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["CMSSW_14_0_1TYPO", "CMSSW_0_0_0junk", "CMSSW_14_0_1 ", "CMSSW_14_0_1x"],
+)
+def test_garbage_glued_to_a_valid_triple_is_not_a_release(tmp_path, label):
+    """A separator-less suffix is restricted, so a typo cannot become a node.
+
+    Unrestricted, each of these parsed as a release of `CMSSW_14_0_1` (or
+    `CMSSW_0_0_0`) and got a `supersedes` edge pointing at the real release --
+    a fabricated release in a catalog whose whole job is to be authoritative.
+    They have to be skips.
+    """
+    _source, run = _run_map(
+        tmp_path,
+        CLEAN_RELEASES_MAP + f"\narchitecture=el9;label={label};type=Production;",
+    )
+    labels = {
+        n.attrs["label"]
+        for n in run.facts
+        if isinstance(n, NodeFact) and n.subtype == "cmssw_release"
+    }
+    assert label not in labels
+    assert run.completed_scope is False
+
+
+def test_a_build_suffix_without_a_separator_is_a_release(tmp_path):
+    """`CMSSW_1_4_3g483` is a real build in the live map, not junk.
+
+    cms-bot carries it on two architectures beside `CMSSW_1_4_3` -- a Geant4
+    8.3 variant. It is the one label of the 63 that is a release rather than a
+    family or another product, and it parses only because the separator before
+    the build suffix is optional.
+    """
+    _source, run = _run_map(
+        tmp_path,
+        CLEAN_RELEASES_MAP
+        + "\narchitecture=slc3_ia32_gcc323;label=CMSSW_1_4_3;"
+        "type=Production;state=Deprecated;prodarch=1;"
+        "\narchitecture=slc3_ia32_gcc323;label=CMSSW_1_4_3g483;"
+        "type=Development;state=Deprecated;prodarch=1;",
+    )
+    facts = list(run.facts)
+    assert run.completed_scope is True
+    variant = _nodes(facts)["cmssw_release:CMSSW_1_4_3g483"]
+    assert variant.attrs["suffix"] == "g483"
+    # It supersedes the release it is a variant of, not some other patch.
+    assert (
+        "cmssw_release:CMSSW_1_4_3g483",
+        "cmssw_release:CMSSW_1_4_3",
+    ) in _supersedes(facts)
 
 
 def _nodes(facts):

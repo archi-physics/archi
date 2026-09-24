@@ -98,8 +98,36 @@ RELEASES_MAP_URL = (
     "https://raw.githubusercontent.com/cms-sw/cms-bot/master/releases.map"
 )
 
+# A release is three numbers, optionally followed by a build suffix. The
+# suffix arrives in one of two shapes, and they are deliberately NOT given
+# the same freedom:
+#
+#   `_<suffix>`  -- the usual form (`_patch2`, `_pre3`, `_ROOT6...`). The
+#                   trailing `.*` alternative accepts any separated suffix.
+#                   That is pre-existing latitude, left as it is here;
+#   `<suffix>`   -- no separator, which cms-bot writes for a few real old
+#                   builds: `CMSSW_1_4_3g483`, a Geant4 8.3 variant carried
+#                   on two architectures beside `CMSSW_1_4_3`. Restricted to
+#                   lowercase letters followed by digits, because without a
+#                   separator there is nothing to tell a build suffix from a
+#                   typo glued to a valid triple -- `CMSSW_14_0_1TYPO` would
+#                   otherwise become a release with a `supersedes` edge to
+#                   the real one.
+#
+# The two shapes capture into groups 4 and 5; `_version_parts` collapses
+# them so no caller has to know which branch matched.
 _VERSION_RE = re.compile(
-    r"^CMSSW_(\d+)_(\d+)_(\d+)" r"(?:_(patch\d+|pre\d+|hltpatch\d+|ROOT\d+.*|.*))?$"
+    r"^CMSSW_(\d+)_(\d+)_(\d+)"
+    r"(?:_(patch\d+|pre\d+|hltpatch\d+|ROOT\d+.*|.*)|([a-z]+\d+))?$"
+)
+# Products cms-bot ships in the same map that are not CMSSW releases. Closed
+# by design; see `_parse_map_with_skips`.
+_OTHER_PRODUCTS = ("ECALTBH4_",)
+# Integration-build FAMILY rows: two version numbers, then `X`, with optional
+# word segments before it (`CMSSW_9_4_AN_X`) or after (`CMSSW_6_2_X_SLHC`).
+# A family names a release series, not a release.
+_FAMILY_RE = re.compile(
+    r"^CMSSW_\d+_\d+_(?:[A-Za-z0-9]+_)*X(?:_[A-Za-z0-9]+)*$"
 )
 
 
@@ -262,12 +290,24 @@ class CMSSWReleaseSource:
                 f"; limit={self.limit} truncated the release list; "
                 "no complete scope claimed"
             )
+        if not records and not skipped and not truncated:
+            # Last line of defence. A complete scope over zero releases is a
+            # retraction order for the whole catalog -- `deletion_semantics:
+            # missing_from_completed_scope` -- so it may never be claimed by
+            # accident. A real catalog is never empty; an empty record set
+            # means the input was missing, empty, or shaped in a way this
+            # parser did not recognise, whether or not anything was counted
+            # as a skip. Covers the frozen mode too: both modes end here.
+            # Only worded when nothing else already withheld the claim, so the
+            # health reason never says it twice.
+            reason += "; no releases parsed; no complete scope claimed"
         return ConnectorRun(
             facts=_facts(),
             completed_scope=(
                 mode in {"scope_complete", "reconcile"}
                 and not skipped
                 and not truncated
+                and bool(records)
             ),
             run_mode=mode,
             health=ConnectorHealth(
@@ -360,6 +400,19 @@ def parse_releases_map(raw: str, limit: int = 0) -> list[CMSSWReleaseRecord]:
     return records
 
 
+def _version_parts(label: str) -> tuple[str, str, str, str | None] | None:
+    """(major, minor, patch, suffix) for a release label, else None.
+
+    Collapses the two suffix shapes -- separated (`_patch2`, group 4) and
+    separator-less (`g483`, group 5) -- into one value, so callers never have
+    to know which branch of `_VERSION_RE` matched.
+    """
+    match = _VERSION_RE.match(label)
+    if not match:
+        return None
+    major, minor, patch, sep_suffix, bare_suffix = match.groups()
+    return major, minor, patch, sep_suffix or bare_suffix or None
+
 def _parse_map_with_skips(
     raw: str,
 ) -> tuple[list[CMSSWReleaseRecord], int]:
@@ -379,6 +432,34 @@ def _parse_map_with_skips(
         fields = dict(part.split("=", 1) for part in line.split(";") if "=" in part)
         label = fields.get("label", "")
         if not _VERSION_RE.match(label):
+            # Not a release label. Two kinds of row are out of scope rather
+            # than unreadable, and must not cost the run its completed-scope
+            # claim:
+            #
+            #   family rows (`CMSSW_14_0_X`) name a release series. This
+            #   connector already mints one family node per series from the
+            #   concrete releases below, so the row is a duplicate of a node
+            #   we derive, never a release of its own;
+            #
+            #   rows for a NAMED other product (`ECALTBH4_0_2_2`) are outside
+            #   a CMSSW release catalog's declared scope entirely.
+            #
+            # The product list is closed on purpose. "Anything that does not
+            # start with CMSSW_" would also absorb a wholesale upstream
+            # rename: a map where every label became `CMSSW14_0_1` would parse
+            # to an EMPTY record set under a healthy completed scope, and with
+            # `deletion_semantics: missing_from_completed_scope` the next
+            # publish would retract every release in the graph and report
+            # success. A product cms-bot adds later is a fact about the
+            # upstream we want to be told about, so it degrades the scope
+            # until someone looks and adds it here deliberately.
+            #
+            # Anything else -- an empty or absent label, a malformed `CMSSW_*`
+            # label, an unknown product -- counts as a skip and degrades the
+            # scope claim. The version check runs FIRST so a label that really
+            # does parse as a release can never be discarded as a family.
+            if _FAMILY_RE.match(label) or label.startswith(_OTHER_PRODUCTS):
+                continue
             skipped += 1
             continue
         rec = by_label.setdefault(
@@ -409,10 +490,10 @@ def _parse_map_with_skips(
 
 
 def _sort_key(label: str) -> tuple[int, int, int, str]:
-    match = _VERSION_RE.match(label)
-    if not match:
+    parts = _version_parts(label)
+    if parts is None:
         return (0, 0, 0, label)
-    major, minor, patch, _suffix = match.groups()
+    major, minor, patch, _suffix = parts
     return (int(major), int(minor), int(patch), label)
 
 
@@ -421,10 +502,10 @@ def _checked_at() -> str:
 
 
 def _parse_version(label: str) -> dict[str, Any]:
-    match = _VERSION_RE.match(label)
-    if not match:
+    parts = _version_parts(label)
+    if parts is None:
         return {}
-    major, minor, patch, suffix = match.groups()
+    major, minor, patch, suffix = parts
     parsed: dict[str, Any] = {
         "major": int(major),
         "minor": int(minor),
@@ -552,10 +633,10 @@ def _supersedes_edges(
 
 
 def _find_predecessor(label: str) -> str | None:
-    match = _VERSION_RE.match(label)
-    if not match:
+    parts = _version_parts(label)
+    if parts is None:
         return None
-    major, minor, patch, suffix = match.groups()
+    major, minor, patch, suffix = parts
     base = f"CMSSW_{major}_{minor}_{patch}"
 
     if not suffix:
