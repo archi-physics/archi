@@ -60,6 +60,38 @@ The main chat interface.
 | `num_responses_until_feedback` | int | `3` | Responses before prompting for feedback |
 | `auth.enabled` | bool | `false` | Enable authentication |
 | `alerts.managers` | list | `[]` | Usernames allowed to create and delete alerts |
+| `context_management` | dict | `{}` | Mid-run context management (see below) |
+
+#### `services.chat_app.context_management`
+
+Keeps a single agent run from overflowing the model's context window when
+tool calls return large outputs. Two mechanisms run before each model call:
+clearing older tool outputs once the transcript crosses a token trigger, and
+summarizing older history as a deeper backstop. Both are enabled by default
+when the model's context window is known (default triggers are 60% and 75%
+of the window respectively); when the window cannot be determined, they stay
+off unless `trigger_tokens` is set explicitly.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | bool | `true` | Master switch for both mechanisms |
+| `clear_tool_uses.enabled` | bool | `true` | Clear older tool outputs past the trigger |
+| `clear_tool_uses.trigger_tokens` | int | 60% of context window | Transcript size that triggers clearing |
+| `clear_tool_uses.keep` | int | `3` | Most recent tool outputs never cleared |
+| `summarization.enabled` | bool | `true` | Summarize older history past the trigger |
+| `summarization.trigger_tokens` | int | 75% of context window | Transcript size that triggers summarization |
+| `summarization.keep_messages` | int | `20` | Most recent messages kept verbatim |
+| `summarization.model` | string | agent's own LLM | `provider/model` used to write summaries (e.g. a small local model) |
+
+```yaml
+services:
+  chat_app:
+    context_management:
+      clear_tool_uses:
+        keep: 3
+      summarization:
+        model: local/qwen3.5:4b
+```
 
 #### `services.chat_app.alerts`
 

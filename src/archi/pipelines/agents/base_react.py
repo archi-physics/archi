@@ -5,6 +5,11 @@ import uuid
 import json
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import (
+    ClearToolUsesEdit,
+    ContextEditingMiddleware,
+    SummarizationMiddleware,
+)
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 try:
@@ -32,6 +37,8 @@ class BaseReActAgent:
     process user queries using configurable language models and prompts.
     """
     DEFAULT_RECURSION_LIMIT = 50
+    DEFAULT_CLEAR_TOOL_USES_FRACTION = 0.6
+    DEFAULT_SUMMARIZATION_FRACTION = 0.75
 
     def __init__(
         self,
@@ -1247,8 +1254,109 @@ class BaseReActAgent:
             logger.error(f"Failed to load MCP tools: {e}", exc_info=True)
 
     def _build_static_middleware(self) -> List[Callable]:
-        """Build and returns static middleware defined in the config."""
-        return []
+        """Build mid-run context management middleware.
+
+        Tool outputs accumulate between ReAct steps without passing through
+        the turn-start trimming, so a single run can overflow the model's
+        context window. Two defenses, both configurable via a
+        `context_management` block (pipeline config, falling back to
+        services.chat_app): clearing older tool outputs once the transcript
+        crosses a token trigger, and summarizing older history as a deeper
+        backstop. Default triggers derive from the model's context window;
+        without a known window the middleware stays off unless triggers are
+        set explicitly.
+        """
+        cfg = self._context_management_config()
+        if cfg.get("enabled") is False:
+            return []
+
+        context_window = self._get_model_context_window()
+        middleware: List[Callable] = []
+
+        clear_cfg = cfg.get("clear_tool_uses")
+        clear_cfg = clear_cfg if isinstance(clear_cfg, dict) else {}
+        if clear_cfg.get("enabled", True):
+            trigger = clear_cfg.get("trigger_tokens")
+            if trigger is None and context_window:
+                trigger = int(context_window * self.DEFAULT_CLEAR_TOOL_USES_FRACTION)
+            if trigger:
+                middleware.append(
+                    ContextEditingMiddleware(
+                        edits=[
+                            ClearToolUsesEdit(
+                                trigger=int(trigger),
+                                keep=int(clear_cfg.get("keep", 3)),
+                                placeholder=(
+                                    "[Tool output cleared to free context space. "
+                                    "Re-run the tool with narrower filters if this data is still needed.]"
+                                ),
+                            )
+                        ]
+                    )
+                )
+                logger.info(
+                    "Context editing enabled for %s: old tool outputs cleared beyond %d tokens.",
+                    self.__class__.__name__,
+                    int(trigger),
+                )
+
+        summary_cfg = cfg.get("summarization")
+        summary_cfg = summary_cfg if isinstance(summary_cfg, dict) else {}
+        if summary_cfg.get("enabled", True):
+            trigger = summary_cfg.get("trigger_tokens")
+            if trigger is None and context_window:
+                trigger = int(context_window * self.DEFAULT_SUMMARIZATION_FRACTION)
+            if trigger:
+                model = self._resolve_summarization_model(summary_cfg.get("model"))
+                if model is not None:
+                    middleware.append(
+                        SummarizationMiddleware(
+                            model=model,
+                            max_tokens_before_summary=int(trigger),
+                            messages_to_keep=int(summary_cfg.get("keep_messages", 20)),
+                        )
+                    )
+                    logger.info(
+                        "History summarization enabled for %s beyond %d tokens.",
+                        self.__class__.__name__,
+                        int(trigger),
+                    )
+
+        return middleware
+
+    def _context_management_config(self) -> Dict[str, Any]:
+        """Read the context_management block, pipeline config first then chat_app."""
+        value = None
+        if isinstance(self.pipeline_config, dict):
+            value = self.pipeline_config.get("context_management")
+        if value is None and isinstance(self.config, dict):
+            services_cfg = self.config.get("services", {})
+            if isinstance(services_cfg, dict):
+                chat_cfg = services_cfg.get("chat_app", {})
+                if isinstance(chat_cfg, dict):
+                    value = chat_cfg.get("context_management")
+        return value if isinstance(value, dict) else {}
+
+    def _resolve_summarization_model(self, model_ref: Optional[str]) -> Optional[Any]:
+        """Resolve the summarization model; defaults to the agent's own LLM."""
+        if not model_ref:
+            return self.agent_llm
+        try:
+            provider, model_id = self._parse_provider_model(model_ref)
+            providers_config = {}
+            if isinstance(self.config, dict):
+                services_cfg = self.config.get("services", {}) if isinstance(self.config.get("services", {}), dict) else {}
+                chat_cfg = services_cfg.get("chat_app", {}) if isinstance(services_cfg, dict) else {}
+                providers_config = chat_cfg.get("providers", {}) if isinstance(chat_cfg, dict) else {}
+            provider_config = self._build_provider_config(provider, providers_config)
+            return get_model(provider, model_id, provider_config)
+        except Exception as exc:
+            logger.warning(
+                "Could not initialise summarization model '%s' (%s); falling back to the agent LLM.",
+                model_ref,
+                exc,
+            )
+            return self.agent_llm
 
     def _store_documents(self, stage: str, docs: Sequence[Document]) -> None:
         """Centralised helper used by tools to record documents into the active memory."""
