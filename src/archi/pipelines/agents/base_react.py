@@ -393,6 +393,11 @@ class BaseReActAgent:
                             metadata={"event_type": "tool_start"},
                             final=False,
                         )
+                        # A tool call ends the current turn: reset the answer
+                        # buffer so pre-tool narration doesn't leak into the
+                        # final answer (it stays in the trace via text events).
+                        accumulated_content = ""
+                        last_visible_content = ""
 
                 # Detect tool result (ToolMessage with tool_call_id)
                 tool_call_id = getattr(message, "tool_call_id", None)
@@ -702,6 +707,11 @@ class BaseReActAgent:
                             metadata={"event_type": "tool_start"},
                             final=False,
                         )
+                        # A tool call ends the current turn: reset the answer
+                        # buffer so pre-tool narration doesn't leak into the
+                        # final answer (it stays in the trace via text events).
+                        accumulated_content = ""
+                        last_visible_content = ""
 
                 # Detect tool result
                 tool_call_id = getattr(message, "tool_call_id", None)
