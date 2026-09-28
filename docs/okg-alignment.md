@@ -20,6 +20,14 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**CI reads `mitdbg/okg` directly; pin bumped `5b2fd076c` → `ac078aabd`
+(2026-09-27, OKG#1906).** Every CI run since 2026-09-24 failed at the okg install
+with `Authentication failed`: the fork token no longer worked. CI now installs okg
+over SSH from `mitdbg/okg` with a read-only deploy key held in the repository
+secret `OKG_DEPLOY_KEY`; CI no longer uses the fork or `OKG_REPO_TOKEN`. The pin moved
+to okg `dev` in the same change; the full archi suite passes against it with no
+source change.
+
 **Archi installs as-is on current okg (2026-09-15, OKG#1906).** okg `dev` @
 `5b2fd076c` removed the framework's Archi-specific install code. Archi needed no
 change: the full suite passes against that commit, and `okg install --profile
@@ -33,8 +41,8 @@ path and SHA256 binding that never fetches in frozen mode. It preserves the live
 profile. The historical CMSSW cache is still unavailable; unit fixtures are not
 real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-09-15, tested against okg `dev` @ `5b2fd076c`; archi branch
-`archi_v3` @ `e1f65bf9` (through PR #642).*
+*Last updated 2026-09-27, tested against okg `dev` @ `ac078aabd`; archi branch
+`archi_v3` @ `519b48a8`.*
 
 **Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15), OKG#1906.** The fork was
 synced to okg `dev` first; it had no commits of its own. Full archi suite
@@ -53,13 +61,11 @@ claim here was true of local runs only. Nothing failed, which is why nobody noti
 Found only because the connector SDK migration failed CI on `ImportError: cannot
 import name 'EdgeFact'` — the SDK did not exist in the pinned commit.
 
-**The fork cannot be removed**, which is the uncomfortable part. `OKG_REPO_TOKEN` is
-scoped to that account's own repositories, so pointing CI at `mitdbg/okg` returns 403
-(measured, run `34494575759`). CI can only read the fork, and the fork only tracks
-upstream when someone syncs it by hand. The workflow pin matches the commit in the
-*Last updated* line above, and the workflow carries the sync command plus the rule that the two must stay
-equal — but the structural fix is a token that can read `mitdbg/okg` directly, which
-needs a classic PAT rather than the current fine-grained one.
+**CI stopped using the fork on 2026-09-27.** It could not do so while CI
+authenticated with `OKG_REPO_TOKEN`, a fine-grained token scoped to the fork's
+account (reading `mitdbg/okg` returned 403, run `34494575759`). The read-only
+deploy key on `mitdbg/okg` replaces both, so a pin bump no longer needs a fork sync.
+The workflow pin must still equal the commit in the *Last updated* line above.
 
 **Our migration debt, now measured rather than estimated.** 43 imports of
 `okg.substrate.*` across ten private modules:
