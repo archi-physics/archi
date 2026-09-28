@@ -250,6 +250,31 @@ external information retrieval.
 - Each MCP tool is wrapped for synchronous execution so it integrates seamlessly with the ReAct agent loop
 - Tool names from MCP servers are namespaced to avoid conflicts with built-in tools
 
+### Built-in Archi MCP Server
+
+When `services.mcp_server.enabled: true` is set, the chat service also exposes
+its own MCP server at `/mcp/sse`. This lets IDEs and MCP clients connect
+directly to an Archi deployment and use Archi-native tools over SSE.
+
+The built-in Archi MCP server currently exposes these read-only tools:
+
+- `archi_query` — ask the deployment a question through the normal RAG/chat pipeline
+- `archi_list_documents` — page through indexed documents with source, status, and enabled state
+- `archi_search_document_metadata` — search by metadata fields such as `source_type`, `ticket_id`, `url`, or `relative_path`
+- `archi_list_metadata_schema` — inspect the metadata keys and common values supported by metadata search
+- `archi_search_document_content` — grep-like exact or regex search over indexed document contents
+- `archi_get_document_content` — fetch the raw text content for a document by hash
+- `archi_get_document_chunks` — inspect stored chunk boundaries and chunk text for a document
+- `archi_get_data_stats` — view corpus-level document, chunk, source, and ingestion statistics
+- `archi_get_deployment_info` — inspect active model, retrieval settings, embedding config, and MCP runtime info
+- `archi_list_agents` — list available agent specs and their configured tools
+- `archi_get_agent_spec` — fetch the full markdown agent spec for a named agent
+- `archi_health` — basic deployment/database health check
+
+These tools are especially useful from VS Code, Cursor, Claude Desktop, and
+Claude Code when you want direct access to Archi's indexed corpus without
+having to proxy through a separate MCP server.
+
 ---
 
 ## Vector Store & Retrieval

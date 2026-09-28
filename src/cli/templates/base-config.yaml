@@ -233,6 +233,13 @@ services:
   grafana:
     port: {{ services.grafana.port | default(3000, true) }}
     external_port: {{ services.grafana.external_port | default(3000, true) }}
+  mcp_server:
+    enabled: {{ services.mcp_server.enabled | default(false, true) }}
+    # Public URL of the chat service that MCP clients will connect to.
+    # Defaults to the chat app's hostname and external port.
+    url: "{{ services.mcp_server.url | default('http://' + (services.chat_app.hostname | default('localhost', true)) + ':' + (services.chat_app.external_port | default(7861, true) | string), true) }}"
+    # HTTP request timeout in seconds.
+    timeout: {{ services.mcp_server.timeout | default(120, true) }}
 
 data_manager:
   collection_name: {{ collection_name | default("default_collection", true) }}

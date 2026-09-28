@@ -34,6 +34,16 @@ _pg_config: dict = {}
 _auth_enabled: bool = False
 _chat_app_config: dict = {}
 
+# Cache for banner alerts to avoid a DB connection on every template render.
+_alerts_cache: list = []
+_alerts_cache_until: datetime = datetime.min
+_ALERTS_CACHE_TTL = timedelta(seconds=30)
+
+
+def _invalidate_alerts_cache():
+    global _alerts_cache_until
+    _alerts_cache_until = datetime.min
+
 
 # ---------------------------------------------------------------------------
 # Helpers (public — called by the context processor in app.py)
@@ -71,14 +81,20 @@ def is_alert_manager() -> bool:
 
 
 def get_active_banner_alerts() -> list:
-    """Return alerts that should appear in the page banner (non-expired, active)."""
+    """Return alerts that should appear in the page banner (non-expired, active).
+
+    Results are cached for 30 seconds to avoid a DB round-trip on every render.
+    """
+    global _alerts_cache, _alerts_cache_until
+    if datetime.now() < _alerts_cache_until:
+        return _alerts_cache
     try:
         conn = psycopg2.connect(**_pg_config)
         cursor = conn.cursor()
         try:
             cursor.execute(SQL_LIST_ACTIVE_BANNER_ALERTS)
             rows = cursor.fetchall()
-            return [
+            _alerts_cache = [
                 {
                     'id': row[0],
                     'severity': row[1],
@@ -90,12 +106,14 @@ def get_active_banner_alerts() -> list:
                 }
                 for row in rows
             ]
+            _alerts_cache_until = datetime.now() + _ALERTS_CACHE_TTL
+            return _alerts_cache
         finally:
             cursor.close()
             conn.close()
     except Exception as exc:
         logger.warning("Failed to fetch banner alerts: %s", exc)
-        return []
+        return _alerts_cache  # serve stale cache on error rather than failing
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +211,7 @@ def create_alert():
                 cursor.execute(SQL_SET_ALERT_EXPIRY, (expires_at, alert_id))
 
             conn.commit()
+            _invalidate_alerts_cache()
             logger.info(
                 "Service alert %d created by %s: [%s] %s",
                 alert_id, created_by, severity, message,
@@ -219,6 +238,8 @@ def delete_alert(alert_id: int):
             cursor.execute(SQL_DELETE_ALERT, (alert_id,))
             deleted = cursor.rowcount > 0
             conn.commit()
+            if deleted:
+                _invalidate_alerts_cache()
         finally:
             cursor.close()
             conn.close()
