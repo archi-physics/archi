@@ -1,9 +1,9 @@
 # CI for the v3 distribution (ADR §14: CI on archi_v3 from day one).
 #
 # SECURITY — read before editing. This repository is PUBLIC and the okg
-# substrate is PRIVATE. The tests import okg, so the job needs a token
-# (OKG_REPO_TOKEN, a fine-grained PAT scoped read-only to the private fork
-# lucalavezzo/okg). A secret exposed to a pull_request run from a fork is
+# substrate is PRIVATE. The tests import okg, so the job needs a credential
+# (OKG_DEPLOY_KEY, the private half of a read-only SSH deploy key on
+# mitdbg/okg). A secret exposed to a pull_request run from a fork is
 # readable by anyone who can open a PR, so:
 #
 #   * the job is guarded on the head repo being this repository, and
@@ -28,7 +28,7 @@ jobs:
   tests:
     name: tests (python 3.12)
     runs-on: ubuntu-latest
-    # Fork PRs cannot see OKG_REPO_TOKEN. Skip rather than fail, and never
+    # Fork PRs cannot see OKG_DEPLOY_KEY. Skip rather than fail, and never
     # fall back to a partial run that could read as full coverage.
     if: >-
       github.event_name != 'pull_request' ||
@@ -45,35 +45,26 @@ jobs:
 
       - name: Install okg (private substrate, pinned)
         env:
-          OKG_REPO_TOKEN: ${{ secrets.OKG_REPO_TOKEN }}
+          OKG_DEPLOY_KEY: ${{ secrets.OKG_DEPLOY_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${OKG_REPO_TOKEN}" ]; then
-            echo "::error::OKG_REPO_TOKEN is not available; refusing to run a partial suite"
+          if [ -z "${OKG_DEPLOY_KEY}" ]; then
+            echo "::error::secret OKG_DEPLOY_KEY is not set in this repository; it must hold the private half of the read-only deploy key on mitdbg/okg. Refusing to run a partial suite."
             exit 1
           fi
-          # The pin is the commit archi is tested against; see
-          # docs/okg-alignment.md, which states the drift from okg dev.
-          #
-          # THE FORK IS LOAD-BEARING, and the pin must be kept fresh by hand.
-          # OKG_REPO_TOKEN is scoped to this account's own repositories: pointing
-          # this at mitdbg/okg directly returns 403 (measured, run 34494575759),
-          # so the fork is the only copy CI can read.
-          #
-          # That makes the fork a standing hazard rather than a convenience. Its
-          # `dev` silently stopped tracking upstream on 2026-08-25, and from then
-          # until 2026-09-10 CI re-checked a three-week-old okg while
-          # docs/okg-alignment.md claimed we tested against current dev. Nothing
-          # failed, which is exactly why nobody noticed.
-          #
-          # So: before bumping this pin, sync the fork, or the new commit will not
-          # be fetchable —
-          #   gh repo sync lucalavezzo/okg --source mitdbg/okg --branch dev
-          # (needs `gh auth refresh -s workflow`). Keep this pin equal to the
-          # commit named in docs/okg-alignment.md; if they differ, the page is
-          # describing a build that never ran.
+          # The key lives only in this step's ssh-agent, never on disk, and the
+          # agent is killed when the step ends. GitHub's published host key is
+          # pinned rather than trusted on first use (api.github.com/meta).
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)" > /dev/null
+          trap 'ssh-agent -k > /dev/null' EXIT
+          printf '%s\n' "${OKG_DEPLOY_KEY}" | ssh-add -
+          # The pin is the commit archi is tested against. Keep it equal to the
+          # commit in the *Last updated* line of docs/okg-alignment.md; if they
+          # differ, the page is describing a build that never ran.
           python -m pip install --upgrade pip
-          pip install "okg @ git+https://x-access-token:${OKG_REPO_TOKEN}@github.com/lucalavezzo/okg@5b2fd076ccc70b889911aed304c4ebba4944528e"
+          pip install "okg @ git+ssh://git@github.com/mitdbg/okg.git@ac078aabd5d00b25fcba3a5f82c5edbdbb1a9b62"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"

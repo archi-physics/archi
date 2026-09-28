@@ -1,0 +1,51 @@
+pact_version: 5
+id: okg-deploy-key-ci
+title: CI installs okg from mitdbg/okg with a read-only deploy key
+tier: 1
+why: 'Every CI run since 2026-09-24 fails at the okg install with "Authentication failed".
+  The workflow installed okg from the fork lucalavezzo/okg with the fine-grained token OKG_REPO_TOKEN,
+  which no longer authenticates. That token could never read mitdbg/okg (403, run 34494575759),
+  so the fork had to be synced by hand before every pin bump, and it once silently stopped
+  tracking upstream for three weeks.
+
+
+  mitdbg/okg now carries a read-only deploy key for this repository, and its private half
+  is the repository secret OKG_DEPLOY_KEY. This change installs okg over SSH from mitdbg/okg
+  with that key, drops the fork and OKG_REPO_TOKEN, and bumps the pin from 5b2fd076c to current
+  okg dev ac078aabd (OKG#1906). A missing secret fails with a one-line cause, not a git authentication
+  error.'
+affected_code:
+- .github/workflows/ci.yml
+- docs/okg-alignment.md
+requirements:
+- id: req.okg-deploy-key-ci.main
+  statement: 'The tests job installs okg from git@github.com:mitdbg/okg.git at the commit
+    named in docs/okg-alignment.md, authenticating only with the OKG_DEPLOY_KEY secret, and
+    the archi suite passes against that commit.
+
+
+    Acceptance:
+
+    - acc.okg-deploy-key-ci.install: The workflow has no OKG_REPO_TOKEN or fork reference,
+    loads the key into a step-local ssh-agent, pins GitHub''s published host key, and installs
+    okg @ ac078aabd5d00b25fcba3a5f82c5edbdbb1a9b62, the commit on the alignment page''s Last
+    updated line. [evidence: executed_test]
+
+    - acc.okg-deploy-key-ci.missing: With OKG_DEPLOY_KEY empty the step exits 1 with a one-line
+    error naming the secret, before any git access. [evidence: executed_test]'
+tasks:
+- id: task.okg-deploy-key-ci.deliver
+  requirement: req.okg-deploy-key-ci.main
+  verification: 'Rewrite the install step, update the alignment page''s Current state and
+    pins, and run the full archi suite against okg dev ac078aabd.
+
+
+    Proof: the full archi suite against the new pin, actionlint on the workflow, and the tests
+    job of this pull request''s CI run, which is the first to use the real key.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence: []
+decisions: []
