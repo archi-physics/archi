@@ -47,5 +47,16 @@ tasks:
     Test plan:
 
     - python/tests [evidence: pytest]'
-evidence: []
+evidence:
+- kind: executed_test
+  requirement: req.okg-deploy-key-ci.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 542194130eedd51db803b5dcd55cf8f002451f12
+  at: '2026-09-28T02:35:29+00:00'
+  note: '406 passed against okg installed from mitdbg/okg @ ac078aabd5d00b25fcba3a5f82c5edbdbb1a9b62
+    (Python 3.12, macOS). actionlint clean on .github/workflows/ci.yml. The step''s shell
+    logic was run locally with a throwaway key: empty OKG_DEPLOY_KEY exits 1 with the one-line
+    error; a valid key loads into the agent; a malformed key exits 1 with ssh-add''s invalid-format
+    error.'
 decisions: []
