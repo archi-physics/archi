@@ -89,3 +89,24 @@ class CERNLiteLLMProvider(BaseProvider):
         querying the gateway at runtime.
         """
         return self.config.models if self.config.models else []
+
+
+class CERNAIGatewayProvider(CERNLiteLLMProvider):
+    """Provider for the CERN AI Gateway (aigw.cern.ch).
+
+    A separate OpenAI-compatible gateway from the LiteLLM one, with its own
+    (team-scoped) API key and CERN-hosted open models (e.g. qwen3.8-27b-fp16).
+    Same client as CERNLiteLLMProvider; only the provider type and the key
+    variable differ, so the two gateways' keys are never mixed up.
+    """
+
+    provider_type = ProviderType.CERN_AIGW
+    display_name = "CERN AI Gateway"
+
+    def __init__(self, config: Optional[ProviderConfig] = None):
+        if config is None:
+            config = ProviderConfig(
+                provider_type=ProviderType.CERN_AIGW,
+                api_key_env="CERN_AIGW_API_KEY",
+            )
+        super().__init__(config)

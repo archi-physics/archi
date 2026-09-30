@@ -41,6 +41,7 @@ _DEFAULT_API_KEY_ENV_BY_PROVIDER: Dict[ProviderType, str] = {
     ProviderType.GEMINI: "GEMINI_API_KEY",
     ProviderType.OPENROUTER: "OPENROUTER_API_KEY",
     ProviderType.CERN_LITELLM: "CERN_LITELLM_API_KEY",
+    ProviderType.CERN_AIGW: "CERN_AIGW_API_KEY",
 }
 
 
@@ -76,7 +77,7 @@ def _ensure_providers_registered() -> None:
     from src.archi.providers.gemini_provider import GeminiProvider
     from src.archi.providers.openrouter_provider import OpenRouterProvider
     from src.archi.providers.local_provider import LocalProvider
-    from src.archi.providers.cern_litellm_provider import CERNLiteLLMProvider
+    from src.archi.providers.cern_litellm_provider import CERNAIGatewayProvider, CERNLiteLLMProvider
     
     register_provider(ProviderType.OPENAI, OpenAIProvider)
     register_provider(ProviderType.ANTHROPIC, AnthropicProvider)
@@ -84,6 +85,7 @@ def _ensure_providers_registered() -> None:
     register_provider(ProviderType.OPENROUTER, OpenRouterProvider)
     register_provider(ProviderType.LOCAL, LocalProvider)
     register_provider(ProviderType.CERN_LITELLM, CERNLiteLLMProvider)
+    register_provider(ProviderType.CERN_AIGW, CERNAIGatewayProvider)
 
 
 def get_provider(
@@ -170,6 +172,7 @@ def get_provider_by_name(name: str, **kwargs) -> BaseProvider:
         "ollama": ProviderType.LOCAL,
         "vllm": ProviderType.LOCAL,
         "cern_litellm": ProviderType.CERN_LITELLM,
+        "cern_aigw": ProviderType.CERN_AIGW,
     }
     
     provider_type = name_map.get(name_lower)
