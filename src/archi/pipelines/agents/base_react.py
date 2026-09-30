@@ -32,6 +32,11 @@ class BaseReActAgent:
     process user queries using configurable language models and prompts.
     """
     DEFAULT_RECURSION_LIMIT = 50
+    # Conservative context-window assumption for models missing from the
+    # provider registry. Trimming must never be skipped just because the
+    # model is unknown — an unknown model with a smaller real window would
+    # crash with a context-overflow mid-run.
+    FALLBACK_CONTEXT_WINDOW = 128_000
 
     def __init__(
         self,
@@ -1314,13 +1319,18 @@ class BaseReActAgent:
             if hasattr(self.agent_llm, "get_num_tokens_from_messages"):
 
                 context_window = self._get_model_context_window()
-                # Guard against None or invalid values
+                # Guard against None or invalid values. Never skip trimming:
+                # fall back to a conservative default window instead, so an
+                # unregistered model cannot silently overflow its context.
                 if not isinstance(context_window, int) or context_window <= 0:
-                    logger.debug(
-                    "Invalid context window (%s), skipping trimming.",
-                    context_window,
+                    logger.warning(
+                        "Unknown context window (%s) for model '%s'; using "
+                        "conservative default of %d tokens (trimming stays ON).",
+                        context_window,
+                        getattr(self.agent_llm, "model", "unknown"),
+                        self.FALLBACK_CONTEXT_WINDOW,
                     )
-                    return {"messages": history_messages}
+                    context_window = self.FALLBACK_CONTEXT_WINDOW
 
                 safety_margin = int(context_window * 0.15)
                 max_prompt_tokens = context_window - safety_margin
