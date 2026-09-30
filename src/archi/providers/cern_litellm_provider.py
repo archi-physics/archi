@@ -15,6 +15,7 @@ from src.archi.providers.base import (
     ProviderConfig,
     ProviderType,
 )
+from src.archi.providers.openai_provider import needs_responses_api
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -72,6 +73,22 @@ class CERNLiteLLMProvider(BaseProvider):
             or "stream_options" not in model_kwargs
         ):
             model_kwargs["stream_options"] = merged_stream_options
+
+        # The CERN gateway proxies OpenAI models; the same chat-completions
+        # limitation applies to gpt-5.5+/5.6 (tools rejected unless
+        # reasoning_effort='none'). Route those through /v1/responses.
+        if "use_responses_api" not in model_kwargs and needs_responses_api(model_name):
+            logger.info(
+                "Routing model '%s' through the Responses API (use_responses_api=True)",
+                model_name,
+            )
+            model_kwargs["use_responses_api"] = True
+
+        # /v1/responses rejects stream_options.include_usage (400). The
+        # include_usage injection above is a chat-completions-only concern,
+        # so drop stream_options entirely on the Responses path.
+        if model_kwargs.get("use_responses_api"):
+            model_kwargs["stream_options"] = None
 
         if self._api_key:
             model_kwargs["api_key"] = self._api_key
