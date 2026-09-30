@@ -141,7 +141,7 @@ def test_evaluator_fails_when_model_rejects_temperature():
         raise TypeError("unexpected keyword argument 'temperature'")
 
     with pytest.raises(TypeError, match="unexpected keyword argument 'temperature'"):
-        LangChainEvaluatorRuntime(load_profile(None), model_factory)
+        LangChainEvaluatorRuntime(_profile_for("gpt-4.1"), model_factory)
 
     assert calls == [{"temperature": 0}]
 
@@ -153,9 +153,66 @@ def test_evaluator_requires_zero_temperature():
         calls.append(kwargs)
         return object()
 
-    LangChainEvaluatorRuntime(load_profile(None), model_factory)
+    LangChainEvaluatorRuntime(_profile_for("gpt-4.1"), model_factory)
 
     assert calls == [{"temperature": 0}, {"temperature": 0}]
+
+
+def _profile_for(model):
+    from src.evaluation.qa.profile import EvaluatorProfile, ModelDescriptor
+
+    descriptor = ModelDescriptor(provider="openai", model=model)
+    return EvaluatorProfile(version=1, atoms_extractor=descriptor, evaluator=descriptor)
+
+
+@pytest.mark.parametrize("model", ["gpt-5.6-terra", "gpt-5-2025-08-07", "gpt-6-astra"])
+def test_evaluator_omits_temperature_for_reasoning_models(model):
+    # These models reject an explicit temperature with HTTP 400.
+    calls = []
+
+    def model_factory(provider, model_name, provider_config, **kwargs):
+        calls.append(kwargs)
+        return object()
+
+    LangChainEvaluatorRuntime(_profile_for(model), model_factory)
+
+    assert calls == [{}, {}]
+
+
+class _CapturingModel:
+    def __init__(self):
+        self.messages = None
+
+    def with_structured_output(self, schema):
+        return self
+
+    def invoke(self, messages):
+        self.messages = messages
+        return {"judgments": [{"atom_id": "A1", "outcome": "entailed", "rationale": "ok"}]}
+
+
+@pytest.mark.parametrize("reference", [None, "Verified answer.\n\nOutdated answers (no longer true):\n- old"])
+def test_compare_sends_reference_answer_only_when_given(reference):
+    import json
+
+    from src.evaluation.qa.dataset import Atom
+
+    model = _CapturingModel()
+    judge = LangChainEvaluatorRuntime(
+        _profile_for("gpt-6-astra"), lambda *args, **kwargs: model
+    )
+    atoms = [Atom(id="A1", text="fact", required=True)]
+    if reference is None:
+        judge.compare("q?", atoms, "answer")
+    else:
+        judge.compare("q?", atoms, "answer", reference_answer=reference)
+
+    payload = json.loads(model.messages[1][1])
+    assert payload["question"] == "q?"
+    assert payload["answer"] == "answer"
+    assert ("reference_answer" in payload) is (reference is not None)
+    if reference is not None:
+        assert payload["reference_answer"] == reference
 
 
 class _Output:
