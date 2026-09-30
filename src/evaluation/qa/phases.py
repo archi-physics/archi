@@ -1,6 +1,8 @@
 # isort: skip_file
 from __future__ import annotations
 
+import inspect
+
 from concurrent.futures import ThreadPoolExecutor
 from itertools import islice
 from threading import local
@@ -58,6 +60,7 @@ def run_attempt(
                 context="tested-agent tool_calls",
             ),
             "error": {"type": type(exc).__name__, "message": str(exc)},
+            **_usage_field(runtime),
         }
     return {
         **identity,
@@ -68,7 +71,14 @@ def run_attempt(
             context="tested-agent tool_calls",
         ),
         "answer": answer,
+        **_usage_field(runtime),
     }
+
+
+def _usage_field(runtime: Any) -> Dict[str, Any]:
+    """Token usage of the attempt, when the runtime recorded it."""
+    usage = getattr(runtime, "usage", None)
+    return {"usage": usage} if isinstance(usage, dict) and usage.get("model_calls") else {}
 
 
 def execute_attempts(
@@ -111,11 +121,17 @@ def score_answer(
     identity = AttemptIdentity.from_dict(answer, context="attempt").to_dict()
     gold_atoms = prepared.prepared_gold_atoms
     try:
+        compare_kwargs: Dict[str, Any] = {}
+        if prepared.answer and "reference_answer" in inspect.signature(
+            evaluator.compare
+        ).parameters:
+            compare_kwargs["reference_answer"] = prepared.answer
         judgments = validate_judgments(
             evaluator.compare(
                 prepared.prepared_question,
                 gold_atoms,
                 answer["answer"],
+                **compare_kwargs,
             ),
             gold_atoms=gold_atoms,
             context=f"comparison for attempt {answer['attempt_id']}",

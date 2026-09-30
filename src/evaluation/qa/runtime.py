@@ -97,6 +97,73 @@ def _trace_text(value: Any) -> str:
         return str(value)
 
 
+class AnswerTimeLimitExceeded(RuntimeError):
+    """One attempt exceeded the per-answer time limit."""
+
+
+class AnswerDeadlineCallback(BaseCallbackHandler):
+    """Abort an attempt once its wall-clock budget is spent.
+
+    Checked before every model call and tool call; a step already in flight
+    completes first (tool calls have their own per-call timeout). Raising from
+    the callback aborts the agent run and the attempt is recorded as failed.
+    """
+
+    raise_error = True
+    run_inline = True
+
+    def __init__(self, limit_seconds: float) -> None:
+        self.limit_seconds = float(limit_seconds)
+        self.started = perf_counter()
+
+    def _check(self) -> None:
+        elapsed = perf_counter() - self.started
+        if elapsed > self.limit_seconds:
+            raise AnswerTimeLimitExceeded(
+                f"answer time limit of {self.limit_seconds:.0f} s exceeded "
+                f"(elapsed {elapsed:.0f} s)"
+            )
+
+    def on_chat_model_start(self, *args: Any, **kwargs: Any) -> None:
+        self._check()
+
+    def on_llm_start(self, *args: Any, **kwargs: Any) -> None:
+        self._check()
+
+    def on_tool_start(self, *args: Any, **kwargs: Any) -> None:
+        self._check()
+
+
+class UsageCallback(BaseCallbackHandler):
+    """Sum the token usage of every model call in one attempt.
+
+    Passive: reads the usage LangChain attaches to each finished model call (usage_metadata);
+    it never changes a request. Lets the runner record tokens -> real cost per answer.
+    """
+
+    run_inline = True
+
+    def __init__(self) -> None:
+        self.totals = {"model_calls": 0, "input_tokens": 0, "cached_tokens": 0,
+                       "output_tokens": 0, "reasoning_tokens": 0}
+        self._lock = Lock()
+
+    def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+        for generations in getattr(response, "generations", None) or []:
+            for generation in generations:
+                usage = getattr(getattr(generation, "message", None), "usage_metadata", None)
+                if not isinstance(usage, dict):
+                    continue
+                inputs = usage.get("input_token_details") or {}
+                outputs = usage.get("output_token_details") or {}
+                with self._lock:
+                    self.totals["model_calls"] += 1
+                    self.totals["input_tokens"] += int(usage.get("input_tokens") or 0)
+                    self.totals["output_tokens"] += int(usage.get("output_tokens") or 0)
+                    self.totals["cached_tokens"] += int(inputs.get("cache_read") or 0)
+                    self.totals["reasoning_tokens"] += int(outputs.get("reasoning") or 0)
+
+
 class ToolTimingCallback(BaseCallbackHandler):
     """Collect the complete observed tool trace for one agent attempt."""
 
@@ -246,16 +313,20 @@ class LangChainEvaluatorRuntime:
         question: str,
         gold_atoms: Sequence[Atom],
         answer: str,
+        reference_answer: Optional[Any] = None,
     ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "question": question,
+            "gold_atoms": [atom.to_dict() for atom in gold_atoms],
+            "answer": answer,
+        }
+        if reference_answer:
+            payload["reference_answer"] = reference_answer
         return self._structured(
             self._models["evaluator"],
             JUDGMENT_SCHEMA,
             COMPARATOR_SYSTEM_PROMPT,
-            {
-                "question": question,
-                "gold_atoms": [atom.to_dict() for atom in gold_atoms],
-                "answer": answer,
-            },
+            payload,
         )
 
 
@@ -395,19 +466,29 @@ class ArchiAgentRuntime:
 
     def run(self, question: str) -> str:
         self.tool_calls = []
+        self.usage = None
         timing_callback = ToolTimingCallback()
+        usage_callback = UsageCallback()
+        callbacks: List[Any] = [timing_callback, usage_callback]
+        # Optional per-answer wall-clock cap (optional config key; absent = no cap).
+        limit = (self.config.get("services", {}).get("chat_app", {}) or {}).get(
+            "answer_time_limit_seconds"
+        )
         pipeline, vectorstore = self._runtime_for_attempt()
+        if limit:
+            callbacks.append(AnswerDeadlineCallback(limit))
         try:
             output = pipeline.invoke(
                 history=[("User", question)],
                 vectorstore=vectorstore,
-                callbacks=[timing_callback],
+                callbacks=callbacks,
             )
         finally:
             self.tool_calls = sorted(
                 timing_callback.traces,
                 key=lambda timing: timing["ordinal"],
             )
+            self.usage = dict(usage_callback.totals)
         answer = output.answer
         if not isinstance(answer, str) or not answer.strip():
             raise ValueError("Archi produced no usable terminal answer")

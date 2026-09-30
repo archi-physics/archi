@@ -113,6 +113,8 @@ def _extract_metadata(frontmatter: dict, path: Path) -> Tuple[str, List[str]]:
     tools = frontmatter.get("tools")
     if not name or not isinstance(name, str):
         raise AgentSpecError(f"{path} frontmatter must include a string 'name'.")
-    if not tools or not isinstance(tools, list) or not all(isinstance(t, str) and t.strip() for t in tools):
+    # An explicit empty list is allowed: a no-tools agent (e.g. a baseline).
+    # A missing 'tools' key is still an error.
+    if tools is None or not isinstance(tools, list) or not all(isinstance(t, str) and t.strip() for t in tools):
         raise AgentSpecError(f"{path} frontmatter must include a list 'tools'.")
     return name.strip(), [t.strip() for t in tools]

@@ -233,7 +233,7 @@ def test_composite_and_staged_workflows_are_equivalent_at_four_attempts(
         "scoring": "1",
         "prompts": {
             "gold": "qa-gold-atoms-v1",
-            "comparator": "qa-answer-comparator-v1",
+            "comparator": "qa-answer-comparator-v3",
         },
     }
     assert "code_revision" not in manifest
