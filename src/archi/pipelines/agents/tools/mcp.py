@@ -55,7 +55,7 @@ async def initialize_mcp_client(config: Optional[Dict[str, Any]] = None) -> Tupl
     # knows about transport-specific fields.
     _archi_only_fields = {
         "env_from_secrets", "host_file_mounts", "build_context", "image", "path", "skill",
-        "shared_volume",
+        "shared_volume", "allowed_tools",
     }
     client_configs: dict[str, dict] = {}
     server_skills: dict[str, str] = {}
@@ -77,8 +77,18 @@ async def initialize_mcp_client(config: Optional[Dict[str, Any]] = None) -> Tupl
         else:
             # For HTTP-based transports, `env` is for the sidecar container (compose),
             # not the MCP client connection — drop it here.
-            if server_cfg.get("env").get("httpx_client_factory"):
-                cfg["httpx_client_factory"] = lambda **kwargs: mcp_http_client_factory(verify=server_cfg.get("host_file_mounts")[0],**kwargs)
+            server_env = server_cfg.get("env") or {}
+            if server_env.get("httpx_client_factory"):
+                host_mounts = server_cfg.get("host_file_mounts") or []
+                verify = host_mounts[0] if host_mounts else True
+                # Bind per-server values as defaults: a plain closure over the
+                # loop variable would resolve to the LAST server for every
+                # factory created in this loop.
+                cfg["httpx_client_factory"] = (
+                    lambda _verify=verify, **kwargs: mcp_http_client_factory(
+                        verify=_verify, **kwargs
+                    )
+                )
             cfg.pop("env", None)
         client_configs[name] = cfg
 
@@ -91,6 +101,14 @@ async def initialize_mcp_client(config: Optional[Dict[str, Any]] = None) -> Tupl
     for name in client_configs.keys():
         try:
             tools = await client.get_tools(server_name=name)
+            # Optional per-server allow-list: expose only the listed tools of this
+            # server (e.g. to hide a raw-query or write tool).
+            allowed = mcp_servers[name].get("allowed_tools")
+            if allowed:
+                dropped = [t.name for t in tools if t.name not in allowed]
+                tools = [t for t in tools if t.name in allowed]
+                if dropped:
+                    logger.info(f"MCP server '{name}': tools not in allowed_tools dropped: {dropped}")
             for tool in tools:
                 # Return error messages to the LLM instead of crashing the agent chain.
                 tool.handle_tool_error = True
