@@ -65,6 +65,7 @@ class AnswerComparator(Protocol):
         question: str,
         gold_atoms: Sequence[Atom],
         answer: str,
+        reference_answer: Optional[Any] = None,
     ) -> object: ...
 
 

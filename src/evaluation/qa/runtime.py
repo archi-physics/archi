@@ -246,16 +246,20 @@ class LangChainEvaluatorRuntime:
         question: str,
         gold_atoms: Sequence[Atom],
         answer: str,
+        reference_answer: Optional[Any] = None,
     ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "question": question,
+            "gold_atoms": [atom.to_dict() for atom in gold_atoms],
+            "answer": answer,
+        }
+        if reference_answer:
+            payload["reference_answer"] = reference_answer
         return self._structured(
             self._models["evaluator"],
             JUDGMENT_SCHEMA,
             COMPARATOR_SYSTEM_PROMPT,
-            {
-                "question": question,
-                "gold_atoms": [atom.to_dict() for atom in gold_atoms],
-                "answer": answer,
-            },
+            payload,
         )
 
 

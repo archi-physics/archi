@@ -15,7 +15,11 @@ class ModelDescriptor:
     timeout: Optional[float] = None
 
     def provider_kwargs(self) -> Dict[str, Any]:
-        kwargs: Dict[str, Any] = {"temperature": 0}
+        kwargs: Dict[str, Any] = {}
+        # Reasoning models (gpt-5.x, gpt-6, o-series) reject an explicit
+        # temperature with HTTP 400; only send it to models that accept it.
+        if not self.model.lower().startswith(("gpt-5", "gpt-6", "o1", "o3", "o4")):
+            kwargs["temperature"] = 0
         if self.timeout is not None:
             kwargs["timeout"] = self.timeout
         return kwargs
