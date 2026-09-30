@@ -1,0 +1,48 @@
+# Golden item template: one file per question. Comments say what each field is for; delete them in real items.
+# export_dataset.py reads every .yaml file of a directory (files starting with "_" are skipped).
+id: myset-q001                      # stable id, never reused
+status: approved                    # draft | approved; only approved items are exported
+provenance: user_traffic            # where the question came from: user_traffic | ticket | expert | ...
+provenance_ref: conversation 1234, 2026-08-07, turn 1   # enough to find it again; no user names
+seed_reaction: dislike              # the user's rating of the original answer, if any: like | dislike | null
+original_question: how do i delete a rule that has a child rule   # verbatim, typos included
+question: How do I delete a rule that has a child rule?          # the question as asked, fixed only for spelling
+gold: |
+  The full reference answer, written from the sources and checked. The judge sees it as the reference.
+  End with the known wrong answers, so the judge can recognise them:
+  These answers are wrong: "child rules are the per-dataset rules of a container rule".
+atoms:                              # the smallest facts the answer must (required) or may (optional) contain
+- id: delete_blocked
+  text: a rule with a child rule cannot be deleted directly
+  required: true
+  answer_source: source_code        # doc | ticket | source_code | git_history | repo_config | live_<service> | monitoring
+                                    # alternatives: "doc or source_code"; both needed: "ticket+live_<service>"
+  asked_by: How do I delete a rule that has a child rule?   # the part of the question that asks for it
+  source: 'where it was verified: file:line at a commit, a ticket id, a URL, or "LIVE <date>: <command> -> <output>"'
+- id: detach_command
+  text: the child rule must first be detached from its parent rule
+  required: true
+  answer_source: source_code
+  asked_by: How do I delete a rule that has a child rule?
+  implicit: true                    # not literally asked ...
+  implicit_because: without it the user cannot act on the answer   # ... but leaving it out leaves them worse off
+  source: '...'
+- id: owner_needed
+  text: only the rule's owner or an admin can change it
+  required: false                   # nice to have: reported, but not part of the score
+  answer_source: doc
+  reachable: false                  # no tool of the tested setups can reach this source today; keep the atom anyway
+  source: '...'
+contradiction_traps:                # known wrong answers, for reviewers (also put them at the end of `gold`)
+- child rules are the per-dataset rules of a container rule
+past_answers:                       # answers that were true once, with what changed (exported after the gold answer)
+- text: 'Use the old command X.'
+  changed: 'Removed in version 2; replaced by Y.'
+  source: 'where the change is documented'
+tier: golden                        # golden | tuning (tuning items are for prompt work, never in the golden set)
+time_sensitive: false               # true if the answer depends on live state: refresh the gold on the run day
+labels:                             # describe the question, never a setup's ability; used to split the scores
+  task_type: procedure              # e.g. procedure | troubleshooting | status | history | explanation
+  domain: data_management           # your own domains
+  multi_record: 'no'                # does the answer need several records (tickets, files) combined?
+  implicit_ask: 'yes'               # does it have implicit atoms?
