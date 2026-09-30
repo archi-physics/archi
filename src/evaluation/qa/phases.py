@@ -60,6 +60,7 @@ def run_attempt(
                 context="tested-agent tool_calls",
             ),
             "error": {"type": type(exc).__name__, "message": str(exc)},
+            **_usage_field(runtime),
         }
     return {
         **identity,
@@ -70,7 +71,14 @@ def run_attempt(
             context="tested-agent tool_calls",
         ),
         "answer": answer,
+        **_usage_field(runtime),
     }
+
+
+def _usage_field(runtime: Any) -> Dict[str, Any]:
+    """Token usage of the attempt, when the runtime recorded it."""
+    usage = getattr(runtime, "usage", None)
+    return {"usage": usage} if isinstance(usage, dict) and usage.get("model_calls") else {}
 
 
 def execute_attempts(

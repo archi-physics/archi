@@ -9,6 +9,7 @@ from src.evaluation.qa.runtime import (
     LangChainEvaluatorRuntime,
     LazyVectorstore,
     ToolTimingCallback,
+    UsageCallback,
 )
 from src.evaluation.qa.profile import load_profile
 from src.evaluation.qa.validation import Atom
@@ -478,8 +479,10 @@ def test_archi_runtime_uses_normal_pipeline_invocation(monkeypatch):
     assert "strict_tool_loading" not in observed["init"]
     assert observed["invoke"]["history"] == [("User", "question")]
     assert observed["invoke"]["vectorstore"] is vectorstore
-    assert len(observed["invoke"]["callbacks"]) == 1
-    assert isinstance(observed["invoke"]["callbacks"][0], ToolTimingCallback)
+    callbacks = observed["invoke"]["callbacks"]
+    assert len(callbacks) == 2
+    assert isinstance(callbacks[0], ToolTimingCallback)
+    assert isinstance(callbacks[1], UsageCallback)
 
 
 def test_archi_runtime_collects_tool_timings(monkeypatch):
@@ -579,3 +582,20 @@ def test_archi_runtime_rejects_empty_answer():
         ArchiAgentRuntime(_config(), SimpleNamespace(tools=[]), Pipeline).run(
             "question"
         )
+
+
+def test_usage_callback_sums_token_usage_of_every_model_call():
+    from types import SimpleNamespace
+
+    def result(usage):
+        return SimpleNamespace(generations=[[SimpleNamespace(message=SimpleNamespace(usage_metadata=usage))]])
+
+    callback = UsageCallback()
+    callback.on_llm_end(result({"input_tokens": 100, "output_tokens": 20,
+                                "input_token_details": {"cache_read": 60},
+                                "output_token_details": {"reasoning": 5}}))
+    callback.on_llm_end(result({"input_tokens": 50, "output_tokens": 10}))
+    callback.on_llm_end(result(None))  # a call without usage is not counted
+
+    assert callback.totals == {"model_calls": 2, "input_tokens": 150, "cached_tokens": 60,
+                               "output_tokens": 30, "reasoning_tokens": 5}
