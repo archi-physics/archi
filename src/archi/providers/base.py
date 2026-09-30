@@ -26,6 +26,7 @@ class ProviderType(str, Enum):
     OPENROUTER = "openrouter"
     LOCAL = "local"
     CERN_LITELLM = "cern_litellm"
+    CERN_AIGW = "cern_aigw"
 
 
 @dataclass
