@@ -4,6 +4,9 @@ Small, dependency-light scripts around Archi's evaluation command (`archi eval q
 `docs/docs/evaluation.md`). They cover the parts the command leaves to you: writing the golden set,
 comparing several setups, reviewing answers, and scoring agents other than Archi's own.
 
+How to build a golden set and run a full comparison, with the lessons behind each step:
+[`docs/docs/eval_practical_guide.md`](../../docs/docs/eval_practical_guide.md).
+
 | script | what it does |
 |---|---|
 | `golden_item_template.yaml` | One question per file: gold answer, atoms (required facts) with their source, labels. |
