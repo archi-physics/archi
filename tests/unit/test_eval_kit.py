@@ -66,12 +66,12 @@ def write_run(run: Path, verdicts: dict, failed=()):
                             "error": {"type": "AnswerTimeLimitExceeded", "message": "time limit"}, "duration_ms": 900000})
             continue
         answers.append({"attempt_id": aid, "item_id": item, "ordinal": 1, "status": "answer_ready",
-                        "answer": f"answer {item} <!-- html --> </script>",
+                        "answer": f"answer {item} <!-- html --> </script> line\u2028separator",
                         "duration_ms": 12000, "usage": {"input_tokens": 1000, "output_tokens": 100},
                         "tool_calls": [{"ordinal": 1, "name": "search", "query": "q", "response": "r" * 50, "duration_ms": 5}]})
         evals.append({"attempt_id": aid, "item_id": item, "status": "scored",
                       "judgments": [{"atom_id": k, "outcome": v, "rationale": "because"} for k, v in outcomes.items()]})
-    (run / "answers.jsonl").write_text("".join(json.dumps(a) + "\n" for a in answers))
+    (run / "answers.jsonl").write_text("".join(json.dumps(a, ensure_ascii=False) + "\n" for a in answers))  # raw U+2028 inside
     (run / "evaluation_results.jsonl").write_text("".join(json.dumps(e) + "\n" for e in evals))
 
 
@@ -139,7 +139,7 @@ def test_review_page(dataset, tmp_path, monkeypatch):
     assert data["setups"] == ["a"]
     assert data["items"]["q1"]["runs"]["a"][0]["score"] == 1.0
     assert data["items"]["q1"]["runs"]["a"][0]["tools"][0][4] == "r" * 10  # tool output cut to 10 characters
-    assert data["items"]["q1"]["runs"]["a"][0]["answer"].endswith("<!-- html --> </script>")  # survives embedding
+    assert data["items"]["q1"]["runs"]["a"][0]["answer"].endswith("<!-- html --> </script> line\u2028separator")  # survives embedding
 
 
 def test_import_answers(tmp_path, monkeypatch):

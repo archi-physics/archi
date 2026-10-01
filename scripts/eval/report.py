@@ -53,7 +53,7 @@ def failure_label(row: dict) -> str:
 def read_jsonl(path: Path) -> list:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text().split("\n") if line.strip()]
 
 
 def load_run(run: Path, labels: dict) -> list:

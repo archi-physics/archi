@@ -23,7 +23,7 @@ from pathlib import Path
 def read_jsonl(path: Path) -> list:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text().split("\n") if line.strip()]
 
 
 def build_data(dataset: list, labels: dict, setups: list, tool_chars: int, answer_chars: int) -> dict:

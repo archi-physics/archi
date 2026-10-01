@@ -55,9 +55,9 @@ def main() -> int:
     if "run" in manifest["phases"] or (run / "answers.jsonl").exists():
         sys.exit("this run folder already has a run phase; use a freshly prepared one")
 
-    prepared = [json.loads(line) for line in (run / "preparation.jsonl").read_text().splitlines() if line.strip()]
+    prepared = [json.loads(line) for line in (run / "preparation.jsonl").read_text().split("\n") if line.strip()]
     item_ids = [p.get("id", p.get("item_id")) for p in prepared if p.get("status") == "prepared"]
-    rows = [json.loads(line) for line in args.answers.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in args.answers.read_text().split("\n") if line.strip()]
     if not rows:
         sys.exit("no answers")
     for r in rows:
