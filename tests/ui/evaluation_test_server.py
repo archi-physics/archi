@@ -61,7 +61,16 @@ class FakeAgentRuntime:
         self.tool_calls = []
 
     def run(self, question):
-        self.tool_calls = []
+        self.tool_calls = [
+            {
+                "ordinal": 1,
+                "name": "fixture_document_search",
+                "status": "success",
+                "query": question,
+                "response": "Found OPERATIONS HANDBOOK.PDF at https://example.org/policy",
+                "duration_ms": 0,
+            }
+        ]
         return f"Deterministic answer for: {question}"
 
 

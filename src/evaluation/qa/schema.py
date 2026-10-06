@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, FrozenSet, Iterable, Optional, Tuple
 
 from .constants import SCHEMA_VERSION
+from .sources import SourceEvaluation
 from .tool_traces import serialize_tool_call_records
 
 
@@ -551,6 +552,8 @@ class EvaluationResult:
                 "parent run contains an unsupported result status"
             ) from exc
         identity = AttemptIdentity.from_dict(raw, context=context)
+        if "source_evaluation" in raw:
+            SourceEvaluation.from_dict(raw["source_evaluation"])
         identity_fields = set(identity.to_dict()) | {"status"}
         return cls(
             identity=identity,
