@@ -222,7 +222,11 @@ class TestLiveCatalog:
             draft["id"],
             "First",
             [
-                {"item_id": row["item_id"], "atoms": row["atoms"]}
+                {
+                    "item_id": row["item_id"],
+                    "atoms": row["atoms"],
+                    "expected_sources": [f"{row['item_id']}.pdf"],
+                }
                 for row in draft["items"]
                 if row["status"] == "prepared"
             ],
@@ -246,6 +250,11 @@ class TestLiveCatalog:
             ],
         )
 
+        assert live_row["expected_sources"] == ["live.pdf"]
+        assert refresh["items"][0]["expected_sources"] == ["static.pdf"]
+        assert [
+            item.expected_sources for item in catalog.dataset_items(sibling["id"])
+        ] == [("static.pdf",), ("live.pdf",)]
         assert live_row["live_state"] == "changed"
         assert live_row["previous_answer"] == {"lookup": {"value": 7}}
         assert sibling["parent_dataset_id"] == parent["id"]
@@ -328,3 +337,45 @@ def test_review_draft_save_error_points_live_items_at_the_generating_draft(tmp_p
 
     assert "live" in str(caught.value)
     assert "draft_id" in str(caught.value)
+
+
+def test_failed_live_refresh_retry_preserves_curated_child_sources(tmp_path):
+    catalog = EvaluationCatalog(tmp_path / "catalog")
+    parent, _ = catalog.import_dataset("Parent", "parent.json", _parent_blob())
+    draft = catalog.create_atom_draft(
+        parent["id"], "builtin", Extractor(), OracleResolver(Invoker([{"value": 7}]))
+    )
+    child = catalog.save_reviewed_dataset(
+        draft["id"],
+        "First",
+        [
+            {
+                "item_id": row["item_id"],
+                "atoms": row["atoms"],
+                "expected_sources": [f"{row['item_id']}.pdf"],
+            }
+            for row in draft["items"]
+        ],
+    )
+    refresh = catalog.create_refresh_draft(
+        child["id"], "builtin", Extractor(), OracleResolver(Invoker([]))
+    )
+    assert refresh["items"][1]["status"] == "preparation_failed"
+    assert refresh["items"][1]["expected_sources"] == ["live.pdf"]
+    retried = catalog.retry_failed_atom_items(
+        refresh["id"], Extractor(), OracleResolver(Invoker([{"value": 8}]))
+    )
+    assert retried["items"][1]["status"] == "prepared"
+    assert retried["items"][1]["expected_sources"] == ["live.pdf"]
+    sibling = catalog.save_reviewed_dataset(
+        refresh["id"],
+        "Second",
+        [
+            {"item_id": row["item_id"], "atoms": row["atoms"]}
+            for row in retried["items"]
+        ],
+    )
+    assert [item.expected_sources for item in catalog.dataset_items(sibling["id"])] == [
+        ("static.pdf",),
+        ("live.pdf",),
+    ]

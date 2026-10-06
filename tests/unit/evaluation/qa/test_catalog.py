@@ -316,6 +316,7 @@ def test_review_draft_preserves_existing_atoms_and_leaves_missing_atoms_empty(tm
             "status": "prepared",
             "answer_source": "existing_source",
             "atom_source": "supplied",
+            "expected_sources": [],
             "atoms": [{"id": "A1", "text": "The answer is yes.", "required": True}],
         },
         {
@@ -325,6 +326,7 @@ def test_review_draft_preserves_existing_atoms_and_leaves_missing_atoms_empty(tm
             "time_sensitive": False,
             "status": "missing_atoms",
             "answer_source": "missing_source",
+            "expected_sources": [],
             "atoms": [],
         },
         {
@@ -334,6 +336,7 @@ def test_review_draft_preserves_existing_atoms_and_leaves_missing_atoms_empty(tm
             "time_sensitive": True,
             "status": "skipped_time_sensitive",
             "answer_source": "changing_source",
+            "expected_sources": [],
             "atoms": [],
         },
     ]
@@ -426,6 +429,7 @@ def test_atom_retry_updates_only_failed_rows_in_the_same_open_draft(
         "time_sensitive": False,
         "status": "prepared",
         "atom_source": "inferred",
+        "expected_sources": [],
         "atoms": [
             {
                 "id": "A1",

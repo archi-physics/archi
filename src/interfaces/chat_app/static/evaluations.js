@@ -761,6 +761,12 @@
           <div>${esc(typeof item.answer === "string" ? item.answer : JSON.stringify(item.answer, null, 2))}</div>
           ${item.answer_source ? `<small class="expected-answer-source">Source: ${esc(item.answer_source)}</small>` : ""}
         </section>
+        <section class="expected-sources-editor">
+          <label class="atom-field" for="expected-sources-${itemIndex}"><span>Expected sources</span>
+            <textarea id="expected-sources-${itemIndex}" data-expected-sources rows="3" spellcheck="false" aria-label="Expected sources for ${esc(item.item_id)}" aria-describedby="expected-sources-help-${itemIndex}">${esc((item.expected_sources || []).join("\n"))}</textarea>
+          </label>
+          <p id="expected-sources-help-${itemIndex}" class="sources-help">One document URL or name per line. Matches ignore case and search successful tool responses. Leave empty to skip this check.</p>
+        </section>
         ${item.time_sensitive ? `<section class="live-oracle-evidence">
           <p class="live-answer-label">Live answer</p>
           <details><summary>Oracle recipe and evidence</summary><pre>${esc(JSON.stringify({ oracle: item.oracle, metadata: item.oracle_metadata, calls: item.oracle_calls }, null, 2))}</pre></details>
@@ -795,6 +801,7 @@
       item.item_id,
       {
         atoms: (item.atoms || []).map((atom) => ({ ...atom })),
+        expected_sources: [...(item.expected_sources || [])],
         review_open: item.review_open
       }
     ]));
@@ -812,6 +819,7 @@
       state.draft.items.forEach((item) => {
         localById.set(item.item_id, {
           atoms: (item.atoms || []).map((atom) => ({ ...atom })),
+          expected_sources: [...(item.expected_sources || [])],
           review_open: item.review_open
         });
       });
@@ -819,8 +827,8 @@
       draftPayload.draft.items = draftPayload.draft.items.map((item) => {
         const local = localById.get(item.item_id);
         if (!local) return item;
-        if (retryIds.has(item.item_id)) return { ...item, review_open: local.review_open };
-        return { ...item, atoms: local.atoms, review_open: local.review_open };
+        if (retryIds.has(item.item_id)) return { ...item, expected_sources: local.expected_sources, review_open: local.review_open };
+        return { ...item, atoms: local.atoms, expected_sources: local.expected_sources, review_open: local.review_open };
       });
       state.draft = draftPayload.draft;
       openAtomEditor();
@@ -839,9 +847,15 @@
   async function switchDraftStaticOnly() {
     if (!state.draft) return;
     try {
+      syncAtomsFromDom();
+      const localById = new Map(state.draft.items.map((item) => [item.item_id, item]));
       const omittedCount = state.draft.items.filter((item) => item.time_sensitive && item.status !== "skipped_live").length;
       const payload = await api(`/api/evaluations/atom-drafts/${encodeURIComponent(state.draft.id)}/static-only`, {
         method: "POST"
+      });
+      payload.draft.items = payload.draft.items.map((item) => {
+        const local = localById.get(item.item_id);
+        return local ? { ...item, atoms: local.atoms, expected_sources: local.expected_sources, review_open: local.review_open } : item;
       });
       state.draft = payload.draft;
       openAtomEditor();
@@ -872,7 +886,11 @@
   function syncAtomsFromDom() {
     eligibleDraftItems().forEach((item, itemIndex) => {
       const panel = $(`[data-item-index="${itemIndex}"]`);
-      if (panel) item.review_open = panel.open;
+      if (panel) {
+        item.review_open = panel.open;
+        item.expected_sources = panel.querySelector("[data-expected-sources]").value
+          .split(/\r?\n/).filter((source) => source.trim());
+      }
       item.atoms = $$(`[data-atom-row^="${itemIndex}:"]`).map((row) => ({
         id: row.querySelector('[data-field="id"]').value,
         text: row.querySelector('[data-field="text"]').value,
@@ -935,6 +953,13 @@
         errors.push("At least one atom must be required.");
         rows.forEach((row) => markInvalid(row.querySelector('[data-field="required"]')));
       }
+      const sourcesField = panel.querySelector("[data-expected-sources]");
+      const sources = sourcesField.value.split(/\r?\n/).filter((source) => source.trim());
+      const sourceKeys = sources.map((source) => source.toLowerCase());
+      if (new Set(sourceKeys).size !== sourceKeys.length) {
+        errors.push("Expected sources must be unique, ignoring case.");
+        markInvalid(sourcesField);
+      }
       if (!errors.length) return;
 
       item.review_open = true;
@@ -986,7 +1011,7 @@
       panel.querySelector("[data-atom-summary-count]").textContent = `${atoms} atom${atoms === 1 ? "" : "s"} · ${required} required`;
       if (shouldRevalidate) validateReviewedItems(false);
     }));
-    $$('[data-field="id"], [data-field="text"]').forEach((field) => field.addEventListener("input", () => {
+    $$('[data-field="id"], [data-field="text"], [data-expected-sources]').forEach((field) => field.addEventListener("input", () => {
       const panel = field.closest("[data-item-index]");
       if (panel.querySelector(".review-validation-error")) validateReviewedItems(false);
     }));
@@ -1025,7 +1050,7 @@
         return;
       }
       $("#reviewed-dataset-name").value = $("#reviewed-dataset-name").value.trim();
-      const reviewed_items = eligibleDraftItems().map((item) => ({ item_id: item.item_id, atoms: item.atoms || [] }));
+      const reviewed_items = eligibleDraftItems().map((item) => ({ item_id: item.item_id, atoms: item.atoms || [], expected_sources: item.expected_sources || [] }));
       const payload = await api(`/api/evaluations/atom-drafts/${encodeURIComponent(state.draft.id)}/save`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: $("#reviewed-dataset-name").value, reviewed_items })
@@ -1423,6 +1448,29 @@
     </details>`;
   }
 
+  function renderExpectedSources(prepared, result) {
+    const expected = prepared.expected_sources || [];
+    if (!expected.length) return "";
+    const evaluation = result.source_evaluation;
+    const matches = new Map((evaluation?.matches || []).map((match) => [match.source, match]));
+    const labels = { matched: "Matched", missing: "Missing", unavailable: "Unavailable", not_evaluated: "Not evaluated" };
+    const classes = { matched: "passed", missing: "not-mentioned", unavailable: "unscored", not_evaluated: "unscored" };
+    return `<section class="atom-evidence source-evidence" aria-label="Expected source matches">
+      <div class="atom-evidence-head"><div><p class="eyebrow">Source evidence</p><h3>Expected sources and tool matches</h3></div><span>${evaluation ? `${percent(evaluation.recall)} recall` : "Not evaluated"}</span></div>
+      <p class="sources-help">Case-insensitive text matches show where an identifier appeared; they do not establish that the document was fetched or used.</p>
+      <div class="atom-judgment-list">${expected.map((source) => {
+        const match = matches.get(source);
+        const outcome = match?.outcome || "not_evaluated";
+        return `<details class="atom-judgment source-judgment outcome-${classes[outcome]}" open>
+          <summary><span class="source-identifier">${esc(source)}</span><span class="atom-outcome ${classes[outcome]}">${labels[outcome]}</span></summary>
+          <div class="atom-judgment-body"><section><p class="field-label">Matching tool calls</p>
+            ${match?.matching_calls.length ? `<ul>${match.matching_calls.map((call) => `<li><code>#${esc(call.ordinal)}</code> <span>${esc(call.name)}</span></li>`).join("")}</ul>` : `<p>${outcome === "missing" ? "No successful tool response contained this source." : (outcome === "unavailable" ? "Some historical tool responses were not captured." : "No source evaluation is available for this attempt.")}</p>`}
+          </section></div>
+        </details>`;
+      }).join("")}</div>
+    </section>`;
+  }
+
   function renderAttempt(attempt, prepared) {
     const answer = attempt.answer || {};
     const result = attempt.result || {};
@@ -1453,6 +1501,7 @@
         ${attempt.answer ? renderToolCalls(answer) : `<div class="empty compact"><strong>No agent answer was created for this live-validation failure.</strong></div>`}
         ${result.live_validation ? `<section class="attempt-error"><p class="field-label">Live validation</p><p>${esc(result.live_validation.reason.replaceAll("_", " "))} · ${esc(result.live_validation.phase.replaceAll("_", " "))}</p><p>${esc(result.live_validation.detail)}</p></section>` : ""}
         ${(result.error || answer.error) ? `<section class="attempt-error"><p class="field-label">Attempt error</p><p>${esc(readableError(result.error || answer.error))}</p></section>` : ""}
+        ${renderExpectedSources(prepared, result)}
         ${displayedAtoms.length ? `<section class="atom-evidence" aria-label="Atom judgments">
           <div class="atom-evidence-head"><div><p class="eyebrow">Atom evidence</p><h3>Expected content and evaluator judgment</h3></div><span>${displayedAtoms.length} atom${displayedAtoms.length === 1 ? "" : "s"}</span></div>
           <div class="atom-judgment-list">${displayedAtoms.map((atom, index) => renderAtomJudgment(atom, judgmentsByAtom.get(atom.id), index)).join("")}</div>
@@ -1544,6 +1593,7 @@
             <strong>${percent(summary.macro_mean_scored_attempt_required_atom_recall)}</strong>
             <small>macro mean, scored only</small>
           </article>
+          ${summary.source_evaluation ? `<article class="evidence-card"><span>Sources recall</span><strong>${percent(summary.source_evaluation.mean_recall)}</strong><small>${summary.source_evaluation.scored_attempts} checked · ${summary.source_evaluation.unavailable_attempts} unavailable · ${summary.source_evaluation.all_matched_attempts} with all sources matched</small></article>` : ""}
           <article class="evidence-card"><span>Artifact schema</span><strong>${esc(manifest.schema_version || "—")}</strong><small>${esc(manifest.status || "unknown")}</small></article>
           ${manifest.schema_version === "qa-v2" ? `<article class="evidence-card"><span>Truth source</span><strong>${manifest.contains_live_answers ? "Includes live answers" : "Static only"}</strong><small>source type, not a freshness guarantee</small></article>` : ""}
           <article class="evidence-card"><span>Live validation failed</span><strong>${liveValidationFailed}</strong><small>excluded from quality and technical-failure rates</small></article>

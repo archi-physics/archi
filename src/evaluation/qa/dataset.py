@@ -32,6 +32,7 @@ COMMON_ITEM_FIELDS = {
     "answer_mode",
     "answer_source",
     "expected_atoms",
+    "expected_sources",
 }
 V1_ITEM_FIELDS = COMMON_ITEM_FIELDS
 V2_ITEM_FIELDS = COMMON_ITEM_FIELDS | {"oracle"}
@@ -77,6 +78,7 @@ class DatasetItem:
     oracle: Optional[OracleRecipe] = None
     schema_version: DatasetSchemaVersion = DatasetSchemaVersion.V1
     state: Optional[DatasetItemState] = None
+    expected_sources: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.state is None:
@@ -144,6 +146,23 @@ def validate_nonempty_string(
     if normalize_newlines:
         return value.replace("\r\n", "\n").replace("\r", "\n")
     return value
+
+
+def validate_expected_sources(value: Any, *, context: str) -> Tuple[str, ...]:
+    if not isinstance(value, list):
+        raise ValueError(f"{context} must be an array")
+    sources = []
+    seen = set()
+    for index, entry in enumerate(value):
+        source = validate_nonempty_string(entry, f"{context}[{index}]")
+        if "\n" in source or "\r" in source:
+            raise ValueError(f"{context}[{index}] must be a single-line string")
+        key = source.casefold()
+        if key in seen:
+            raise ValueError(f"{context} contains case-insensitive duplicate sources")
+        seen.add(key)
+        sources.append(source)
+    return tuple(sources)
 
 
 def validate_optional_nonempty_string(value: Any, context: str) -> Optional[str]:
@@ -507,6 +526,9 @@ def _common_fields(raw: Dict[str, Any], context: str) -> Dict[str, Any]:
         "answer_mode": validate_optional_enum(
             raw.get("answer_mode"), ANSWER_MODE_VALUES, f"{context}.answer_mode"
         ),
+        "expected_sources": validate_expected_sources(
+            raw.get("expected_sources", []), context=f"{context}.expected_sources"
+        ),
         "answer_source": validate_optional_nonempty_string(
             raw.get("answer_source"), f"{context}.answer_source"
         ),
@@ -750,6 +772,8 @@ def dataset_item_to_dict(item: DatasetItem) -> Dict[str, Any]:
     ):
         if field_value is not None:
             value[name] = field_value
+    if item.expected_sources:
+        value["expected_sources"] = list(item.expected_sources)
     if item.expected_atoms is not None:
         value["expected_atoms"] = [atom.to_dict() for atom in item.expected_atoms]
     if item.oracle is not None:
