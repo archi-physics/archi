@@ -100,6 +100,50 @@ Get per-variant aggregate metrics (wins, losses, ties, total comparisons).
   ]
 }
 ```
+## Conversations
+
+Manage saved conversations shown in the chat sidebar. In anonymous mode the caller's `client_id` doubles as the ownership credential and is passed in the JSON body. With SSO enabled the verified session user is the owner.
+
+### `POST /api/rename_conversation`
+
+Rename a conversation. The new title is stored in the conversation's metadata, so it persists across page reloads.
+
+**Request:**
+```json
+{
+  "conversation_id": 42,
+  "title": "CERN internship research",
+  "client_id": "abc-123"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `conversation_id` | integer | Yes | ID of the conversation to rename |
+| `title` | string | Yes | New title. Leading and trailing whitespace is trimmed; must be 1–100 characters after trimming |
+| `client_id` | string | Anonymous mode | Ownership credential. Not needed when a signed-in session user is present |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "conversation_id": 42,
+  "title": "CERN internship research"
+}
+```
+
+**Errors:**
+
+| Status | Meaning |
+|--------|---------|
+| `400` | `conversation_id` missing, `title` empty or longer than 100 characters, or neither a session user nor a `client_id` was supplied |
+| `404` | Conversation not found, or not owned by the caller |
+| `500` | Unexpected server error |
+
+Error responses have the shape `{"error": "<message>"}`.
+
+
+
 
 ---
 
