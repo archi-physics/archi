@@ -29,7 +29,7 @@
     
     <!-- Sidebar -->
     <aside class="sidebar">
-      <div class="sidebar-header">
+      <div class="sidebar-header" id="sidebar-main-header">
         <div class="sidebar-brand">
           <img src="{{ url_for('static', filename='images/archi-logo.png') }}" alt="archi logo">
           archi
@@ -40,6 +40,16 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
+      </div>
+      <!-- Archive-mode header — shown when browsing archived conversations -->
+      <div class="sidebar-header sidebar-archive-header" id="sidebar-archive-header" style="display:none;">
+        <button class="sidebar-back-btn" id="sidebar-back-btn" aria-label="Back to conversations" title="Back to conversations">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <span class="sidebar-archive-title">Archived</span>
       </div>
       <div class="conversation-list"></div>
       

@@ -27,6 +27,11 @@ const CONFIG = {
     LOAD_CONVERSATION: '/api/load_conversation',
     NEW_CONVERSATION: '/api/new_conversation',
     DELETE_CONVERSATION: '/api/delete_conversation',
+    RENAME_CONVERSATION:    '/api/rename_conversation',
+    PIN_CONVERSATION:       '/api/pin_conversation',
+    UNPIN_CONVERSATION:     '/api/unpin_conversation',
+    ARCHIVE_CONVERSATION:   '/api/archive_conversation',
+    UNARCHIVE_CONVERSATION: '/api/unarchive_conversation',
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
     AB_POOL: '/api/ab/pool',
@@ -270,10 +275,7 @@ const API = {
     return this.fetchJson(CONFIG.ENDPOINTS.CONFIGS);
   },
 
-  async getConversations(limit = 100) {
-    const url = `${CONFIG.ENDPOINTS.CONVERSATIONS}?limit=${limit}&client_id=${encodeURIComponent(this.clientId)}`;
-    return this.fetchJson(url);
-  },
+
 
   async loadConversation(conversationId) {
     return this.fetchJson(CONFIG.ENDPOINTS.LOAD_CONVERSATION, {
@@ -303,6 +305,52 @@ const API = {
         client_id: this.clientId,
       }),
     });
+  },
+
+  async renameConversation(conversationId, title) {
+    return this.fetchJson(CONFIG.ENDPOINTS.RENAME_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, title, client_id: this.clientId }),
+    });
+  },
+
+  async pinConversation(conversationId) {
+    return this.fetchJson(CONFIG.ENDPOINTS.PIN_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, client_id: this.clientId }),
+    });
+  },
+
+  async unpinConversation(conversationId) {
+    return this.fetchJson(CONFIG.ENDPOINTS.UNPIN_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, client_id: this.clientId }),
+    });
+  },
+
+  async archiveConversation(conversationId) {
+    return this.fetchJson(CONFIG.ENDPOINTS.ARCHIVE_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, client_id: this.clientId }),
+    });
+  },
+
+  async unarchiveConversation(conversationId) {
+    return this.fetchJson(CONFIG.ENDPOINTS.UNARCHIVE_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, client_id: this.clientId }),
+    });
+  },
+
+  async getConversations(limit = 100, archived = false) {
+    const archivedParam = archived ? '&archived=true' : '';
+    const url = `${CONFIG.ENDPOINTS.CONVERSATIONS}?limit=${limit}&client_id=${encodeURIComponent(this.clientId)}${archivedParam}`;
+    return this.fetchJson(url);
   },
 
   async *streamResponse(history, conversationId, configName, signal = null, provider = null, model = null, playbookName = undefined) {
@@ -790,6 +838,9 @@ const UI = {
       sidebarOverlay: document.querySelector('.sidebar-overlay'),
       conversationList: document.querySelector('.conversation-list'),
       newChatBtn: document.querySelector('.new-chat-btn'),
+      sidebarMainHeader: document.getElementById('sidebar-main-header'),
+      sidebarArchiveHeader: document.getElementById('sidebar-archive-header'),
+      sidebarBackBtn: document.getElementById('sidebar-back-btn'),
       messagesContainer: document.querySelector('.messages'),
       messagesInner: document.querySelector('.messages-inner'),
       inputField: document.querySelector('.input-field'),
@@ -893,6 +944,7 @@ const UI = {
     
     // New chat
     this.elements.newChatBtn?.addEventListener('click', () => Chat.newConversation());
+    this.elements.sidebarBackBtn?.addEventListener('click', () => Chat.toggleArchiveView());
     
     // Send message
     this.elements.sendBtn?.addEventListener('click', () => Chat.handleSendOrStop());
@@ -2191,57 +2243,158 @@ const UI = {
     });
   },
 
-  renderConversations(conversations, activeId) {
-    const list = this.elements.conversationList;
-    if (!list) return;
+  _buildConvItemHtml(conv, activeId, inArchiveView) {
+    const isActive  = conv.conversation_id === activeId;
+    const isPinned  = !!conv.is_pinned;
+    const title     = Utils.escapeHtml(conv.title || `Conversation ${conv.conversation_id}`);
+    const classes   = ['conversation-item', isActive ? 'active' : '', isPinned ? 'pinned' : ''].filter(Boolean).join(' ');
+    const pinTitle  = isPinned ? 'Unpin conversation' : 'Pin conversation';
+    const pinIcon   = isPinned
+      ? '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor" stroke="none"/>'
+      : '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>';
 
-    if (!conversations.length) {
-      list.innerHTML = `
-        <div class="conversation-item" style="color: var(--text-tertiary); cursor: default;">
-          No conversations yet
-        </div>`;
-      return;
-    }
+    // In archive view: show unarchive button instead of archive
+    const actionBtn = inArchiveView
+      ? `<button class="conversation-item-archive" data-id="${conv.conversation_id}" aria-label="Unarchive conversation" title="Restore conversation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </button>`
+      : `<button class="conversation-item-archive" data-id="${conv.conversation_id}" aria-label="Archive conversation" title="Archive conversation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line>
+              </svg>
+            </button>`;
 
-    const groups = Utils.groupByDate(conversations);
-    let html = '';
-
-    for (const [label, items] of Object.entries(groups)) {
-      if (!items.length) continue;
-      
-      html += `<div class="conversation-group">
-        <div class="conversation-group-label">${label}</div>`;
-      
-      for (const conv of items) {
-        const isActive = conv.conversation_id === activeId;
-        const title = Utils.escapeHtml(conv.title || `Conversation ${conv.conversation_id}`);
-        
-        html += `
-          <div class="conversation-item ${isActive ? 'active' : ''}" 
-               data-id="${conv.conversation_id}">
+    return `
+          <div class="${classes}" data-id="${conv.conversation_id}">
             <svg class="conversation-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
             <span class="conversation-item-title">${title}</span>
+            <button class="conversation-item-rename" data-id="${conv.conversation_id}" aria-label="Rename conversation" title="Rename conversation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button class="conversation-item-pin" data-id="${conv.conversation_id}" data-pinned="${isPinned}" aria-label="${pinTitle}" title="${pinTitle}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                ${pinIcon}
+              </svg>
+            </button>
+            ${actionBtn}
             <button class="conversation-item-delete" data-id="${conv.conversation_id}" aria-label="Delete conversation" title="Delete conversation">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
               </svg>
             </button>
           </div>`;
+  },
+
+  renderConversations(conversations, activeId, inArchiveView = false) {
+    const list = this.elements.conversationList;
+    if (!list) return;
+
+    if (!conversations.length) {
+      const msg = inArchiveView ? 'No archived conversations' : 'No conversations yet';
+      list.innerHTML = `<div class="conversation-item" style="color: var(--text-tertiary); cursor: default;">${msg}</div>`;
+      this._renderArchiveToggle(list, inArchiveView);
+      return;
+    }
+
+    let html = '';
+
+    if (!inArchiveView) {
+      // Pinned section — flat list, no date grouping
+      const pinned = conversations.filter(c => c.is_pinned);
+      const normal = conversations.filter(c => !c.is_pinned);
+
+      if (pinned.length) {
+        html += `<div class="conversation-group">
+          <div class="conversation-section-pinned">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            Pinned
+          </div>`;
+        for (const conv of pinned) {
+          html += this._buildConvItemHtml(conv, activeId, false);
+        }
+        html += '</div>';
       }
-      
+
+      // Date-bucketed normal conversations
+      const groups = Utils.groupByDate(normal);
+      for (const [label, items] of Object.entries(groups)) {
+        if (!items.length) continue;
+        html += `<div class="conversation-group"><div class="conversation-group-label">${label}</div>`;
+        for (const conv of items) {
+          html += this._buildConvItemHtml(conv, activeId, false);
+        }
+        html += '</div>';
+      }
+    } else {
+      // Archive view — flat list
+      html += '<div class="conversation-group">';
+      for (const conv of conversations) {
+        html += this._buildConvItemHtml(conv, activeId, true);
+      }
       html += '</div>';
     }
 
     list.innerHTML = html;
 
-    // Bind click events
+    // ── Event bindings ────────────────────────────────────────────────────────
     list.querySelectorAll('.conversation-item').forEach((item) => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.conversation-item-delete')) return;
+        if (e.target.closest('.conversation-item-rename')) return;
+        if (e.target.closest('.conversation-item-pin')) return;
+        if (e.target.closest('.conversation-item-archive')) return;
         const id = Number(item.dataset.id);
         Chat.loadConversation(id);
+      });
+
+      // Double-click title to rename inline
+      const titleSpan = item.querySelector('.conversation-item-title');
+      if (titleSpan) {
+        titleSpan.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          const id = Number(item.dataset.id);
+          UI.startRenameInline(item, id, titleSpan.textContent);
+        });
+      }
+    });
+
+    list.querySelectorAll('.conversation-item-rename').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id   = Number(btn.dataset.id);
+        const item = btn.closest('.conversation-item');
+        const span = item.querySelector('.conversation-item-title');
+        UI.startRenameInline(item, id, span ? span.textContent : '');
+      });
+    });
+
+    list.querySelectorAll('.conversation-item-pin').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id       = Number(btn.dataset.id);
+        const isPinned = btn.dataset.pinned === 'true';
+        Chat.togglePin(id, isPinned);
+      });
+    });
+
+    list.querySelectorAll('.conversation-item-archive').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = Number(btn.dataset.id);
+        if (inArchiveView) {
+          Chat.unarchiveConversation(id);
+        } else {
+          Chat.archiveConversation(id);
+        }
       });
     });
 
@@ -2252,6 +2405,70 @@ const UI = {
         Chat.deleteConversation(id);
       });
     });
+
+    this._renderArchiveToggle(list, inArchiveView);
+  },
+
+  _renderArchiveToggle(list, inArchiveView) {
+    // Remove any existing toggle before re-adding
+    list.querySelector('.conversations-archive-toggle')?.remove();
+
+    const toggle = document.createElement('button');
+    toggle.className = 'conversations-archive-toggle';
+    toggle.innerHTML = inArchiveView
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back to conversations`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>
+         Archived
+         <span class="conversations-archive-count" id="archive-count-badge">${Chat.state.archivedCount || ''}</span>`;
+    toggle.addEventListener('click', () => Chat.toggleArchiveView());
+    list.appendChild(toggle);
+  },
+
+  startRenameInline(item, conversationId, currentTitle) {
+    if (item.classList.contains('editing')) return;
+    const titleSpan = item.querySelector('.conversation-item-title');
+    if (!titleSpan) return;
+
+    item.classList.add('editing');
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'conversation-item-title-input';
+    input.value = currentTitle;
+    input.setAttribute('aria-label', 'Rename conversation');
+    input.maxLength = 100;
+
+    titleSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const restore = () => {
+      if (!item.classList.contains('editing')) return;
+      item.classList.remove('editing');
+      input.replaceWith(titleSpan);
+    };
+
+    const commit = async () => {
+      if (!item.classList.contains('editing')) return;
+      const newTitle = input.value.trim();
+      item.classList.remove('editing');
+
+      if (!newTitle || newTitle === currentTitle) { restore(); return; }
+
+      input.replaceWith(titleSpan);
+      const prev = titleSpan.textContent;
+      titleSpan.textContent = newTitle;                     // optimistic update
+
+      await Chat.renameConversation(conversationId, newTitle, () => {
+        titleSpan.textContent = prev;                       // roll back on error
+      });
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { e.preventDefault(); restore(); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => commit(), 100));
   },
 
   renderMessages(messages) {
@@ -4131,6 +4348,8 @@ const Chat = {
     allAgents: [],  // full list including ab_only variants, for pool editor
     activeAgentName: null,
     currentUser: null,
+    showingArchive: false,   // true when archive view is active
+    archivedCount: 0,        // count shown on the toggle badge
   },
 
   getABPendingLimit() {
@@ -4588,8 +4807,19 @@ const Chat = {
 
   async loadConversations() {
     try {
-      const data = await API.getConversations();
-      UI.renderConversations(data?.conversations || [], this.state.conversationId);
+      const data = await API.getConversations(100, this.state.showingArchive);
+      UI.renderConversations(
+        data?.conversations || [],
+        this.state.conversationId,
+        this.state.showingArchive,
+      );
+      // Also refresh archived count badge when in main view
+      if (!this.state.showingArchive) {
+        const arch = await API.getConversations(500, true);
+        this.state.archivedCount = arch?.conversations?.length || 0;
+        const badge = document.getElementById('archive-count-badge');
+        if (badge) badge.textContent = this.state.archivedCount || '';
+      }
     } catch (e) {
       console.error('Failed to load conversations:', e);
     }
@@ -4780,6 +5010,80 @@ const Chat = {
     } catch (e) {
       console.error('Failed to delete conversation:', e);
     }
+  },
+
+  async renameConversation(conversationId, newTitle, onError) {
+    try {
+      await API.renameConversation(conversationId, newTitle);
+    } catch (e) {
+      console.error('Failed to rename conversation:', e);
+      if (onError) onError();
+      UI.showToast('Failed to rename conversation.');
+    }
+  },
+
+  async togglePin(conversationId, currentlyPinned) {
+    try {
+      if (currentlyPinned) {
+        await API.unpinConversation(conversationId);
+      } else {
+        await API.pinConversation(conversationId);
+      }
+      await this.loadConversations();
+    } catch (e) {
+      console.error('Failed to pin/unpin conversation:', e);
+      UI.showToast('Failed to update pin.');
+    }
+  },
+
+  async archiveConversation(conversationId) {
+    if (!confirm('Archive this conversation? You can restore it from the archive view.')) return;
+    try {
+      await API.archiveConversation(conversationId);
+      if (this.state.conversationId === conversationId) {
+        this.state.conversationId = null;
+        this.state.messages = [];
+        this.state.history = [];
+        this.state.activeABComparison = null;
+        this.state.pendingABComparisons = [];
+        this.state.abVotePending = false;
+        Storage.setActiveConversationId(null);
+        UI.renderMessages([]);
+        UI.hideABVoteButtons();
+        UI.setInputDisabled(false);
+      }
+      await this.loadConversations();
+    } catch (e) {
+      console.error('Failed to archive conversation:', e);
+      UI.showToast('Failed to archive conversation.');
+    }
+  },
+
+  async unarchiveConversation(conversationId) {
+    try {
+      await API.unarchiveConversation(conversationId);
+      await this.loadConversations();
+    } catch (e) {
+      console.error('Failed to unarchive conversation:', e);
+      UI.showToast('Failed to restore conversation.');
+    }
+  },
+
+  toggleArchiveView() {
+    this.state.showingArchive = !this.state.showingArchive;
+    const inArchive = this.state.showingArchive;
+
+    // Swap sidebar headers
+    const mainHeader    = document.getElementById('sidebar-main-header');
+    const archiveHeader = document.getElementById('sidebar-archive-header');
+    if (mainHeader)    mainHeader.style.display    = inArchive ? 'none'  : '';
+    if (archiveHeader) archiveHeader.style.display = inArchive ? ''      : 'none';
+
+    // Dim the new-chat button so it's clear you're in read-only archive view
+    const newChatBtn = UI.elements.newChatBtn;
+    if (newChatBtn) newChatBtn.style.opacity = inArchive ? '0.3' : '';
+
+    this.loadConversations();
   },
 
   async sendMessage() {

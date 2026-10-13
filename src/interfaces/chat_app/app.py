@@ -56,6 +56,12 @@ from src.utils.sql import (
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_LIST_CONVERSATIONS_BY_USER, SQL_GET_CONVERSATION_METADATA_BY_USER,
     SQL_DELETE_CONVERSATION_BY_USER, SQL_UPDATE_CONVERSATION_TIMESTAMP_BY_USER,
+    SQL_RENAME_CONVERSATION, SQL_RENAME_CONVERSATION_BY_USER,
+    SQL_PIN_CONVERSATION, SQL_PIN_CONVERSATION_BY_USER,
+    SQL_UNPIN_CONVERSATION, SQL_UNPIN_CONVERSATION_BY_USER,
+    SQL_ARCHIVE_CONVERSATION, SQL_ARCHIVE_CONVERSATION_BY_USER,
+    SQL_UNARCHIVE_CONVERSATION, SQL_UNARCHIVE_CONVERSATION_BY_USER,
+    SQL_LIST_ARCHIVED_CONVERSATIONS, SQL_LIST_ARCHIVED_CONVERSATIONS_BY_USER,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK,
     SQL_QUERY_CONVO_WITH_FEEDBACK_NO_PLAYBOOKS, SQL_DELETE_REACTION_FEEDBACK,
     SQL_GET_REACTION_FEEDBACK,
@@ -2805,6 +2811,11 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/load_conversation', 'load_conversation', self.require_auth(self.load_conversation), methods=["POST"])
         self.add_endpoint('/api/new_conversation', 'new_conversation', self.require_auth(self.new_conversation), methods=["POST"])
         self.add_endpoint('/api/delete_conversation', 'delete_conversation', self.require_auth(self.delete_conversation), methods=["POST"])
+        self.add_endpoint('/api/rename_conversation', 'rename_conversation', self.require_auth(self.rename_conversation), methods=["POST"])
+        self.add_endpoint('/api/pin_conversation', 'pin_conversation', self.require_auth(self.pin_conversation), methods=["POST"])
+        self.add_endpoint('/api/unpin_conversation', 'unpin_conversation', self.require_auth(self.unpin_conversation), methods=["POST"])
+        self.add_endpoint('/api/archive_conversation', 'archive_conversation', self.require_auth(self.archive_conversation), methods=["POST"])
+        self.add_endpoint('/api/unarchive_conversation', 'unarchive_conversation', self.require_auth(self.unarchive_conversation), methods=["POST"])
 
         # A/B testing endpoints
         logger.info("Adding A/B testing API endpoints")
@@ -5161,11 +5172,17 @@ class FlaskAppWrapper(object):
             if not user_id and not client_id:
                 return jsonify({'error': 'client_id missing'}), 400
             limit = min(int(request.args.get('limit', 50)), 500)
+            archived = request.args.get('archived', 'false').lower() == 'true'
 
             # create connection to database
             conn = psycopg2.connect(**self.pg_config)
             cursor = conn.cursor()
-            if user_id:
+            if archived:
+                if user_id:
+                    cursor.execute(SQL_LIST_ARCHIVED_CONVERSATIONS_BY_USER, (user_id, client_id, limit))
+                else:
+                    cursor.execute(SQL_LIST_ARCHIVED_CONVERSATIONS, (client_id, limit))
+            elif user_id:
                 cursor.execute(SQL_LIST_CONVERSATIONS_BY_USER, (user_id, client_id, limit))
             else:
                 cursor.execute(SQL_LIST_CONVERSATIONS, (client_id, limit))
@@ -5178,6 +5195,8 @@ class FlaskAppWrapper(object):
                     'title': row[1] or "New Chat",
                     'created_at': row[2].isoformat() if row[2] else None,
                     'last_message_at': row[3].isoformat() if row[3] else None,
+                    'is_pinned': bool(row[4]) if len(row) > 4 else False,
+                    'is_archived': bool(row[5]) if len(row) > 5 else False,
                 })
 
             # clean up database connection state
@@ -5375,6 +5394,137 @@ class FlaskAppWrapper(object):
             return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
         except Exception as e:
             print(f"ERROR in delete_conversation: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def rename_conversation(self):
+        """Rename a conversation by updating its title.
+
+        POST body: conversation_id, title (1-100 chars), client_id
+        Returns: {success, conversation_id, title}
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            title = (data.get('title') or '').strip()
+            client_id = data.get('client_id')
+            user_id = session.get('user', {}).get('id') or None
+
+            if not conversation_id:
+                return jsonify({'error': 'conversation_id is required'}), 400
+            if not title:
+                return jsonify({'error': 'title must not be empty'}), 400
+            if len(title) > 100:
+                return jsonify({'error': 'title must be 100 characters or fewer'}), 400
+            if not user_id and not client_id:
+                return jsonify({'error': 'client_id is required'}), 400
+
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            if user_id:
+                cursor.execute(SQL_RENAME_CONVERSATION_BY_USER, (title, conversation_id, user_id, client_id))
+            else:
+                cursor.execute(SQL_RENAME_CONVERSATION, (title, conversation_id, client_id))
+            updated_count = cursor.rowcount
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            if updated_count == 0:
+                return jsonify({'error': 'Conversation not found'}), 404
+
+            logger.info(f"Renamed conversation {conversation_id} to: {title!r}")
+            return jsonify({'success': True, 'conversation_id': conversation_id, 'title': title}), 200
+
+        except ValueError as e:
+            return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
+        except Exception as e:
+            logger.error(f"Error in rename_conversation: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def pin_conversation(self):
+        """Pin a conversation so it floats to the top of the sidebar.
+
+        POST body: conversation_id, client_id
+        Returns: {success, conversation_id}
+        """
+        return self._set_conversation_flag(
+            request.json or {},
+            sql_anon=SQL_PIN_CONVERSATION,
+            sql_user=SQL_PIN_CONVERSATION_BY_USER,
+            action="pin",
+        )
+
+    def unpin_conversation(self):
+        """Remove the pin from a conversation.
+
+        POST body: conversation_id, client_id
+        Returns: {success, conversation_id}
+        """
+        return self._set_conversation_flag(
+            request.json or {},
+            sql_anon=SQL_UNPIN_CONVERSATION,
+            sql_user=SQL_UNPIN_CONVERSATION_BY_USER,
+            action="unpin",
+        )
+
+    def archive_conversation(self):
+        """Archive a conversation (hides from main list, preserves history).
+
+        Archiving also clears the pin flag.
+        POST body: conversation_id, client_id
+        Returns: {success, conversation_id}
+        """
+        return self._set_conversation_flag(
+            request.json or {},
+            sql_anon=SQL_ARCHIVE_CONVERSATION,
+            sql_user=SQL_ARCHIVE_CONVERSATION_BY_USER,
+            action="archive",
+        )
+
+    def unarchive_conversation(self):
+        """Restore an archived conversation to the main list.
+
+        POST body: conversation_id, client_id
+        Returns: {success, conversation_id}
+        """
+        return self._set_conversation_flag(
+            request.json or {},
+            sql_anon=SQL_UNARCHIVE_CONVERSATION,
+            sql_user=SQL_UNARCHIVE_CONVERSATION_BY_USER,
+            action="unarchive",
+        )
+
+    def _set_conversation_flag(self, data, *, sql_anon, sql_user, action):
+        """Shared implementation for pin/unpin/archive/unarchive endpoints."""
+        try:
+            conversation_id = data.get('conversation_id')
+            client_id = data.get('client_id')
+            user_id = session.get('user', {}).get('id') or None
+
+            if not conversation_id:
+                return jsonify({'error': 'conversation_id is required'}), 400
+            if not user_id and not client_id:
+                return jsonify({'error': 'client_id is required'}), 400
+
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            if user_id:
+                cursor.execute(sql_user, (conversation_id, user_id, client_id))
+            else:
+                cursor.execute(sql_anon, (conversation_id, client_id))
+            updated_count = cursor.rowcount
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            if updated_count == 0:
+                return jsonify({'error': 'Conversation not found'}), 404
+
+            logger.info(f"{action} conversation {conversation_id}")
+            return jsonify({'success': True, 'conversation_id': conversation_id}), 200
+
+        except Exception as e:
+            logger.error(f"Error in {action}_conversation: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
     # =========================================================================

@@ -148,13 +148,6 @@ SET last_message_at = %s
 WHERE conversation_id = %s AND client_id = %s;
 """
 
-SQL_LIST_CONVERSATIONS = """
-SELECT conversation_id, title, created_at, last_message_at
-FROM conversation_metadata
-WHERE client_id = %s
-ORDER BY last_message_at DESC
-LIMIT %s;
-"""
 
 SQL_GET_CONVERSATION_METADATA = """
 SELECT conversation_id, title, created_at, last_message_at
@@ -170,13 +163,6 @@ WHERE conversation_id = %s AND client_id = %s;
 # User-ID-based variants (used when the user is authenticated)
 # Each query also falls back to client_id so that conversations created before
 # user_id was populated remain accessible.
-SQL_LIST_CONVERSATIONS_BY_USER = """
-SELECT conversation_id, title, created_at, last_message_at
-FROM conversation_metadata
-WHERE user_id = %s OR client_id = %s
-ORDER BY last_message_at DESC
-LIMIT %s;
-"""
 
 SQL_GET_CONVERSATION_METADATA_BY_USER = """
 SELECT conversation_id, title, created_at, last_message_at
@@ -194,6 +180,110 @@ UPDATE conversation_metadata
 SET last_message_at = %s
 WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
 """
+
+# =============================================================================
+# Conversation Rename Queries
+# =============================================================================
+
+SQL_RENAME_CONVERSATION = """
+UPDATE conversation_metadata
+SET title = %s
+WHERE conversation_id = %s AND client_id = %s;
+"""
+
+# User-ID-based variant (authenticated users, also falls back to client_id).
+SQL_RENAME_CONVERSATION_BY_USER = """
+UPDATE conversation_metadata
+SET title = %s
+WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
+"""
+
+# =============================================================================
+# Conversation Pin / Archive Queries
+# =============================================================================
+
+SQL_PIN_CONVERSATION = """
+UPDATE conversation_metadata
+SET is_pinned = TRUE
+WHERE conversation_id = %s AND client_id = %s;
+"""
+
+SQL_PIN_CONVERSATION_BY_USER = """
+UPDATE conversation_metadata
+SET is_pinned = TRUE
+WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
+"""
+
+SQL_UNPIN_CONVERSATION = """
+UPDATE conversation_metadata
+SET is_pinned = FALSE
+WHERE conversation_id = %s AND client_id = %s;
+"""
+
+SQL_UNPIN_CONVERSATION_BY_USER = """
+UPDATE conversation_metadata
+SET is_pinned = FALSE
+WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
+"""
+
+SQL_ARCHIVE_CONVERSATION = """
+UPDATE conversation_metadata
+SET is_archived = TRUE, is_pinned = FALSE
+WHERE conversation_id = %s AND client_id = %s;
+"""
+
+SQL_ARCHIVE_CONVERSATION_BY_USER = """
+UPDATE conversation_metadata
+SET is_archived = TRUE, is_pinned = FALSE
+WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
+"""
+
+SQL_UNARCHIVE_CONVERSATION = """
+UPDATE conversation_metadata
+SET is_archived = FALSE
+WHERE conversation_id = %s AND client_id = %s;
+"""
+
+SQL_UNARCHIVE_CONVERSATION_BY_USER = """
+UPDATE conversation_metadata
+SET is_archived = FALSE
+WHERE conversation_id = %s AND (user_id = %s OR client_id = %s);
+"""
+
+# Main list: active (non-archived) conversations, pinned first then by recency.
+SQL_LIST_CONVERSATIONS = """
+SELECT conversation_id, title, created_at, last_message_at, is_pinned, is_archived
+FROM conversation_metadata
+WHERE client_id = %s AND is_archived = FALSE
+ORDER BY is_pinned DESC, last_message_at DESC
+LIMIT %s;
+"""
+
+SQL_LIST_CONVERSATIONS_BY_USER = """
+SELECT conversation_id, title, created_at, last_message_at, is_pinned, is_archived
+FROM conversation_metadata
+WHERE (user_id = %s OR client_id = %s) AND is_archived = FALSE
+ORDER BY is_pinned DESC, last_message_at DESC
+LIMIT %s;
+"""
+
+# Archive list: only archived conversations.
+SQL_LIST_ARCHIVED_CONVERSATIONS = """
+SELECT conversation_id, title, created_at, last_message_at, is_pinned, is_archived
+FROM conversation_metadata
+WHERE client_id = %s AND is_archived = TRUE
+ORDER BY last_message_at DESC
+LIMIT %s;
+"""
+
+SQL_LIST_ARCHIVED_CONVERSATIONS_BY_USER = """
+SELECT conversation_id, title, created_at, last_message_at, is_pinned, is_archived
+FROM conversation_metadata
+WHERE (user_id = %s OR client_id = %s) AND is_archived = TRUE
+ORDER BY last_message_at DESC
+LIMIT %s;
+"""
+
 
 # =============================================================================
 # Tool Calls Queries

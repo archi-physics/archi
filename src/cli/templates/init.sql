@@ -356,11 +356,15 @@ CREATE TABLE IF NOT EXISTS conversation_metadata (
     title TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archi_version VARCHAR(50)
+    archi_version VARCHAR(50),
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_conv_meta_user ON conversation_metadata(user_id);
 CREATE INDEX IF NOT EXISTS idx_conv_meta_client ON conversation_metadata(client_id);
+CREATE INDEX IF NOT EXISTS idx_conv_meta_pinned   ON conversation_metadata(user_id)    WHERE is_pinned = TRUE;
+CREATE INDEX IF NOT EXISTS idx_conv_meta_archived ON conversation_metadata(client_id)  WHERE is_archived = TRUE;
 
 -- Add FK to conversation_doc_overrides now that conversation_metadata exists
 DO $$

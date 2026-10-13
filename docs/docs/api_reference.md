@@ -102,6 +102,81 @@ Get per-variant aggregate metrics (wins, losses, ties, total comparisons).
 ```
 
 ---
+## Conversations
+
+Manage the conversations shown in the chat sidebar. In anonymous mode the caller's `client_id` doubles as the owner credential: pass it as a query parameter (GET) or JSON body field (POST). With SSO enabled the verified session identity is the owner and `client_id` is ignored.
+
+### `GET /api/list_conversations`
+
+List the caller's conversations, pinned first and then most recent first. Archived conversations are excluded unless requested.
+
+**Query params:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `client_id` | string | none | Owner credential (anonymous mode) |
+| `limit` | integer | 50 | Maximum conversations to return (max 500) |
+| `archived` | boolean | `false` | `true` returns only archived conversations |
+
+**Response (200):**
+```json
+{
+  "conversations": [
+    {
+      "conversation_id": 42,
+      "title": "CERN internship research",
+      "created_at": "2026-10-01T09:00:00",
+      "last_message_at": "2026-10-11T09:00:00",
+      "is_pinned": true,
+      "is_archived": false
+    }
+  ]
+}
+```
+
+### Pin and archive
+
+Four endpoints share the same request and response shape.
+
+| Endpoint | Effect |
+|----------|--------|
+| `POST /api/pin_conversation` | Pin a conversation so it appears first in the list |
+| `POST /api/unpin_conversation` | Remove the pin |
+| `POST /api/archive_conversation` | Hide the conversation from the main list (also clears the pin). Messages are kept |
+| `POST /api/unarchive_conversation` | Restore an archived conversation to the main list |
+
+**Request:**
+```json
+{
+  "conversation_id": 42,
+  "client_id": "abc-123"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `conversation_id` | integer | Yes | ID of the conversation |
+| `client_id` | string | Anonymous mode | Owner credential. Not needed when a signed-in session user is present |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "conversation_id": 42
+}
+```
+
+**Errors:**
+
+| Status | Meaning |
+|--------|---------|
+| `400` | `conversation_id` missing, or neither a session user nor a `client_id` was supplied |
+| `404` | Conversation not found, or not owned by the caller |
+| `500` | Unexpected server error |
+
+Error responses have the shape `{"error": "<message>"}`.
+
+---
 
 ## Playbooks
 

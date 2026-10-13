@@ -10,6 +10,7 @@ from src.utils.env import read_secret
 from src.utils.logging import get_logger, setup_logging
 from src.utils.postgres_service_factory import PostgresServiceFactory
 from src.utils.config_access import get_full_config
+from src.utils.conversation_schema import ensure_conversation_schema
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,17 @@ def main():
         logger.error(
             "Could not ensure playbook schema — playbook features will degrade "
             "(no turn tracking, chip-less conversation loads) until it succeeds: %s",
+            exc,
+        )
+
+    # Conversation pin/archive columns (idempotent migration for pre-existing volumes).
+    pg_cfg = {"password": read_secret("PG_PASSWORD"), **get_full_config()["services"]["postgres"]}
+    try:
+        ensure_conversation_schema(pg_cfg)
+    except Exception as exc:
+        logger.error(
+            "Could not ensure conversation pin/archive schema — "
+            "pin and archive features will not work until it succeeds: %s",
             exc,
         )
 
