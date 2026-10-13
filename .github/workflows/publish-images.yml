@@ -1,0 +1,170 @@
+name: Publish Images
+
+# Base images (a2rchi-python-base, a2rchi-pytorch-base) are rebuilt only when
+# their requirements or Dockerfiles change. The Helm service images
+# (archi-chat, archi-data-manager, archi-postgres, archi-grafana) copy src/ into
+# the image, so they are rebuilt on every change to application code, and also
+# whenever the base images are rebuilt since they build FROM the python base.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      group:
+        description: Images to rebuild and push
+        type: choice
+        options:
+          - services
+          - base
+          - all
+        default: services
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ARCHI_DIR: ${{ github.workspace }}/archi-local
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af || true
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect image changes
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_GROUP: ${{ inputs.group }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            GROUP="$DISPATCH_GROUP"
+            echo "Manual dispatch; rebuilding group '$GROUP'."
+          else
+            if git cat-file -e "$BEFORE^{commit}" >/dev/null 2>&1; then
+              FILES="$(git diff --name-only "$BEFORE" HEAD || true)"
+            else
+              FILES="$(git ls-tree --full-tree -r HEAD --name-only)"
+            fi
+
+            BASE_PATTERN='^(requirements/(cpu|gpu)-requirementsHEADER\.txt|requirements/requirements-base\.txt|src/cli/templates/dockerfiles/base-(python|pytorch)-image/)'
+            SERVICE_PATTERN='^(src/|pyproject\.toml$|LICENSE$|scripts/dev/(build_docker_images|push_docker_images|docker_common)\.sh$|\.github/workflows/publish-images\.yml$)'
+
+            BASE_CHANGED=false
+            SERVICES_CHANGED=false
+            if [[ -n "$FILES" ]] && echo "$FILES" | grep -E "$BASE_PATTERN" >/dev/null; then
+              BASE_CHANGED=true
+              echo "Base image inputs changed:"
+              echo "$FILES" | grep -E "$BASE_PATTERN"
+            fi
+            if [[ -n "$FILES" ]] && echo "$FILES" | grep -E "$SERVICE_PATTERN" >/dev/null; then
+              SERVICES_CHANGED=true
+              echo "Service image inputs changed:"
+              echo "$FILES" | grep -E "$SERVICE_PATTERN"
+            fi
+
+            # Service images build FROM the python base, so a base rebuild
+            # always rebuilds the services too.
+            if [[ "$BASE_CHANGED" == "true" ]]; then
+              GROUP=all
+            elif [[ "$SERVICES_CHANGED" == "true" ]]; then
+              GROUP=services
+            else
+              GROUP=none
+            fi
+          fi
+
+          case "$GROUP" in
+            all) REPOSITORIES="a2rchi/a2rchi-python-base a2rchi/a2rchi-pytorch-base a2rchi/archi-chat a2rchi/archi-data-manager a2rchi/archi-postgres a2rchi/archi-grafana" ;;
+            base) REPOSITORIES="a2rchi/a2rchi-python-base a2rchi/a2rchi-pytorch-base" ;;
+            services) REPOSITORIES="a2rchi/archi-chat a2rchi/archi-data-manager a2rchi/archi-postgres a2rchi/archi-grafana" ;;
+            none) REPOSITORIES="" ;;
+            *) echo "Unknown image group '$GROUP'" >&2; exit 1 ;;
+          esac
+
+          echo "Image group: $GROUP"
+          echo "group=$GROUP" >> "$GITHUB_OUTPUT"
+          echo "repositories=$REPOSITORIES" >> "$GITHUB_OUTPUT"
+          if [[ "$GROUP" == "none" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Docker Buildx
+        if: steps.changes.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-publish-${{ runner.os }}-${{ hashFiles('requirements/**', 'src/cli/templates/dockerfiles/**/Dockerfile*') }}
+          restore-keys: buildx-publish-${{ runner.os }}-
+
+      - name: Install archi CLI
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[all]" || pip install .
+
+      - name: Build images
+        if: steps.changes.outputs.changed == 'true'
+        id: build
+        env:
+          GROUP: ${{ steps.changes.outputs.group }}
+        run: |
+          set -euo pipefail
+          TAG="main-${GITHUB_SHA::7}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          scripts/dev/build_docker_images.sh --group "$GROUP" "$TAG"
+
+      - name: Push images to Docker Hub
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          PUSH_LATEST: "true"
+          GROUP: ${{ steps.changes.outputs.group }}
+        run: scripts/dev/push_docker_images.sh --group "$GROUP" "${{ steps.build.outputs.tag }}"
+
+      - name: Prune old main Docker tags
+        if: ${{ success() && steps.changes.outputs.changed == 'true' }}
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          CURRENT_TAG: ${{ steps.build.outputs.tag }}
+          REPOSITORIES: ${{ steps.changes.outputs.repositories }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          python scripts/dev/manage_docker_tags.py prune-prefix --prefix main- --keep "${CURRENT_TAG}" --repositories $REPOSITORIES
+
+      - name: Skip notification
+        if: steps.changes.outputs.changed != 'true'
+        run: echo "No image inputs changed; skipping build and push."

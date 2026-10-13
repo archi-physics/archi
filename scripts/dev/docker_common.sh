@@ -22,6 +22,59 @@ declare -Ag IMAGE_DOCKERFILES=(
   ["a2rchi/archi-grafana"]="$ROOT_DIR/src/cli/templates/dockerfiles/base-helm-images/Dockerfile-grafana-universal"
 )
 
+# Image groups, in build order. Base images must be built before the Helm
+# service images because archi-chat and archi-data-manager build FROM
+# a2rchi/a2rchi-python-base:latest.
+BASE_IMAGES=(
+  "a2rchi/a2rchi-python-base"
+  "a2rchi/a2rchi-pytorch-base"
+)
+SERVICE_IMAGES=(
+  "a2rchi/archi-chat"
+  "a2rchi/archi-data-manager"
+  "a2rchi/archi-postgres"
+  "a2rchi/archi-grafana"
+)
+
+# Resolve image selection into the global SELECTED_IMAGES array, in build order.
+# Usage: select_images <group> [image...]
+#   group: all | base | services ("" means all). Explicit images override the group.
+select_images() {
+  local group="${1:-all}"
+  shift || true
+  local -a requested=("$@")
+  local -a ordered=("${BASE_IMAGES[@]}" "${SERVICE_IMAGES[@]}")
+  local image
+
+  SELECTED_IMAGES=()
+  if [[ ${#requested[@]} -gt 0 ]]; then
+    for image in "${requested[@]}"; do
+      if [[ -z "${IMAGE_DIRS[$image]+x}" ]]; then
+        echo "Error: unknown image '$image'. Available images:" >&2
+        printf '  - %s\n' "${ordered[@]}" >&2
+        return 1
+      fi
+    done
+    # Keep build order regardless of the order images were requested in.
+    for image in "${ordered[@]}"; do
+      if [[ " ${requested[*]} " == *" $image "* ]]; then
+        SELECTED_IMAGES+=("$image")
+      fi
+    done
+    return 0
+  fi
+
+  case "$group" in
+    all|"") SELECTED_IMAGES=("${ordered[@]}") ;;
+    base) SELECTED_IMAGES=("${BASE_IMAGES[@]}") ;;
+    services) SELECTED_IMAGES=("${SERVICE_IMAGES[@]}") ;;
+    *)
+      echo "Error: unknown image group '$group' (expected all, base, or services)." >&2
+      return 1
+      ;;
+  esac
+}
+
 resolve_tag() {
   local provided_tag="${1:-}"
   if [[ -n "$provided_tag" ]]; then

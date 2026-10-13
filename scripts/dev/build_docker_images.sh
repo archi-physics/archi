@@ -6,7 +6,8 @@ source "$SCRIPT_DIR/docker_common.sh"
 
 RUNTIME="${CONTAINER_RUNTIME:-docker}"
 TAG_INPUT=""
-IMAGE_FILTER=""
+IMAGE_GROUP="all"
+IMAGE_FILTERS=()
 
 usage() {
   cat <<'USAGE'
@@ -16,7 +17,11 @@ Builds the base Docker images locally.
   TAG                 Image tag to use; defaults to the project version from pyproject.toml.
 
 Options:
+  -g, --group GROUP   Build an image group: all (default), base, or services.
+                      base: a2rchi-python-base, a2rchi-pytorch-base
+                      services: archi-chat, archi-data-manager, archi-postgres, archi-grafana
   -i, --image NAME    Build only the specified image (e.g. a2rchi/a2rchi-python-base).
+                      Repeat to build several images; overrides --group.
   -h, --help          Show this help message and exit.
 
 Set CONTAINER_RUNTIME=docker|podman to override the container CLI (defaults to docker).
@@ -31,7 +36,16 @@ while [[ $# -gt 0 ]]; do
         usage
         exit 1
       fi
-      IMAGE_FILTER="$2"
+      IMAGE_FILTERS+=("$2")
+      shift 2
+      ;;
+    -g|--group)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --group requires a value." >&2
+        usage
+        exit 1
+      fi
+      IMAGE_GROUP="$2"
       shift 2
       ;;
     -h|--help)
@@ -85,20 +99,12 @@ cat "$ROOT_DIR/requirements/gpu-requirementsHEADER.txt" \
     "$ROOT_DIR/requirements/requirements-base.txt" \
     > "$ROOT_DIR/src/cli/templates/dockerfiles/base-pytorch-image/requirements.txt"
 
-declare -a IMAGES_TO_BUILD=()
-if [[ -n "$IMAGE_FILTER" ]]; then
-  if [[ -n "${IMAGE_DIRS[$IMAGE_FILTER]+x}" ]]; then
-    IMAGES_TO_BUILD=("$IMAGE_FILTER")
-  else
-    echo "Error: unknown image '$IMAGE_FILTER'. Available images:" >&2
-    for image in "${!IMAGE_DIRS[@]}"; do
-      echo "  - $image" >&2
-    done
-    exit 1
-  fi
-else
-  IMAGES_TO_BUILD=("${!IMAGE_DIRS[@]}")
+if ! select_images "$IMAGE_GROUP" "${IMAGE_FILTERS[@]}"; then
+  usage
+  exit 1
 fi
+IMAGES_TO_BUILD=("${SELECTED_IMAGES[@]}")
+echo "Images to build: ${IMAGES_TO_BUILD[*]}"
 
 for image in "${IMAGES_TO_BUILD[@]}"; do
   build_context="${IMAGE_DIRS[$image]}"

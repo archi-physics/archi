@@ -217,9 +217,14 @@ The `preview` job:
 
 Manually dispatched; builds Docker base images, pushes to DockerHub, runs smoke tests, then tags and releases.
 
-### Publish Base Images (`publish-base-images.yml`)
+### Publish Images (`publish-images.yml`)
 
-Triggered on push to `main`; rebuilds and pushes base images when requirements or Dockerfiles change.
+Triggered on push to `main` and pushes images to Docker Hub as `main-<sha>` and `latest`:
+
+- **Base images** (`a2rchi-python-base`, `a2rchi-pytorch-base`) are rebuilt only when `requirements/requirements-base.txt`, `requirements/*-requirementsHEADER.txt`, or `src/cli/templates/dockerfiles/base-{python,pytorch}-image/` change.
+- **Helm service images** (`archi-chat`, `archi-data-manager`, `archi-postgres`, `archi-grafana`) are rebuilt whenever `src/`, `pyproject.toml`, `LICENSE`, the image build scripts, or this workflow change, and always after a base image rebuild (they build `FROM` the python base).
+
+It can also be run manually (`workflow_dispatch`) with `group` set to `services`, `base`, or `all` to force a rebuild.
 
 ### Docker Layer Caching
 
@@ -258,6 +263,10 @@ Images are hosted at:
 - PyTorch: <https://hub.docker.com/r/a2rchi/a2rchi-pytorch-base>
 
 To rebuild a base image, navigate to the relevant `base-xxx-image` directory under `src/cli/templates/dockerfiles/`. Each directory contains the Dockerfile, requirements, and license information.
+
+The Helm chart rendered by `archi install` uses the service images `a2rchi/archi-chat`, `a2rchi/archi-data-manager`, `a2rchi/archi-postgres`, and `a2rchi/archi-grafana`, built from `src/cli/templates/dockerfiles/base-helm-images/`.
+
+To build or push locally, use `scripts/dev/build_docker_images.sh` and `scripts/dev/push_docker_images.sh`. Both accept `--group all|base|services` and a repeatable `-i <image>`; images are always built base-first so service images pick up a freshly built python base.
 
 Regenerate the requirements files with:
 
