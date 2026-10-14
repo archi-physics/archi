@@ -468,6 +468,55 @@ body {
   color: var(--error-text);
 }
 
+/* Rename button — mirrors delete button, shown on hover with neutral colour */
+.conversation-item-rename {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.conversation-item:hover .conversation-item-rename {
+  display: flex;
+}
+
+.conversation-item-rename:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Hide action buttons while the title input is active */
+.conversation-item.editing .conversation-item-rename,
+.conversation-item.editing .conversation-item-delete {
+  display: none;
+}
+
+/* Inline title input — replaces the title span during editing */
+.conversation-item-title-input {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  min-width: 0;
+}
+
+.conversation-item-title-input:focus {
+  border-color: var(--text-tertiary);
+}
+
 /* -----------------------------------------------------------------------------
    User Profile Widget (Bottom of Sidebar)
    ----------------------------------------------------------------------------- */

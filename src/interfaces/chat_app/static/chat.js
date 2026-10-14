@@ -27,6 +27,7 @@ const CONFIG = {
     LOAD_CONVERSATION: '/api/load_conversation',
     NEW_CONVERSATION: '/api/new_conversation',
     DELETE_CONVERSATION: '/api/delete_conversation',
+    RENAME_CONVERSATION: '/api/rename_conversation',
     AB_PREFERENCE: '/api/ab/preference',
     AB_PENDING: '/api/ab/pending',
     AB_POOL: '/api/ab/pool',
@@ -300,6 +301,18 @@ const API = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversation_id: conversationId,
+        client_id: this.clientId,
+      }),
+    });
+  },
+
+  async renameConversation(conversationId, title) {
+    return this.fetchJson(CONFIG.ENDPOINTS.RENAME_CONVERSATION, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        title: title,
         client_id: this.clientId,
       }),
     });
@@ -2223,6 +2236,12 @@ const UI = {
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
             <span class="conversation-item-title">${title}</span>
+            <button class="conversation-item-rename" data-id="${conv.conversation_id}" aria-label="Rename conversation" title="Rename conversation">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
             <button class="conversation-item-delete" data-id="${conv.conversation_id}" aria-label="Delete conversation" title="Delete conversation">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2238,10 +2257,40 @@ const UI = {
 
     // Bind click events
     list.querySelectorAll('.conversation-item').forEach((item) => {
+      // Loading a conversation re-renders this whole list, which would destroy
+      // the rename input. Delay the load briefly so a double-click can cancel it.
+      let loadTimer = null;
+
       item.addEventListener('click', (e) => {
         if (e.target.closest('.conversation-item-delete')) return;
+        if (e.target.closest('.conversation-item-rename')) return;
+        if (e.target.closest('.conversation-item-title-input')) return;
         const id = Number(item.dataset.id);
-        Chat.loadConversation(id);
+        clearTimeout(loadTimer);
+        loadTimer = setTimeout(() => Chat.loadConversation(id), 250);
+      });
+
+      // Double-click title to rename inline
+      const titleSpan = item.querySelector('.conversation-item-title');
+      if (titleSpan) {
+        titleSpan.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          clearTimeout(loadTimer);
+          const id = Number(item.dataset.id);
+          const currentTitle = titleSpan.textContent;
+          UI.startRenameInline(item, id, currentTitle);
+        });
+      }
+    });
+
+    list.querySelectorAll('.conversation-item-rename').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = Number(btn.dataset.id);
+        const item = btn.closest('.conversation-item');
+        const titleSpan = item.querySelector('.conversation-item-title');
+        const currentTitle = titleSpan ? titleSpan.textContent : '';
+        UI.startRenameInline(item, id, currentTitle);
       });
     });
 
@@ -2251,6 +2300,64 @@ const UI = {
         const id = Number(btn.dataset.id);
         Chat.deleteConversation(id);
       });
+    });
+  },
+
+  startRenameInline(item, conversationId, currentTitle) {
+    // Prevent opening a second input if already editing
+    if (item.classList.contains('editing')) return;
+
+    const titleSpan = item.querySelector('.conversation-item-title');
+    if (!titleSpan) return;
+
+    item.classList.add('editing');
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'conversation-item-title-input';
+    input.value = currentTitle;
+    input.setAttribute('aria-label', 'Rename conversation');
+    input.maxLength = 100;
+
+    // Replace the span with the input
+    titleSpan.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const restore = () => {
+      if (!item.classList.contains('editing')) return;
+      item.classList.remove('editing');
+      input.replaceWith(titleSpan);
+    };
+
+    const commit = async () => {
+      if (!item.classList.contains('editing')) return;
+      const newTitle = input.value.trim();
+      item.classList.remove('editing');
+
+      if (!newTitle || newTitle === currentTitle) {
+        restore();
+        return;
+      }
+
+      input.replaceWith(titleSpan);
+      const originalTitle = titleSpan.textContent;
+      titleSpan.textContent = newTitle;           // optimistic update
+
+      await Chat.renameConversation(conversationId, newTitle, () => {
+        titleSpan.textContent = originalTitle;    // roll back on error
+      });
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { e.preventDefault(); restore(); }
+    });
+
+    // blur fires after a click elsewhere; avoid double-firing with keydown
+    input.addEventListener('blur', () => {
+      // Small delay so an Enter keydown can fire commit() first
+      setTimeout(() => commit(), 100);
     });
   },
 
@@ -4779,6 +4886,16 @@ const Chat = {
       await this.loadConversations();
     } catch (e) {
       console.error('Failed to delete conversation:', e);
+    }
+  },
+
+  async renameConversation(conversationId, newTitle, onError) {
+    try {
+      await API.renameConversation(conversationId, newTitle);
+    } catch (e) {
+      console.error('Failed to rename conversation:', e);
+      if (onError) onError();
+      UI.showToast('Failed to rename conversation.');
     }
   },
 

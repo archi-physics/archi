@@ -56,6 +56,7 @@ from src.utils.sql import (
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_LIST_CONVERSATIONS_BY_USER, SQL_GET_CONVERSATION_METADATA_BY_USER,
     SQL_DELETE_CONVERSATION_BY_USER, SQL_UPDATE_CONVERSATION_TIMESTAMP_BY_USER,
+    SQL_RENAME_CONVERSATION, SQL_RENAME_CONVERSATION_BY_USER,
     SQL_INSERT_TOOL_CALLS, SQL_QUERY_CONVO_WITH_FEEDBACK,
     SQL_QUERY_CONVO_WITH_FEEDBACK_NO_PLAYBOOKS, SQL_DELETE_REACTION_FEEDBACK,
     SQL_GET_REACTION_FEEDBACK,
@@ -2805,6 +2806,7 @@ class FlaskAppWrapper(object):
         self.add_endpoint('/api/load_conversation', 'load_conversation', self.require_auth(self.load_conversation), methods=["POST"])
         self.add_endpoint('/api/new_conversation', 'new_conversation', self.require_auth(self.new_conversation), methods=["POST"])
         self.add_endpoint('/api/delete_conversation', 'delete_conversation', self.require_auth(self.delete_conversation), methods=["POST"])
+        self.add_endpoint('/api/rename_conversation', 'rename_conversation', self.require_auth(self.rename_conversation), methods=["POST"])
 
         # A/B testing endpoints
         logger.info("Adding A/B testing API endpoints")
@@ -5375,6 +5377,59 @@ class FlaskAppWrapper(object):
             return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
         except Exception as e:
             print(f"ERROR in delete_conversation: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    def rename_conversation(self):
+        """
+        Rename a conversation by updating its title.
+
+        POST body:
+        - conversation_id: The ID of the conversation to rename
+        - title: The new title (1-100 characters)
+        - client_id: Client ID for anonymous ownership check
+
+        Returns:
+            JSON with success status and the updated title
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            title = (data.get('title') or '').strip()
+            client_id = data.get('client_id')
+            user_id = session.get('user', {}).get('id') or None
+
+            if not conversation_id:
+                return jsonify({'error': 'conversation_id is required'}), 400
+            if not title:
+                return jsonify({'error': 'title must not be empty'}), 400
+            if len(title) > 100:
+                return jsonify({'error': 'title must be 100 characters or fewer'}), 400
+            if not user_id and not client_id:
+                return jsonify({'error': 'client_id is required'}), 400
+
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+
+            if user_id:
+                cursor.execute(SQL_RENAME_CONVERSATION_BY_USER, (title, conversation_id, user_id, client_id))
+            else:
+                cursor.execute(SQL_RENAME_CONVERSATION, (title, conversation_id, client_id))
+
+            updated_count = cursor.rowcount
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            if updated_count == 0:
+                return jsonify({'error': 'Conversation not found'}), 404
+
+            logger.info(f"Renamed conversation {conversation_id} to: {title!r}")
+            return jsonify({'success': True, 'conversation_id': conversation_id, 'title': title}), 200
+
+        except ValueError as e:
+            return jsonify({'error': f'Invalid parameter: {str(e)}'}), 400
+        except Exception as e:
+            logger.error(f"Error in rename_conversation: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
     # =========================================================================
