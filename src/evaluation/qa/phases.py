@@ -18,6 +18,7 @@ from typing import (  # isort: skip
 
 from .preparation import AnswerComparator, PreparationRecord
 from .schema import AttemptIdentity
+from .sources import evaluate_sources
 from .scoring import score_attempt
 from .tool_traces import serialize_tool_call_records
 from .validation import validate_judgments
@@ -110,6 +111,15 @@ def score_answer(
 ) -> Dict[str, Any]:
     identity = AttemptIdentity.from_dict(answer, context="attempt").to_dict()
     gold_atoms = prepared.prepared_gold_atoms
+    source_fields = (
+        {
+            "source_evaluation": evaluate_sources(
+                prepared.expected_sources, answer.get("tool_calls")
+            ).to_dict()
+        }
+        if prepared.expected_sources
+        else {}
+    )
     try:
         judgments = validate_judgments(
             evaluator.compare(
@@ -125,6 +135,7 @@ def score_answer(
         return {
             **identity,
             "status": "scored",
+            **source_fields,
             "answer": answer["answer"],
             "judgments": [judgment.to_dict() for judgment in judgments],
             **score_attempt(gold_atoms, judgments),
@@ -133,6 +144,7 @@ def score_answer(
         return {
             **identity,
             "status": "evaluation_failed",
+            **source_fields,
             "error": str(exc),
         }
 
@@ -152,6 +164,15 @@ def score_attempts(
             return {
                 **AttemptIdentity.from_dict(answer, context="attempt").to_dict(),
                 "status": "execution_failed",
+                **(
+                    {
+                        "source_evaluation": evaluate_sources(
+                            prepared.expected_sources, answer.get("tool_calls")
+                        ).to_dict()
+                    }
+                    if prepared.expected_sources
+                    else {}
+                ),
                 "error": answer["error"],
             }
         assert evaluator is not None

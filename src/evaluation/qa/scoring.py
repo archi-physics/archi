@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Sequence, 
 from .artifacts import AtomicTextWriter
 from .constants import ATTEMPT_LIFECYCLE_STATUSES, ITEM_LIFECYCLE_STATUSES
 from .preparation import PreparationRecord
+from .sources import SourceEvaluation, SourceEvaluationStatus
 from .validation import Atom, Judgment
 
 OUTCOME_VALUES = {"entailed": 1, "not_mentioned": 0, "contradicted": -1}
@@ -49,6 +50,8 @@ def build_summary(
     atom_score_sum = 0.0
     required_recall_sum = 0.0
     scored_attempt_count = 0
+    source_counts = Counter()
+    source_recall_sum = 0.0
     oracle_calls = Counter()
     with tempfile.TemporaryDirectory(prefix=".qa-summary-") as temporary:
         connection = sqlite3.connect(str(Path(temporary) / "summary.sqlite3"))
@@ -95,6 +98,14 @@ def build_summary(
             for result in evaluation_results:
                 status = result["status"]
                 attempt_lifecycle[status] += 1
+                source_result = result.get("source_evaluation")
+                if source_result is not None:
+                    source_evaluation = SourceEvaluation.from_dict(source_result)
+                    source_counts[source_evaluation.status] += 1
+                    if source_evaluation.status is SourceEvaluationStatus.SCORED:
+                        assert source_evaluation.recall is not None
+                        source_recall_sum += source_evaluation.recall
+                        source_counts["all_matched"] += source_evaluation.recall == 1.0
                 item_id = result["item_id"]
                 cursor = connection.execute(
                     "UPDATE items SET requested = requested + 1 WHERE item_id = ?",
@@ -235,6 +246,22 @@ def build_summary(
             outcome: aggregate_outcomes.get(outcome, 0)
             for outcome in ("entailed", "not_mentioned", "contradicted")
         },
+        "source_evaluation": {
+            "scored_attempts": source_counts[SourceEvaluationStatus.SCORED],
+            "unavailable_attempts": source_counts[SourceEvaluationStatus.UNAVAILABLE],
+            "all_matched_attempts": source_counts["all_matched"],
+            "mean_recall": (
+                source_recall_sum / source_counts[SourceEvaluationStatus.SCORED]
+                if source_counts[SourceEvaluationStatus.SCORED]
+                else None
+            ),
+            "all_matched_rate": (
+                source_counts["all_matched"]
+                / source_counts[SourceEvaluationStatus.SCORED]
+                if source_counts[SourceEvaluationStatus.SCORED]
+                else None
+            ),
+        },
         "oracle_calls_succeeded": oracle_calls["succeeded"],
         "oracle_calls_failed": oracle_calls["failed"],
         **({"items": item_summaries} if item_summaries is not None else {}),
@@ -286,6 +313,13 @@ def _report_header(summary: Dict[str, Any], manifest: Dict[str, Any]) -> list[st
         f"- Macro mean item pass rate: `{_rate(summary['macro_mean_item_pass_rate'])}`",
         f"- Macro mean atom score: `{_rate(summary['macro_mean_scored_attempt_atom_score'])}`",
         f"- Macro mean required-atom recall: `{_rate(summary['macro_mean_scored_attempt_required_atom_recall'])}`",
+        "",
+        "## Expected sources",
+        "",
+        f"- Mean source recall: `{_rate(summary['source_evaluation']['mean_recall'])}`",
+        f"- All expected sources matched: `{_rate(summary['source_evaluation']['all_matched_rate'])}`",
+        f"- Source checks scored / unavailable: `{summary['source_evaluation']['scored_attempts']} / {summary['source_evaluation']['unavailable_attempts']}`",
+        "- Checks use case-insensitive literal matches in successful tool responses; they do not establish that document contents were fetched or used.",
         "",
         "## Lifecycle counts",
         "",

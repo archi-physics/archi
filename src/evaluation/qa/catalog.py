@@ -30,6 +30,7 @@ from .dataset import (
     DatasetItemState,
     dataset_item_to_dict,
     iter_dataset_items,
+    validate_expected_sources,
 )
 from .oracle import OracleResolver
 from .preparation import (
@@ -135,6 +136,8 @@ def _dataset_row(
         value = getattr(item, field)
         if value is not None:
             row[field] = value
+    if item.expected_sources:
+        row["expected_sources"] = list(item.expected_sources)
     if atoms is not None:
         row["expected_atoms"] = list(atoms)
     if item.oracle is not None:
@@ -153,6 +156,7 @@ def _generated_draft_row(
         "time_sensitive": item.time_sensitive,
         "status": record.status,
     }
+    row["expected_sources"] = list(item.expected_sources)
     if item.answer_source is not None:
         row["answer_source"] = item.answer_source
     if record.status == "prepared":
@@ -752,6 +756,7 @@ class EvaluationCatalog:
                     "status": status,
                     "atoms": [atom.to_dict() for atom in (item.expected_atoms or [])],
                 }
+                row["expected_sources"] = list(item.expected_sources)
                 if item.answer_source is not None:
                     row["answer_source"] = item.answer_source
                 if item.expected_atoms is not None:
@@ -958,7 +963,10 @@ class EvaluationCatalog:
                                 (row["item_id"],),
                             ).fetchone()
                             writer.write(
-                                json.loads(replacement[0])
+                                {
+                                    **json.loads(replacement[0]),
+                                    "expected_sources": row.get("expected_sources", []),
+                                }
                                 if replacement is not None
                                 else row
                             )
@@ -994,14 +1002,14 @@ class EvaluationCatalog:
             try:
                 connection.execute(
                     "CREATE TABLE child (id TEXT PRIMARY KEY, question TEXT NOT NULL, "
-                    "answer_json TEXT, atoms_json TEXT)"
+                    "answer_json TEXT, atoms_json TEXT, sources_json TEXT NOT NULL)"
                 )
                 for item in iter_dataset_items(
                     self.dataset_path(child_dataset_id),
                     allow_materialized_live=bool(child.get("contains_live_answers")),
                 ):
                     connection.execute(
-                        "INSERT INTO child VALUES (?, ?, ?, ?)",
+                        "INSERT INTO child VALUES (?, ?, ?, ?, ?)",
                         (
                             item.id,
                             item.question,
@@ -1014,6 +1022,7 @@ class EvaluationCatalog:
                                 if item.expected_atoms is not None
                                 else None
                             ),
+                            json.dumps(item.expected_sources, ensure_ascii=False),
                         ),
                     )
                 connection.commit()
@@ -1038,7 +1047,7 @@ class EvaluationCatalog:
                 def draft_items() -> Iterable[Dict[str, Any]]:
                     for item in iter_dataset_items(self.dataset_path(parent_id)):
                         carried = connection.execute(
-                            "SELECT answer_json, atoms_json FROM child WHERE id = ?",
+                            "SELECT answer_json, atoms_json, sources_json FROM child WHERE id = ?",
                             (item.id,),
                         ).fetchone()
                         if not item.is_live:
@@ -1051,10 +1060,13 @@ class EvaluationCatalog:
                                 "status": "prepared",
                                 "atom_source": "supplied",
                                 "atoms": json.loads(carried[1]),
+                                "expected_sources": json.loads(carried[2]),
                             }
                             continue
                         record = prepare_dataset_item(item, evaluator, oracle_resolver)
                         row = _generated_draft_row(item, record)
+                        if carried is not None:
+                            row["expected_sources"] = json.loads(carried[2])
                         previous_answer = (
                             json.loads(carried[0]) if carried is not None else None
                         )
@@ -1123,13 +1135,14 @@ class EvaluationCatalog:
                 child_path = Path(temporary) / "child.json"
                 try:
                     connection.execute(
-                        "CREATE TABLE reviewed (id TEXT PRIMARY KEY, atoms_json TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0)"
+                        "CREATE TABLE reviewed (id TEXT PRIMARY KEY, atoms_json TEXT NOT NULL, sources_json TEXT, used INTEGER NOT NULL DEFAULT 0)"
                     )
                     for index, reviewed in enumerate(reviewed_items):
-                        if not isinstance(reviewed, dict) or set(reviewed) != {
-                            "item_id",
-                            "atoms",
-                        }:
+                        if (
+                            not isinstance(reviewed, dict)
+                            or not {"item_id", "atoms"}.issubset(reviewed)
+                            or set(reviewed) - {"item_id", "atoms", "expected_sources"}
+                        ):
                             raise ValueError(
                                 f"reviewed_items[{index}] must contain item_id and atoms"
                             )
@@ -1145,10 +1158,26 @@ class EvaluationCatalog:
                                 context=f"reviewed_items[{index}].atoms",
                             )
                         ]
+                        sources = (
+                            validate_expected_sources(
+                                reviewed["expected_sources"],
+                                context=f"reviewed_items[{index}].expected_sources",
+                            )
+                            if "expected_sources" in reviewed
+                            else None
+                        )
                         try:
                             connection.execute(
-                                "INSERT INTO reviewed (id, atoms_json) VALUES (?, ?)",
-                                (item_id, json.dumps(atoms, ensure_ascii=False)),
+                                "INSERT INTO reviewed (id, atoms_json, sources_json) VALUES (?, ?, ?)",
+                                (
+                                    item_id,
+                                    json.dumps(atoms, ensure_ascii=False),
+                                    (
+                                        json.dumps(sources, ensure_ascii=False)
+                                        if sources is not None
+                                        else None
+                                    ),
+                                ),
                             )
                         except sqlite3.IntegrityError as exc:
                             raise ValueError(
@@ -1174,7 +1203,7 @@ class EvaluationCatalog:
                                 continue
                             eligible = _draft_requires_review(draft, item, draft_row)
                             supplied = connection.execute(
-                                "SELECT atoms_json FROM reviewed WHERE id = ?",
+                                "SELECT atoms_json, sources_json FROM reviewed WHERE id = ?",
                                 (item.id,),
                             ).fetchone()
                             if eligible and supplied is None:
@@ -1192,6 +1221,14 @@ class EvaluationCatalog:
                                 draft_row,
                                 supplied[0] if supplied is not None else None,
                             )
+                            sources = (
+                                json.loads(supplied[1])
+                                if supplied is not None and supplied[1] is not None
+                                else draft_row.get("expected_sources", [])
+                            )
+                            row.pop("expected_sources", None)
+                            if sources:
+                                row["expected_sources"] = sources
                             if not first:
                                 child_file.write(",")
                             child_file.write(

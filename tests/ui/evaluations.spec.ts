@@ -2082,9 +2082,16 @@ test.describe("QA evaluation console", () => {
       "Atom text 1 for retry-scored",
     );
     await preservedAtom.fill("Unsaved reviewer edit remains visible.");
+    const preservedSources = preservedPanel.getByLabel("Expected sources for retry-scored", {exact: true});
+    await preservedSources.fill("Reviewer source.pdf");
+    const failedPanel = dialog.locator(".atom-item").filter({hasText: "Recover this atom?"});
+    await failedPanel.locator(":scope > summary").click();
+    const recoveredSources = failedPanel.getByLabel("Expected sources for retry-execution", {exact: true});
+    await recoveredSources.fill("Recovered source.pdf");
 
     await retryAtoms.click();
     await preservedAtom.fill("Edit made while retry was running.");
+    await preservedSources.fill("Edited during retry.pdf");
 
     await expect(dialog.getByText("Generation failed:", { exact: false })).toHaveCount(0, {
       timeout: 15_000,
@@ -2093,6 +2100,8 @@ test.describe("QA evaluation console", () => {
       dialog.getByRole("button", { name: /Retry failed atoms/ }),
     ).toHaveCount(0);
     await expect(preservedAtom).toHaveValue("Edit made while retry was running.");
+    await expect(preservedSources).toHaveValue("Edited during retry.pdf");
+    await expect(recoveredSources).toHaveValue("Recovered source.pdf");
     await dialog.getByLabel("New dataset name").fill(
       "Failure retry dataset · reviewed",
     );

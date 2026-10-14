@@ -19,6 +19,7 @@ from typing import (
 )
 
 from .artifacts import iter_jsonl
+from .dataset import validate_expected_sources
 from .oracle import (
     DIAGNOSTIC_LIMIT,
     OracleCallEvidence,
@@ -85,8 +86,12 @@ class PreparationRecord:
     answer_sha256: Optional[str] = None
     oracle_metadata: Optional[Dict[str, Any]] = None
     oracle_calls: Optional[Tuple[OracleCallEvidence, ...]] = None
+    expected_sources: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        validate_expected_sources(
+            list(self.expected_sources), context="preparation expected_sources"
+        )
         validate_nonempty_string(self.item_id, "preparation item_id")
         validate_optional_nonempty_string(
             self.category,
@@ -224,6 +229,8 @@ class PreparationRecord:
             "answer_mode": self.answer_mode,
             "answer_source": self.answer_source,
         }
+        if self.expected_sources:
+            row["expected_sources"] = list(self.expected_sources)
         if self.status == "prepared":
             row.update(
                 {
@@ -280,6 +287,7 @@ def prepare_dataset_item(
             category=item.category,
             answer_mode=item.answer_mode,
             answer_source=item.answer_source,
+            expected_sources=item.expected_sources,
         )
     if item.is_live and skip_live:
         return PreparationRecord(
@@ -288,6 +296,7 @@ def prepare_dataset_item(
             category=item.category,
             answer_mode=item.answer_mode,
             answer_source=item.answer_source,
+            expected_sources=item.expected_sources,
         )
     try:
         resolved = None
@@ -331,6 +340,7 @@ def prepare_dataset_item(
             category=item.category,
             answer_mode=item.answer_mode,
             answer_source=item.answer_source,
+            expected_sources=item.expected_sources,
             error=bounded_diagnostic(detail),
             oracle_calls=(
                 exc.calls
@@ -358,6 +368,7 @@ def prepare_dataset_item(
         category=item.category,
         answer_mode=item.answer_mode,
         answer_source=item.answer_source,
+        expected_sources=item.expected_sources,
         question=item.question,
         answer=answer,
         time_sensitive=item.time_sensitive,
@@ -419,12 +430,17 @@ def _record_from_row(row: Dict[str, Any], *, index: int) -> PreparationRecord:
         }
     if status == "preparation_failed" and "oracle_calls" in row:
         status_fields.add("oracle_calls")
+    if "expected_sources" in row:
+        base_fields.add("expected_sources")
     _require_exact_keys(row, base_fields | status_fields, context=context)
     common = {
         "item_id": row["item_id"],
         "category": row["category"],
         "answer_mode": row["answer_mode"],
         "answer_source": row["answer_source"],
+        "expected_sources": validate_expected_sources(
+            row.get("expected_sources", []), context=f"{context}.expected_sources"
+        ),
     }
 
     if status == "prepared":

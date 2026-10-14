@@ -557,3 +557,11 @@ dialog::backdrop { background:rgba(4,12,9,.72); backdrop-filter:blur(4px); }
   .trend-line,.trend-point { animation:none; }
   .trend-dataset-option:hover { transform:none; }
 }
+
+.expected-sources-editor { margin-top: 20px; padding: 0 16px; }
+.expected-sources-editor textarea { width: 100%; overflow-wrap: anywhere; }
+.sources-help { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 8px 0 12px; }
+.source-identifier { min-width: 0; overflow-wrap: anywhere; }
+.source-judgment summary { gap: 12px; }
+.source-judgment .atom-outcome { flex-shrink: 0; }
+.source-judgment ul { margin: 0; padding-left: 20px; }
