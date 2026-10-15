@@ -4,7 +4,7 @@ Archi uses a **provider-based architecture** for LLM access. Each provider wraps
 
 ## Provider Architecture
 
-All providers extend the `BaseProvider` abstract class and are registered in a global provider registry. The system supports six provider types:
+All providers extend the `BaseProvider` abstract class and are registered in a global provider registry. The system supports eight provider types:
 
 | Provider | Type | API Key Env Var | Default Model | LangChain Backend |
 |----------|------|----------------|---------------|-------------------|
@@ -13,11 +13,15 @@ All providers extend the `BaseProvider` abstract class and are registered in a g
 | Google Gemini | `gemini` | `GOOGLE_API_KEY` | `gemini-2.0-flash` | `ChatGoogleGenerativeAI` |
 | OpenRouter | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | `ChatOpenAI` (custom base URL) |
 | CERN LiteLLM | `cern_litellm` | `CERN_LITELLM_API_KEY` | Configured via YAML | `ChatOpenAI` (CERN LLM Gateway) |
-| Local (Ollama/vLLM) | `local` | N/A | Dynamic (fetched from server) | `ChatOllama` or `ChatOpenAI` |
+| Local (generic) | `local` | N/A | Dynamic (fetched from server) | `ChatOllama` or `ChatOpenAI`, per `mode` |
+| Ollama | `ollama` | N/A | Dynamic (fetched from server) | `ChatOllama` |
+| vLLM / OpenAI-compatible | `vllm` | N/A | Configured via YAML | `ChatOpenAI` (custom base URL) |
+
+`local`, `ollama`, and `vllm` all share the same underlying implementation and `local_mode` dispatch (see below), but `ollama` and `vllm` are registered as distinct provider types with their own config block. That's what lets a single service run both at once — see [Running Ollama and vLLM together](#running-ollama-and-vllm-together).
 
 ### Key Concepts
 
-- **`ProviderType`**: An enum of supported provider names (`OPENAI`, `ANTHROPIC`, `GEMINI`, `OPENROUTER`, `LOCAL`, `CERN_LITELLM`).
+- **`ProviderType`**: An enum of supported provider names (`OPENAI`, `ANTHROPIC`, `GEMINI`, `OPENROUTER`, `LOCAL`, `OLLAMA`, `VLLM`, `CERN_LITELLM`).
 - **`ProviderConfig`**: A dataclass holding provider settings — type, API key, base URL, enabled state, models list, and extra kwargs.
 - **`ModelInfo`**: Describes a model's capabilities — context window, tool support, streaming support, vision support, and max output tokens.
 - **Provider Registry**: Providers are lazily registered at first use. Factory functions (`get_provider`, `get_model`) handle instantiation and caching.
@@ -130,6 +134,30 @@ The `local` provider supports two modes:
 - **`openai_compat`**: Uses `ChatOpenAI` with a custom base URL. Suitable for vLLM, LM Studio, or other OpenAI-compatible servers.
 
 > **Note:** For GPU setup with local models, see [Advanced Setup & Deployment](advanced_setup_deploy.md#running-llms-locally-on-your-gpus).
+
+### Running Ollama and vLLM together
+
+`default_provider`/`default_model` only select a single model, and a single `providers.local` block only has one `mode` — so a service can't point `local` at both Ollama and vLLM at the same time. To use both concurrently in one service, configure them under the separate `ollama` and `vllm` provider keys and reference each by name in `models`:
+
+```yaml
+services:
+  chat_app:
+    providers:
+      ollama:
+        base_url: http://localhost:11434
+        models:
+          - llama3.2
+      vllm:
+        base_url: http://localhost:8000/v1
+        models:
+          - my-vllm-model
+    pipelines:
+      required:
+        chat_pipeline: react
+      # ...
+```
+
+In the pipeline's `models.required`/`models.optional`, reference models as `"<provider>/<model>"`, e.g. `"ollama/llama3.2"` and `"vllm/my-vllm-model"`. Each is resolved to its own provider instance, so requests to the Ollama-backed model and the vLLM-backed model can run side by side against two different local servers. `local` remains available as a generic single-mode provider for backward compatibility, and can still be combined with `ollama` and/or `vllm` if needed.
 
 ---
 

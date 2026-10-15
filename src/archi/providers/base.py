@@ -25,6 +25,8 @@ class ProviderType(str, Enum):
     GEMINI = "gemini"
     OPENROUTER = "openrouter"
     LOCAL = "local"
+    OLLAMA = "ollama"
+    VLLM = "vllm"
     CERN_LITELLM = "cern_litellm"
 
 
@@ -118,7 +120,7 @@ class BaseProvider(ABC):
     def is_configured(self) -> bool:
         """Check if the provider has necessary credentials configured."""
         # Local providers may not need an API key
-        if self.provider_type == ProviderType.LOCAL:
+        if self.provider_type in (ProviderType.LOCAL, ProviderType.OLLAMA, ProviderType.VLLM):
             return bool(self.config.base_url)
         return bool(self._api_key)
     

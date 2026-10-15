@@ -964,7 +964,8 @@ class BaseReActAgent:
         extra = {}
         try:
             provider_type = ProviderType(provider_key)
-            if provider_type == ProviderType.LOCAL and cfg.get("mode"):
+            local_types = (ProviderType.LOCAL, ProviderType.OLLAMA, ProviderType.VLLM)
+            if provider_type in local_types and cfg.get("mode"):
                 extra["local_mode"] = cfg.get("mode")
         except Exception:
             pass
