@@ -155,7 +155,9 @@ def get_user_roles(
         return assign_default_role(user_email, raw_roles)
 
 
-def assign_default_role(user_email: str, original_roles: List[str] = None) -> List[str]:
+def assign_default_role(
+    user_email: str, original_roles: Optional[List[str]] = None
+) -> List[str]:
     """
     Assign the default role to a user who has no configured roles.
     

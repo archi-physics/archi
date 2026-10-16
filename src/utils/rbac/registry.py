@@ -145,7 +145,9 @@ class RBACRegistry:
         
         logger.debug(f"Permission cache built for {len(self._role_permissions_cache)} roles")
     
-    def _resolve_permissions(self, role_name: str, visited: Set[str] = None) -> Set[str]:
+    def _resolve_permissions(
+        self, role_name: str, visited: Optional[Set[str]] = None
+    ) -> Set[str]:
         """
         Resolve all permissions for a role including inherited permissions.
         
