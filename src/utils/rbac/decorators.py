@@ -68,7 +68,7 @@ def require_authenticated(f: Callable) -> Callable:
                 user='anonymous',
                 permission='authenticated',
                 granted=False,
-                endpoint=request.endpoint,
+                endpoint=request.endpoint or '<unknown>',
                 roles=[]
             )
             
@@ -118,7 +118,7 @@ def require_permission(permission: Union[str, List[str]]) -> Callable:
                     user='anonymous',
                     permission=','.join(required_permissions),
                     granted=False,
-                    endpoint=request.endpoint,
+                    endpoint=request.endpoint or '<unknown>',
                     roles=[]
                 )
                 
@@ -150,7 +150,7 @@ def require_permission(permission: Union[str, List[str]]) -> Callable:
                     user=user_email,
                     permission=','.join(required_permissions),
                     granted=False,
-                    endpoint=request.endpoint,
+                    endpoint=request.endpoint or '<unknown>',
                     roles=user_roles,
                     missing=missing_permissions
                 )
@@ -184,7 +184,7 @@ def require_permission(permission: Union[str, List[str]]) -> Callable:
                 user=user_email,
                 permission=','.join(required_permissions),
                 granted=True,
-                endpoint=request.endpoint,
+                endpoint=request.endpoint or '<unknown>',
                 roles=user_roles
             )
             
@@ -216,7 +216,7 @@ def require_any_permission(permissions: List[str]) -> Callable:
                     user='anonymous',
                     permission=f"any({','.join(permissions)})",
                     granted=False,
-                    endpoint=request.endpoint,
+                    endpoint=request.endpoint or '<unknown>',
                     roles=[]
                 )
                 
@@ -249,7 +249,7 @@ def require_any_permission(permissions: List[str]) -> Callable:
                     user=user_email,
                     permission=f"any({','.join(permissions)})",
                     granted=False,
-                    endpoint=request.endpoint,
+                    endpoint=request.endpoint or '<unknown>',
                     roles=user_roles
                 )
                 
@@ -281,7 +281,7 @@ def require_any_permission(permissions: List[str]) -> Callable:
                 user=user_email,
                 permission=f"any({','.join(permissions)})",
                 granted=True,
-                endpoint=request.endpoint,
+                endpoint=request.endpoint or '<unknown>',
                 roles=user_roles
             )
             
@@ -316,7 +316,7 @@ def check_sso_required() -> Callable:
                     user='anonymous',
                     permission='sso_required',
                     granted=False,
-                    endpoint=request.endpoint,
+                    endpoint=request.endpoint or '<unknown>',
                     roles=[]
                 )
                 
