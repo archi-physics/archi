@@ -5385,6 +5385,7 @@ const Chat = {
       this.state.isStreaming = false;
       UI.setInputDisabled(false);
       UI.setStreamingState(false);
+      UI.stopTraceTimersInElement(UI.elements.messagesInner);
       this.state.abortController = null;
       
       // Also notify server
