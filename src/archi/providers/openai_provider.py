@@ -21,7 +21,11 @@ DEFAULT_OPENAI_MODELS = [
         id="gpt-5",
         name="gpt-5",
         display_name="GPT-5",
-        context_window=128000,
+        # Authoritative max input tokens per OpenAI API model docs
+        # (400k total context window, 272k max input, 128k max output).
+        # context_window drives the trimming budget in base_react.py, so it
+        # must reflect the real input limit (see #601).
+        context_window=272000,
         supports_tools=True,
         supports_streaming=True,
         supports_vision=True,
