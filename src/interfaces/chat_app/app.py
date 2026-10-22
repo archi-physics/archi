@@ -31,6 +31,8 @@ from pygments.lexers import (BashLexer, CLexer, CppLexer, FortranLexer,
                              TypeScriptLexer)
 
 from src.archi.archi import archi
+from src.archi.pipelines.agents.utils.async_bridge import AsyncStreamBridge, StreamCancelled
+from src.archi.pipelines.agents.utils.mcp_utils import AsyncLoopThread
 from src.archi.pipelines.agents.agent_spec import (
     AgentSpec,
     AgentSpecError,
@@ -365,6 +367,10 @@ class ChatWrapper:
         # Threading lock for database operations
         self.lock = Lock()
         self._agent_refresh_lock = Lock()
+        # Active per-conversation stream bridges, so /api/cancel_stream can
+        # cancel the underlying asyncio task (which aborts the LLM request).
+        self._stream_bridges: Dict[int, AsyncStreamBridge] = {}
+        self._stream_bridges_lock = Lock()
         
         # load configs
         self.config = get_full_config()
@@ -1109,6 +1115,35 @@ class ChatWrapper:
         finally:
             cursor.close()
             conn.close()
+
+    def _register_stream_bridge(self, conversation_id: int, bridge: AsyncStreamBridge) -> None:
+        with self._stream_bridges_lock:
+            self._stream_bridges[int(conversation_id)] = bridge
+
+    def _unregister_stream_bridge(self, conversation_id: int, bridge: AsyncStreamBridge) -> None:
+        with self._stream_bridges_lock:
+            if self._stream_bridges.get(int(conversation_id)) is bridge:
+                del self._stream_bridges[int(conversation_id)]
+
+    def cancel_active_stream(self, conversation_id) -> bool:
+        """Cancel the running pipeline task for a conversation.
+
+        Cancelling the asyncio task aborts whatever it is awaiting — including
+        an in-flight LLM HTTP request, which closes the connection and makes
+        the provider (e.g. Ollama) stop generating instead of running to
+        completion for nobody. Returns True if an active stream was found.
+        """
+        try:
+            key = int(conversation_id)
+        except (TypeError, ValueError):
+            return False
+        with self._stream_bridges_lock:
+            bridge = self._stream_bridges.get(key)
+        if bridge is None:
+            return False
+        bridge.cancel()
+        logger.info(f"Cancelled pipeline task for conversation {key}")
+        return True
 
 
     def query_conversation_history(self, conversation_id, client_id, user_id: Optional[str] = None):
@@ -2410,6 +2445,7 @@ class ChatWrapper:
         trace_id = None
         trace_events: List[Dict[str, Any]] = []
         stream_start_time = time.time()
+        stream_bridge = None
 
         try:
             context, error_code = self._prepare_chat_context(
@@ -2463,7 +2499,21 @@ class ChatWrapper:
                 pipeline_name=self.archi.pipeline_name if hasattr(self.archi, 'pipeline_name') else None,
             )
 
-            for output in self.archi.stream(history=context.history, conversation_id=context.conversation_id,model=context.model_used):
+            # Run the pipeline as an asyncio task when it supports astream: the
+            # task is cancellable from any thread (see cancel_active_stream),
+            # which aborts an in-flight LLM request instead of letting it run
+            # to completion on the provider after the user hits stop.
+            if self.archi.supports_astream():
+                stream_bridge = AsyncStreamBridge(
+                    self.archi.astream(history=context.history, conversation_id=context.conversation_id, model=context.model_used),
+                    AsyncLoopThread.get_instance().loop,
+                )
+                self._register_stream_bridge(context.conversation_id, stream_bridge)
+                stream_iter = stream_bridge
+            else:
+                stream_iter = self.archi.stream(history=context.history, conversation_id=context.conversation_id, model=context.model_used)
+
+            for output in stream_iter:
                 if client_timeout and time.time() - stream_start_time > client_timeout:
                     if trace_id:
                         total_duration_ms = int((time.time() - stream_start_time) * 1000)
@@ -2632,7 +2682,10 @@ class ChatWrapper:
             }
 
         except GeneratorExit:
-            # User cancelled the stream
+            # Client went away mid-stream; cancel the pipeline task so the
+            # in-flight LLM request is aborted rather than left running.
+            if stream_bridge is not None:
+                stream_bridge.cancel()
             if trace_id:
                 total_duration_ms = int((time.time() - stream_start_time) * 1000)
                 self.update_agent_trace(
@@ -2645,6 +2698,22 @@ class ChatWrapper:
                     cancellation_reason='Stream cancelled by client',
                 )
             raise
+        except StreamCancelled:
+            # Cancelled via /api/cancel_stream, which already stamped the trace.
+            logger.info("Stream for conversation %s cancelled; pipeline task aborted.",
+                        context.conversation_id if context else "?")
+            if trace_id:
+                total_duration_ms = int((time.time() - stream_start_time) * 1000)
+                self.update_agent_trace(
+                    trace_id=trace_id,
+                    events=trace_events,
+                    status='cancelled',
+                    total_tool_calls=formatter.tool_call_count,
+                    total_duration_ms=total_duration_ms,
+                    cancelled_by='user',
+                    cancellation_reason='Cancelled by user request',
+                )
+            return
         except ConversationAccessError as exc:
             logger.warning("Unauthorized conversation access attempt: %s", exc)
             if trace_id:
@@ -2668,6 +2737,8 @@ class ChatWrapper:
                 )
             yield {"type": "error", "status": 500, "message": "server error; see chat logs for message"}
         finally:
+            if context is not None and stream_bridge is not None:
+                self._unregister_stream_bridge(context.conversation_id, stream_bridge)
             if self.cursor is not None:
                 self.cursor.close()
             if self.conn is not None:
@@ -6013,6 +6084,10 @@ class FlaskAppWrapper(object):
                 cancelled_by='user',
                 cancellation_reason='Cancelled by user request',
             )
+
+            # Abort the running pipeline task (and its in-flight LLM request)
+            # rather than just marking the trace cancelled.
+            self.chat.cancel_active_stream(conversation_id)
 
             return jsonify({
                 'success': True,

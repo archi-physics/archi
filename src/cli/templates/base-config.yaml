@@ -111,6 +111,7 @@ services:
     agent_class: {{ services.chat_app.agent_class | default("CMSCompOpsAgent", true) }}
     agents_dir: "{{ services.chat_app.agents_dir | default('', true) }}"
     recursion_limit: {{ services.chat_app.recursion_limit | default(50, true) }}
+    context_management: {{ services.chat_app.context_management | default({}, true) | tojson }}
     client_timeout_seconds: {{ services.chat_app.client_timeout_seconds | default(600, true) }}
     default_provider: {{ services.chat_app.default_provider | default("local", true) }}
     default_model: {{ services.chat_app.default_model | default("llama3.2", true) }}
