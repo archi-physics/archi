@@ -3334,6 +3334,34 @@ const UI = {
     }
   },
 
+  renderNarrationStep(messageId, event) {
+    const timeline = document.querySelector(`.trace-container[data-message-id="${messageId}"] .step-timeline`);
+    if (!timeline) return;
+
+    const stepHtml = `
+      <div class="step thinking-step completed" data-step-id="${Utils.escapeAttr(event.step_id)}">
+        <div class="step-connector">
+          <span class="step-marker completed-marker"></span>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.step_id)}')">
+            <span class="step-icon">📝</span>
+            <span class="step-label">Planning</span>
+            <span class="step-timer"></span>
+            <button class="step-toggle" aria-label="Expand planning details">&#9654;</button>
+          </div>
+          <div class="step-details" style="display: none;">
+            <div class="section-label">Details</div>
+            <pre><code>${Utils.escapeHtml(event.content || '')}</code></pre>
+          </div>
+        </div>
+      </div>`;
+
+    timeline.insertAdjacentHTML('beforeend', stepHtml);
+    this.scrollToBottom();
+  },
+
   // =========================================================================
   // Tool Step Rendering (Timeline Style)
   // =========================================================================
@@ -3665,9 +3693,15 @@ const UI = {
     const toolStartEvents = {};
     const thinkingEvents = {};
     let usageData = null;
+    // Text events are cumulative per-turn snapshots; the last one before a
+    // tool call is that turn's narration. Trailing text is the final answer.
+    let pendingNarration = '';
+    let narrationCount = 0;
 
     for (const event of events) {
-      if (event.type === 'thinking_start') {
+      if (event.type === 'text') {
+        pendingNarration = event.content || '';
+      } else if (event.type === 'thinking_start') {
         thinkingEvents[event.step_id] = event;
       } else if (event.type === 'thinking_end') {
         const startEvent = thinkingEvents[event.step_id];
@@ -3675,6 +3709,14 @@ const UI = {
           this.addHistoricalThinkingStep(timeline, event);
         }
       } else if (event.type === 'tool_start' || event.type === 'tool_use') {
+        if (pendingNarration.trim()) {
+          narrationCount += 1;
+          this.addHistoricalNarrationStep(timeline, {
+            step_id: `narration-${narrationCount}`,
+            content: pendingNarration.trim(),
+          });
+          pendingNarration = '';
+        }
         toolStartEvents[event.tool_call_id] = event;
         // Add the tool step immediately
         this.addHistoricalToolStep(timeline, event, null);
@@ -3714,6 +3756,29 @@ const UI = {
           <div class="step-details" style="display: none;">
             <div class="section-label">Details</div>
             <pre><code>${Utils.escapeHtml(event.thinking_content || '')}</code></pre>
+          </div>
+        </div>
+      </div>`;
+    timeline.insertAdjacentHTML('beforeend', stepHtml);
+  },
+
+  addHistoricalNarrationStep(timeline, event) {
+    const stepHtml = `
+      <div class="step thinking-step completed" data-step-id="${Utils.escapeAttr(event.step_id)}">
+        <div class="step-connector">
+          <span class="step-marker completed-marker"></span>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <div class="step-header" onclick="UI.toggleStepExpanded('${Utils.escapeAttr(event.step_id)}')">
+            <span class="step-icon">📝</span>
+            <span class="step-label">Planning</span>
+            <span class="step-timer"></span>
+            <button class="step-toggle" aria-label="Expand planning details">&#9654;</button>
+          </div>
+          <div class="step-details" style="display: none;">
+            <div class="section-label">Details</div>
+            <pre><code>${Utils.escapeHtml(event.content || '')}</code></pre>
           </div>
         </div>
       </div>`;
@@ -5185,6 +5250,9 @@ const Chat = {
       case 'thinking_end':
         UI.renderThinkingEnd(messageId, event);
         break;
+      case 'narration':
+        UI.renderNarrationStep(messageId, event);
+        break;
     }
   },
 
@@ -5237,6 +5305,18 @@ const Chat = {
         resetTimeout();
         // Handle trace events
         if (event.type === 'tool_start') {
+          // Text streamed before a tool call is that turn's narration:
+          // move it into the activity timeline before the tool step lands.
+          if (streamedText.trim()) {
+            const narration = {
+              type: 'narration',
+              step_id: `narration-${this.state.activeTrace.events.length}`,
+              content: streamedText.trim(),
+            };
+            this.state.activeTrace.events.push(narration);
+            this._renderStreamEvent(messageId, narration);
+            streamedText = '';
+          }
           this.state.activeTrace.toolCalls.set(event.tool_call_id, {
             name: event.tool_name,
             args: event.tool_args,
