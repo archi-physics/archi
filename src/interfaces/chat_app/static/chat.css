@@ -650,12 +650,65 @@ body {
   grid-area: messages;
   overflow-y: auto;
   scroll-behavior: smooth;
+  position: relative;
 }
 
 .messages-inner {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+/* Floating scroll-to-bottom button — sticky so it floats above content */
+.scroll-to-bottom-btn {
+  position: sticky;
+  bottom: 16px;
+  margin: 0 auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  transition: opacity 150ms ease, transform 150ms ease;
+  flex-shrink: 0;
+}
+
+.scroll-to-bottom-btn.visible {
+  display: flex;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.scroll-to-bottom-btn:focus-visible {
+  outline: 2px solid var(--text-tertiary);
+  outline-offset: 2px;
+}
+
+/* Respect reduced-motion preference — disable smooth scroll */
+@media (prefers-reduced-motion: reduce) {
+  .messages {
+    scroll-behavior: auto;
+  }
+
+  .scroll-to-bottom-btn {
+    transition: none;
+    transform: none;
+  }
+
+  .scroll-to-bottom-btn:hover {
+    transform: none;
+  }
 }
 
 .message {
