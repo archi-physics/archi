@@ -792,6 +792,7 @@ const UI = {
       newChatBtn: document.querySelector('.new-chat-btn'),
       messagesContainer: document.querySelector('.messages'),
       messagesInner: document.querySelector('.messages-inner'),
+      scrollToBottomBtn: document.querySelector('.scroll-to-bottom-btn'),
       inputField: document.querySelector('.input-field'),
       sendBtn: document.querySelector('.send-btn'),
       modelSelectA: null,
@@ -893,7 +894,22 @@ const UI = {
     
     // New chat
     this.elements.newChatBtn?.addEventListener('click', () => Chat.newConversation());
-    
+
+    // Scroll-to-bottom button: track scroll position and handle click
+    this._scrollRafScheduled = false;
+    this.elements.messagesContainer?.addEventListener('scroll', () => {
+      // Skip entirely while archi is generating — avoids interfering with stream speed
+      if (Chat.state.isStreaming) return;
+      if (this._scrollRafScheduled) return;
+      this._scrollRafScheduled = true;
+      requestAnimationFrame(() => {
+        this._updateScrollToBottomBtn();
+        this._scrollRafScheduled = false;
+      });
+    });
+    this.elements.scrollToBottomBtn?.addEventListener('click', () => {
+      this.scrollToBottom();
+    });    
     // Send message
     this.elements.sendBtn?.addEventListener('click', () => Chat.handleSendOrStop());
     this.elements.inputField?.addEventListener('keydown', (e) => {
@@ -2388,6 +2404,22 @@ const UI = {
     if (container) {
       container.scrollTop = container.scrollHeight;
     }
+    // Hide the button immediately rather than waiting for the scroll event
+    this.elements.scrollToBottomBtn?.classList.remove('visible');
+  },
+
+  _updateScrollToBottomBtn() {
+    const container = this.elements.messagesContainer;
+    const btn = this.elements.scrollToBottomBtn;
+    if (!container || !btn) return;
+    // Never show the button while archi is generating a response
+    if (Chat.state.isStreaming) {
+      btn.classList.remove('visible');
+      return;
+    }
+    const threshold = 100; // px from bottom
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    btn.classList.toggle('visible', distanceFromBottom > threshold);
   },
 
   // =========================================================================
