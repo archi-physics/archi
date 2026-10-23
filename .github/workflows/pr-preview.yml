@@ -53,17 +53,20 @@ jobs:
       - name: Run unit tests
         run: python -m pytest tests/unit/ -v --tb=short
 
-  # ── Build base images (only when inputs change) ─────────────────────
-  build-base-images:
+  # ── Smoke deployment + integration tests ────────────────────────────
+  # NOTE: base-image build and the smoke/UI tests run in ONE job on ONE
+  # runner. The freshly-built base image stays in the local Docker daemon,
+  # so no Docker Hub push/pull (and therefore no secrets) is needed — which
+  # is what lets this workflow pass for pull requests from forks. The
+  # permanent base-image publish lives in publish-base-images.yml (merge to
+  # main, has secrets) and is unaffected.
+  preview:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     env:
       ARCHI_DIR: ${{ github.workspace }}/archi-local
-
-    outputs:
-      changed: ${{ steps.detect.outputs.changed }}
-      tag: ${{ steps.detect.outputs.tag }}
     steps:
       - name: Free disk space
         run: |
@@ -100,59 +103,20 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Python
-        if: steps.detect.outputs.changed == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install archi CLI
-        if: steps.detect.outputs.changed == 'true'
+      - name: Disable Docker containerd image store
         run: |
-          python -m pip install --upgrade pip
-          pip install ".[all]" || pip install .
-
-      - name: Ensure build scripts are executable
-        if: steps.detect.outputs.changed == 'true'
-        run: chmod +x scripts/dev/*.sh
-
-      - name: Build updated base images
-        if: steps.detect.outputs.changed == 'true'
-        run: |
-          # Only build python base for PR preview (pytorch not used in smoke tests)
-          scripts/dev/build_docker_images.sh -i a2rchi/a2rchi-python-base "${{ steps.detect.outputs.tag }}"
-
-      - name: Push updated base image to Docker Hub
-        if: steps.detect.outputs.changed == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          TAG: ${{ steps.detect.outputs.tag }}
-        run: |
-          set -euo pipefail
-          echo "$DOCKERHUB_TOKEN" | docker login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
-          docker push "a2rchi/a2rchi-python-base:${TAG}"
-
-  # ── Smoke deployment + integration tests ────────────────────────────
-  preview:
-    runs-on: ubuntu-latest
-    needs: build-base-images
-    permissions:
-      contents: read
-      pull-requests: write
-    env:
-      ARCHI_DIR: ${{ github.workspace }}/archi-local
-    steps:
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
-          docker system prune -af || true
-          df -h /
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          # Docker on ubuntu-latest uses containerd image store by default.
+          # This causes "already exists" errors when multiple compose services
+          # share the same image name (e.g. config-seed reuses chatbot image).
+          # Must overwrite daemon.json AND remove drop-in dir to fully revert.
+          # This restarts dockerd and switches the image store, so it MUST run
+          # BEFORE we build the base image below — otherwise the built image
+          # would live in the wrong (containerd) store and be invisible to the
+          # smoke deploy.
+          echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json
+          sudo rm -rf /etc/docker/daemon.json.d
+          sudo systemctl restart docker
+          docker info | grep -i "Storage Driver"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -164,6 +128,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[all]" || pip install .
           python -c "import importlib.util, mkdocs; assert importlib.util.find_spec('mkdocs.__main__'), 'mkdocs.__main__ missing'; print('mkdocs:', mkdocs.__version__)"
+
+      - name: Ensure build scripts are executable
+        if: steps.detect.outputs.changed == 'true'
+        run: chmod +x scripts/dev/*.sh
+
+      - name: Build updated base image
+        if: steps.detect.outputs.changed == 'true'
+        run: |
+          # Only build python base for PR preview (pytorch not used in smoke tests).
+          # build_docker_images.sh also tags the image as localhost/a2rchi/... which
+          # the "Prepare base image references" step points the services at below.
+          scripts/dev/build_docker_images.sh -i a2rchi/a2rchi-python-base "${{ steps.detect.outputs.tag }}"
+
+      - name: Prepare base image references
+        if: steps.detect.outputs.changed == 'true'
+        run: python scripts/dev/update_service_base_images.py --tag "${{ steps.detect.outputs.tag }}" --switch-source localhost --orig-tag all
 
       - name: Install Ollama and pull model
         run: |
@@ -177,32 +157,6 @@ jobs:
             sleep 1
           done
           ollama pull qwen3:4b
-
-      - name: Disable Docker containerd image store
-        run: |
-          # Docker on ubuntu-latest uses containerd image store by default.
-          # This causes "already exists" errors when multiple compose services
-          # share the same image name (e.g. config-seed reuses chatbot image).
-          # Must overwrite daemon.json AND remove drop-in dir to fully revert.
-          echo '{"features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json
-          sudo rm -rf /etc/docker/daemon.json.d
-          sudo systemctl restart docker
-          docker info | grep -i "Storage Driver"
-
-      - name: Pull updated base image from Docker Hub
-        if: needs.build-base-images.outputs.changed == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          TAG: ${{ needs.build-base-images.outputs.tag }}
-        run: |
-          set -euo pipefail
-          echo "$DOCKERHUB_TOKEN" | docker login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
-          docker pull "docker.io/a2rchi/a2rchi-python-base:${TAG}"
-
-      - name: Prepare base image references
-        if: needs.build-base-images.outputs.changed == 'true'
-        run: python scripts/dev/update_service_base_images.py --tag "${{ needs.build-base-images.outputs.tag }}" --switch-source dockerhub --orig-tag all
 
       - name: Verify MkDocs build
         run: mkdocs build --config-file docs/mkdocs.yml --strict
@@ -262,10 +216,11 @@ jobs:
           yes | archi delete --name ci-${{ github.run_id }} || true
 
       - name: Cleanup local base images
-        if: ${{ always() && needs.build-base-images.outputs.changed == 'true' }}
+        if: ${{ always() && steps.detect.outputs.changed == 'true' }}
         run: |
           set -euo pipefail
-          TAG="${{ needs.build-base-images.outputs.tag }}"
+          TAG="${{ steps.detect.outputs.tag }}"
           echo "Cleaning up local base images with tag: $TAG"
-          docker rmi "docker.io/a2rchi/a2rchi-python-base:${TAG}" || true
+          docker rmi "localhost/a2rchi/a2rchi-python-base:${TAG}" || true
+          docker rmi "a2rchi/a2rchi-python-base:${TAG}" || true
           echo "Cleanup complete"

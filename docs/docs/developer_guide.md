@@ -197,21 +197,28 @@ All CI workflows run on GitHub-hosted `ubuntu-latest` runners with Docker (not P
 
 ### PR Preview (`pr-preview.yml`)
 
-Every pull request triggers four parallel/sequential jobs:
+Every pull request triggers three parallel jobs:
 
 | Job | Runner | Purpose |
 |-----|--------|---------|
 | **lint** | `ubuntu-latest` | `black --check .` and `isort --check .` |
 | **unit-tests** | `ubuntu-latest` | `pytest tests/unit/ -v --tb=short` |
-| **build-base-images** | `ubuntu-latest` | Detects changes to base image inputs; builds if needed |
-| **preview** | `ubuntu-latest` | Smoke deployment + Playwright UI tests |
+| **preview** | `ubuntu-latest` | Base-image build (when inputs change) + smoke deployment + Playwright UI tests |
 
-The `preview` job:
+The `preview` job runs on a single runner so the base image it builds stays in the
+local Docker daemon — no Docker Hub push/pull, and therefore no secrets, which lets
+the workflow pass for pull requests from forks:
 
-1. Installs Ollama and pulls `qwen3:4b` (~2.6GB).
-2. Builds and deploys the app via `archi create` with Docker.
-3. Runs integration smoke tests (`combined_smoke.sh`).
-4. Runs Playwright UI tests against `http://localhost:2786`.
+1. Detects changes to base image inputs and, if any changed, rebuilds the python base
+   image locally (tagged `localhost/a2rchi/a2rchi-python-base:pr-<N>`) and points the
+   services at it. When inputs are unchanged, services use the published base image.
+2. Installs Ollama and pulls `qwen3:4b` (~2.6GB).
+3. Builds and deploys the app via `archi create` with Docker.
+4. Runs integration smoke tests (`combined_smoke.sh`).
+5. Runs Playwright UI tests against `http://localhost:2786`.
+
+The permanent base-image publish (with Docker Hub credentials) lives in
+`publish-base-images.yml`, not here.
 
 ### Release (`test-and-build-tag.yml`)
 
