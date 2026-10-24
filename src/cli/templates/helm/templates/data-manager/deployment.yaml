@@ -35,6 +35,12 @@ spec:
               value: archi
             - name: VERBOSITY
               value: "{{ "{{ .Values.verbosity }}" }}"
+            {{ "{{- if .Values.torch_threads }}" }}
+            - name: OMP_NUM_THREADS
+              value: "{{ "{{ .Values.torch_threads }}" }}"
+            - name: MKL_NUM_THREADS
+              value: "{{ "{{ .Values.torch_threads }}" }}"
+            {{ "{{- end }}" }}
           image: {{ "{{ .Values.data_manager.image }}" }}
           resources:
             {{ "{{- toYaml .Values.data_manager.resources | nindent 12 }}" }}

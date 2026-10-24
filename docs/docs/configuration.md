@@ -243,6 +243,7 @@ Controls data ingestion, vectorstore behaviour, and retrieval settings.
 | `parallel_workers` | int | `32` | Parallel ingestion workers |
 | `reset_collection` | bool | `true` | Wipe collection on startup |
 | `distance_metric` | string | `cosine` | Similarity metric: `cosine`, `l2`, `ip` |
+| `torch_threads` | int | `8` (compose: capped at the host's CPUs) | CPU threads torch uses in the data-manager and chatbot, set in both as `OMP_NUM_THREADS` and `MKL_NUM_THREADS` (torch reads `MKL_NUM_THREADS` first, so both get the same value), in compose and Helm. Unset, torch starts one thread per host core, and CPU quotas (Docker `--cpus`, Kubernetes limits) don't change that; on a shared 32-core host each embedding call then took ~3 s instead of ~16 ms. **Compose:** without this key the default is 8, or fewer on a host where `archi create` can use fewer than 8 CPUs, and an `OMP_NUM_THREADS` or `MKL_NUM_THREADS` already in your `--env-file` is kept as it is; like any other env-file value, a changed thread variable reaches only the services that are recreated (`archi restart -e` applies it to the one service it restarts). **Helm:** the pods run on cluster nodes, not on the machine running `archi create`, so the default is a plain 8 whatever that machine has, and the chart's value replaces a thread variable in the deployment Secret; set this key to change it. Must be a positive integer; anything else fails `archi create` and `archi restart`. `archi restart -c` refuses a change to it, like any other `data_manager` change |
 
 ### Retrieval Settings
 

@@ -256,6 +256,11 @@ data_manager:
   chunk_size: {{ data_manager.chunk_size | default(1000, true) }}
   chunk_overlap: {{ data_manager.chunk_overlap | default(0, true) }}
   parallel_workers: {{ data_manager.parallel_workers | default(32, true) }}
+  # Rendered into compose as OMP_NUM_THREADS, not read here. Recorded only when set,
+  # so `archi restart -c` sees a change to it as a data_manager change.
+{%- if data_manager.torch_threads is defined and data_manager.torch_threads is not none %}
+  torch_threads: {{ data_manager.torch_threads }}
+{%- endif %}
   reset_collection: {{ data_manager.reset_collection | default(true, true) }}
   stemming:
     enabled: {{ data_manager.stemming.enabled | default(false, true) }}

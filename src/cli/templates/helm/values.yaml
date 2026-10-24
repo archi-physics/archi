@@ -1,4 +1,7 @@
 verbosity: {{ verbosity }}
+# CPU threads torch uses in the data-manager and chatbot (OMP_NUM_THREADS and
+# MKL_NUM_THREADS). null sets neither; Jinja would write None, a string Helm treats as set.
+torch_threads: {{ torch_threads if torch_threads else 'null' }}
 archi:
   name: {{ archi_name }}
 

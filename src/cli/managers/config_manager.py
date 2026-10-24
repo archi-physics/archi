@@ -7,6 +7,7 @@ import yaml
 
 from src.cli.managers.templates_manager import BASE_CONFIG_TEMPLATE
 from src.cli.source_registry import source_registry
+from src.cli.utils.torch_threads import configured_torch_threads
 from src.utils.ab_testing import ABPool, ABPoolError, load_ab_pool_state
 from src.utils.jira import parse_jira_project_keys
 from src.utils.logging import get_logger
@@ -156,6 +157,7 @@ class ConfigurationManager:
             self._validate_benchmarking_config(config, services)
             self._validate_jira_config(config, services)
             self._validate_source_fields(config, sources)
+            configured_torch_threads(config)
 
         self._collect_embedding_metadata()
         self._collect_input_lists()

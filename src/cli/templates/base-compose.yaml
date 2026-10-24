@@ -22,6 +22,14 @@ services:
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
       VERBOSITY: {{ verbosity }}
+      {% if torch_threads -%}
+      # Unset, torch starts one thread per host core; on a shared host each
+      # embedding call then takes ~3 s instead of ~16 ms.
+      # Set from data_manager.torch_threads (src/cli/utils/torch_threads.py).
+      # Torch reads MKL_NUM_THREADS ahead of OMP_NUM_THREADS, so set both.
+      OMP_NUM_THREADS: "{{ torch_threads }}"
+      MKL_NUM_THREADS: "{{ torch_threads }}"
+      {% endif %}
       {% for secret in required_secrets | default([]) -%}
       {{ secret.upper() }}_FILE: /run/secrets/{{ secret.lower() }}
       {% endfor %}
@@ -137,6 +145,11 @@ services:
       PGUSER: archi
       PG_PASSWORD: ${PG_PASSWORD}
       VERBOSITY: {{ verbosity }}
+      {% if torch_threads -%}
+      # Query embedding runs torch here too; see the data-manager block.
+      OMP_NUM_THREADS: "{{ torch_threads }}"
+      MKL_NUM_THREADS: "{{ torch_threads }}"
+      {% endif %}
       # Allow overriding Ollama host via env so containers can reach host daemon
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       {% for secret in required_secrets | default([]) -%}

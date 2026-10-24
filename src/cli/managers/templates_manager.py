@@ -14,6 +14,9 @@ from src.cli.service_registry import service_registry
 from src.cli.utils.service_builder import DeploymentPlan
 from src.cli.utils.grafana_styling import assign_feedback_palette
 from src.cli.utils.helpers import HELM_PREFIX
+from src.cli.utils.torch_threads import (chart_torch_threads,
+                                         deployment_env_values,
+                                         resolve_torch_threads)
 from src.utils.ab_testing import DEFAULT_AB_AGENTS_DIR
 from src.utils.logging import get_logger
 
@@ -312,6 +315,7 @@ class TemplateManager:
         template_vars.update(port_config)
         template_vars.setdefault("postgres_port", context.config_manager.config.get("services", {}).get("postgres", {}).get("port", 5432))
         template_vars.setdefault("verbosity", self.global_verbosity)
+        template_vars["torch_threads"] = chart_torch_threads(context.config_manager.config)
 
         template_vars["app_version"] = get_git_version()
 
@@ -1026,6 +1030,9 @@ class TemplateManager:
         template_vars.update(port_config)
         template_vars.setdefault("postgres_port", context.config_manager.config.get("services", {}).get("postgres", {}).get("port", 5432))
         template_vars.setdefault("verbosity", self.global_verbosity)
+        template_vars["torch_threads"] = resolve_torch_threads(
+            context.config_manager.config, deployment_env_values(context.base_dir)
+        )
 
         template_vars["app_version"] = get_git_version()
 
