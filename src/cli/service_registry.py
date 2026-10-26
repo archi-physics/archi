@@ -160,7 +160,6 @@ class ServiceRegistry:
             required_config_fields=[
                 'services.jira_ticket_responder.url',
                 'services.jira_ticket_responder.projects',
-                'services.jira_ticket_responder.visible_to_role',
             ],
         ))
 

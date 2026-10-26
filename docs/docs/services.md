@@ -279,7 +279,7 @@ archi create [...] --services chatbot,redmine-mailer
 
 ## Jira Ticket Responder Service
 
-Polls configured Jira projects for recently updated tickets in the configured eligible statuses, answers tickets that do not already contain a comment from the Jira ticket responder account, and posts the answer as a role-restricted Jira comment for operators to approve.
+Polls configured Jira projects for recently updated tickets in the configured eligible statuses, answers each issue trigger once, and posts the answer as a Jira comment for operators to approve. Answers can be public or role-restricted. The service can also answer Jira comments that explicitly mention the responder account when `respond_to_mentions` is enabled.
 
 ### Configuration
 
@@ -290,9 +290,12 @@ services:
     projects:
       - CMSTZ
       - CMSDM
-    visible_to_role: Developers
+    visible_to_role: Developers # Optional; omit to make answers public.
     poll_interval_minutes: 1  # Optional; defaults to 1.
     lookback_days: 7          # Optional; defaults to 7.
+    respond_to_mentions: false # Optional; defaults to false.
+    mention_allowed_roles:     # Optional; empty or omitted allows all roles.
+      - Developers
     eligible_statuses:        # Optional; defaults to ["Open", "In Progress"].
       - Open
       - In Progress
@@ -303,10 +306,43 @@ The `jira_ticket_responder` service uses `services.jira_ticket_responder` only. 
 ### Behavior
 
 - Each poll searches configured projects and `eligible_statuses` with a rolling Jira JQL window of `updated >= "-<lookback_days>d"`, so tickets updated while the service was down are still considered while they remain in the configured lookback window.
-- The service checks Jira comments newest-first by author identity and skips the ticket as soon as it finds a comment from the ticket responder account. Existing comments are not included in the Archi prompt at the moment.
-- There is no per-poll answer cap. This MVP is intended for low-volume projects; Jira, Archi, or provider rate failures are logged per ticket and retried only by a later poll while the ticket remains in the configured lookback window and has no comment from the ticket responder account.
+- The service stores Jira answer state in `jira_responder_triggers`. Issue answers use trigger key `issue:<ISSUE_KEY>`. Mention answers use trigger key `comment:<COMMENT_ID>`.
+- When `respond_to_mentions` is `true`, the service fetches the 50 newest comments for each candidate issue, detects Jira Server/Data Center wiki mentions like `[~cmsai]` using the authenticated Jira service account `name`, and ignores comments authored by that service account.
+- When `mention_allowed_roles` is non-empty, a mention is answered only when its author belongs to at least one configured Jira project role. Direct role membership and membership through a Jira group both count. Unknown roles and role lookup failures deny mention responses for the affected issue. Empty or omitted `mention_allowed_roles` allows every non-service-account author.
+- `visible_to_role` controls Jira comment visibility independently of mention authorization. When it is a non-empty role name, answers are restricted to that one Jira role. When it is empty or omitted, answers are public to everyone who can view the issue. Jira supports only one role in a comment visibility restriction.
+- Mention scanning does not apply a separate comment timestamp cutoff. If an issue is selected because it was recently updated, an older mention can be answered if it is still among the 50 newest comments and has no trigger row.
+- Issue triggers and mention-comment triggers are independent. If both are eligible in the same poll, both can produce Jira comments.
+- A trigger in `answering` is retried once after 60 seconds. If that retried trigger is still `answering` after 600 seconds, it is marked `failed`. `answered` and `failed` triggers are skipped by later polls.
 - Jira comments include the Archi answer and, when Archi returns them, capped Jira wiki-rendered `{panel}` sections for reasoning trace and tool calls. The service uses standard Jira wiki panels and `{noformat}` blocks, not collapsible expand macros.
-- The Jira comment is posted before conversation persistence. If posting fails, nothing is persisted; if persistence fails after posting, the Jira comment remains.
+- The Jira comment is posted before conversation persistence. A trigger is marked `answered` only after Jira accepts the comment. If persistence fails after posting, the Jira comment remains and the trigger records `last_error`.
+- In the rare case where Jira accepts a comment but the local `answered` transition cannot be confirmed, the trigger is marked `failed` with `response_comment_id` when available. Operators should not assume every `failed` row means no Jira comment was posted.
+- Run only one Jira responder instance per Jira project and service account. The database state protects normal restarts and repeated polls; separate deployments using separate databases do not coordinate with each other.
+
+### State Table
+
+Fresh deployments create the state table from `init.sql`. Existing deployments create it during Jira responder startup with idempotent DDL. This is schema creation only; it does not backfill trigger rows for Jira comments that were already posted by earlier test or deployment runs. Operators can run the same SQL manually before starting the service if preferred:
+
+```sql
+CREATE TABLE IF NOT EXISTS jira_responder_triggers (
+    trigger_key TEXT PRIMARY KEY,
+    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('issue','mention_comment')),
+    issue_key TEXT NOT NULL,
+    trigger_comment_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('answering','answered','failed')),
+    retry_used BOOLEAN NOT NULL DEFAULT FALSE,
+    last_error TEXT,
+    conversation_id INTEGER REFERENCES conversation_metadata(conversation_id) ON DELETE SET NULL,
+    response_comment_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_jira_responder_triggers_issue
+    ON jira_responder_triggers(issue_key);
+
+CREATE INDEX IF NOT EXISTS idx_jira_responder_triggers_status
+    ON jira_responder_triggers(status, updated_at);
+```
 
 ### Secrets
 
@@ -316,7 +352,7 @@ PG_PASSWORD=...
 # Add the API key required by the resolved Archi provider, such as OPENAI_API_KEY.
 ```
 
-`JIRA_PAT` is used by the Jira data source for read-only ingestion. `JIRA_TICKET_RESPONDER_PAT` is used by the ticket responder service to browse issues and add restricted comments. Use distinct Jira accounts for least privilege, and keep the ticket responder token tied to a dedicated account because any comment from that account is treated as an existing responder answer.
+`JIRA_PAT` is used by the Jira data source for read-only ingestion. `JIRA_TICKET_RESPONDER_PAT` is used by the ticket responder service to browse issues and add comments. Use distinct Jira accounts for least privilege, and keep the ticket responder token tied to a dedicated account because the responder uses that account identity for comment posting and mention self-filtering.
 
 Include any provider key required by the resolved Archi provider in the `.env` passed to `archi create` so it is copied into the deployment. Provider key validation is handled by Archi during agent startup.
 

@@ -97,6 +97,8 @@ services:
     visible_to_role: {{ services.jira_ticket_responder.visible_to_role | default('', true) | tojson }}
     poll_interval_minutes: {{ services.jira_ticket_responder.poll_interval_minutes | default(1, true) }}
     lookback_days: {{ services.jira_ticket_responder.lookback_days | default(7, true) }}
+    respond_to_mentions: {{ services.jira_ticket_responder.respond_to_mentions | default(false, true) | tojson }}
+    mention_allowed_roles: {{ services.jira_ticket_responder.mention_allowed_roles | default([], true) | tojson }}
     eligible_statuses: {{ services.jira_ticket_responder.eligible_statuses | default(["Open", "In Progress"], true) | tojson }}
     agent_class: {{ services.jira_ticket_responder.agent_class | default('CMSCompOpsAgent', true) }}
     agents_dir: "{{ services.jira_ticket_responder.agents_dir | default('', true) }}"

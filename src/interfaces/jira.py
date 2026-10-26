@@ -1,118 +1,18 @@
 from __future__ import annotations
 
-import json
-import os
-import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Iterable, Optional
 
 import jira
-import psycopg2.extras
 from jira import Issue
 
-from src.archi.pipelines.agents import agent_spec as agent_spec_module
-from src.archi.utils.output_dataclass import PipelineOutput
 from src.utils import jira as jira_utils
-from src.utils.conversation_service import Message
 from src.utils.logging import get_logger
-from src.utils.postgres_service_factory import PostgresServiceFactory
-from src.utils.sql import SQL_CREATE_CONVERSATION, SQL_INSERT_CONVO
 
 logger = get_logger(__name__)
 
-DEFAULT_ELIGIBLE_STATUSES = ("Open", "In Progress")
+JIRA_RECENT_COMMENT_LIMIT = 50
 JIRA_USER_IDENTITY_FIELDS = ("accountId", "key", "name")
-JIRA_TRACE_SECTION_MAX_CHARS = 4000
-
-
-@dataclass(frozen=True)
-class JiraServiceConfig:
-    url: str
-    projects: list[str]
-    visible_to_role: str
-    poll_interval_minutes: int
-    lookback_days: int
-    eligible_statuses: list[str]
-
-    @classmethod
-    def from_config(cls, raw_config: dict) -> "JiraServiceConfig":
-        if not isinstance(raw_config, dict) or not raw_config:
-            raise ValueError(
-                "Missing required config section: services.jira_ticket_responder"
-            )
-
-        required = ["url", "projects", "visible_to_role"]
-        missing = [key for key in required if raw_config.get(key) in (None, "")]
-        if missing:
-            raise ValueError(
-                f"Missing required services.jira_ticket_responder fields: {', '.join(missing)}"
-            )
-
-        projects = jira_utils.parse_jira_project_keys(
-            raw_config["projects"],
-            "services.jira_ticket_responder.projects must be a non-empty list of Jira project keys.",
-        )
-
-        poll_interval = cls._parse_positive_int(
-            raw_config.get("poll_interval_minutes", 1),
-            "poll_interval_minutes",
-            1,
-        )
-        lookback_days = cls._parse_positive_int(
-            raw_config.get("lookback_days", 7),
-            "lookback_days",
-            7,
-        )
-        eligible_statuses = raw_config.get("eligible_statuses") or list(
-            DEFAULT_ELIGIBLE_STATUSES
-        )
-
-        url = str(raw_config["url"]).strip()
-        visible_to_role = str(raw_config["visible_to_role"]).strip()
-        if not url or not visible_to_role:
-            raise ValueError(
-                "services.jira_ticket_responder url and visible_to_role must not be empty."
-            )
-
-        return cls(
-            url=url,
-            projects=projects,
-            visible_to_role=visible_to_role,
-            poll_interval_minutes=poll_interval,
-            lookback_days=lookback_days,
-            eligible_statuses=eligible_statuses,
-        )
-
-    @staticmethod
-    def _parse_positive_int(value: object, field_name: str, default: int) -> int:
-        if value in (None, ""):
-            value = default
-        error = (
-            f"services.jira_ticket_responder.{field_name} must be a positive integer."
-        )
-        if isinstance(value, bool):
-            raise ValueError(error)
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(error) from exc
-        if parsed <= 0:
-            raise ValueError(error)
-        return parsed
-
-
-@dataclass(frozen=True)
-class JiraAgentSettings:
-    agent_class: str
-    agents_dir: Path
-    default_provider: str
-    default_model: str
-
-    @property
-    def model_provider(self) -> str:
-        return f"{self.default_provider}/{self.default_model}"
 
 
 @dataclass(frozen=True)
@@ -121,6 +21,15 @@ class JiraIssue:
     summary: str
     description: str
     status_name: str
+
+
+@dataclass(frozen=True)
+class JiraComment:
+    id: str
+    body: str
+    author: dict[str, Any]
+    created: str
+    updated: str
 
 
 class JiraIssueClient:
@@ -178,235 +87,115 @@ class JiraIssueClient:
                 break
             start_at += max_results
 
-    def post_restricted_comment(
-        self, issue_key: str, body: str, visible_to_role: str
-    ) -> None:
-        visibility = {"type": "role", "value": visible_to_role}
-        self.client.add_comment(issue_key, body, visibility=visibility)
-
-    def has_comment_by_authenticated_user(self, issue_key: str) -> bool:
-        start_at = 0
-        max_results = 100
-        while True:
-            response = self.client._get_json(
-                f"issue/{issue_key}/comment",
-                params={
-                    "startAt": start_at,
-                    "maxResults": max_results,
-                    "orderBy": "-created",
-                },
+    def post_comment(
+        self, issue_key: str, body: str, visible_to_role: Optional[str]
+    ) -> Optional[str]:
+        if visible_to_role is None:
+            created_comment = self.client.add_comment(issue_key, body)
+        else:
+            visibility = {"type": "role", "value": visible_to_role}
+            created_comment = self.client.add_comment(
+                issue_key, body, visibility=visibility
             )
-            comments = response["comments"]
-            for comment in comments:
-                if same_jira_user(self.user_identities, comment["author"]):
-                    return True
-            start_at += len(comments)
-            if not comments or start_at >= int(response["total"]):
-                break
-        return False
+        return extract_created_jira_comment_id(created_comment)
 
+    def fetch_project_role_actors(
+        self, project_key: str, role_names: list[str]
+    ) -> list[dict[str, Any]]:
+        project_roles = self.client.project_roles(project_key)
+        unknown_roles = [role for role in role_names if role not in project_roles]
+        if unknown_roles:
+            raise ValueError(
+                f"Unknown Jira project roles for {project_key}: "
+                f"{', '.join(unknown_roles)}"
+            )
 
-class JiraTicketResponderService:
-    def __init__(
-        self,
-        *,
-        config: JiraServiceConfig,
-        issue_client: JiraIssueClient,
-        archi_instance: Any,
-        postgres_factory: PostgresServiceFactory,
-        agent_settings: JiraAgentSettings,
-    ) -> None:
-        self.config = config
-        self.issue_client = issue_client
-        self.archi = archi_instance
-        self.postgres_factory = postgres_factory
-        self.agent_settings = agent_settings
-
-    def poll_once(self) -> None:
-        for raw_issue in self.issue_client.search_recent_issues(
-            self.config.projects,
-            self.config.lookback_days,
-            self.config.eligible_statuses,
-        ):
-            issue_key = str(getattr(raw_issue, "key", "<unknown>"))
-            try:
-                self.process_issue(raw_issue)
-            except Exception:
-                logger.error(
-                    "Failed to process Jira issue %s", issue_key, exc_info=True
+        actors = []
+        for role_name in role_names:
+            role_id = project_roles[role_name]["id"]
+            role = self.client.project_role(project_key, role_id)
+            role_actors = role.raw["actors"]
+            if not isinstance(role_actors, list):
+                raise ValueError(
+                    f"Jira project role {role_name} for {project_key} has invalid actors."
                 )
+            actors.extend(role_actors)
+        return actors
 
-    def process_issue(self, raw_issue: Any) -> bool:
-        issue = extract_issue(raw_issue)
-        if not is_issue_eligible(issue, self.config.eligible_statuses):
+    def comment_author_matches_project_role_actors(
+        self, comment: JiraComment, actors: list[dict[str, Any]]
+    ) -> bool:
+        # Jira Server role actors identify direct users by user key and groups by
+        # group name. Group-backed roles therefore require the author's expanded
+        # Jira group membership; this follows Jira's project-role REST contract.
+        author_identities = {
+            value
+            for field in JIRA_USER_IDENTITY_FIELDS
+            if (value := jira_user_identity_value(comment.author, field))
+        }
+        group_names = set()
+        for actor in actors:
+            actor_type = actor.get("type")
+            actor_name = str(actor.get("name") or "").strip()
+            if actor_type == "atlassian-user-role-actor":
+                actor_user = actor.get("actorUser") or {}
+                actor_identities = {
+                    actor_name,
+                    *(
+                        jira_user_identity_value(actor_user, field)
+                        for field in JIRA_USER_IDENTITY_FIELDS
+                    ),
+                }
+                actor_identities.discard("")
+                if author_identities.intersection(actor_identities):
+                    return True
+            elif actor_type == "atlassian-group-role-actor" and actor_name:
+                group_names.add(actor_name)
+
+        if not group_names:
             return False
 
-        try:
-            has_existing_answer = self.issue_client.has_comment_by_authenticated_user(
-                issue.key
+        author_name = jira_user_identity_value(comment.author, "name")
+        if not author_name:
+            raise ValueError(
+                "Jira comment author must include name to resolve group role membership."
             )
-        except Exception:
-            logger.error(
-                "Failed to fetch Jira comments for issue %s.", issue.key, exc_info=True
-            )
-            return False
-        if has_existing_answer:
-            logger.debug(
-                "Skipping Jira issue %s because the Jira service account already commented.",
-                issue.key,
-            )
-            return False
+        user = self.client.user(author_name, expand="groups")
+        raw_groups = user.raw["groups"]
+        group_items = raw_groups["items"]
+        if not isinstance(group_items, list):
+            raise ValueError("Jira user groups payload must include an items list.")
+        author_group_names = {
+            str(group["name"]).strip()
+            for group in group_items
+            if isinstance(group, dict) and str(group.get("name") or "").strip()
+        }
+        return bool(group_names.intersection(author_group_names))
 
-        prompt = build_ticket_prompt(issue)
-        try:
-            result = self.archi(history=[("User", prompt)])
-        except Exception:
-            logger.error(
-                "Archi failed while answering Jira issue %s", issue.key, exc_info=True
-            )
-            return False
-
-        answer = extract_answer(result)
-        if answer is None:
-            logger.warning(
-                "Skipping Jira issue %s because Archi returned no answer.", issue.key
-            )
-            return False
-
-        jira_comment_body = build_jira_comment_body(answer, result)
-        try:
-            self.issue_client.post_restricted_comment(
-                issue.key,
-                jira_comment_body,
-                self.config.visible_to_role,
-            )
-        except Exception:
-            logger.error(
-                "Failed to post Jira comment for issue %s", issue.key, exc_info=True
-            )
-            return False
-
-        try:
-            source_documents = getattr(result, "source_documents", []) or []
-            self.persist_interaction(issue.key, prompt, answer, source_documents)
-        except Exception:
-            logger.error(
-                "Failed to persist Jira interaction for issue %s after posting comment.",
-                issue.key,
-                exc_info=True,
-            )
-        return True
-
-    def persist_interaction(
-        self,
-        issue_key: str,
-        prompt: str,
-        answer: str,
-        source_documents: Iterable[Any],
-    ) -> None:
-        now = datetime.now(timezone.utc)
-        title = f"Jira issue {issue_key}"
-        client_id = "jira"
-        archi_version = os.getenv("APP_VERSION", "unknown")
-        link, context = format_source_context(source_documents)
-
-        with self.postgres_factory.connection_pool.get_connection() as conn:
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        SQL_CREATE_CONVERSATION,
-                        (title, now, now, client_id, archi_version, None),
-                    )
-                    conversation_id = cursor.fetchone()[0]
-                    messages = [
-                        Message(
-                            conversation_id=conversation_id,
-                            sender="User",
-                            content=prompt,
-                            ts=now,
-                            model_used=self.agent_settings.model_provider,
-                            pipeline_used=self.agent_settings.agent_class,
-                            archi_service="Jira",
-                        ),
-                        Message(
-                            conversation_id=conversation_id,
-                            sender="archi",
-                            content=answer,
-                            link=link,
-                            context=context,
-                            ts=now,
-                            model_used=self.agent_settings.model_provider,
-                            pipeline_used=self.agent_settings.agent_class,
-                            archi_service="Jira",
-                        ),
-                    ]
-                    values = [
-                        (
-                            message.archi_service,
-                            message.conversation_id,
-                            message.sender,
-                            message.content,
-                            message.link or "",
-                            message.context or "",
-                            message.ts,
-                            message.model_used,
-                            message.pipeline_used,
-                        )
-                        for message in messages
-                    ]
-                    psycopg2.extras.execute_values(cursor, SQL_INSERT_CONVO, values)
-                conn.commit()
-            except Exception:
-                conn.rollback()
-                raise
-
-
-def resolve_jira_agent_settings(services_config: dict) -> JiraAgentSettings:
-    jira_config = services_config.get("jira_ticket_responder", {}) or {}
-    chat_config = services_config.get("chat_app", {}) or {}
-
-    agent_class = jira_config.get("agent_class") or "CMSCompOpsAgent"
-    agents_dir = Path(
-        jira_config.get("agents_dir")
-        or chat_config.get("agents_dir")
-        or "/root/archi/agents"
-    )
-    default_provider = jira_config.get("default_provider") or chat_config.get(
-        "default_provider"
-    )
-    default_model = jira_config.get("default_model") or chat_config.get("default_model")
-    if not default_provider or not default_model:
-        raise ValueError(
-            "Jira ticket responder requires default_provider and default_model in services.jira_ticket_responder or services.chat_app."
+    def fetch_recent_comments(self, issue_key: str) -> list[JiraComment]:
+        response = self.client._get_json(
+            f"issue/{issue_key}/comment",
+            params={
+                "startAt": 0,
+                "maxResults": JIRA_RECENT_COMMENT_LIMIT,
+                "orderBy": "-created",
+            },
         )
+        comments = []
+        for raw_comment in response["comments"]:
+            comment = extract_jira_comment(raw_comment)
+            if comment is not None:
+                comments.append(comment)
+        return comments
 
-    return JiraAgentSettings(
-        agent_class=str(agent_class),
-        agents_dir=agents_dir,
-        default_provider=str(default_provider),
-        default_model=str(default_model),
-    )
+    def comment_mentions_authenticated_user(self, comment: JiraComment) -> bool:
+        service_name = self.user_identities.get("name")
+        if not service_name:
+            return False
+        return f"[~{service_name}]" in comment.body
 
-
-def build_archi_for_jira(
-    services_config: dict,
-    agent_settings: Optional[JiraAgentSettings] = None,
-) -> tuple[Any, JiraAgentSettings]:
-    from src.archi.archi import archi
-
-    agent_settings = agent_settings or resolve_jira_agent_settings(services_config)
-    try:
-        agent_spec = agent_spec_module.select_agent_spec(agent_settings.agents_dir)
-    except agent_spec_module.AgentSpecError as exc:
-        raise ValueError(f"Failed to load Jira agent spec: {exc}") from exc
-
-    archi_instance = archi(
-        pipeline=agent_settings.agent_class,
-        agent_spec=agent_spec,
-        default_provider=agent_settings.default_provider,
-        default_model=agent_settings.default_model,
-    )
-    return archi_instance, agent_settings
+    def comment_authored_by_authenticated_user(self, comment: JiraComment) -> bool:
+        return same_jira_user(self.user_identities, comment.author)
 
 
 def extract_issue(issue: Any) -> JiraIssue:
@@ -431,6 +220,45 @@ def extract_issue(issue: Any) -> JiraIssue:
     )
 
 
+def extract_jira_comment(raw_comment: dict[str, Any]) -> Optional[JiraComment]:
+    comment_id = str(raw_comment.get("id") or "").strip()
+    if not comment_id:
+        return None
+
+    author = raw_comment.get("author")
+    if not isinstance(author, dict):
+        return None
+    if not any(
+        jira_user_identity_value(author, field) for field in JIRA_USER_IDENTITY_FIELDS
+    ):
+        return None
+
+    body = raw_comment.get("body")
+    if not isinstance(body, str):
+        return None
+
+    return JiraComment(
+        id=comment_id,
+        body=body,
+        author=author,
+        created=str(raw_comment.get("created") or ""),
+        updated=str(raw_comment.get("updated") or ""),
+    )
+
+
+def extract_created_jira_comment_id(created_comment: object) -> Optional[str]:
+    try:
+        comment_id = created_comment.id
+    except AttributeError:
+        return None
+    if comment_id is None:
+        return None
+    text = str(comment_id).strip()
+    if not text:
+        return None
+    return text
+
+
 def resolve_jira_user_identities(user: dict[str, Any]) -> dict[str, str]:
     identities = {
         field: value
@@ -453,145 +281,16 @@ def same_jira_user(known_identities: dict[str, str], user: dict[str, Any]) -> bo
     )
 
 
-def is_issue_eligible(issue: JiraIssue, eligible_statuses: Iterable[str]) -> bool:
-    if issue.status_name not in eligible_statuses:
-        logger.debug(
-            "Skipping Jira issue %s with status %s.", issue.key, issue.status_name
-        )
-        return False
-    return True
-
-
-def build_ticket_prompt(issue: JiraIssue) -> str:
-    return (
-        "Suggest a solution to this problem.\n\n"
-        "Issue:\n"
-        f"{issue.key}\n\n"
-        "Summary:\n"
-        f"{issue.summary}\n\n"
-        "Status:\n"
-        f"{issue.status_name}\n\n"
-        "Description:\n"
-        f"{issue.description}"
-    )
-
-
-def extract_answer(result: object) -> Optional[str]:
-    answer = getattr(result, "answer", None)
-    if not isinstance(answer, str):
-        return None
-    answer = answer.strip()
-    if not answer:
-        return None
-    return answer
-
-
-def build_jira_comment_body(answer: str, result: object) -> str:
-    sections = []
-    reasoning_trace = extract_reasoning_trace(result)
-    if reasoning_trace:
-        sections.append(
-            format_jira_panel("Reasoning trace", format_jira_noformat(reasoning_trace))
-        )
-
-    tool_calls = extract_tool_calls_trace(result)
-    if tool_calls:
-        sections.append(format_tool_calls_panel(tool_calls))
-
-    if not sections:
-        return answer.strip()
-    return "\n\n".join([answer.strip(), *sections])
-
-
-def extract_reasoning_trace(result: object) -> str:
-    if not isinstance(result, PipelineOutput):
-        return ""
-
-    reasoning_blocks = []
-    for message in result.messages:
-        additional_kwargs = getattr(message, "additional_kwargs", None) or {}
-        reasoning_content = additional_kwargs.get("reasoning_content")
-        if reasoning_content:
-            reasoning_blocks.append(str(reasoning_content).strip())
-    return "\n\n".join(block for block in reasoning_blocks if block)
-
-
-def extract_tool_calls_trace(result: object) -> list[dict[str, Any]]:
-    if not isinstance(result, PipelineOutput):
-        return []
-    return result.extract_tool_calls()
-
-
-def format_tool_calls_panel(tool_calls: list[dict[str, Any]]) -> str:
-    return format_jira_panel(
-        "Tool calls", format_jira_noformat(format_tool_calls_trace(tool_calls))
-    )
-
-
-def format_tool_calls_trace(tool_calls: list[dict[str, Any]]) -> str:
-    parts = []
-    for index, tool_call in enumerate(tool_calls, start=1):
-        tool_name = str(tool_call.get("name") or "unknown")
-        tool_args = serialize_jira_trace_value(tool_call.get("args"))
-        tool_result = serialize_jira_trace_value(tool_call.get("result"))
-        parts.append(
-            "\n".join(
-                [
-                    f"Tool call {index}: {tool_name}",
-                    "Input:",
-                    tool_args or "No input captured.",
-                    "",
-                    "Output:",
-                    tool_result or "No output captured.",
-                ]
-            )
-        )
-    return "\n\n".join(parts)
-
-
-def format_jira_panel(title: str, body: str) -> str:
-    return f"{{panel:title={title}}}\n{body}\n{{panel}}"
-
-
-def format_jira_noformat(value: str) -> str:
-    text = sanitize_jira_noformat(truncate_jira_trace_text(value))
-    return f"{{noformat}}\n{text}\n{{noformat}}"
-
-
-def truncate_jira_trace_text(value: str) -> str:
-    text = value.strip()
-    if len(text) <= JIRA_TRACE_SECTION_MAX_CHARS:
-        return text
-    omitted = len(text) - JIRA_TRACE_SECTION_MAX_CHARS
-    return (
-        f"{text[:JIRA_TRACE_SECTION_MAX_CHARS].rstrip()}"
-        f"\n\n[truncated {omitted} characters]"
-    )
-
-
-def sanitize_jira_noformat(value: str) -> str:
-    return re.sub(r"\{noformat\}", "{ noformat }", value, flags=re.IGNORECASE)
-
-
-def serialize_jira_trace_value(value: Any) -> str:
-    if value in (None, "", {}, []):
-        return ""
-    if isinstance(value, str):
-        return value.strip()
-    return json.dumps(value, indent=2, sort_keys=True, default=str)
-
-
-def format_source_context(source_documents: Iterable[Any]) -> tuple[str, str]:
-    link = ""
-    context_parts = []
-    for index, document in enumerate(source_documents, start=1):
-        metadata = getattr(document, "metadata", {}) or {}
-        if not isinstance(metadata, dict):
-            metadata = {}
-        document_link = str(metadata.get("url") or "")
-        if not link and document_link:
-            link = document_link
-        title = str(metadata.get("title") or metadata.get("display_name") or "No Title")
-        content = str(getattr(document, "page_content", "") or "")
-        context_parts.append(f"Source {index}: {title} ({document_link})\n\n{content}")
-    return link, "\n\n\n\n".join(context_parts)
+__all__ = [
+    "JIRA_RECENT_COMMENT_LIMIT",
+    "JIRA_USER_IDENTITY_FIELDS",
+    "JiraComment",
+    "JiraIssue",
+    "JiraIssueClient",
+    "extract_created_jira_comment_id",
+    "extract_issue",
+    "extract_jira_comment",
+    "jira_user_identity_value",
+    "resolve_jira_user_identities",
+    "same_jira_user",
+]
