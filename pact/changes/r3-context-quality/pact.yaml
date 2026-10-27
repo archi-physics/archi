@@ -144,4 +144,25 @@ evidence:
     Only True or a passing string counts as an invariant pass (not 1, not a list). A malformed spec is
     refused. Passing and failing fixtures covered. The gate is a library; its first caller is the
     automation runtime (r3-ops-runtime).'
+- kind: executed_test
+  requirement: req.r3-context-quality.context-eval
+  status: pass
+  command: python -m pytest python/tests/evaluation python/tests/ops/test_context_gate.py python/tests/ops/test_health_signals.py
+    -q; python -m pytest python/tests -q (submit76, okg 0.2.0)
+  head: 70e84a739c8386ca890f2bfdabbe103bc33deb92
+  at: '2026-10-27T03:01:44+00:00'
+  note: 'Fixture tests only. acc.r3-context-quality.run (a context eval on the comp-ops instance producing
+    a report with the baseline arm) is NOT done: it waits on access to that instance and on the operator
+    top-50 set, which stays private and is never committed (board d379, d380). What is proven, on a fake
+    MCP search tool and an invented fixture set (python/tests/evaluation/fixtures/context.yaml): archi eval
+    --context calls the search tool directly with no model, in a graph arm (server defaults) and a raw-document
+    baseline arm (method lexical, rank_by self, expand_concepts false; replaceable per question file), and
+    writes report.json and report.md with recall@k and MRR per arm and what each question found and missed. A
+    passage counts for its record (`in <id>` on the row line); ids in titles and excerpts do not. The graph
+    arm''s recall@k is recorded under the instance (eval/reports/context-<bundle>-<time>.json); the context
+    gate reads the latest record for min_context_eval_score (read_context_eval_score, wired into the ops gate
+    step) and instance-health reads the same records. The question set is named at run time (--questions or
+    ARCHI_CONTEXT_EVAL_QUESTIONS); a missing path exits 2 naming it. Results: 141 passed in the evaluation,
+    gate and health-signal tests; full suite 3484 passed, 27 skipped. Both ran at 1853f7d5 with cli.md
+    regenerated, a tree identical to this head.'
 decisions: []
