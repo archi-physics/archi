@@ -20,7 +20,7 @@ bug fixes. The v2 documentation stays on this site under
 | You pick a model provider (OpenAI, Anthropic, Gemini, local) in the Archi config. | Archi stores no model. The agent is configured with its own. |
 | Sources are listed under `data_manager.sources` (links, git, Indico, JIRA, Redmine). | Sources come in packs: `docsite`, `indico`, `jira`, `git-code` and more. See the [library](library/index.md). |
 | Queue bots (Redmine, JIRA, Mattermost) draft replies. | Automations under autonomy levels, with a shadow period before going live. See [the operations layer](operations-layer.md). |
-| Quality is checked with `archi evaluate` (Ragas benchmark). | Context evals and `archi eval`. Coming. |
+| Quality is checked with `archi evaluate` (Ragas benchmark). | `archi eval` (smoke sets) and `archi eval --context` (retrieval scored against gold evidence). See [archi eval](operating/evals.md). |
 | Redeploy with `archi restart`. | `archi up`, `archi down`, `archi add`, `archi diff`. See [Operating](operating/index.md). |
 
 ## What has no equivalent yet

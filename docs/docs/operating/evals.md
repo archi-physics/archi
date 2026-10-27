@@ -13,8 +13,8 @@ A bundle that installs green can still answer nothing. The smoke set turns
     The eval framework tracked in
     [#619](https://github.com/archi-physics/archi/issues/619) replaces it. The
     question files and the report format are kept so they can move across.
-    The context eval (retrieval scored against a raw-document baseline) is
-    part of that framework and is [still coming](#context-evals-still-coming).
+    The [context eval](#context-evals-archi-eval-context) (retrieval scored
+    against a raw-document baseline) needs no model and is described below.
 
 ## Run it
 
@@ -114,12 +114,102 @@ score in the job summary. A CI gate on bundle changes across all four bundles
 is not built; it waits for the #619 framework, because a gate needs either a
 slow local model or a paid API model.
 
-## Context evals (still coming)
+## Context evals: `archi eval --context`
 
-`archi eval --context` is not in this branch. It will score retrieval alone and
-compare it with a baseline that reads raw documents. That score feeds the
-[context gate](../context-layer.md#the-context-gate): an automation can
-require a minimum score before it runs live. Until it exists, a gate that asks
-for a context-eval score fails, so the automation stays in shadow. The
-`instance-health` automation reads `eval/reports/*.json` in the instance if it
-exists; that file format is provisional until the context eval exists.
+The context eval scores retrieval alone: did the search bring back the
+evidence that answers the question? It asks no model. For each question it
+calls the instance's MCP `search` tool directly and checks whether the
+question's **gold** node ids, the evidence chosen by hand as the answer, come
+back in the top *k* rows.
+
+```bash
+archi eval --context --questions operator-questions.yaml
+```
+
+| Option | Meaning |
+|---|---|
+| `--context` | Run the context eval instead of the smoke set. |
+| `--questions FILE` | The question file. Default: `$ARCHI_CONTEXT_EVAL_QUESTIONS`, else the bundle's `eval/context.yaml`. No bundle ships one, so name a file. A path that does not exist exits 2 and names the path. |
+| `--k N` | The recall cut-off. Default: the file's `k`, else 10. |
+
+`--instance`, `--mcp-url`, `--bundle` and `--out` work as for the smoke set.
+The model options are not used. The default report directory is
+`eval/context/<bundle>/` under the instance's data root.
+
+### The question file
+
+The format is the smoke format with `gold` added, so a smoke file whose
+questions carry `gold` ids can be used as it is (`pass_threshold`, `must_cite`
+and `must_contain` are read and ignored):
+
+```yaml
+bundle: cern-team
+k: 10                 # optional (default 10)
+min_recall: 0.6       # optional: exit 1 when the graph arm's recall@k is below it
+questions:
+  - id: fts3-what-is
+    question: What is FTS3?
+    gold: [documentation_page:2275b50c]   # the node ids that answer it
+```
+
+A question without `gold` is listed in the report and not scored.
+
+**Where the question set lives.** An instance's operator questions are
+private. They are never committed to this repository, which is public. Keep
+the file with the instance (or anywhere outside this repository) and name it
+when you run:
+
+```bash
+archi eval --context --questions /path/to/operator-questions.yaml
+# or
+export ARCHI_CONTEXT_EVAL_QUESTIONS=/path/to/operator-questions.yaml
+archi eval --context
+```
+
+`--questions` wins over the variable. The only question file in this
+repository is the test fixture, `python/tests/evaluation/fixtures/context.yaml`,
+whose ids are invented.
+
+### The two arms
+
+Each question runs twice, in two **arms** (two ways of searching):
+
+| Arm | What it calls |
+|---|---|
+| `graph` | `search` with the server's defaults: the search an operator's agent makes. |
+| `baseline` | `search` with `method: lexical`, `rank_by: self` and `expand_concepts: false`: keyword match on each text unit's own words, with no roll-up to records and no concept expansion. This is the raw-document baseline. |
+
+The baseline is the simplest reading of "a baseline that reads raw
+documents" that the MCP surface allows: the harness has no copy of the raw
+documents, so it asks the same server for plain keyword search over text
+units. It still searches every node with text, not only document chunks. A
+question file can replace either arm, or add more, under `arms:`, for
+example `baseline: {tool: search, arguments: {method: lexical, where: {type:
+document_chunk}}}`. The harness always sets `query` (the question) and `limit`
+(k) itself.
+
+A row counts as a hit for a gold id when the row's id is that id, or when the
+row is a passage whose record (`in <id>` on its row line) is that id. Ids in a
+row's title or excerpt do not count.
+
+### The report and the score
+
+`report.json` and `report.md` hold, per arm, recall@k (the share of each
+question's gold ids found in the top k, averaged over questions) and MRR (the
+mean of 1 / rank of the first gold hit), and per question what each arm found
+and missed. A search call that fails counts as a miss and is listed under
+`errors`.
+
+| Exit | Meaning |
+|---|---|
+| 0 | The run finished (and met `min_recall`, if the file sets one). |
+| 1 | The graph arm's recall@k is below `min_recall`. |
+| 2 | The run could not execute: the endpoint was unreachable, it has no `search` tool, every graph call failed, or a file was unusable. |
+
+The **score** is the graph arm's recall@k. On an instance, the run records it
+in `eval/reports/context-<bundle>-<time>.json` in the instance directory. The
+[context gate](../context-layer.md#the-context-gate) reads the latest of these
+for `min_context_eval_score`, and the `instance-health` automation reads them
+for a falling trend. A run with `--mcp-url` records nothing, because the
+endpoint is not the instance's. A run that could not execute records nothing
+either, so a gate never sees a score that was not measured.

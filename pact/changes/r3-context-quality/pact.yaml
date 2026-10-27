@@ -14,6 +14,14 @@ affected_code:
 - python/archi/ops/
 - python/archi/evaluation/
 - python/archi/enrichment/
+- python/archi/cli/evaluate.py
+- python/archi/health/signals.py
+- python/tests/evaluation/
+- docs/docs/operating/evals.md
+- docs/docs/reference/cli.md
+- docs/docs/reference/pack-format.md
+- docs/docs/context-layer.md
+- docs/docs/migration-from-v2.md
 requirements:
 - id: req.r3-context-quality.freshness
   statement: 'Every context pack declares max_staleness per source; archi doctor reports each

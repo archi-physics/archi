@@ -71,7 +71,14 @@ from okg.deployment import (
     request_escalation,
 )
 
-from archi.ops.context_gate import GateCheck, GateFacts, GateResult, GateSpec, evaluate_gate
+from archi.ops.context_gate import (
+    GateCheck,
+    GateFacts,
+    GateResult,
+    GateSpec,
+    evaluate_gate,
+    read_context_eval_score,
+)
 from archi.ops.escalation import (
     DECISION_SCHEMA,
     Decision,
@@ -225,7 +232,9 @@ def _gate_step(automation: str) -> dict:
             "max_staleness_seconds": parse_duration(slo) if slo else None,
             "reason": "" if stamp else "no completed run recorded in okg's watermarks",
         })
-    result = evaluate_gate(spec, GateFacts(None, tuple(freshness), {}, None, published))
+    # The latest `archi eval --context` score under the instance; a broken record raises here.
+    score = read_context_eval_score(rt.instance_dir) if spec.min_context_eval_score is not None else None
+    result = evaluate_gate(spec, GateFacts(None, tuple(freshness), {}, score, published))
     return result.as_dict()
 
 

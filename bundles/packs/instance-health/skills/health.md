@@ -7,7 +7,8 @@ The `instance-health` automation watches this instance. It runs on a schedule (h
 - `archi doctor --json`: every failing check. `source-freshness` yields one problem per late source.
 - `okg sync frontier --json`: a source whose newest ingest failed or whose frontier is blocked.
 - The ops records: an automation whose recent decisions are mostly errors.
-- Eval reports under `eval/reports/`, when there are any. None exist yet, so this is skipped, and the proposal says so.
+- The context-eval scores `archi eval --context` records under `eval/reports/`: a score that drops below the
+  recent ones. With fewer than two records there is no trend, so this is skipped, and the proposal says so.
 
 **What it does**
 

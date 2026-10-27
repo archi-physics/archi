@@ -18,9 +18,10 @@ shadow mode carrying those names, so the operator sees why.
 The evaluator reads facts; it fetches nothing. `archi doctor --json` supplies
 the source ages (its `source-freshness` check). Invariant results and the
 context-eval score come from the caller: okg records invariant outcomes per
-generation, and `archi eval --context` (not built yet) will record the score.
-A missing score or invariant result is a failure, never a pass: a gate that
-cannot see a fact has not shown it holds.
+generation, and `archi eval --context` records the score under the instance
+(`eval/reports/context-*.json`), which `read_context_eval_score` returns: the
+graph arm's recall@k from the latest run. A missing score or invariant result
+is a failure, never a pass: a gate that cannot see a fact has not shown it holds.
 
 Check names: `freshness:<source>`, `context_eval`, `invariant:<name>`, `published`.
 
@@ -30,10 +31,45 @@ shadow exactly when the thing it reports is stale.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from archi.bundles.duration import format_age, parse_duration
+
+#: Where `archi eval --context` records its score, under the instance directory. The
+#: instance-health monitor reads the same directory for its eval trend.
+CONTEXT_EVAL_DIR = "eval/reports"
+CONTEXT_EVAL_GLOB = "context-*.json"
+CONTEXT_EVAL_SCHEMA = "archi-context-eval-score/1"
+
+
+class ContextEvalRecordError(ValueError):
+    """A context-eval score record cannot be read."""
+
+
+def read_context_eval_score(instance_dir: Path | str) -> Optional[float]:
+    """The score of the latest `archi eval --context` run on this instance, or None if none ran.
+
+    "Latest" is the record with the greatest `finished_at`. A record that is not JSON, or has no
+    numeric score from 0 to 1, raises: a broken record is not the same as no record.
+    """
+    directory = Path(instance_dir) / CONTEXT_EVAL_DIR
+    if not directory.is_dir():
+        return None
+    latest: Optional[tuple[str, float]] = None
+    for path in sorted(directory.glob(CONTEXT_EVAL_GLOB)):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            score, finished = data["score"], str(data["finished_at"])
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise ContextEvalRecordError(f"{path}: not a context-eval score record ({type(exc).__name__}: {exc})") from exc
+        if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 1:
+            raise ContextEvalRecordError(f"{path}: score must be a number from 0 to 1, got {score!r}")
+        if latest is None or finished >= latest[0]:
+            latest = (finished, float(score))
+    return None if latest is None else latest[1]
 
 # The results that mean an invariant holds. Compared by type as well as value,
 # so 1 (equal to True) and unhashable values never count as a pass.
@@ -192,7 +228,8 @@ def evaluate_gate(spec: GateSpec, facts: GateFacts) -> GateResult:
     if spec.min_context_eval_score is not None:
         score = facts.context_eval_score
         if score is None:
-            checks.append(GateCheck("context_eval", False, "no context-eval score recorded"))
+            checks.append(GateCheck("context_eval", False,
+                                    "no context-eval score recorded (run `archi eval --context`)"))
         elif score < spec.min_context_eval_score:
             checks.append(GateCheck("context_eval", False,
                                     f"score {score:g} is below the minimum {spec.min_context_eval_score:g}"))

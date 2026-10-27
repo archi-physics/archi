@@ -12,7 +12,7 @@ measured and checked by machine. It is never just asserted.
 | Complete | The graph holds what each pack should emit. | Each pack owns coverage invariants. A failing `error` invariant blocks the publish. | Working |
 | Linked | Identifiers (sites, datasets, runs, releases, tickets) connect records across sources. | Each pack can declare link coverage targets. | Working |
 | Cited | Every answer and every proposal names the records it used. | OKG reads are pinned to one published generation. A proposal must list evidence ids. | Working |
-| Measured | Operator questions with known right evidence are scored. | Context evals. | Coming |
+| Measured | Operator questions with known right evidence are scored. | Context evals (`archi eval --context`). | Working; each instance keeps its own question set |
 | Clean | No credentials or personal data in the graph. | Redaction at ingest, connector tests. | Working in the connectors |
 
 A **generation** is one published snapshot of the graph. An **invariant** is
@@ -57,17 +57,19 @@ and `published`. A missing score or result counts as a failure.
 An automation that watches the instance itself asks only for `published`. It
 has to keep running while a source is stale.
 
-## Context evals (coming)
+## Context evals
 
 A context eval is a set of operator questions, each with the evidence that
-should answer it. It scores retrieval (was the right evidence found)
-separately from answer quality, and compares against a baseline that reads
-raw documents. The command will be `archi eval --context`, and each bundle
-will ship its own set. This is not in the current branch. `archi eval` today
-runs only the bundles' smoke sets, which check that an instance answers; they
-produce no context score. Until the context eval lands, a gate that asks for a
-`min_context_eval_score` fails, which is the safe result. See
-[Operating](operating/evals.md).
+should answer it (its gold node ids). `archi eval --context` scores retrieval
+(was the right evidence found) separately from answer quality: it calls the
+instance's MCP search tool directly, with no model, and reports recall@k of
+the gold ids for the graph search and for a raw-document baseline. The graph
+search's recall@k is the score; on an instance it is recorded in
+`eval/reports/`, where the context gate reads the latest one for
+`min_context_eval_score`. With no recorded score, a gate that asks for one
+fails, which is the safe result. Question sets are private to the instance and
+never committed here; name one at run time with `--questions` or
+`ARCHI_CONTEXT_EVAL_QUESTIONS`. See [Operating](operating/evals.md#context-evals-archi-eval-context).
 
 ## ops-record: the operational memory
 

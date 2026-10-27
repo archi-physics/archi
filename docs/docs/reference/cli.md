@@ -159,7 +159,7 @@ Okg lint + doctor + archi's footgun checks, with remediations.
 
 ## `archi eval`
 
-Ask a bundle's smoke questions through the instance MCP with a local model.
+Ask a bundle's smoke questions through the instance MCP with a local model, or score retrieval alone with --context.
 
 | Option | Meaning | Default |
 |---|---|---|
@@ -173,6 +173,9 @@ Ask a bundle's smoke questions through the instance MCP with a local model.
 | `--max-steps MAX_STEPS` | tool-call rounds allowed per question | `8` |
 | `--no-think` | ask a reasoning model to skip its thinking pass (reasoning_effort: none) |  |
 | `--allow-remote-model` | allow a model endpoint off this host or network (may cost money; off by default) |  |
+| `--context` | score retrieval instead: call the MCP search tool directly (no model) and report recall@k of each question's gold ids, with a raw-document baseline arm |  |
+| `--questions QUESTIONS` | with --context: the question file, kept outside this repository (default: $ARCHI_CONTEXT_EVAL_QUESTIONS, else the bundle's eval/context.yaml) |  |
+| `--k K` | with --context: the recall cut-off (default: the file's k, else 10) |  |
 | `--pack-root PACK_ROOT` | extra directory of &lt;name&gt;/pack.yaml entries (repeatable) |  |
 | `--bundle-root BUNDLE_ROOT` | extra directory of &lt;name&gt;/bundle.yaml entries (repeatable) |  |
 

@@ -5,8 +5,8 @@
     ingest             `okg sync frontier --json`: a source whose newest run failed or whose frontier is blocked
     automation-errors  the ops records (`archi.ops.shadow`'s reader seam): an automation whose recent
                        decisions are mostly errors
-    eval               eval reports under `<instance>/eval/reports/*.json`, if there are any. None exist
-                       yet (`archi eval` is not built), so this signal is skipped, and the skip is reported.
+    eval               the score records `archi eval --context` writes under `<instance>/eval/reports/*.json`.
+                       With fewer than two there is no trend, so this signal is skipped, and the skip is reported.
 
 Each collector turns plain data into `Problem`s and reads nothing itself; `collect` runs the readers.
 A reader that fails is not hidden: it becomes the problem `monitor/<signal>` ("could not read it"), and
@@ -164,8 +164,8 @@ def eval_problems(instance_dir: Path | str, *, min_drop: float = 0.05, history: 
                   ) -> tuple[list[Problem], Optional[str]]:
     """(problems, why it was skipped). Reads `<instance>/eval/reports/*.json`.
 
-    A report is `{"finished_at": <ISO time>, "score": <0..1>}` (provisional: `archi eval` will define the
-    real one, and this reader follows it). The latest score is a regression when it is more than `min_drop`
+    A report is `{"finished_at": <ISO time>, "score": <0..1>, ...}`, the record `archi eval --context` writes
+    (`archi.evaluation.context.record_score`; the score is the graph arm's recall@k). The latest score is a regression when it is more than `min_drop`
     below the mean of the `history` reports before it. With no report, or one, there is no trend: skipped.
     """
     directory = Path(instance_dir) / EVAL_DIR

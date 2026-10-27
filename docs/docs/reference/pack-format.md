@@ -269,8 +269,8 @@ added outside archi).
 ## Context quality
 
 ADR 0002 section 6.1 asks that the context layer be measured, not assumed.
-Packs carry three of the measures; the fourth, the context eval, is a separate
-change.
+Packs carry three of the measures; the fourth, the context eval, is a question
+set run by `archi eval --context` (see [archi eval](../operating/evals.md#context-evals-archi-eval-context)).
 
 **Freshness.** Every source of a context pack declares `max_staleness` in
 `freshness:`. No source template sets a schedule (their triggers are `manual`

@@ -8,6 +8,13 @@ Exit codes: 0 the threshold was met; 1 it was not; 2 the run could not
 execute (no MCP tools, the endpoint or the model unreachable, a bad smoke
 file). Checks are deterministic: no LLM judge, no paid model call.
 
+`archi eval --context [--questions FILE] [--k N]` scores retrieval alone
+(PACT r3-context-quality): it calls the MCP search tool directly, with no
+model, in a graph arm and a raw-document baseline arm, reports recall@k and
+MRR of each question's gold ids (`archi.evaluation.context`), and records
+the graph arm's recall@k under the instance for the context gate. Exit codes
+as above; 1 means the graph arm fell below the file's `min_recall`.
+
 This module only builds the parser. The harness (`archi.evaluation`, and the
 MCP client it loads) is imported when the command runs, so every other
 `archi` command stays as fast as before.
@@ -21,7 +28,11 @@ from pathlib import Path
 
 DEFAULT_MODEL_URL = "http://127.0.0.1:11434/v1"
 TOKEN_VAR = "OKG_CHAT_MCP_TOKEN"
-EVAL_HELP = "ask a bundle's smoke questions through the instance MCP with a local model"
+#: The context question set's path. An instance's operator questions are private and never
+#: committed here, so the set is named at run time.
+QUESTIONS_VAR = "ARCHI_CONTEXT_EVAL_QUESTIONS"
+EVAL_HELP = ("ask a bundle's smoke questions through the instance MCP with a local model, "
+             "or score retrieval alone with --context")
 
 
 def add_parser(sub, roots) -> None:
@@ -32,7 +43,9 @@ def add_parser(sub, roots) -> None:
             "Run a bundle's smoke set against the instance MCP endpoint with a local "
             "model (an OpenAI-compatible endpoint such as Ollama). Checks are "
             "deterministic; nothing is paid. Exits 1 below the bundle's pass "
-            "threshold and 2 when the run could not execute."
+            "threshold and 2 when the run could not execute. With --context, no model is "
+            "used: the MCP search tool is called directly and recall@k of gold evidence ids "
+            "is reported for the graph and a raw-document baseline arm."
         ),
     )
     p.add_argument("--bundle", action="append", default=[],
@@ -51,6 +64,14 @@ def add_parser(sub, roots) -> None:
                    help="ask a reasoning model to skip its thinking pass (reasoning_effort: none)")
     p.add_argument("--allow-remote-model", action="store_true",
                    help="allow a model endpoint off this host or network (may cost money; off by default)")
+    p.add_argument("--context", action="store_true",
+                   help="score retrieval instead: call the MCP search tool directly (no model) and report "
+                        "recall@k of each question's gold ids, with a raw-document baseline arm")
+    p.add_argument("--questions", type=Path,
+                   default=Path(os.environ[QUESTIONS_VAR]) if os.environ.get(QUESTIONS_VAR) else None,
+                   help=f"with --context: the question file, kept outside this repository (default: "
+                        f"${QUESTIONS_VAR}, else the bundle's eval/context.yaml)")
+    p.add_argument("--k", type=int, help="with --context: the recall cut-off (default: the file's k, else 10)")
     roots(p)
     p.set_defaults(func=cmd_eval)
 
@@ -93,6 +114,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
         except InstanceError as exc:
             if not token:
                 return _fail(str(exc))
+    if args.context:
+        return _context(args, instance, bundles, mcp_url, token, report_root)
     if not bundles:
         return _fail("name a bundle with --bundle")
     if not token:
@@ -178,3 +201,84 @@ def _run_one(smoke, model_name: str, args: argparse.Namespace, mcp_url: str, tok
     if report.error:
         print(f"error: {report.error}", file=sys.stderr)
     return report.exit_code
+
+
+def _context(args: argparse.Namespace, instance, bundles: list, mcp_url: str, token: str, report_root: Path) -> int:
+    """`archi eval --context`: retrieval alone, no model (PACT r3-context-quality)."""
+    import asyncio
+    import dataclasses
+
+    from archi.bundles import discovery
+    from archi.evaluation.agent import McpToolBox
+    from archi.evaluation.context import (
+        ContextSetError,
+        context_path,
+        load_context,
+        record_score,
+        run_context,
+        write_report,
+    )
+
+    if not token:
+        return _fail(f"no MCP bearer token: {TOKEN_VAR} is not in the instance .env or the environment")
+    if args.k is not None and not 1 <= args.k <= 100:
+        return _fail("--k must be from 1 to 100")
+    sets = []
+    try:
+        if args.questions is not None:
+            if not args.questions.is_file():
+                return _fail(f"question file {args.questions} does not exist (from --questions or ${QUESTIONS_VAR})")
+            cset = load_context(args.questions)
+            if args.bundle and args.bundle != [cset.bundle]:
+                return _fail(f"{args.questions} is the set of bundle {cset.bundle!r}, not {', '.join(args.bundle)}")
+            sets.append(cset)
+        else:
+            if not bundles:
+                return _fail("name a bundle with --bundle, or a question file with --questions")
+            catalog = discovery.discover(args.pack_root, args.bundle_root)
+            for name in bundles:
+                bundle = catalog.bundles.get(name)
+                if bundle is None:
+                    return _fail(f"no bundle named {name!r}")
+                path = context_path(bundle.dir)
+                if path.is_file():
+                    sets.append(load_context(path))
+                elif args.bundle:
+                    return _fail(f"bundle {name!r} ships no context set ({path}); pass --questions FILE")
+                else:
+                    print(f"note: bundle {name!r} ships no context set; skipped", file=sys.stderr)
+    except ContextSetError as exc:
+        return _fail(str(exc))
+    if not sets:
+        return _fail("no context question set: none of the bundles ships eval/context.yaml; pass --questions FILE")
+
+    worst = 0
+    for cset in sets:
+        if args.k is not None:
+            cset = dataclasses.replace(cset, k=args.k)
+        out = args.out or report_root / "context" / cset.bundle
+        if args.out and len(sets) > 1:
+            out = args.out / cset.bundle
+
+        def progress(result, i: int, total: int) -> None:
+            cells = " ".join(f"{name}={'error' if r.error else f'{len(r.found)}/{len(result.gold)}'}"
+                             for name, r in result.arms.items())
+            print(f"[{i}/{total}] {result.id}: {cells}", flush=True)
+
+        print(f"archi eval --context: {cset.bundle}, {len(cset.scored)} scored questions, k={cset.k}, MCP {mcp_url}")
+        report = asyncio.run(run_context(cset, lambda: McpToolBox(mcp_url, token), mcp_url=mcp_url, progress=progress))
+        md, js = write_report(report, out)
+        data = report.to_dict()
+        arms = ", ".join(f"{name} {s['recall_at_k']:.3f}" for name, s in data["arms"].items())
+        print(f"{report.status}: recall@{cset.k} {arms}; {md} and {js}")
+        if report.error:
+            print(f"error: {report.error}", file=sys.stderr)
+        if instance is not None:
+            recorded = record_score(report, instance.dir, report_path=js)
+            if recorded is not None:
+                print(f"score {data['score']:.3f} recorded for the context gate: {recorded}")
+        else:
+            print("note: --mcp-url names an endpoint outside the instance, so no score is recorded for the "
+                  "context gate", file=sys.stderr)
+        worst = max(worst, report.exit_code)
+    return worst
