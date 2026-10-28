@@ -15,6 +15,20 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+# Model families that must be driven through the OpenAI Responses API
+# (/v1/responses). On the chat-completions surface these models reject
+# function tools unless reasoning_effort='none' (HTTP 400), so tools +
+# reasoning only work together on the Responses path. langchain-openai
+# >= 1.1 (1.1.10 in the deployed container) supports use_responses_api.
+RESPONSES_API_MODEL_PREFIXES = ("gpt-5.5", "gpt-5.6", "gpt-6")
+
+
+def needs_responses_api(model_name: str) -> bool:
+    """True when the model family requires the /v1/responses API surface."""
+    name = (model_name or "").lower()
+    return name.startswith(RESPONSES_API_MODEL_PREFIXES)
+
+
 # Default models available from OpenAI
 DEFAULT_OPENAI_MODELS = [
     ModelInfo(
@@ -137,13 +151,29 @@ class OpenAIProvider(BaseProvider):
 
         if isinstance(model_kwargs.get("stream_options"), dict) or "stream_options" not in model_kwargs:
             model_kwargs["stream_options"] = merged_stream_options
-        
+
+        # gpt-5.5+/5.6 reject function tools on chat-completions unless
+        # reasoning is disabled; route them through the Responses API.
+        # An explicit use_responses_api in config/kwargs always wins.
+        if "use_responses_api" not in model_kwargs and needs_responses_api(model_name):
+            logger.info(
+                "Routing model '%s' through the Responses API (use_responses_api=True)",
+                model_name,
+            )
+            model_kwargs["use_responses_api"] = True
+
+        # /v1/responses rejects stream_options.include_usage (400). The
+        # include_usage injection above is a chat-completions-only concern,
+        # so drop stream_options entirely on the Responses path.
+        if model_kwargs.get("use_responses_api"):
+            model_kwargs["stream_options"] = None
+
         if self._api_key:
             model_kwargs["api_key"] = self._api_key
-            
+
         if self.config.base_url:
             model_kwargs["base_url"] = self.config.base_url
-            
+
         return ChatOpenAI(**model_kwargs)
     
     def list_models(self) -> List[ModelInfo]:

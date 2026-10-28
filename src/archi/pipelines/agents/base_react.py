@@ -1,4 +1,5 @@
 from typing import Any, Callable, Dict, List, Optional, Sequence, Iterator, AsyncIterator, Set, Tuple
+import ast
 import re
 import time
 import uuid
@@ -25,6 +26,51 @@ from src.archi.pipelines.agents.tools import initialize_mcp_client
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def normalize_answer_text(answer: Any) -> Any:
+    """Flatten Responses-API content blocks down to the human-readable text.
+
+    On /v1/responses the assistant message content is a list of typed blocks
+    (reasoning, text, ...). The legacy answer extraction predates that and
+    hands back the whole list, so the visible answer arrives either as a
+    list of dicts or as a stringified blob with the prose buried inside.
+    Pull out the text parts and drop reasoning. Non-block answers are
+    returned unchanged.
+    """
+    blocks = answer
+    if isinstance(answer, str):
+        stripped = answer.lstrip()
+        if not (stripped.startswith("[{") or stripped.startswith("{'") or stripped.startswith('{"')):
+            return answer
+        try:
+            blocks = ast.literal_eval(answer)
+        except (ValueError, SyntaxError):
+            # The block list may have been stringified by concatenating dict
+            # reprs separated by whitespace ("{...} {...}"), which is not
+            # valid Python, so parse each dict on its own.
+            blocks = []
+            for chunk in re.split(r"(?<=\})\s*(?=\{['\"])", answer):
+                try:
+                    blocks.append(ast.literal_eval(chunk))
+                except (ValueError, SyntaxError):
+                    continue
+            if not blocks:
+                return answer
+    if isinstance(blocks, dict):
+        blocks = [blocks]
+    if not isinstance(blocks, list):
+        return answer
+    parts = []
+    for b in blocks:
+        if isinstance(b, str):
+            parts.append(b)
+        elif isinstance(b, dict):
+            if b.get("type") in ("text", "output_text") and b.get("text"):
+                parts.append(b["text"])
+    text = "\n".join(parts).strip()
+    return text or answer
+
 
 class BaseReActAgent:
     """
@@ -106,6 +152,10 @@ class BaseReActAgent:
 
         If not final, drop documents and only keep the latest message.
         """
+        # Responses-API answers can arrive as (stringified) content-block
+        # lists; unwrap them so callers always receive plain prose. Without
+        # this the blob is silently returned as the "answer" with no error.
+        answer = normalize_answer_text(answer)
         documents = memory.unique_documents() if (memory and final) else []
         resolved_messages: List[BaseMessage] = []
         if messages:
