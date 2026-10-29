@@ -90,3 +90,63 @@ def test_the_command_refuses_to_write_inside_the_repository(tmp_path, capsys):
     inside = Path(__file__).resolve().parents[1] / "gold_sources.draft.yaml"
     assert main(["--questions", str(golden), "--out", str(inside)]) == 2
     assert "never committed" in capsys.readouterr().err and not inside.exists()
+
+
+CHECKOUTS = {
+    "demoops-Documentation": ["README.md", "docs/Policy/pile_rules.md", "docs/Operators/Getting Started.md",
+                              "docs/Old/dup.md", "docs/New/dup.md"],
+    "demopr-documentation": ["docs/roles/campaign_lead.md"],
+    "unrelated": ["docs/Policy/pile_rules.md"],
+}
+
+
+def test_a_loosely_named_document_keeps_its_own_key_without_checkouts():
+    refs, found = extract("sources[0]", "demoprdocumentation/campaign_lead.md")
+    assert found and [r["id"] for r in refs] == ["git_repo:demoprdocumentation/campaign_lead.md"]
+    assert refs[0]["confidence"].startswith("medium") and "--repos" in refs[0]["confidence"]
+
+
+def test_loosely_named_documents_resolve_to_the_one_checkout_file():
+    cases = {
+        "demoops/pile_rules.md": "demoops-Documentation/docs/Policy/pile_rules.md",           # folders left out
+        "demoprdocumentation/campaign_lead.md": "demopr-documentation/docs/roles/campaign_lead.md",
+        "demoops Documentation: docs_Operators_Getting_Started.md":                            # flattened path
+            "demoops-Documentation/docs/Operators/Getting Started.md",
+        "documentation_page:demoops_Documentation:docs_Policy_pile_rules.md":
+            "demoops-Documentation/docs/Policy/pile_rules.md",
+        'demoops/Documentation docs/Operators/Getting Started.md (chunk:0a1b2c3d4e5f6a7b) "a quote"':
+            "demoops-Documentation/docs/Operators/Getting Started.md",
+    }
+    for text, key in cases.items():
+        problems = []
+        refs, found = extract("sources[0]", text, CHECKOUTS, problems)
+        assert found and problems == [], text
+        assert [(r["id"], r["key"]) for r in refs] == [(f"git_repo:{key}", key)], text
+        assert refs[0]["confidence"].startswith("high"), text
+
+
+def test_a_document_that_does_not_resolve_to_one_file_is_left_for_review():
+    draft = draft_item("q", {"atoms": [{"id": "a1", "answer_source": "doc or source_code"}],
+                             "sources": ["demoops/dup.md", "demoops/missing.md", "jira:DEMOOPS-3"]}, CHECKOUTS)
+    assert draft["gold"] == ["jira:DEMOOPS-3"]
+    assert any(u.startswith("sources[0]: 'demoops/dup.md' matches 2 checkout files") for u in draft["unresolved"])
+    assert any(u.startswith("sources[1]: 'demoops/missing.md' matches no file") for u in draft["unresolved"])
+    assert not any("no reference recognised" in u for u in draft["unresolved"])
+
+
+def test_the_command_resolves_documents_against_the_checkouts_given(tmp_path, capsys):
+    golden, repos = tmp_path / "golden", tmp_path / "repos"
+    golden.mkdir()
+    (golden / "q.yaml").write_text(yaml.safe_dump({"id": "q", "atoms": [{"id": "a1", "answer_source": "doc"}],
+                                                   "sources": ["demoops/pile_rules.md"]}))
+    for name, files in CHECKOUTS.items():
+        for rel in files + [".git/HEAD"]:
+            (repos / name / rel).parent.mkdir(parents=True, exist_ok=True)
+            (repos / name / rel).write_text("x")
+    out = tmp_path / "private" / "draft.yaml"
+    assert main(["--questions", str(golden), "--out", str(out), "--repos", str(repos)]) == 0
+    question = yaml.safe_load(out.read_text())["questions"][0]
+    assert question["gold_sources"] == {"git_repo:demoops-Documentation/docs/Policy/pile_rules.md": {
+        "source": "git_repo", "key": "demoops-Documentation/docs/Policy/pile_rules.md"}}
+    assert main(["--questions", str(golden), "--out", str(out), "--repos", str(tmp_path / "none")]) == 2
+    assert "is not a directory" in capsys.readouterr().err
