@@ -3,7 +3,12 @@
 from a real question set: every key, repository, path, URL and site name is made up."""
 import yaml
 
-from archi.evaluation.draft_gold_sources import draft_item, extract, main, resolve_document
+from archi.evaluation.draft_gold_sources import (
+    draft_item,
+    extract,
+    main,
+    resolve_document,
+)
 
 ITEM = {
     "id": "q-demo-07",
