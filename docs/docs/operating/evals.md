@@ -468,13 +468,15 @@ It recognises these kinds of reference:
 - Jira keys become `jira`;
 - `repos/<repo>[ @<sha>] <path>` becomes the git-code file `<repo>/<path>`;
 - a repository document named loosely (`<repo>/<file>.md`,
-  `<org>/<repo> <path>.md`, `<repo> Documentation: <a_b_c>.md`, or
-  `documentation_page:<repo>:<a_b_c>.md`) becomes a git-code file. Such a
-  name may leave out folders, spell the repository differently from its
-  checkout, or flatten the path (`_` for `/` and spaces). With `--repos`, a
-  directory holding one checkout per repository, each is resolved to the one
-  file it names; one that matches no file, or several, goes to `unresolved`.
-  Without `--repos`, it keeps the name as written, marked `medium`;
+  `<org>/<repo> <path>.md`, `<repo> Documentation <path>.md`,
+  `<repo> Documentation: <a_b_c>.md`, or
+  `documentation_page:<repo>:<a_b_c>.md`; also `.rst`, `.txt` and
+  `.markdown`) becomes a git-code file. Such a name may leave out folders,
+  spell the repository differently from its checkout, or flatten the path
+  (`_` or `-` for `/` and spaces). With `--repos`, a directory holding one
+  git checkout per repository, each is resolved to the one file it names.
+  One that matches no file or several, and every one when `--repos` is not
+  given, goes to `unresolved` and gives no reference;
 - documentation URLs become `docsite`;
 - CMS site names become `cric`.
 

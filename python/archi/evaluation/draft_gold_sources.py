@@ -18,9 +18,10 @@ those and drafts, per question, the structured references the agent arms need:
 
 A loosely named document gives its repository and file only roughly: the repository name
 differs from the checkout's (cmsdmops for cmsdmops-Documentation), folders are left out, or
-the path is flattened ('_' for '/' and ' '). With --repos, each one is resolved to the one
-checkout file it names (`high`), or listed under `unresolved` with the files it could be.
-Without --repos, the reference keeps the text's own key, marked `medium`.
+the path is flattened ('_' or '-' for '/' and ' '). Documents are .md, .rst, .txt or
+.markdown files. With --repos, each one is resolved to the one checkout file it names
+(`high`); one that matches no file or several, and every one when --repos is not given, is
+listed under `unresolved` and gives no reference.
 
 The output is a DRAFT for a person to review: every reference carries a confidence note, and
 whatever could not be matched is listed under `unresolved`. Atoms get the references of their
@@ -56,20 +57,24 @@ SOURCE_FOR = {"jira": "jira", "git": "git_repo", "doc": "docsite", "site": "cric
 
 _JIRA = re.compile(r"(?<![A-Za-z0-9_/-])(?:jira:)?([A-Z][A-Z0-9_]{1,15}-\d{1,7})(?![-\w])")
 _JIRA_URL = re.compile(r"/browse/([A-Z][A-Z0-9_]{1,15}-\d{1,7})\b")
-_REPO_SHA_PATH = re.compile(r"\brepos/([\w.-]+)(?:\s*@\s*([0-9a-f]{7,40}))?\s+([\w.][\w./-]*\.\w+|[\w.-]+/[\w./-]+)"
-                            r"(?:\s*\(([^)]*)\))?")
+_REPO_SHA_PATH = re.compile(r"\brepos/([\w.-]+)(?:\s*\([^)]*\))*(?:\s*@\s*([0-9a-f]{7,40}))?(?:\s*\([^)]*\))*"
+                            r"\s+([\w.][\w./-]*\.\w+|[\w.-]+/[\w./-]+)(?:\s*\(([^)]*)\))?")
 _REPO_PATH = re.compile(r"\brepos/([\w.-]+)/([\w./-]+\.\w+)")
 _URL = re.compile(r"https?://[^\s)'\"<>\]]+")
 _SITE = re.compile(r"(?<![A-Za-z0-9])(T[0-3]_[A-Z]{2}_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)(?![A-Za-z0-9])")
-_DOC_EXT = r"\.(?:md|rst|txt|markdown)\b"
+#: a document file name, shortest first so that "a.md vs b.md" stops at a.md
+_DOC_FILE = r"[\w-]+(?:\.[\w-]+)*?\.(?:md|rst|txt|markdown)(?![\w-]|\.\w)"
 _NOT_AFTER = r"(?<![\w/.:@-])"
-#: loosely named repository documents, most specific first: (form, pattern of repo and path)
+#: loosely named repository documents, most specific first: (form, pattern of repo and path).
+#: Two words name a repository only as <org>/<repo> or as "<repo> Documentation", the forms the
+#: CompOps-42 key uses; any other pair of words is prose.
 _LOOSE_DOCS = (
-    ("documentation_page:<repo>:<file>", re.compile(r"\bdocumentation_page:([\w.-]+):([\w.-]+" + _DOC_EXT + ")")),
-    ("<org>/<repo> <path>", re.compile(_NOT_AFTER + r"([\w.-]+[/ ][\w.-]+):?\s+((?:[\w.-]+/)+[\w.-]+(?: [\w.-]+)*"
-                                       + _DOC_EXT + ")")),
-    ("<repo>: <file>", re.compile(_NOT_AFTER + r"([\w.-]+(?: [\w.-]+)?):\s+([\w.-]+" + _DOC_EXT + ")")),
-    ("<repo>/<path>", re.compile(_NOT_AFTER + r"([\w.-]+)/((?:[\w.-]+/)*[\w.-]+" + _DOC_EXT + ")")),
+    ("documentation_page:<repo>:<file>", re.compile(r"documentation_page:([\w.-]+):(" + _DOC_FILE + ")")),
+    ("<org>/<repo> <path>", re.compile(_NOT_AFTER + r"([\w.-]+(?:/[\w.-]+| [Dd]ocumentation)):?\s+"
+                                       r"((?:[\w.-]+/)+[\w-]+(?:[ .][\w-]+)*?\.(?:md|rst|txt|markdown)"
+                                       r"(?![\w-]|\.\w))")),
+    ("<repo> Documentation: <file>", re.compile(_NOT_AFTER + r"([\w.-]+[ _][Dd]ocumentation):\s+(" + _DOC_FILE + ")")),
+    ("<repo>/<path>", re.compile(_NOT_AFTER + r"([\w.-]+)/((?:[\w.-]+/)*" + _DOC_FILE + ")")),
 )
 #: hosts whose URLs are source repositories, not documentation pages
 _CODE_HOSTS = ("github.com", "gitlab.")
@@ -88,9 +93,9 @@ def _flat(path: str) -> str:
 
 
 def index_checkouts(root: Path) -> dict[str, list[str]]:
-    """{checkout name: its file paths, relative and '/'-separated} for each directory under root."""
+    """{checkout name: its file paths, relative and '/'-separated} for each git checkout under root."""
     out: dict[str, list[str]] = {}
-    for checkout in sorted(p for p in root.iterdir() if p.is_dir()):
+    for checkout in sorted(p for p in root.iterdir() if p.is_dir() and (p / ".git").exists()):
         files = []
         for folder, dirs, names in os.walk(checkout):
             dirs[:] = [d for d in dirs if d != ".git"]
@@ -99,24 +104,44 @@ def index_checkouts(root: Path) -> dict[str, list[str]]:
     return out
 
 
+def _matching_files(names: Iterable[str], path: str, checkouts: Mapping[str, list[str]]) -> list[str]:
+    """Files of these checkouts that are `path`: first as written (the whole path or a `/path`
+    suffix), and only if none is, once '/', ' ', '_' and '-' all read as one separator, from
+    a folder boundary of the file's path (so policies.md never matches dm_policies.md)."""
+    exact = [f"{n}/{rel}" for n in names for rel in checkouts[n] if rel == path or rel.endswith("/" + path)]
+    if exact:
+        return exact
+    flat = _flat(path)
+    return [f"{n}/{rel}" for n in names for rel in checkouts[n]
+            if any(_flat(rel[i:]) == flat for i in [0] + [j + 1 for j, c in enumerate(rel) if c == "/"])]
+
+
 def resolve_document(repo: str, path: str, checkouts: Mapping[str, list[str]]) -> list[str]:
     """The `<checkout>/<file>` keys a loosely named document can be.
 
-    A checkout matches when its name and `repo` contain one another once case and punctuation
-    are dropped. A file matches when it is `path`, ends with `/path`, or equals or ends with
-    `path` once '/', ' ', '_' and '-' all read as one separator.
+    Names are compared without case or punctuation, and a name under four characters matches
+    nothing. Checkouts are tried in rank: the same name, then one name a prefix of the other,
+    then one inside the other; the first rank with a matching file wins (_matching_files).
     """
-    want, flat = _norm(repo), _flat(path)
-    hits = []
-    for name, files in checkouts.items():
+    want = _norm(repo)
+    if len(want) < 4:
+        return []
+    ranks: tuple[list[str], list[str], list[str]] = ([], [], [])
+    for name in checkouts:
         have = _norm(name)
-        if not want or not have or (want not in have and have not in want):
+        if len(have) < 4:
             continue
-        for rel in files:
-            f = _flat(rel)
-            if rel == path or rel.endswith("/" + path) or f == flat or f.endswith("_" + flat):
-                hits.append(f"{name}/{rel}")
-    return hits
+        if have == want:
+            ranks[0].append(name)
+        elif have.startswith(want) or want.startswith(have):
+            ranks[1].append(name)
+        elif want in have or have in want:
+            ranks[2].append(name)
+    for names in ranks:
+        hits = _matching_files(names, path, checkouts) if names else []
+        if hits:
+            return hits
+    return []
 
 
 def _texts(item: Mapping[str, Any]) -> list[tuple[str, str]]:
@@ -137,8 +162,9 @@ def extract(where: str, text: str, checkouts: Optional[Mapping[str, list[str]]] 
             problems: Optional[list[str]] = None) -> tuple[list[Ref], bool]:
     """The references in one text, and whether anything in it was recognised.
 
-    With `checkouts` (from index_checkouts), a loosely named document that does not resolve
-    to exactly one file is recognised but gives no reference; why goes to `problems`.
+    A loosely named document gives a reference only when `checkouts` (from index_checkouts)
+    resolve it to exactly one file. Otherwise it is recognised but gives none, and why goes
+    to `problems`. It is matched last, so a Jira key or site name next to it is kept.
     """
     recognised = False
     refs: list[Ref] = []
@@ -173,28 +199,6 @@ def extract(where: str, text: str, checkouts: Optional[Mapping[str, list[str]]] 
             refs.append(Ref(id=f"docsite:{url}", kind="doc", source="docsite", key=url,
                             confidence="medium: a URL; check it is a page the docsite cache holds", where=where))
         taken.append(m.span())
-    for form, pattern in _LOOSE_DOCS:
-        for m in pattern.finditer(text):
-            if not free(m.span()):
-                continue
-            taken.append(m.span())
-            recognised = True
-            repo, path, said = m.group(1), m.group(2), m.group(0)
-            if checkouts is None:
-                key = f"{re.sub(r'[ /]+', '-', repo)}/{path}"
-                refs.append(Ref(id=f"git_repo:{key}", kind="git", source="git_repo", key=key,
-                                confidence=f"medium: a document named as {form} ({said!r}); map it to the "
-                                           "checkout's <repo>/<path>, or draft again with --repos", where=where))
-                continue
-            hits = resolve_document(repo, path, checkouts)
-            if len(hits) == 1:
-                refs.append(Ref(id=f"git_repo:{hits[0]}", kind="git", source="git_repo", key=hits[0],
-                                confidence=f"high: {said!r} ({form}) is the one matching checkout file",
-                                where=where))
-            elif problems is not None:
-                problems.append(f"{where}: {said!r} matches " + (
-                    f"{len(hits)} checkout files: {', '.join(hits[:5])}{', ...' if len(hits) > 5 else ''}"
-                    if hits else f"no file in a checkout named like {repo!r}"))
     for m in _JIRA.finditer(text):
         if free(m.span()):
             prefixed = text[m.start():m.start() + 5] == "jira:"
@@ -208,6 +212,26 @@ def extract(where: str, text: str, checkouts: Optional[Mapping[str, list[str]]] 
                             confidence="medium: a CMS site name; attach it to an atom by hand if it is evidence",
                             where=where))
             taken.append(m.span())
+    for form, pattern in _LOOSE_DOCS:
+        for m in pattern.finditer(text):
+            if not free(m.span()):
+                continue
+            taken.append(m.span())
+            recognised = True
+            repo, path, said = m.group(1), m.group(2), m.group(0)
+            hits = resolve_document(repo, path, checkouts) if checkouts is not None else []
+            if len(hits) == 1:
+                refs.append(Ref(id=f"git_repo:{hits[0]}", kind="git", source="git_repo", key=hits[0],
+                                confidence=f"high: {said!r} ({form}) is the one matching checkout file",
+                                where=where))
+            elif problems is not None:
+                if checkouts is None:
+                    why = f"names a repository document ({form}); draft again with --repos to resolve it"
+                elif hits:
+                    why = f"matches {len(hits)} checkout files: {', '.join(hits[:5])}{', ...' if len(hits) > 5 else ''}"
+                else:
+                    why = f"matches no file in a checkout named like {repo!r}"
+                problems.append(f"{where}: {said!r} {why}")
     return refs, recognised or bool(refs)
 
 

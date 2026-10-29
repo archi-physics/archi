@@ -3,7 +3,7 @@
 from a real question set: every key, repository, path, URL and site name is made up."""
 import yaml
 
-from archi.evaluation.draft_gold_sources import draft_item, extract, main
+from archi.evaluation.draft_gold_sources import draft_item, extract, main, resolve_document
 
 ITEM = {
     "id": "q-demo-07",
@@ -93,17 +93,47 @@ def test_the_command_refuses_to_write_inside_the_repository(tmp_path, capsys):
 
 
 CHECKOUTS = {
-    "demoops-Documentation": ["README.md", "docs/Policy/pile_rules.md", "docs/Operators/Getting Started.md",
-                              "docs/Old/dup.md", "docs/New/dup.md"],
-    "demopr-documentation": ["docs/roles/campaign_lead.md"],
+    "demoops-Documentation": ["README.md", "docs/Policy/pile_rules.md", "docs/Policy/dm_policies.md",
+                              "docs/Operators/Getting Started.md", "docs/Old/dup.md", "docs/New/dup.md"],
+    "demopr-documentation": ["docs/roles/campaign_lead.md", "docs/roles/assistant_campaign_lead.md"],
+    "demoops": ["notes.md"],
     "unrelated": ["docs/Policy/pile_rules.md"],
 }
 
 
-def test_a_loosely_named_document_keeps_its_own_key_without_checkouts():
-    refs, found = extract("sources[0]", "demoprdocumentation/campaign_lead.md")
-    assert found and [r["id"] for r in refs] == ["git_repo:demoprdocumentation/campaign_lead.md"]
-    assert refs[0]["confidence"].startswith("medium") and "--repos" in refs[0]["confidence"]
+def test_a_loosely_named_document_is_left_for_review_without_checkouts():
+    problems = []
+    refs, found = extract("sources[0]", "demoprdocumentation/campaign_lead.md", problems=problems)
+    assert found and refs == []
+    assert problems == ["sources[0]: 'demoprdocumentation/campaign_lead.md' names a repository document "
+                        "(<repo>/<path>); draft again with --repos to resolve it"]
+
+
+def test_prose_and_neighbours_of_a_loose_document_are_not_misread():
+    problems = []
+    refs, _ = extract("s", "DEMOOPS-897 and docs/Policy/dm_policies.md; T2_ZZ_Nowhere: notes.md", CHECKOUTS, problems)
+    assert {"jira:DEMOOPS-897", "site:T2_ZZ_Nowhere"} <= {r["id"] for r in refs}
+    for text in ("Evidence: README.md", "policy in docs/Policy/dm_policies.md", "evidence/q009_findings.md",
+                 "status/summary.html: 19 nodes", "docs_Operators_Update.md covers corpus_page and"):
+        problems = []
+        refs, _ = extract("s", text, CHECKOUTS, problems)
+        assert not any(r["source"] == "git_repo" for r in refs), text
+    refs, _ = extract("s", "demoops Documentation docs/Policy/dm_policies.md vs pile_rules.md", CHECKOUTS, [])
+    assert [r["key"] for r in refs] == ["demoops-Documentation/docs/Policy/dm_policies.md"]  # stops at the first .md
+
+
+def test_resolution_never_matches_inside_a_file_name_or_a_short_hint():
+    assert resolve_document("demoops", "policies.md", CHECKOUTS) == []              # not dm_policies.md
+    assert resolve_document("demoprdocumentation", "campaign_lead.md", CHECKOUTS) == [
+        "demopr-documentation/docs/roles/campaign_lead.md"]                         # not assistant_campaign_lead.md
+    assert resolve_document("demoops", "notes.md", CHECKOUTS) == ["demoops/notes.md"]   # the same name ranks first
+    assert resolve_document("doc", "README.md", CHECKOUTS) == []                   # under four characters
+
+
+def test_repos_references_with_parentheses_around_the_commit():
+    refs, _ = extract("s", "repos/fakerepo (Sub) @065beb3b (main 2026-07-14) Sub/utils.py:4718-4775; "
+                           "repos/other @2e14c417 (4.0rc1; prod 4.1) lib/core/rule.py:2034-2103 move_rule")
+    assert {r["key"] for r in refs} == {"fakerepo/Sub/utils.py", "other/lib/core/rule.py"}
 
 
 def test_loosely_named_documents_resolve_to_the_one_checkout_file():
