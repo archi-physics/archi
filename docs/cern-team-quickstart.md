@@ -1,16 +1,19 @@
 # cern-team quickstart
 
-> **Reference material.** The setup path is now `archi init` / `archi up` /
-> `archi doctor`: see the [quickstart](docs/quickstart.md). Every trap below is in
-> the [footgun ledger](docs/operating/footguns.md), as absorbed by archi or
-> filed with AKMON. Read on for what happens underneath, or for a source the
-> golden path does not cover yet.
+> **Superseded. Do not install from this page.** To install archi today,
+> follow [the quickstart](docs/quickstart.md) (`archi init` / `archi up` /
+> `archi doctor`); the nightly test checks that path. This page is kept as
+> reference: it shows the manual okg steps underneath, for a source the
+> golden path does not cover yet, and every trap in it is in the
+> [footgun ledger](docs/operating/footguns.md), as absorbed by archi or filed
+> with AKMON. Its commands are not tested and may no longer match the
+> current CLI.
 
 From nothing to a knowledge graph you can query, holding an Indico event and
 a GitHub repository (its files, history, function bodies and symbols), with a
 chat frontend in front of it.
 
-Follow it top to bottom. The commands are real and runnable as written.
+It was written to be followed top to bottom, before `archi init` existed.
 Two things are yours to choose and are marked where they appear: the
 repository you want indexed, and a password for the chat database.
 

@@ -1,17 +1,18 @@
 # cern-team bundle — end-to-end install demo (executed runbook)
 
-> **Historical.** This runbook was executed on the cern-team layout before
-> PACT r3-packs-split, when the bundle was an okg profile with
-> `source-defaults/` and `.yaml.example` files. cern-team is now a bundle of
-> packs (`bundles/cern-team/bundle.yaml`, `bundles/packs/`); the current
-> install steps are in [the cern-team quickstart](cern-team-quickstart.md)
-> and [packs and bundles](docs/reference/pack-format.md). The results below are kept as
-> the record of that run.
+> **Superseded. Do not install from this page.** It records one run, on
+> 2026-08-21, of the cern-team layout before PACT r3-packs-split, when the
+> bundle was an okg profile with `source-defaults/` and `.yaml.example` files.
+> cern-team is now a bundle of packs (`bundles/cern-team/bundle.yaml`,
+> `bundles/packs/`). To install it today, follow [the quickstart](docs/quickstart.md)
+> (`archi init` / `archi up` / `archi doctor`); the format is in
+> [packs and bundles](docs/reference/pack-format.md). The steps and results
+> below are kept only as the record of that run.
 
 The Archi v3 assembly milestone: install the `cern-team` bundle
 (`bundles/cern-team/`) into a fresh instance, ingest all four
 connectors, publish, and read back. Every command below was executed
-on 2026-08-21 on submit82 (okg dev editable checkout, archi wheel
+on 2026-08-21 on a dev host (okg dev editable checkout, archi wheel
 3.0.0a1 built from the working tree); this document is the
 reproducible sequence the external-distribution conformance harness consumes. The
 actual run results live in
@@ -28,7 +29,7 @@ whose *playbooks* guide agents.
 ## 0. Prerequisites
 
 - okg venv with the `okg` CLI (this demo:
-  `/work/submit/lavezzo/okg-venv`, okg dev editable from a sibling
+  a uv venv, okg dev editable from a sibling
   checkout).
 - The archi wheel built from this repo and installed into that venv:
 
@@ -42,7 +43,7 @@ whose *playbooks* guide agents.
   instance** (never share a database between instances):
 
   ```bash
-  # this demo: rootless podman container okg-w1-pg on 127.0.0.1:5455
+  # this demo: a rootless podman container okg-w1-pg on a loopback port
   podman exec okg-w1-pg psql -U postgres -c "CREATE DATABASE okg_cern_team;"
   ```
 
@@ -50,8 +51,8 @@ whose *playbooks* guide agents.
 
   ```bash
   archi render --bundle cern-team --instance .          # copies the wheel's bundle to ./profiles/
-  export OKG_DEPLOYMENTS_DIR=<deployments root>         # demo: /work/submit/lavezzo/okg-scratch
-  export OKG_DSN='postgresql://<user>:<pw>@127.0.0.1:5455/okg_cern_team'
+  export OKG_DEPLOYMENTS_DIR=<deployments root>
+  export OKG_DSN='postgresql://<user>:<pw>@127.0.0.1:<port>/okg_cern_team'
   ```
 
   Run okg from this directory: its profile search includes
