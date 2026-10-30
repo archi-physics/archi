@@ -109,6 +109,20 @@ For every group the build:
    tab, form feed and carriage return do not count, and neither do the
    characters of ANSI colour sequences (`ESC[32m`).
 
+   **TWiki file names that are not UTF-8.** Each invalid byte in a file or
+   folder name is decoded the same way (cp1252, else Latin-1): a dump
+   topic named `DsTotauTo` + three Latin-1 `0xB5` bytes is archived as
+   `DsTotauToµµµ.txt`. The lock lists every such file in `renamed_files`:
+   `source_name` (invalid bytes written as `\xNN`), `archive_name`, and
+   `archived` (false for an empty topic, which is left out as below).
+   Two folders whose names decode alike are merged; each file that came
+   from the folder with invalid bytes is listed. The group is refused when two files, or a file and a
+   folder, decode to the same name; when an invalid byte would become a
+   control or invisible character (`0x81`, `0x9D`, `0xA0`, `0xAD` ...);
+   and when the name, decoded, with its invalid bytes left out, or as
+   listed, shows an address. A non-UTF-8 name in any other group refuses
+   it.
+
    **Empty TWiki topics.** A TWiki topic file that is zero bytes or holds
    only whitespace and NUL bytes is left out of the archive (the reader
    skips it too) and listed in the lock as `empty_topic_files` (a count)
@@ -263,7 +277,8 @@ configured), `archive`, `sha256`, `bytes`,
 `addresses_removed`, `obfuscated_addresses_removed`,
 `normalized_addresses_removed`, `input_file` (for CMSSW, which input was used),
 `text_pages`, `pages_valid_utf8`, `pages_with_fallback_runs`,
-`fallback_bytes`, `empty_topic_files` and `empty_topic_names` (TWiki),
+`fallback_bytes`, `renamed_files`, `empty_topic_files` and
+`empty_topic_names` (TWiki),
 `contents_sha256` (a digest of the unpacked files), `archive_dir`, and the
 dropped and extra kept fields. It also records who built it, when, on which
 host, the archi version and commit, and the zstd version and level.

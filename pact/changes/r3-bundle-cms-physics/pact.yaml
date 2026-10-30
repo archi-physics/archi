@@ -142,6 +142,29 @@ evidence:
     from 5105bfdd to 79c60bbb, and head/at date this citation, not that run. Not proven: a bundle CI job, which does not
     exist (d332 deferred the gate to #619); d380 Q7 replaced that wording, and whether this pair is
     enough was board d379. Not proven either: a real-data install (that is req.instance).'
+- kind: executed_test
+  requirement: req.r3-bundle-cms-physics.instance
+  status: pass
+  command: archi init cms-physics --bundle cms-physics (okg 0.2.0, podman), then okg status, okg deployment
+    lint, the floor and subtype checks over an MCP aggregate, and five MCP search questions (no model);
+    on a dev host
+  head: 66eb3b24476dacc434947af6e7be06b66697f4b4
+  at: '2026-10-29T17:45:00+00:00'
+  note: 'acc.r3-bundle-cms-physics.rebuild (board d320, d369 = D). A cms-physics lab instance was built
+    from the cms-physics bundle as shipped, docsite and indico included, from an export of archi_v3 at
+    a7575a81 with no local copy of an archi connector and no cms_kb source package, over the real TWiki
+    and analysis-note mirrors, CDS and the CMSSW release map; the run finished 2026-10-29T11:40:32Z.
+    head/at date this citation, not that run: head 66eb3b24 is archi_v3 6dd8f7a2 plus this PACT row, and
+    from a7575a81 to 6dd8f7a2 the affected code changes only a comment in
+    bundles/cms-physics/eval/smoke.yaml and python/archi/sources/tickets.py (the tickets pack''s JIRA
+    reader, which this bundle does not install). Its first generation published with 685,198
+    nodes and 1,379,406 edges in 14 subtypes; okg deployment lint has 0 blockers. Floors: 5,314 analysis
+    notes (floor 2,500) and 15,868 TWiki pages (floor 10,000). Every expected subtype has rows, and the
+    cross-link enricher added 11,678 edges. All eight sources ended OK. Five MCP search questions each
+    returned rows that cite a source; their evidence names were not checked (the questions carry none).
+    Indico read one meeting: the bundle ships no event or category ids, so the source falls back to its
+    one default event. The run took about 60 hours, 57 of them the analysis-note walk. Not proven here:
+    a rebuild of the live cms-kb deployment, which board d380 Q5 replaced with this instance.'
 decisions:
 - digest: sha256:8fb0282d3c208b2080c4862915039377cafd79252e78e59dc4419f101e116920
   reviewer: Jason Mohoney

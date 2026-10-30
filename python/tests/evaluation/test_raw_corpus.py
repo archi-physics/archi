@@ -257,6 +257,36 @@ def test_the_twiki_pages_are_the_ones_the_instances_reader_keeps(tmp_path):
     assert "ops-record not included" in corpus.coverage
 
 
+def test_pack_named_registry_sources_are_planned_and_resolved_by_their_source_name(tmp_path):
+    """A rendered instance names its sources `<pack>.<source>` (twiki.twiki_eos, cds.cds). The corpus
+    plans them by the source name, and keys.json is keyed so that a node's okg provenance
+    (cms-physics.twiki-eos) finds its file."""
+    from archi.evaluation import raw_arm
+
+    data = tmp_path / "data"
+    dump = data / "twiki-dump"
+    dump.mkdir(parents=True)
+    (dump / "HIG-19-001.txt").write_text(_topic())
+    registry = {
+        "twiki.twiki_eos": registry_entry("archi.sources.twiki", eos_root=str(dump), web_root="CMS",
+                                          physics_filter="true"),
+        "cds.cds": registry_entry("archi.sources.cds"),
+        "indico.indico_live": registry_entry("archi.sources.indico_live"),
+        "analysis-notes.analysis_notes": registry_entry("archi.sources.analysis_notes"),
+    }
+    plan = plan_sources(registry, data_root=data)
+    assert [p.source for p in plan.included] == ["twiki_eos"]
+    assert "harvested live" in plan.left_out["cds"] and "fetched live" in plan.left_out["indico_live"]
+    assert "LaTeX" in plan.left_out["analysis_notes"]
+    corpus = build_corpus(plan, bundle="cms-physics", out_root=corpus_root(data, "cms-physics"))
+    keys = json.loads((corpus.path / "keys.json").read_text())
+    info = raw_arm.NodeInfo("twiki:CMS:HIG-19-001", "documentation_page", "cms-physics.twiki-eos", {})
+    record = raw_arm.record_for(info, keys)
+    assert not isinstance(record, str) and record.path == "twiki-eos/HIG-19-001.txt"
+    cds = raw_arm.NodeInfo("cds:1", "cds_record", "cms-physics.cds", {})
+    assert raw_arm.record_for(cds, keys).status == "unavailable"
+
+
 def test_git_code_checkouts_go_in_as_their_tracked_files(tmp_path):
     """The comp-ops gold cites repository files: each enabled git-code checkout's tracked files
     go in under git-repo/<repo>/, emails removed, binaries left out and counted."""

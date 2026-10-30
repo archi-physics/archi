@@ -173,8 +173,11 @@ def plan_sources(registry: Mapping[str, Any], *, data_root: Path, answers: Optio
     values["archi_data_root"] = str(data_root)
     plan = Plan()
     groups_seen: dict[str, str] = {}
-    for name in sorted(registry):
-        entry = registry[name]
+    for key in sorted(registry):
+        entry = registry[key]
+        # A rendered instance names a source `<pack>.<source>` (twiki.twiki_eos); the groups, the
+        # reasons and the gold lookup (raw_arm.record_for) all use the source name alone.
+        name = key.rsplit(".", 1)[-1]
         if not isinstance(entry, Mapping):
             plan.left_out[name] = "its registry entry is not a mapping"
             continue
