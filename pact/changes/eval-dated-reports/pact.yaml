@@ -45,3 +45,32 @@ tasks:
   verification: >-
     python/tests/ops/test_health_signals.py: two published runs give a drop
     warning and no eval-trend note; test_docs_generated passes.
+evidence:
+- kind: executed_test
+  requirement: req.eval-dated-reports.dated
+  status: pass
+  command: >-
+    python -m pytest python/tests/evaluation/test_run.py python/tests/ops/test_health_signals.py
+    python/tests/ops/test_health_runtime.py python/tests/test_docs_generated.py (okg 0.2.0, Python 3.12,
+    on a dev host)
+  head: aaf1809c6324e3a51cc90fc72ec8a44029ede10d
+  at: '2026-10-30T23:59:06+00:00'
+  note: >-
+    139 passed. New tests: two default runs leave two dated reports and latest.json; same-second runs
+    both stay (-2); pruning keeps the newest N and leaves other files; keep 0 keeps all; a negative keep
+    or a non-UTC start is refused; no hidden temp directory is left; --out writes straight into the
+    directory and replaces the report; the parser default lives in one number.
+- kind: executed_test
+  requirement: req.eval-dated-reports.trend
+  status: pass
+  command: >-
+    python -m pytest python/tests -q (okg 0.2.0, Python 3.12, on a dev host), after python -m
+    archi.docs_gen
+  head: aaf1809c6324e3a51cc90fc72ec8a44029ede10d
+  at: '2026-10-30T23:59:06+00:00'
+  note: >-
+    3813 passed, 28 skipped, 2 failed: test_redact_email_addresses_git_scan_is_linear and
+    test_redact_email_addresses_quoted_local_part_is_linear miss their 1.0 s budget on the loaded host
+    and fail the same way on origin/archi_v3 (anonymizer code is not touched here). The end-to-end test
+    drives the command (_run_one) twice with no --out and instance-health compares the two runs with no
+    eval-trend note; a run pruned while instance-health walks the directory is skipped, not an error.
