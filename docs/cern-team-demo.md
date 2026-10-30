@@ -13,8 +13,8 @@ The Archi v3 assembly milestone: install the `cern-team` bundle
 (`bundles/cern-team/`) into a fresh instance, ingest all four
 connectors, publish, and read back. Every command below was executed
 on 2026-08-21 on a dev host (okg dev editable checkout, archi wheel
-3.0.0a1 built from the working tree); this document is the
-reproducible sequence the external-distribution conformance harness consumes. The
+3.0.0a1 built from the working tree); this document was the
+reproducible sequence the external-distribution conformance harness consumed at the time. The
 actual run results live in
 `pact/changes/w2-consolidate-hep-sources/cern-team-demo-evidence.md`.
 
@@ -43,8 +43,8 @@ whose *playbooks* guide agents.
   instance** (never share a database between instances):
 
   ```bash
-  # this demo: a rootless podman container okg-w1-pg on a loopback port
-  podman exec okg-w1-pg psql -U postgres -c "CREATE DATABASE okg_cern_team;"
+  # this demo: a rootless podman Postgres container on a loopback port
+  podman exec <pg container> psql -U postgres -c "CREATE DATABASE okg_cern_team;"
   ```
 
 - Environment for every command that follows:
