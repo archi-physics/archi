@@ -108,6 +108,7 @@ services:
     database: {{ services.postgres.database | default('archi-db', true) }}
     host: {{ 'localhost' if host_mode else (utils.postgres.host | default('postgres', true)) }}
   chat_app:
+    auto_title: {{ services.chat_app.auto_title | default(true) }}
     agent_class: {{ services.chat_app.agent_class | default("CMSCompOpsAgent", true) }}
     agents_dir: "{{ services.chat_app.agents_dir | default('', true) }}"
     recursion_limit: {{ services.chat_app.recursion_limit | default(50, true) }}
