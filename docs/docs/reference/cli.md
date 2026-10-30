@@ -180,6 +180,7 @@ Ask a bundle's smoke questions through the instance MCP with a local model, or s
 | `--tries TRIES` | tries per question and arm (default 1) | `1` |
 | `--corpus CORPUS` | the raw corpus (default: the newest under &lt;data root&gt;/eval/raw-corpus/&lt;bundle&gt;/) |  |
 | `--reasoning-effort REASONING_EFFORT` | reasoning_effort sent with each agent call (for example medium) |  |
+| `--model-api MODEL_API` | the API the agent calls use: responses (/responses, OpenAI's Responses API) or chat (/chat/completions); auto, the default, is responses for api.openai.com and chat for anything else, such as a local Ollama | `auto` |
 | `--model-key-env MODEL_KEY_ENV` | environment variable holding the PATH of a file with the model API key (default ARCHI_EVAL_MODEL_KEY_FILE); the key is never logged and never enters the sandbox | `ARCHI_EVAL_MODEL_KEY_FILE` |
 | `--model-price IN/OUT[/CACHED]` | the model's price in dollars per million input/output[/cached input] tokens (required) |  |
 | `--max-output-tokens MAX_OUTPUT_TOKENS` | max_completion_tokens per agent call, also the spend guard's output bound (default 16000) | `16000` |

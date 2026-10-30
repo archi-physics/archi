@@ -62,8 +62,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from archi.evaluation.agent import (ChatModel, ChatReply, ModelError, ToolSpec, _describe, assistant_message,
-                                    openai_tools)
+from archi.evaluation.agent import (
+    ChatModel,
+    ChatReply,
+    ModelError,
+    ToolSpec,
+    _describe,
+    assistant_message,
+    openai_tools,
+)
 
 AGENT_BASH, AGENT_GRAPH = "agent-bash", "agent-graph"
 AGENT_ARMS = (AGENT_BASH, AGENT_GRAPH)

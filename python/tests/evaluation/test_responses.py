@@ -10,7 +10,14 @@ import yaml
 
 from archi.bundles.cli import main
 from archi.evaluation import agent as agent_mod
-from archi.evaluation.agent import ModelError, OpenAIChat, OpenAIResponses, make_model, model_api, openai_tools
+from archi.evaluation.agent import (
+    ModelError,
+    OpenAIChat,
+    OpenAIResponses,
+    make_model,
+    model_api,
+    openai_tools,
+)
 from archi.evaluation.raw_arm import (
     ANSWERED,
     ERROR,
