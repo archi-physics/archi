@@ -335,6 +335,7 @@ def _checked(payload: Any, action_class: str) -> dict[str, Any]:
     for key in ("status", "value"):
         if key in data and any(ord(ch) < 32 or ch == "\x7f" for ch in data[key]):
             raise ToolError(f"{key} may not hold control characters")
+    _base_url(data["endpoint"]["url"])  # https (or loopback http), no credentials: before anything else uses it
     _check_site(data)
     return data
 
