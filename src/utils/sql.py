@@ -148,6 +148,15 @@ SET last_message_at = %s
 WHERE conversation_id = %s AND client_id = %s;
 """
 
+SQL_UPDATE_CONVERSATION_TITLE_IF_UNCHANGED = """
+UPDATE conversation_metadata
+SET title = %s
+WHERE conversation_id = %s
+  AND title = %s
+  AND client_id = %s
+  AND user_id IS NOT DISTINCT FROM %s;
+"""
+
 SQL_LIST_CONVERSATIONS = """
 SELECT conversation_id, title, created_at, last_message_at
 FROM conversation_metadata

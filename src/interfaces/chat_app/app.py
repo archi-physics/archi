@@ -7,7 +7,7 @@ import uuid
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from threading import Lock
+from threading import Lock, Thread
 from typing import Any, Dict, Iterator, List, Optional
 from pathlib import Path
 from urllib.parse import urlparse
@@ -53,6 +53,7 @@ from src.utils.config_service import ConfigService, StaticConfig
 from src.utils.sql import (
     SQL_INSERT_CONVO, SQL_INSERT_FEEDBACK, SQL_INSERT_TIMING, SQL_QUERY_CONVO,
     SQL_CREATE_CONVERSATION, SQL_UPDATE_CONVERSATION_TIMESTAMP,
+    SQL_UPDATE_CONVERSATION_TITLE_IF_UNCHANGED,
     SQL_LIST_CONVERSATIONS, SQL_GET_CONVERSATION_METADATA, SQL_DELETE_CONVERSATION,
     SQL_LIST_CONVERSATIONS_BY_USER, SQL_GET_CONVERSATION_METADATA_BY_USER,
     SQL_DELETE_CONVERSATION_BY_USER, SQL_UPDATE_CONVERSATION_TIMESTAMP_BY_USER,
@@ -94,6 +95,7 @@ from src.interfaces.chat_app.event_formatter import (
     PipelineEventFormatter, build_playbook_applied_events, playbook_loads_from_events,
 )
 from src.utils.conversation_service import ConversationService
+from src.utils.title_generator import generate_conversation_title
 from src.utils.user_service import UserService
 from src.utils.ab_agent_spec_service import ABAgentSpecService, ABAgentSpecRecord
 
@@ -1150,8 +1152,10 @@ class ChatWrapper:
 
     def create_conversation(self, first_message: str, client_id: str, user_id: Optional[str] = None) -> int:
         """
-        Gets first message (activates a new conversation), and generates a title w/ first msg.
-        (TODO: commercial ones use one-sentence summarizer to make the title)
+        Create a conversation, initially titled from its first message.
+
+        An optional best-effort background task replaces that title with a
+        generated summary without delaying the chat response.
 
         Returns: Conversation ID.
 
@@ -1177,7 +1181,96 @@ class ChatWrapper:
         conn.close()
 
         logger.info(f"Created new conversation with ID: {conversation_id}")
+        chat_config = (self.services_config.get("chat_app") or {})
+        if chat_config.get("auto_title", True):
+            self._start_conversation_title_generation(
+                conversation_id, title, first_message, client_id, user_id
+            )
         return conversation_id
+
+    def _start_conversation_title_generation(
+        self,
+        conversation_id: int,
+        original_title: str,
+        first_message: str,
+        client_id: str,
+        user_id: Optional[str],
+    ) -> None:
+        """Schedule title generation without allowing thread setup to break chat."""
+        try:
+            Thread(
+                target=self._generate_conversation_title,
+                args=(conversation_id, original_title, first_message, client_id, user_id),
+                daemon=True,
+            ).start()
+        except Exception as exc:
+            logger.warning(
+                "Could not start title generation for conversation %s: %s",
+                conversation_id,
+                exc,
+            )
+
+    def _generate_conversation_title(
+        self,
+        conversation_id: int,
+        original_title: str,
+        first_message: str,
+        client_id: str,
+        user_id: Optional[str],
+    ) -> None:
+        """Generate and persist a title, preserving any intervening rename."""
+        conn = cursor = None
+        try:
+            chat_config = (self.config.get("services", {}).get("chat_app") or {})
+            provider = chat_config.get("default_provider")
+            model_name = chat_config.get("default_model")
+            if not provider or not model_name:
+                raise ValueError("default chat provider and model must be configured")
+
+            model = self._create_provider_llm(provider, model_name)
+            if model is None:
+                raise RuntimeError("could not create the configured chat model")
+            generated_title = generate_conversation_title(model, first_message)
+            if not generated_title:
+                logger.warning(
+                    "Title generation returned no usable title for conversation %s",
+                    conversation_id,
+                )
+                return
+
+            conn = psycopg2.connect(**self.pg_config)
+            cursor = conn.cursor()
+            cursor.execute(
+                SQL_UPDATE_CONVERSATION_TITLE_IF_UNCHANGED,
+                (generated_title, conversation_id, original_title, client_id, user_id),
+            )
+            updated = cursor.rowcount
+            conn.commit()
+            if updated:
+                logger.info("Generated title for conversation %s", conversation_id)
+        except Exception as exc:
+            logger.warning(
+                "Could not generate title for conversation %s: %s", conversation_id, exc
+            )
+        finally:
+            if cursor is not None:
+                try:
+                    cursor.close()
+                except Exception as exc:
+                    logger.warning(
+                        "Could not close title-generation cursor for conversation %s: %s",
+                        conversation_id,
+                        exc,
+                    )
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception as exc:
+                    logger.warning(
+                        "Could not close title-generation connection for conversation %s: %s",
+                        conversation_id,
+                        exc,
+                    )
 
     def update_conversation_timestamp(self, conversation_id: int, client_id: str, user_id: Optional[str] = None):
         """
