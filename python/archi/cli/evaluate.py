@@ -3,6 +3,9 @@
 Runs a bundle's smoke set (`bundles/<bundle>/eval/smoke.yaml`) against the
 instance's MCP endpoint with a local model, writes report.md and report.json,
 and exits non-zero below the bundle's pass threshold (PACT r3-bundle-evals).
+By default each run gets its own `<data root>/eval/<bundle>/<UTC stamp>/`, the
+newest `--keep` runs stay and `latest.json` names the newest, so instance-health
+can compare runs; `--out DIR` writes straight into DIR instead.
 
 Exit codes: 0 the threshold was met; 1 it was not; 2 the run could not
 execute (no MCP tools, the endpoint or the model unreachable, a bad smoke
@@ -46,6 +49,9 @@ MODEL_KEY_VAR = "ARCHI_EVAL_MODEL_KEY_FILE"
 JUDGE_KEY_VAR = "ARCHI_EVAL_JUDGE_KEY_FILE"
 DEFAULT_JUDGE_URL = "https://api.openai.com/v1"
 AGENT_ARM_NAMES = ("agent-bash", "agent-graph")
+#: dated smoke runs kept per bundle without --out (archi.evaluation.runner.DEFAULT_KEEP; kept here so the
+#: parser does not import the harness)
+DEFAULT_KEEP = 20
 #: exit code of a run whose agent arms stopped at the spend cap
 EXIT_SPEND_CAP = 3
 EVAL_HELP = ("ask a bundle's smoke questions through the instance MCP with a local model, "
@@ -71,7 +77,13 @@ def add_parser(sub, roots) -> None:
     p.add_argument("--model", help="model name at the endpoint (default: the bundle's chat.default_model)")
     p.add_argument("--model-url", default=os.environ.get("ARCHI_EVAL_MODEL_URL", DEFAULT_MODEL_URL),
                    help=f"OpenAI-compatible base URL (default: {DEFAULT_MODEL_URL}, a local Ollama)")
-    p.add_argument("--out", type=Path, help="report directory (default: <data root>/eval/<bundle>, outside the instance repository)")
+    p.add_argument("--out", type=Path,
+                   help="report directory, written straight into and replaced on the next run (default: a new "
+                        "<data root>/eval/<bundle>/<UTC stamp>/ per run, outside the instance repository, with "
+                        "latest.json naming the newest)")
+    p.add_argument("--keep", type=int, metavar="N",
+                   help="without --out: keep the newest N dated runs per bundle and delete older ones "
+                        "(default 20; 0 keeps all)")
     p.add_argument("--mcp-url", help="MCP endpoint (default: the instance's, http://127.0.0.1:<port>/mcp)")
     p.add_argument("--chat-prompt", type=Path,
                    help="the chat system prompt to give the agent (default: the instance deployment's "
@@ -187,6 +199,11 @@ def cmd_eval(args: argparse.Namespace) -> int:
         return _fail("--agents runs with --context")
     if not bundles:
         return _fail("name a bundle with --bundle")
+    if args.keep is not None and args.out is not None:
+        print("note: --keep applies only to the default dated report directory; ignored with --out", file=sys.stderr)
+    args.keep = DEFAULT_KEEP if args.keep is None else args.keep
+    if args.keep < 0:
+        return _fail("--keep must be 0 (keep all) or more")
     if not token:
         return _fail(f"no MCP bearer token: {TOKEN_VAR} is not in the instance .env or the environment")
 
@@ -220,20 +237,31 @@ def cmd_eval(args: argparse.Namespace) -> int:
         model_name = args.model or ((bundle.manifest.get("chat") or {}).get("default_model"))
         if not model_name:
             return _fail(f"bundle {bundle.name!r} sets no chat.default_model; pass --model")
-        out = args.out or report_root / bundle.name
-        if args.out and len(plan) > 1:
-            out = args.out / bundle.name
-        code = _run_one(smoke, model_name, args, mcp_url, token, out, chat_prompt_file)
+        out, dated = report_target(args.out, report_root, bundle.name, len(plan))
+        code = _run_one(smoke, model_name, args, mcp_url, token, out, chat_prompt_file, dated=dated)
         worst = max(worst, code)
     return worst
 
 
+def report_target(out: Optional[Path], report_root: Path, bundle: str, bundles: int) -> tuple[Path, bool]:
+    """(directory, dated) for one bundle's smoke run.
+
+    Default: `<report root>/<bundle>/`, dated: each run goes to its own `<UTC stamp>/` under it, so
+    earlier runs stay for instance-health's trend (#854). An explicit `--out` keeps its meaning: the
+    report is written straight into it (into `<out>/<bundle>/` when several bundles run), replacing
+    the one there.
+    """
+    if out is None:
+        return report_root / bundle, True
+    return (out / bundle if bundles > 1 else out), False
+
+
 def _run_one(smoke, model_name: str, args: argparse.Namespace, mcp_url: str, token: str, out: Path,
-             chat_prompt_file=None) -> int:
+             chat_prompt_file=None, *, dated: bool = False) -> int:
     import asyncio
 
     from archi.evaluation.agent import McpToolBox, OpenAIChat
-    from archi.evaluation.runner import run_smoke, write_report
+    from archi.evaluation.runner import publish_report, run_smoke, write_report
 
     chat_prompt = None
     if chat_prompt_file is not None:
@@ -264,7 +292,13 @@ def _run_one(smoke, model_name: str, args: argparse.Namespace, mcp_url: str, tok
             progress=progress,
         )
     )
-    md, js = write_report(report, out)
+    if dated:
+        md, js, deleted = publish_report(report, out, keep=args.keep)
+        if deleted:
+            print(f"note: kept the newest {args.keep} runs under {out}; deleted {len(deleted)} older "
+                  f"({', '.join(p.name for p in deleted)})", file=sys.stderr)
+    else:
+        md, js = write_report(report, out)
     print(f"{report.status}: {report.passed}/{len(report.questions)} passed "
           f"(threshold {report.pass_threshold}); {md} and {js}")
     if report.error:

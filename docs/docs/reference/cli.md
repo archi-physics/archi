@@ -167,7 +167,8 @@ Ask a bundle's smoke questions through the instance MCP with a local model, or s
 | `--instance INSTANCE` | instance directory (default: .) | `.` |
 | `--model MODEL` | model name at the endpoint (default: the bundle's chat.default_model) |  |
 | `--model-url MODEL_URL` | OpenAI-compatible base URL (default: http://127.0.0.1:11434/v1, a local Ollama) | `http://127.0.0.1:11434/v1` |
-| `--out OUT` | report directory (default: &lt;data root&gt;/eval/&lt;bundle&gt;, outside the instance repository) |  |
+| `--out OUT` | report directory, written straight into and replaced on the next run (default: a new &lt;data root&gt;/eval/&lt;bundle&gt;/&lt;UTC stamp&gt;/ per run, outside the instance repository, with latest.json naming the newest) |  |
+| `--keep N` | without --out: keep the newest N dated runs per bundle and delete older ones (default 20; 0 keeps all) |  |
 | `--mcp-url MCP_URL` | MCP endpoint (default: the instance's, http://127.0.0.1:&lt;port&gt;/mcp) |  |
 | `--chat-prompt CHAT_PROMPT` | the chat system prompt to give the agent (default: the instance deployment's skills/chat-system-prompt.md, the one `archi up` gives the chat) |  |
 | `--max-steps MAX_STEPS` | tool-call rounds allowed per question | `8` |

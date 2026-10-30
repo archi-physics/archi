@@ -413,3 +413,22 @@ def test_context_eval_runs_and_hidden_directories_are_never_read(tmp_path):
     broken.write_text(claims)
     with pytest.raises(ValueError, match="not readable JSON"):  # a visible smoke report is still checked
         signals.read_eval_runs(tmp_path)
+
+
+def test_two_default_archi_eval_runs_give_a_trend_with_no_out_flag(tmp_path):
+    """#854: `archi eval` keeps each default run under <data root>/eval/<bundle>/<stamp>/, so the second run
+    is compared with the first without any `--out`."""
+    from archi.evaluation.runner import QuestionResult, Report, publish_report
+
+    def report(started_at, passed):
+        return Report(bundle="cern-team", model="qwen3:8b", model_url="http://127.0.0.1:11434/v1",
+                      mcp_url="http://127.0.0.1:18080/mcp", pass_threshold=7,
+                      smoke_file="bundles/cern-team/eval/smoke.yaml", prompt_hash="sha256:p1",
+                      questions=[QuestionResult(f"q{i}", f"question {i}?", s) for i, s in enumerate(scored(passed))],
+                      started_at=started_at)
+
+    publish_report(report("2026-10-24T03:00:00Z", 10), tmp_path / "cern-team")
+    publish_report(report("2026-10-25T03:00:00Z", 8), tmp_path / "cern-team")
+    (problem,), notes = signals.eval_problems(tmp_path, now=NOW)
+    assert notes == [] and problem.severity == "warning" and "0.20 below the mean score 1.00" in problem.detail
+    assert "cern-team/20261025T030000Z/report.json" in problem.detail

@@ -1,8 +1,11 @@
 """Run a smoke set and write report.md and report.json."""
 from __future__ import annotations
 
+import errno
 import json
 import os
+import re
+import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +29,13 @@ from archi.evaluation.smoke import NodeInfo, SmokeSet, check_answer, merge_nodes
 
 REPORT_SCHEMA = "archi-eval-report/1"
 PASS, FAIL, EXECUTION_FAILED = "pass", "fail", "execution_failed"
+#: How many dated runs per bundle `archi eval` keeps in its default directory (`--keep`).
+DEFAULT_KEEP = 20
+#: The pointer file `publish_report` writes beside the dated runs.
+LATEST_FILE = "latest.json"
+LATEST_SCHEMA = "archi-eval-latest/1"
+#: A run directory `publish_report` made: the run's UTC start, compact, with `-2`, `-3`, ... on a collision.
+RUN_DIR_RE = re.compile(r"^(\d{8}T\d{6}Z)(?:-(\d+))?$")
 #: the read tool the runner uses to learn a cited node's subtype and source, and how
 #: many cited nodes per question it looks up
 INSPECT = "inspect"
@@ -302,6 +312,69 @@ def write_report(report: Report, out: Path) -> tuple[Path, Path]:
     _write_atomic(md, render_markdown(report))
     _write_atomic(js, json.dumps(report.to_dict(), indent=2) + "\n")
     return md, js
+
+
+def publish_report(report: Report, root: Path, *, keep: int = DEFAULT_KEEP) -> tuple[Path, Path, list[Path]]:
+    """Write one run to `<root>/<YYYYMMDDTHHMMSSZ>/` and keep the newest `keep` runs (0 keeps all).
+
+    The default output of `archi eval`, so every run stays and instance-health can compare it with the
+    earlier ones (#854). The stamp is the run's `started_at`; a second run in the same second gets `-2`,
+    `-3`, ... Both reports go into a hidden `<root>/.<stamp>.tmp-<pid>` first and the directory is
+    renamed into place only when they are complete; readers skip names that start with a dot.
+    `<root>/latest.json` then names the run written last (with overlapping runs, not necessarily the one
+    with the latest stamp). instance-health counts two runs with the same bundle, model and start second
+    once, so a `-2` run stays on disk but does not add to the trend. Pruning deletes only directories whose names match
+    `RUN_DIR_RE`, oldest first, never the run just written; anything else under `root` (a `report.json`
+    an older archi wrote straight into it, a folder a person made) is left alone.
+
+    Returns (report.md, report.json, the run directories it deleted).
+    """
+    if keep < 0:
+        raise ValueError("keep must be 0 (keep all) or more")
+    stamp = (report.started_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    stamp = stamp.replace("-", "").replace(":", "")
+    if not RUN_DIR_RE.match(stamp):
+        raise ValueError(f"started_at {report.started_at!r} is not a UTC time like 2026-10-30T12:00:00Z")
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    tmp = root / f".{stamp}.tmp-{os.getpid()}"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir()
+    try:
+        write_report(report, tmp)
+        n = 1
+        while True:
+            target = root / (stamp if n == 1 else f"{stamp}-{n}")
+            if not target.exists():
+                try:
+                    os.rename(tmp, target)
+                    break
+                except OSError as exc:
+                    if exc.errno not in (errno.EEXIST, errno.ENOTEMPTY):
+                        raise
+            n += 1
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    _write_atomic(root / LATEST_FILE, json.dumps({
+        "schema": LATEST_SCHEMA, "run": target.name, "report": f"{target.name}/report.json",
+        "started_at": report.started_at, "status": report.status,
+    }, indent=2) + "\n")
+    deleted: list[Path] = []
+    if keep:
+        runs = sorted((p for p in root.iterdir()
+                       if RUN_DIR_RE.match(p.name) and p.is_dir() and not p.is_symlink()), key=_run_order)
+        for old in [p for p in runs if p != target][:max(0, len(runs) - keep)]:
+            # another run of the same bundle may be pruning the same directory at the same time
+            shutil.rmtree(old, ignore_errors=True)
+            if not old.exists():
+                deleted.append(old)
+    return target / "report.md", target / "report.json", deleted
+
+
+def _run_order(path: Path) -> tuple[str, int]:
+    m = RUN_DIR_RE.match(path.name)
+    return m.group(1), int(m.group(2) or 1)
 
 
 def _write_atomic(path: Path, text: str) -> None:
