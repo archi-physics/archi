@@ -47,7 +47,7 @@ spike (`pact/changes/w1-prove-the-seam/spike/`) is the seed: its
 | dev anonymizer (markitdown-aware) + `metadata.py` + `slide_converter.py` | `archi/enrichment/` | dev anonymizer, not main's 83-LOC version. |
 | dev Discourse spider | `archi/sources/discourse.py` | **gated**: cms legacy inventory marks Discourse `defer`; port only when an instance asks (rule of demand, not speculation). |
 | `monit_opensearch.py` (667, agent tool) | `archi/tools/monit.py` | merge with `cms/cms_tools/monit_live.py` (4 MCP-exposed live tools, `boundary: external_live`). |
-| redmine collector (192) + mailer-adjacent ingest | `archi/sources/redmine.py` | **post-first-draft** (SubMIT's ticket system; parity contract has redmine disabled for submit76). |
+| redmine collector (192) + mailer-adjacent ingest | `archi/sources/redmine.py` | **post-first-draft** (SubMIT's ticket system; parity contract has redmine disabled for the SubMIT config). |
 
 ## Enrichment — from `cms/enrichers/` (~957 LOC) + config blocks
 

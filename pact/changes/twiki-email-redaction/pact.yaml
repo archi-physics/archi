@@ -213,7 +213,7 @@ tasks:
 
 
     Proof: the new tests fail against main and pass with the change, the full archi suite
-    passes, and a run over the cms-kb TWiki snapshot on submit75 shows the address counts
+    passes, and a run over the cms-kb TWiki snapshot on a dev host shows the address counts
     before and after.
 
 
@@ -238,11 +238,11 @@ evidence:
 - kind: manual
   requirement: req.twiki-email-redaction.main
   status: pass
-  command: nice -n 19 python3 measure.py; python3 spelled.py < candidates.txt (submit75, /work/submit/mohoney/lane-a/tmp/twiki-email,
+  command: nice -n 19 python3 measure.py; python3 spelled.py < candidates.txt (a dev host, <scratch>/twiki-email,
     branch anonymizer.py and _twiki_parse.py, Python 3.9)
   head: 043375de4a577e6ca4c1d85d742c368f6e367c06
   at: '2026-09-28T07:20:40+00:00'
-  note: 'cms-kb TWiki snapshot (/ceph/submit/data/user/p/pmlugato/cms-kb/twiki, 43,888 real
+  note: 'cms-kb TWiki snapshot (<twiki mirror>, 43,888 real
     topic pages, read-only), EOS parser defaults. Random 200 pages (seed 20260928): 38 address-shaped
     tokens in 10 pages before, 0 after, all in body. 200 address-bearing pages: 586 before,
     0 after; of the removals 551 strict mail addresses, 35 addresses with a table pipe, !
@@ -271,7 +271,7 @@ evidence:
 - kind: manual
   requirement: req.twiki-email-redaction.main
   status: pass
-  command: nice -n 19 python3 measure.py; python3 spelled.py < candidates.txt (submit75, /work/submit/mohoney/lane-a/tmp/twiki-email,
+  command: nice -n 19 python3 measure.py; python3 spelled.py < candidates.txt (a dev host, <scratch>/twiki-email,
     anonymizer.py from 4de6941 and _twiki_parse.py, Python 3.9)
   head: 4de69415cff7225cdc051e535c4d91085eae90d7
   at: '2026-09-28T07:58:39+00:00'
@@ -320,12 +320,12 @@ evidence:
 - kind: manual
   requirement: req.twiki-email-redaction.main
   status: pass
-  command: nice -n 19 python3 measure2.py; python3 check2.py; python3 check3.py (submit75,
-    /work/submit/mohoney/lane-a/tmp/twiki-email2, deleted after; anonymizer.py from cb610275
+  command: nice -n 19 python3 measure2.py; python3 check2.py; python3 check3.py (a dev host,
+    <scratch>/twiki-email2, deleted after; anonymizer.py from cb610275
     as before and from 1d1186f as after, _twiki_parse.py, Python 3.9)
   head: 1d1186f74ee0d54d8a3f1fad5ee92a095beed07a
   at: '2026-09-28T14:53:03+00:00'
-  note: 'cms-kb TWiki snapshot (/ceph/submit/data/user/p/pmlugato/cms-kb/twiki, 43,888 real
+  note: 'cms-kb TWiki snapshot (<twiki mirror>, 43,888 real
     topic pages, read-only), EOS parser defaults, same two draws as the earlier receipts (seed
     20260928). Random 200 pages: 10 with an address; 38 @-shaped tokens; cb610275 left 0,
     this revision leaves 3, all git@ tokens (operator rule 3); 1 ssh login removed by both.

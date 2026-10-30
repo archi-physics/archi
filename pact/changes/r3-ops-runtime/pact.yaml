@@ -117,7 +117,7 @@ evidence:
   requirement: req.r3-ops-runtime.pack
   status: pass
   command: python -m pytest python/tests/ops/test_manifest.py python/tests/ops/test_levels.py python/tests/ops/test_render.py
-    -q; python -m pytest python/tests -q (submit76, okg 0.2.0)
+    -q; python -m pytest python/tests -q (a dev host, okg 0.2.0)
   head: 4804f5c979322f01db104611397584bbb9aed575
   at: '2026-10-25T17:29:57+00:00'
   note: 'acc.r3-ops-runtime.schema: a pack of kind automation declares its trigger (schedule, ticket queue
@@ -160,7 +160,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-ops-runtime.loop
   status: pass
-  command: python/tests/ops/scratch_ops_runtime_run.sh (submit76, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests -q (submit76, clean clone)
+  command: python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests -q (a dev host, clean clone)
   head: db2485b6c90891364710328f71ff62804618f4ff
   at: '2026-10-26T00:03:35+00:00'
   note: 'acc.r3-ops-runtime.e2e: a fixture automation (stub proposer, a stub mediator that writes a marker
@@ -180,7 +180,7 @@ evidence:
   requirement: req.r3-ops-runtime.shadow
   status: pass
   command: python -m pytest python/tests/ops/test_shadow.py python/tests/ops/test_promotion.py python/tests/ops/test_loop.py
-    -q; python/tests/ops/scratch_ops_runtime_run.sh (submit76, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md)
+    -q; python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md)
   head: db2485b6c90891364710328f71ff62804618f4ff
   at: '2026-10-26T00:03:35+00:00'
   note: 'acc.r3-ops-runtime.score: python -m archi.ops.shadow produces the shadow report from the fixture
@@ -197,7 +197,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-ops-runtime.control
   status: pass
-  command: python/tests/ops/scratch_ops_runtime_run.sh (submit76, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests/ops python/tests/cli -q
+  command: python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests/ops python/tests/cli -q
   head: db2485b6c90891364710328f71ff62804618f4ff
   at: '2026-10-26T00:03:35+00:00'
   note: 'acc.r3-ops-runtime.halt: archi ops halt pauses the scanner, closes each open escalation (answered

@@ -35,7 +35,7 @@ tasks:
   verification: 'Circle-back review fixes: scope-claim, anonymizer, and hygiene waves
 
 
-    /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests -q (full suite, zero failures;
+    <okg-venv>/bin/python -m pytest python/tests -q (full suite, zero failures;
     includes new regression tests per fixed finding)
 
 
@@ -46,7 +46,7 @@ evidence:
 - kind: executed_test
   requirement: req.circleback-fixes
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests -q
+  command: <okg-venv>/bin/python -m pytest python/tests -q
   at: '2026-08-24T14:10:31.575851+00:00'
   note: Full suite 320 passed (254 baseline + 66 new regression tests across catalogs/live/enrichment/hygiene
     waves); junit report ingested.
@@ -59,7 +59,7 @@ evidence:
 - kind: executed_test
   requirement: req.circleback-fixes
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests -q
+  command: <okg-venv>/bin/python -m pytest python/tests -q
   at: '2026-08-24T14:34:54.559492+00:00'
   note: 'Final suite after adversarial-review deltas: 326 passed (72 new regression tests
     over the 254 baseline). Independent adversarial diff review: branch holds; its one major

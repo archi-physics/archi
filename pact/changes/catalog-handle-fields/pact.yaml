@@ -43,7 +43,7 @@ evidence:
   command: cd python && PYTHONPATH=. python -m pytest tests -q
   head: 8d40c576cbbb504cb333891d47c6256e7b85ba4c
   at: '2026-10-05T06:42:20+00:00'
-  note: 'submit75 at this commit. okg a8fcfca0fe venv: 1707 passed; 1 failed and 4 errors,
+  note: 'a dev host at this commit. okg a8fcfca0fe venv: 1707 passed; 1 failed and 4 errors,
     all because hatchling is not installed in that venv (test_packaging, test_artifact_payload).
     okg 360a1724e4 venv with pytest and hatchling added: 1711 passed, 1 failed = test_redact_email_addresses_quoted_local_part_is_linear,
     a 1.0 s wall-clock bound that also fails on main 2476956a on this host. test_catalog_handle_fields.py
@@ -56,7 +56,7 @@ evidence:
     and sources.yaml
   head: 8d40c576cbbb504cb333891d47c6256e7b85ba4c
   at: '2026-10-05T06:42:20+00:00'
-  note: 'submit75. okg a8fcfca0fe and 360a1724e4: no refusal, 135 subtypes, 23 cms subtypes
+  note: 'a dev host. okg a8fcfca0fe and 360a1724e4: no refusal, 135 subtypes, 23 cms subtypes
     carry 26 declarations (23 title_from, jira_issue and workflow created_at_from, jira_issue
     last_modified_at_from); main 2476956a composes to 0. Negative: Workflow okg_created_at_from:
     created_atx is refused with CatalogFieldDeclarationInvalid under 360a1724e4. test_composer_reads_every_declaration

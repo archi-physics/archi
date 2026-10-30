@@ -215,7 +215,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-golden-path.up
   status: pass
-  command: python/tests/cli/golden_path_run.sh on submit76 (podman-compose 1.4.0, no shim), from a clean clone
+  command: python/tests/cli/golden_path_run.sh on a dev host (podman-compose 1.4.0, no shim), from a clean clone
     of 74d81925; python -m pytest python/tests -q at c22aed61 (network off)
   head: c22aed61784233007264fa3539b09685308f98e6
   at: '2026-10-26T01:22:27+00:00'

@@ -193,7 +193,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-format.lock
   status: pass
-  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:5491/scratch python/tests/bundles/scratch_add_run.sh
+  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:<port>/scratch python/tests/bundles/scratch_add_run.sh
     <empty dir>
   head: 915498bd8f9fca337b44a2c26b349c0957318839
   at: '2026-10-25T13:32:33+00:00'

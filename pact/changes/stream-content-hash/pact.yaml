@@ -42,7 +42,7 @@ evidence:
   command: python -m pytest python/tests -q
   head: bd8d242f76a36163898294a672f33f5a27644399
   at: '2026-10-05T03:12:22+00:00'
-  note: 1708 passed at this commit (okg ac078aabd, submit76), including test_streamed_content_hash_equals_the_whole_file_hash
+  note: 1708 passed at this commit (okg ac078aabd, a dev host), including test_streamed_content_hash_equals_the_whole_file_hash
     (empty, small, exactly-two-chunk and 3 MiB + 4 byte files against a copy of the old algorithm)
     and the existing content_hash and reader tests unchanged.
 - kind: executed_test

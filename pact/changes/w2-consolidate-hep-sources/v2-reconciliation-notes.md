@@ -56,7 +56,7 @@ discipline); the compops files are index-level field guides for the live tools:
   gotcha that deletion events use data.rse not src/dst_rse; RSE conventions;
   aggregate parameter contract. Same de-site-ification note.
 - `rucio_mcp.md` / `dbs.md`: describe MCP sidecars (registry.cern.ch images)
-  absent from v3 — revisit with the sidecar decision; dbs.md carries a vocms0014
+  absent from v3 — revisit with the sidecar decision; dbs.md carries a CERN VM
   drafting marker to strip if ported.
 
 ## TWiki parser bugs shared by the canonical cms original (fixed in v3, upstream candidates)

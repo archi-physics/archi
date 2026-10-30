@@ -1,6 +1,6 @@
 # Parity-family scratch-ingest demonstration (acc.w2.sources)
 
-**When/where:** 2026-08-11/12, submit82, okg `dev@21c5b8c3e`, scratch deployment
+**When/where:** 2026-08-11/12, a dev host, okg `dev@21c5b8c3e`, scratch deployment
 `w1-scratch` (rootless podman postgres :5455), archi wheel `3.0.0a1` built from the
 working tree and installed into the okg venv.
 

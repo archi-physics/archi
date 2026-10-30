@@ -293,14 +293,14 @@ def escalation_io(subject="ops_proposal:prop-1", status="pending", workflow="fix
 
 
 def test_approve_records_the_os_user_and_a_claimed_name_is_marked_as_claimed(monkeypatch):
-    monkeypatch.setattr(ops, "os_user", lambda: "mohoney")
+    monkeypatch.setattr(ops, "os_user", lambda: "jdoe")
     io = escalation_io()
     out = ops.do_respond(io, "esc-1", "approve", "ok", None, automations=["fixture-triage"])
-    assert out["decided_by"] == "mohoney"
+    assert out["decided_by"] == "jdoe"
     out = ops.do_respond(io, "esc-1", "reject", None, "alice", automations=["fixture-triage"])
-    assert out["decided_by"] == "mohoney for alice"
-    assert [c[4] for c in io.calls if c[0] == "respond"] == ["mohoney", "mohoney for alice"]
-    assert ops.decider_name("mohoney") == "mohoney"
+    assert out["decided_by"] == "jdoe for alice"
+    assert [c[4] for c in io.calls if c[0] == "respond"] == ["jdoe", "jdoe for alice"]
+    assert ops.decider_name("jdoe") == "jdoe"
 
 
 @pytest.mark.parametrize("io, fragment", [

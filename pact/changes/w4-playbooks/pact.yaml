@@ -50,7 +50,7 @@ evidence:
 - kind: executed_test
   requirement: req.w4-playbooks
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_skills.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_skills.py
     -q
   artifact: python/tests/test_skills.py
   sha256: 502df07b19f64c8e0d72db07d3939c1711c770ae5a1237249dfba022c88125fa

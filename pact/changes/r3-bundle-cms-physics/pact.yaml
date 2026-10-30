@@ -126,7 +126,7 @@ evidence:
   requirement: req.r3-bundle-cms-physics.bundle
   status: pass
   command: python -m pytest tests/packs/test_pack_isolation.py -q -k "cms_physics or cern_team or
-    every_pack_with_sources" (from python/, submit76, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0
+    every_pack_with_sources" (from python/, a dev host, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0
     via ARCHI_PACK_ISOLATION_DSN); smoke runs cited from r3-bundle-evals
   head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
   at: '2026-10-27T02:46:37+00:00'

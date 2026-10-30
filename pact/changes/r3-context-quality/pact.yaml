@@ -107,7 +107,7 @@ tasks:
 
     Fixture results so far (NOT the acceptance; the comp-ops run has not happened: it waits on access
     and on the private operator set, boards d379 and d380, so the requirement stays unproven): at
-    6e94ae5c on submit75 (okg 0.2.0), python -m pytest python/tests/evaluation python/tests/ops/test_context_gate.py
+    6e94ae5c on a dev host (okg 0.2.0), python -m pytest python/tests/evaluation python/tests/ops/test_context_gate.py
     python/tests/ops/test_health_signals.py python/tests/ops/test_workflow.py -q: 264 passed; python -m
     pytest python/tests -q: 3611 passed, 28 skipped (2026-10-27T12:17:38+00:00). They prove, on a fake
     MCP search tool and an invented fixture set, the eval mode itself: no model; okg JSON results; a
@@ -161,7 +161,7 @@ tasks:
     averages; no temperature or seed to a remote endpoint.
 
     Fixture results, not acceptance evidence (no row, so req.context-eval stays unproven until the
-    comp-ops run; orchestrator decision on #698): at 84752d6d on submit75 (okg 0.2.0, bubblewrap 0.6.3,
+    comp-ops run; orchestrator decision on #698): at 84752d6d on a dev host (okg 0.2.0, bubblewrap 0.6.3,
     ARCHI_REQUIRE_BWRAP=1, so no sandbox test could skip), test_raw_sandbox.py, test_raw_arm.py,
     test_raw_corpus.py and test_draft_gold_sources.py gave 128 passed, none skipped; python/tests/evaluation
     and python/tests/snapshot 673 passed. They show no network inside the sandbox, a read-only /corpus,
@@ -221,7 +221,7 @@ evidence:
   requirement: req.r3-context-quality.freshness
   status: pass
   command: python -m pytest python/tests/doctor/test_freshness.py python/tests/cli/test_doctor.py -q;
-    python -m pytest python/tests -q (submit76, okg 0.2.0); okg doctor --check sources --json on a
+    python -m pytest python/tests -q (a dev host, okg 0.2.0); okg doctor --check sources --json on a
     published scratch deployment
   head: 5e12a2a55de451ea7f6409c8b19bb267a9a66819
   at: '2026-10-25T16:37:02+00:00'
@@ -239,7 +239,7 @@ evidence:
   requirement: req.r3-context-quality.linking
   status: pass
   command: python -m pytest python/tests/enrichment/test_link_coverage.py -q; ARCHI_PACK_ISOLATION_DSN=...
-    python -m pytest python/tests/packs/test_pack_isolation.py -v (submit76)
+    python -m pytest python/tests/packs/test_pack_isolation.py -v (a dev host)
   head: 5e12a2a55de451ea7f6409c8b19bb267a9a66819
   at: '2026-10-25T16:37:02+00:00'
   note: 'acc.r3-context-quality.coverage: packs declare link_coverage targets (cms-catalogs, dqm, monit-live,
@@ -269,7 +269,7 @@ evidence:
   requirement: req.r3-context-quality.gate
   status: pass
   command: python -m pytest python/tests/ops/test_context_gate.py python/tests/ops/test_workflow.py
-    python/tests/evaluation/test_context.py -q (submit75, okg 0.2.0)
+    python/tests/evaluation/test_context.py -q (a dev host, okg 0.2.0)
   head: 6e94ae5c4225ea6d64a3c9f4aaafe36b49ef9572
   at: '2026-10-27T12:17:56+00:00'
   note: 'acc.r3-context-quality.gate, now with the context-eval score read from real reports: 143 passed.

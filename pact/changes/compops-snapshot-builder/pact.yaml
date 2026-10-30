@@ -298,7 +298,7 @@ evidence:
     a write failure; per-file dates carried into the lock. Mutations: whole-page cp1252 4
     failed, no control-split check 2, no binary guard 2, signature in every record 43, share
     0 49, empty file allowed 1, no disk-full wording 1; without the SIGTERM handler the signal
-    killed the test run. Real-cache dry run (submit76 /var/tmp, counts only): all 10 required
+    killed the test run. Real-cache dry run (a dev host /var/tmp, counts only): all 10 required
     groups pass with cric from the June set.'
 - kind: executed_test
   requirement: req.compops-snapshot-builder.downloaders
