@@ -101,13 +101,18 @@ def add_parser(sub, roots) -> None:
     a.add_argument("--corpus", type=Path,
                    help="the raw corpus (default: the newest under <data root>/eval/raw-corpus/<bundle>/)")
     a.add_argument("--reasoning-effort", help="reasoning_effort sent with each agent call (for example medium)")
+    a.add_argument("--model-api", choices=("auto", "chat", "responses"), default="auto",
+                   help="the API the agent calls use: responses (/responses, OpenAI's Responses API) or chat "
+                        "(/chat/completions); auto, the default, is responses for api.openai.com and chat for "
+                        "anything else, such as a local Ollama")
     a.add_argument("--model-key-env", default=MODEL_KEY_VAR,
                    help=f"environment variable holding the PATH of a file with the model API key "
                         f"(default {MODEL_KEY_VAR}); the key is never logged and never enters the sandbox")
     a.add_argument("--model-price", metavar="IN/OUT[/CACHED]",
                    help="the model's price in dollars per million input/output[/cached input] tokens (required)")
     a.add_argument("--max-output-tokens", type=int, default=16000,
-                   help="max_completion_tokens per agent call, also the spend guard's output bound (default 16000)")
+                   help="max_completion_tokens per agent call (max_output_tokens on the Responses API), also the "
+                        "spend guard's output bound (default 16000)")
     a.add_argument("--max-turns", type=int, default=30, help="model turns per try (default 30)")
     a.add_argument("--max-tool-calls", type=int, default=200, help="tool calls per try (default 200)")
     a.add_argument("--try-seconds", type=float, default=900.0, help="wall time per try (default 900)")
@@ -563,7 +568,8 @@ def _context_with_agents(args: argparse.Namespace, instance, cset, mcp_url: str,
         return _fail(str(exc))
     ledger = setup.ledger
     calls_before = ledger.calls
-    model = agent_mod.OpenAIChat(args.model_url, args.model, api_key=setup.key or "ollama",
+    api = agent_mod.model_api(args.model_url, args.model_api)
+    model = agent_mod.make_model(args.model_url, args.model, api=api, api_key=setup.key or "ollama",
                                  temperature=None if args.reasoning_effort else 0.0,
                                  reasoning_effort=args.reasoning_effort,
                                  max_completion_tokens=args.max_output_tokens)
@@ -573,7 +579,7 @@ def _context_with_agents(args: argparse.Namespace, instance, cset, mcp_url: str,
         judge = raw_arm.Judge(raw_arm.Metered(setup.judge[0], setup.judge[1], ledger, args.judge_max_output_tokens),
                               passes=args.judge_passes)
     plan = raw_arm.AgentPlan(setup.arms, metered, caps, args.tries, corpus, sandbox, judge, judge_requested=args.judge,
-                             reasoning_effort=args.reasoning_effort, model_url=args.model_url)
+                             reasoning_effort=args.reasoning_effort, model_url=args.model_url, model_api=api)
     manifest = corpus.manifest_paths()
 
     def progress(result, i: int, total: int) -> None:
