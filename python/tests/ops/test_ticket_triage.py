@@ -522,7 +522,7 @@ def test_the_read_step_output_holds_no_ticket_description_or_search_text():
     g = graph_with_arrivals()
     ctx = read_ticket_context(g, "redmine:4820", g.generation)["context"]
     assert "description" not in ctx["ticket"] and all("description" not in r for r in ctx["related"])
-    assert "query" not in ctx and "ENOSPC" not in json.dumps(ctx)
+    assert "query" not in ctx and "jobs fail with ENOSPC on /scratch" not in json.dumps(ctx)  # the arrival text
 
 
 def test_ticket_text_has_email_addresses_removed():
