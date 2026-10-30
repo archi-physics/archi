@@ -460,13 +460,24 @@ names its evidence in a `sources:` list and in `verification.evidence`, not as
 node ids. Draft the mapping with:
 
 ```bash
-python -m archi.evaluation.draft_gold_sources --questions <dir of golden YAML> --out <private file>
+python -m archi.evaluation.draft_gold_sources --questions <dir of golden YAML> --out <private file> \
+    [--repos <dir of git checkouts>]
 ```
 
-It recognises four kinds of reference:
+It recognises these kinds of reference:
 
 - Jira keys become `jira`;
 - `repos/<repo>[ @<sha>] <path>` becomes the git-code file `<repo>/<path>`;
+- a repository document named loosely (`<repo>/<file>.md`,
+  `<org>/<repo> <path>.md`, `<repo> Documentation <path>.md`,
+  `<repo> Documentation: <a_b_c>.md`, or
+  `documentation_page:<repo>:<a_b_c>.md`; also `.rst`, `.txt` and
+  `.markdown`) becomes a git-code file. Such a name may leave out folders,
+  spell the repository differently from its checkout, or flatten the path
+  (`_` or `-` for `/` and spaces). With `--repos`, a directory holding one
+  git checkout per repository, each is resolved to the one file it names.
+  One that matches no file or several, and every one when `--repos` is not
+  given, goes to `unresolved` and gives no reference;
 - documentation URLs become `docsite`;
 - CMS site names become `cric`.
 
