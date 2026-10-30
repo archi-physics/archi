@@ -62,7 +62,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from archi.evaluation.agent import ChatModel, ChatReply, ModelError, ToolSpec, _describe, openai_tools
+from archi.evaluation.agent import (ChatModel, ChatReply, ModelError, ToolSpec, _describe, assistant_message,
+                                    openai_tools)
 
 AGENT_BASH, AGENT_GRAPH = "agent-bash", "agent-graph"
 AGENT_ARMS = (AGENT_BASH, AGENT_GRAPH)
@@ -758,12 +759,7 @@ async def run_try(model: Metered, tools: Any, specs: list[ToolSpec], *, arm: str
                 else:
                     result.answer = reply.content
                 break
-            messages.append({
-                "role": "assistant", "content": reply.content,
-                "tool_calls": [{"id": c.id, "type": "function",
-                                "function": {"name": c.name, "arguments": json.dumps(dict(c.arguments))}}
-                               for c in reply.tool_calls],
-            })
+            messages.append(assistant_message(reply))
             for call in reply.tool_calls:
                 if result.tool_calls >= caps.max_tool_calls:
                     cap(f"{caps.max_tool_calls} tool calls")
@@ -1401,6 +1397,8 @@ class AgentPlan:
     judge_requested: bool = False
     reasoning_effort: Optional[str] = None
     model_url: str = ""
+    #: "responses" or "chat": the API the agent calls used
+    model_api: str = ""
 
 
 @dataclass
@@ -1492,6 +1490,7 @@ class AgentReport:
             "arms": {arm: self.summary(arm) for arm in plan.arms},
             "model": plan.model.model.name,
             "model_url": plan.model_url,
+            "model_api": plan.model_api,
             "reasoning_effort": plan.reasoning_effort,
             "price_usd_per_million": vars(plan.model.price),
             "caps": {"max_turns": plan.caps.max_turns, "max_tool_calls": plan.caps.max_tool_calls,
@@ -1679,7 +1678,8 @@ def render_agent_markdown(agents: Mapping[str, Any], data: Mapping[str, Any]) ->
         "Evidence recall and MRR count a gold record only when its content appears in a tool response; "
         "naming it (path, key or id) lists it, uncredited. Error tries are left out of both and listed below.",
         "",
-        f"- agent arms: model {agents['model']} (reasoning {agents['reasoning_effort'] or 'default'}), "
+        f"- agent arms: model {agents['model']} (reasoning {agents['reasoning_effort'] or 'default'}"
+        + (f", {agents['model_api']} API" if agents.get("model_api") else "") + "), "
         f"{agents['tries_per_question']} tries per question; caps {caps['max_turns']} turns, "
         f"{caps['max_tool_calls']} tool calls, {caps['try_seconds']:g} s per try; bash commands "
         f"{caps['command_seconds']:g} s and {caps['output_bytes'] // 1024} KiB",
