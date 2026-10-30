@@ -316,6 +316,46 @@ def test_a_run_in_flight_holds_back_its_automations_next_signal():
     assert out == ["b~s3~1"]
 
 
+def ticket_rt(*names):
+    """Automations with a ticket_queue trigger (one run at a time per ticket)."""
+    auto = SimpleNamespace(trigger={"type": "ticket_queue", "system": ["redmine"], "queue": "*"})
+    return SimpleNamespace(settings={n: object() for n in names}, automation=lambda n: auto)
+
+
+def tsig(id, entity):
+    return {**sig(id), "entity": entity, "source": "ticket"}
+
+
+def test_a_ticket_run_waiting_for_approval_holds_back_only_its_own_ticket():
+    """#746 finding 7: one L2 run waiting for a person blocked the whole ticket queue."""
+    io = ScanIO({"t": [tsig("s1", "redmine:1"), tsig("s2", "redmine:2")]},
+                runs=[RunInfo("t~s0~1", "t", "PENDING", "redmine:1")])
+    said = []
+    assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=said.append) == ["t~s2~1"]
+    io = ScanIO({"t": [tsig("s1", "redmine:1")]}, runs=[RunInfo("t~s0~1", "t", "PENDING", "redmine:1")])
+    assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=said.append) == []
+    assert any("wait for a run in progress on the same ticket" in s for s in said)
+
+
+def test_a_ticket_automation_has_at_most_a_few_runs_in_flight():
+    runs = [RunInfo(f"t~s{i}~1", "t", "PENDING", f"redmine:{i}") for i in range(wf.TICKET_RUNS_IN_FLIGHT)]
+    io = ScanIO({"t": [tsig("s9", "redmine:9")]}, runs=runs)
+    assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=lambda m: None) == []
+    io = ScanIO({"t": [tsig("s9", "redmine:9")]}, runs=runs[1:])
+    assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=lambda m: None) == ["t~s9~1"]
+
+
+def test_an_unreadable_automation_file_keeps_one_run_at_a_time():
+    def broken(name):
+        raise OSError("gone")
+
+    rt = SimpleNamespace(settings={"t": object()}, automation=broken)
+    io = ScanIO({"t": [tsig("s2", "redmine:2")]}, runs=[RunInfo("t~s0~1", "t", "PENDING", "redmine:1")])
+    assert wf.scan_once(rt, io, lambda *a: None, say=lambda m: None) == []
+
+
+
+
 def test_the_scanner_makes_the_archi_ops_tables_before_anything_else_even_when_paused():
     io = ScanIO({"a": [sig("s1")]}, paused=True)
     wf.scan_once(rt("a"), io, lambda *a: None, say=lambda m: None)

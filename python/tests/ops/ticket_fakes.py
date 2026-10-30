@@ -260,25 +260,35 @@ def arrival(system: str, key: str, subject: str, description: str, updated: str,
             "resolved_at": "", "close_notes": ""}
 
 
-def to_row(system: str, item: dict) -> dict:
+#: the link roots the fixture servers publish (the readers' `base_url` / `instance_url`)
+SITES = {"redmine": "https://redmine.example.org", "jira": "https://jira.example.org",
+         "servicenow": "https://example.service-now.com"}
+
+
+def to_row(system: str, item: dict, *, site: Optional[str] = None) -> dict:
     """A cache record as the node its pack's source publishes (`okg filter --jsonl` shape), the attributes
-    archi.sources.{tickets,jira,servicenow} write."""
+    archi.sources.{tickets,jira,servicenow} write, with the link each writes. `site` overrides the server
+    (a second JIRA server, say)."""
     if system == "redmine":
         tracker = item.get("system") or "redmine"
+        root = site or SITES[tracker]
+        link = f"{root}/browse/{item['key']}" if tracker == "jira" else f"{root}/issues/{item['key']}"
         attrs = {"ticket_id": item["key"], "system": tracker, "subject": item["subject"],
                  "description": item["description"], "project": item["project"], "tracker": item["tracker"],
                  "status": item["status"], "assignee": item["assignee"], "updated": item["updated"],
-                 "closed": item["closed"], "url": f"https://redmine.example.org/issues/{item['key']}"}
+                 "closed": item["closed"], "url": link}
         return {"node_id": f"tracker_ticket:{tracker}:{item['key']}", "subtype": "tracker_ticket", "attrs": attrs}
     if system == "jira":
         attrs = {k: item[k] for k in ("summary", "description", "project", "status", "issue_type", "assignee",
                                       "resolution", "components", "updated")}
+        attrs["url"] = f"{site or SITES['jira']}/browse/{item['key']}"
         return {"node_id": f"jira:{item['key']}", "subtype": "jira_issue", "attrs": {"issue_key": item["key"], **attrs}}
     subtype = {"incident": "servicenow_incident", "sc_request": "servicenow_request",
                "kb_knowledge": "servicenow_kb_article"}[item["table"]]
     attrs = {"number": item["number"], "title": item["short_description"],
              "description": item.get("description") or item.get("text") or "", "state": item["state"],
-             "updated": item["sys_updated_on"]}
+             "updated": item["sys_updated_on"],
+             "url": f"{site or SITES['servicenow']}/{item['table']}.do?sys_id={item['sys_id']}"}
     if subtype != "servicenow_kb_article":
         attrs.update(category=item["category"], assignment_group=item["assignment_group"],
                      assignee=item["assigned_to"], config_item=item["cmdb_ci"], resolved=item["resolved_at"],
@@ -347,15 +357,29 @@ class Graph:
                 scored.append((-score, r["node_id"]))
         return [nid for _, nid in sorted(scored)[:limit]]
 
-    def ticket_cursor(self, automation, system):
-        return self.cursors.get((automation, system))
+    def ticket_cursor(self, automation, source):
+        return self.cursors.get((automation, source))
 
-    def set_ticket_cursor(self, automation, system, updated, generation):
-        self.cursors[(automation, system)] = {"updated": updated, "generation": generation}
+    def set_ticket_cursor(self, automation, source, updated, generation, seen=()):
+        self.cursors[(automation, source)] = {"updated": updated, "generation": generation, "seen": list(seen)}
 
     def add_signal(self, automation, signal_id, entity, title, *, summary=None, source="table"):
-        self.signals.setdefault((automation, signal_id), {"id": signal_id, "entity": entity, "title": title,
-                                                          "summary": summary, "source": source, "attempt": 1})
+        if (automation, signal_id) in self.signals:
+            return False
+        self.signals[(automation, signal_id)] = {"id": signal_id, "entity": entity, "title": title, "summary": summary,
+                                                 "source": source, "attempt": 1, "status": "new"}
+        return True
+
+    def signal_ids_for(self, automation, entity):
+        return [sid for (a, sid), s in self.signals.items() if a == automation and s["entity"] == entity]
+
+    def supersede_signals(self, automation, entity, keep):
+        out = []
+        for (a, sid), s in self.signals.items():
+            if a == automation and s["entity"] == entity and s["status"] == "new" and sid != keep:
+                s["status"] = "superseded"
+                out.append(sid)
+        return sorted(out)
 
 
 if __name__ == "__main__":

@@ -97,16 +97,16 @@ echo "== 3. the worker starts; the first scan of the published queue sets the cu
 start_worker 15
 publish first
 "$V/okg" runtime trigger-schedule --deployment $D archi_ops_scan > /dev/null 2>&1
-for i in $(seq 1 24); do [ "$($T cursors | "$V/python" -c 'import json,sys; print(len(json.load(sys.stdin)))')" = 3 ] && break; sleep 5; done
-$T cursors | tee "$RUN/cursors-0.json" | check "a cursor per system, read from the published generation" \
-  "sorted(d) == ['jira', 'redmine', 'servicenow'] and all(v['generation'] and v['updated'] for v in d.values())"
+for i in $(seq 1 24); do [ "$($T cursors | "$V/python" -c 'import json,sys; print(sum(k.endswith("/*") for k in json.load(sys.stdin)))')" = 3 ] && break; sleep 5; done
+$T cursors | tee "$RUN/cursors-0.json" | check "each system read, and a cursor per source (subtype at a site), from the published generation" \
+  "sorted(k for k in d if k.endswith('/*')) == ['jira/*', 'redmine/*', 'servicenow/*'] and any(k.startswith('tracker_ticket@') for k in d) and all(v['generation'] and v['updated'] for k, v in d.items() if not k.endswith('/*'))"
 $T signals | check "no signal for the tickets already in the queue" "d == []"
 
 echo "== 4. SHADOW (the default): three tickets arrive (Redmine, JIRA from the jira pack, JIRA from the tickets pack); each becomes one signal and a run that records a cited draft"
 WS=$(arrive redmine 4820 "Scratch filesystem full on node051")
 WJ=$(arrive jira OPS-15 "Transfers failing with SRM_TIMEOUT after the upgrade" --description "FTS reports SRM_TIMEOUT on srm-put.")
 WG=$(arrive redmine SUP-3 "Jobs held: home quota exceeded" --tracker jira --description "Jobs stay held, home quota exceeded.")
-# the scanner runs one run per automation at a time, so the three runs follow one another
+# a ticket_queue automation runs one at a time per ticket, so the three runs may overlap
 $T wait "$WS" --timeout 400 | tee "$RUN/shadow-redmine.out" | check "the Redmine run ends observed in shadow" \
   "d['status'] == 'SUCCESS' and d['output']['status'] == 'observed' and d['output']['mode'] == 'shadow'"
 $T wait "$WJ" --timeout 400 | tee "$RUN/shadow-jira.out" | check "the JIRA run ends observed in shadow" \

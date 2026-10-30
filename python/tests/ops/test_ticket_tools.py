@@ -35,13 +35,18 @@ def endpoint(system_name):
             "servicenow": {"url": "https://example.service-now.com", "token_env": "SN_TOKEN"}}[system_name]
 
 
+def link(system_name, ticket):
+    return {"redmine": f"https://redmine.example.org/issues/{ticket}", "jira": f"https://jira.example.org/browse/{ticket}",
+            "servicenow": f"https://example.service-now.com/incident.do?sys_id=sys{ticket[-4:]}"}[system_name]
+
+
 def assign(system_name, ticket, value, field="assignee", **extra):
-    return {"system": system_name, "ticket": ticket, "field": field, "value": value, "expected": "",
+    return {"system": system_name, "ticket": ticket, "ticket_url": link(system_name, ticket), "field": field, "value": value, "expected": "",
             "note": "Assigned by the ticket-triage automation.", "endpoint": endpoint(system_name), **extra}
 
 
 def status(system_name, ticket, to, was, **extra):
-    return {"system": system_name, "ticket": ticket, "status": to, "expected_status": was,
+    return {"system": system_name, "ticket": ticket, "ticket_url": link(system_name, ticket), "status": to, "expected_status": was,
             "note": "Triaged by the ticket-triage automation.", "endpoint": endpoint(system_name), **extra}
 
 
@@ -124,6 +129,11 @@ def test_the_tool_checks_the_approval_against_this_class_and_payload():
     ({"table": "incident"}, "needs its table"),
     ({"field": "assignment_group"}, "assignment_group is a ServiceNow field"),
     ({"endpoint": {"url": "https://redmine.example.org", "token_env": "MISSING_TOKEN"}}, "MISSING_TOKEN"),
+    ({"endpoint": {"url": "https://user:secret@redmine.example.org", "token_env": "RM_TOKEN"}}, "does not match"),
+    ({"ticket_url": "https://redmine.other.org/issues/4820"}, "is not under https://redmine.example.org"),
+    ({"ticket_url": "http://redmine.example.org/issues/4820"}, "is not under"),
+    ({"ticket_url": "https://redmine.example.org.evil.org/issues/4820"}, "is not under"),
+    ({"endpoint": {"url": "https://redmine.example.org/a", "token_env": "RM_TOKEN"}}, "is not under"),
 ])
 def test_bad_payloads_are_refused_before_any_request(change, fragment):
     s = system()
@@ -134,7 +144,8 @@ def test_bad_payloads_are_refused_before_any_request(change, fragment):
 
 def test_plain_http_is_accepted_only_for_a_loopback_host():
     s = system()
-    payload = {**assign("redmine", "4820", "Grace Hopper"), "endpoint": {"url": "http://127.0.0.1:8099", "token_env": "RM_TOKEN"}}
+    payload = {**assign("redmine", "4820", "Grace Hopper"), "endpoint": {"url": "http://127.0.0.1:8099", "site": "https://redmine.example.org",
+                                                                     "token_env": "RM_TOKEN"}}
     assert run(tickets.assign_ticket, payload, s)["status"] == "succeeded"
 
 
@@ -159,3 +170,65 @@ def test_requests_never_follow_redirects():
     tickets.assign_ticket(payload=assign("redmine", "4820", "Grace Hopper"), context=CONTEXT, session=session,
                           env=ENV, verify=approved)
     assert session.calls and all(c["allow_redirects"] is False for c in session.calls)
+
+
+# --- review findings (#746) ---------------------------------------------------------------------
+
+
+def test_a_change_never_goes_to_another_server_than_the_tickets():
+    """#746 blocker 2: the same key on two JIRA servers. The approved payload names the ticket's link; an
+    endpoint on another server is refused before any request, whatever the approval says."""
+    s = system()
+    payload = {**assign("jira", "OPS-15", "Grace Hopper"), "ticket_url": "https://jira.other.org/browse/OPS-15"}
+    with pytest.raises(ToolError, match="another server than the one the ticket was read from"):
+        run(tickets.assign_ticket, payload, s)
+    assert s.requests == []
+
+
+def test_credentials_in_the_endpoint_url_are_refused_even_past_the_schema():
+    with pytest.raises(ToolError, match="user name or password"):
+        tickets._base_url("https://user:secret@redmine.example.org")
+
+
+class FailComment:
+    """A session whose JIRA comment call fails (HTTP 500, or no answer)."""
+
+    def __init__(self, s, how):
+        self.inner, self.how = s.session(), how
+
+    def request(self, method, url, **kw):
+        if method == "POST" and url.endswith("/comment"):
+            if self.how == "reset":
+                raise ConnectionError("connection reset")
+            from ticket_fakes import FakeResponse
+            return FakeResponse(500, {"error": "boom; mail admin@example.org"})
+        return self.inner.request(method, url, **kw)
+
+
+@pytest.mark.parametrize("how", ["http", "reset"])
+def test_a_jira_change_whose_note_fails_is_succeeded_and_says_the_note_is_missing(how):
+    """#746 finding 3: a transition followed by a failed comment was recorded `failed`, though the status had
+    changed."""
+    s = system()
+    out = tickets.set_ticket_status(payload=status("jira", "OPS-15", "In Progress", "Open"), context=CONTEXT,
+                                    session=FailComment(s, how), env=ENV, verify=approved)
+    assert out["status"] == "succeeded" and s.ticket("jira", "OPS-15")["status"] == "In Progress"
+    assert "note naming the approval could not be posted" in out["result"] and "@" not in out["result"]
+
+
+def test_a_jira_assignee_named_by_user_name_reads_back_as_its_display_name():
+    """#746 finding 4: JIRA reads an assignee back by display name, so a change to `ghopper` looked failed."""
+    s = system()
+    out = run(tickets.assign_ticket, assign("jira", "OPS-15", "ghopper"), s)
+    assert out["status"] == "succeeded", out
+    assert s.ticket("jira", "OPS-15")["assignee"] == "Grace Hopper"
+    again = run(tickets.assign_ticket, assign("jira", "OPS-15", "ghopper"), s)
+    assert again["status"] == "succeeded" and "nothing changed" in again["result"]
+
+
+def test_server_error_text_has_email_addresses_removed():
+    s = system()
+    session = FailComment(s, "http")
+    out = tickets.assign_ticket(payload=assign("jira", "OPS-15", "Grace Hopper"), context=CONTEXT, session=session,
+                                env=ENV, verify=approved)
+    assert "admin@example.org" not in str(out)

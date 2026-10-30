@@ -107,7 +107,8 @@ def cmd_configure(a: argparse.Namespace) -> None:
     if a.timeout is not None:
         entry["timeout_seconds"] = a.timeout
     entry["proposer"] = {"kind": AUTOMATION, "doc_subtypes": ["servicenow_kb_article", "documentation_page"],
-                         "systems": {"redmine": {"url": f"http://127.0.0.1:{a.port}", "token_env": TOKEN_ENV,
+                         "systems": {"redmine": {"url": f"http://127.0.0.1:{a.port}", "site": "https://redmine.example.org",
+                                                 "token_env": TOKEN_ENV,
                                                  "triaged_status": "In Progress", "triage_from": ["New"]}}}
     (inst / "ops.yaml").write_text(yaml.safe_dump(ops, sort_keys=False), encoding="utf-8")
     commit_all(inst, f"configure: {' '.join(sys.argv[2:])}")
@@ -146,9 +147,10 @@ def cmd_signals(a: argparse.Namespace) -> None:
 
 def cmd_cursors(a: argparse.Namespace) -> None:
     with psycopg.connect(os.environ["OKG_DSN"], autocommit=True) as conn:
-        rows = conn.execute("SELECT system, updated, generation FROM archi_ops.ticket_cursors WHERE automation = %s "
-                            "ORDER BY system", (AUTOMATION,)).fetchall()
-    print(json.dumps({r[0]: {"updated": r[1].isoformat() if r[1] else None, "generation": r[2]} for r in rows}))
+        rows = conn.execute("SELECT source, updated, generation, seen FROM archi_ops.ticket_cursors WHERE automation = %s "
+                            "ORDER BY source", (AUTOMATION,)).fetchall()
+    print(json.dumps({r[0]: {"updated": r[1].isoformat() if r[1] else None, "generation": r[2], "seen": list(r[3] or ())}
+                      for r in rows}))
 
 
 def cmd_wait_signal(a: argparse.Namespace) -> None:

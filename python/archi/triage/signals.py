@@ -17,8 +17,9 @@ source is a subtype at one site (`jira_issue@https://jira.example.org`, archi.tr
 and its cursor is the newest `updated` time seen from it. Sources publish on their own schedules, so one
 cursor per system would skip, for good, the tickets of a source that publishes late with older times. A
 system is read again only when a newer generation is published (a `<system>/*` row records the generation
-read). A ticket becomes a signal when its `updated` is at or after its source's cursor (a ticket updated in
-the same second as the cursor is not lost; the signal id makes a repeat a no-op), it is not closed, and its
+read). A ticket becomes a signal when its `updated` is at or after its source's cursor and was
+not already read at that time (the cursor keeps the tickets seen at its time, so a ticket updated in the same
+second as the cursor is not lost and none is read twice), it is not closed, and its
 queue is among the instance's `queues` (ops.yaml; unset means every queue). The first read of a source only
 sets its cursor: the tickets already in the queue when the automation is installed, or when a new source
 appears, are not triaged, so installing it does not start a backlog of runs.
@@ -44,19 +45,23 @@ from archi.triage.tickets import (CLOSED_STATUSES, SYSTEMS, Ticket, closed_statu
 log = logging.getLogger(__name__)
 
 
-def new_or_updated(tickets: Iterable[Ticket], since: Optional[datetime], queues: Iterable[str] = ()
-                   ) -> tuple[list[Ticket], Optional[datetime]]:
-    """(the tickets of ONE source to triage, oldest update first; the source's new cursor). With no cursor
-    (`since` None) nothing is triaged and the cursor becomes the newest update seen. A ticket updated at the
-    cursor itself is returned again: the caller drops what it already signalled."""
+def new_or_updated(tickets: Iterable[Ticket], since: Optional[datetime], queues: Iterable[str] = (),
+                   seen: Iterable[str] = ()) -> tuple[list[Ticket], Optional[datetime], list[str]]:
+    """(the tickets of ONE source to triage, oldest update first; the source's new cursor; the tickets seen at
+    that cursor time). A ticket updated after the cursor is new; one updated at the cursor time itself is new
+    unless it is in `seen`, the tickets already read at that time (so two tickets updated in the same second
+    are both triaged, across two reads). With no cursor (`since` None) nothing is triaged and the cursor
+    becomes the newest update seen."""
     tickets = [t for t in tickets if t.updated_at is not None]
     newest = max((t.updated_at for t in tickets), default=None)
     mark = max((m for m in (since, newest) if m is not None), default=None)
+    at_mark = sorted({t.entity for t in tickets if t.updated_at == mark} | (set(seen) if mark == since else set()))
     if since is None:
-        return [], mark
-    wanted = set(queues)
-    fresh = [t for t in tickets if t.updated_at >= since and not t.closed and (not wanted or t.queue in wanted)]
-    return sorted(fresh, key=lambda t: (t.updated_at, t.entity)), mark
+        return [], mark, at_mark
+    wanted, done = set(queues), set(seen)
+    fresh = [t for t in tickets if (t.updated_at > since or (t.updated_at == since and t.entity not in done))
+             and not t.closed and (not wanted or t.queue in wanted)]
+    return sorted(fresh, key=lambda t: (t.updated_at, t.entity)), mark, at_mark
 
 
 def newest_per_ticket(tickets: Iterable[Ticket]) -> list[Ticket]:
@@ -104,9 +109,10 @@ def scan_queue(io: Any, automation: str, systems: Iterable[str], *, queues: Iter
         fresh: list[Ticket] = []
         for source, group in sorted(by_source.items()):
             cursor = io.ticket_cursor(automation, source)
-            found, mark = new_or_updated(group, cursor["updated"] if cursor else None, queues)
+            found, mark, at_mark = new_or_updated(group, cursor["updated"] if cursor else None, queues,
+                                                  (cursor or {}).get("seen") or ())
             fresh += found
-            io.set_ticket_cursor(automation, source, mark, generation)
+            io.set_ticket_cursor(automation, source, mark, generation, at_mark)
             if cursor is None:
                 say(f"archi_ops_scan: {automation}: first read of {source} ({len(group)} tickets); "
                     "triage starts with the next new or updated ticket")
@@ -124,7 +130,7 @@ def scan_queue(io: Any, automation: str, systems: Iterable[str], *, queues: Iter
             if superseded:
                 say(f"archi_ops_scan: {automation}: {sid} supersedes {', '.join(superseded)}")
             added.append(f"{automation}/{sid}")
-        io.set_ticket_cursor(automation, _system_marker(system), None, generation)
+        io.set_ticket_cursor(automation, _system_marker(system), None, generation, [])
     return added
 
 

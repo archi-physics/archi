@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS archi_ops.ticket_cursors (
     automation text NOT NULL,
     source     text NOT NULL,
     updated    timestamptz,
+    seen       text[] NOT NULL DEFAULT '{}',  -- the tickets (entities) already read at time `updated`
     generation text NOT NULL,
     read_at    timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (automation, source)
@@ -486,18 +487,20 @@ class OpsIO:
         return {"approved": True, "at": row[0].isoformat(), "reason": ""}
 
     def ticket_cursor(self, automation: str, source: str) -> Optional[dict]:
-        """`{updated, generation}` for a ticket_queue automation's reading of one source, or None (never read)."""
+        """`{updated, generation, seen}` for a ticket_queue automation's reading of one source, or None (never read)."""
         with self.connect() as conn:
-            row = conn.execute("SELECT updated, generation FROM archi_ops.ticket_cursors WHERE automation = %s "
+            row = conn.execute("SELECT updated, generation, seen FROM archi_ops.ticket_cursors WHERE automation = %s "
                                "AND source = %s", (automation, source)).fetchone()
-        return {"updated": row[0], "generation": row[1]} if row else None
+        return {"updated": row[0], "generation": row[1], "seen": list(row[2] or ())} if row else None
 
-    def set_ticket_cursor(self, automation: str, source: str, updated: Optional[datetime], generation: str) -> None:
+    def set_ticket_cursor(self, automation: str, source: str, updated: Optional[datetime], generation: str,
+                          seen: Sequence[str] = ()) -> None:
         with self.connect() as conn:
             conn.execute(
-                "INSERT INTO archi_ops.ticket_cursors (automation, source, updated, generation) VALUES (%s, %s, %s, %s) "
-                "ON CONFLICT (automation, source) DO UPDATE SET updated = EXCLUDED.updated, "
-                "generation = EXCLUDED.generation, read_at = now()", (automation, source, updated, generation))
+                "INSERT INTO archi_ops.ticket_cursors (automation, source, updated, generation, seen) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (automation, source) DO UPDATE SET updated = EXCLUDED.updated, "
+                "generation = EXCLUDED.generation, seen = EXCLUDED.seen, read_at = now()",
+                (automation, source, updated, generation, list(seen)))
 
     def mark_signal(self, automation: str, signal_id: str, status: str) -> None:
         with self.connect() as conn:
