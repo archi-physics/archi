@@ -38,7 +38,7 @@ tasks:
 - id: task.site-names-scrub.rewrite
   requirement: req.site-names-scrub.clean
   verification: >-
-    git grep -nE 'submit[0-9]{2}|vocms[0-9]|/ceph/|/work/submit|/home/submit|mohoney|pmlugato|lavezzo'
+    git grep -nE 'submit[0-9]{2}|vocms[0-9]|/ceph/|/work/submit|/home/submit|<the three account names of #861>'
     -- pact docs bundles python lists only the documented exceptions.
 - id: task.site-names-scrub.check
   requirement: req.site-names-scrub.harmless
