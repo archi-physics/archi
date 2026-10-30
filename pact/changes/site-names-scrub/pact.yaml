@@ -1,7 +1,7 @@
 pact_version: 5
 id: site-names-scrub
 title: Keep site host names, instance paths and account names out of the public repository
-tier: 1
+tier: 2
 why: >-
   AGENTS.md says nothing in this public repository may carry a site host
   name or an instance's configuration. PACT evidence rows, archived PACT
