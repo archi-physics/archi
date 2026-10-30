@@ -92,6 +92,12 @@ pacts:
       task.r3-context-quality.raw-arm-scoring: "Gold ids to corpus files; evidence recall, MRR and an optional judge"
       task.r3-context-quality.gate: "Context gate evaluator for automations"
 
+  r3-responses-api:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-responses-api.agent-calls: "Agent arms call OpenAI models through the Responses API"
+
   r3-ops-record:
     milestone: "3.0 · M2 Context layer"
     labels: ["layer:context", "layer:ops"]
