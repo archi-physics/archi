@@ -77,15 +77,16 @@ CREATE TABLE IF NOT EXISTS archi_ops.demotions (
     reason     text NOT NULL,
     PRIMARY KEY (automation, run_id)
 );
--- how far a ticket_queue automation has read each ticket system: the newest `updated` time seen and the
--- generation it was read from (archi.triage.signals)
+-- how far a ticket_queue automation has read each ticket source (a subtype at one site): the newest
+-- `updated` time seen and the generation it was read from; `<system>/*` rows hold only the generation
+-- (archi.triage.signals)
 CREATE TABLE IF NOT EXISTS archi_ops.ticket_cursors (
     automation text NOT NULL,
-    system     text NOT NULL,
+    source     text NOT NULL,
     updated    timestamptz,
     generation text NOT NULL,
     read_at    timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (automation, system)
+    PRIMARY KEY (automation, source)
 );
 -- schedules `archi ops halt` paused, so `resume` leaves alone any an operator paused earlier
 CREATE TABLE IF NOT EXISTS archi_ops.halts (
@@ -173,7 +174,7 @@ class OpsIO:
 
     def search_ids(self, query: str, generation: str, subtype: str, limit: int) -> list[str]:
         """Node ids of `subtype` ranked by okg's lexical search for `query` at `generation`, best first."""
-        result = self._okg("search", "--deployment", self.deployment, "--query", query, "--generation-id",
+        result = self._okg("search", "--deployment", self.deployment, f"--query={query}", "--generation-id",
                            str(generation), "--subtype", subtype, "--limit", str(limit), "--json")
         try:
             reply = json.loads(result.stdout)
@@ -267,7 +268,8 @@ class OpsIO:
         for wf in self._client().list_workflows(name=RUN_WORKFLOW, status=statuses, load_input=True):
             wid, status = _val(wf, "workflow_id"), str(_val(wf, "status"))
             args = (_val(wf, "input") or {}).get("args") or []
-            out.append(RunInfo(wid, args[0] if args else wid, status))
+            signal = args[1] if len(args) > 1 and isinstance(args[1], Mapping) else {}
+            out.append(RunInfo(wid, args[0] if args else wid, status, str(signal.get("entity") or "")))
         return out
 
     def run_input(self, workflow_id: str) -> Mapping[str, Any]:
@@ -335,13 +337,29 @@ class OpsIO:
             conn.execute("DELETE FROM archi_ops.halts WHERE schedule = %s", (schedule,))
 
     def add_signal(self, automation: str, signal_id: str, entity: str, title: str, *, summary: Optional[str] = None,
-                   source: str = "table") -> None:
-        """Add a signal; one that exists already (same automation and id) is left as it is."""
+                   source: str = "table") -> bool:
+        """Add a signal; one that exists already (same automation and id) is left as it is. True when added."""
         with self.connect() as conn:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO archi_ops.signals (automation, signal_id, entity, title, summary, source) "
                 "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                 (automation, signal_id, entity, title, summary, source))
+            return bool(cur.rowcount)
+
+    def signal_ids_for(self, automation: str, entity: str) -> list[str]:
+        """The ids of every signal an automation has for `entity`, whatever their status."""
+        with self.connect() as conn:
+            rows = conn.execute("SELECT signal_id FROM archi_ops.signals WHERE automation = %s AND entity = %s",
+                                (automation, entity)).fetchall()
+        return [r[0] for r in rows]
+
+    def supersede_signals(self, automation: str, entity: str, keep: str) -> list[str]:
+        """Mark `entity`'s signals still waiting to run (status `new`), other than `keep`, `superseded`."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "UPDATE archi_ops.signals SET status = 'superseded' WHERE automation = %s AND entity = %s "
+                "AND status = 'new' AND signal_id <> %s RETURNING signal_id", (automation, entity, keep)).fetchall()
+        return sorted(r[0] for r in rows)
 
     def new_signals(self, automation: str) -> list[dict]:
         with self.connect() as conn:
@@ -467,19 +485,19 @@ class OpsIO:
             return {"approved": False, "at": None, "reason": f"PACT change {change} has no approve verdict in the ledger"}
         return {"approved": True, "at": row[0].isoformat(), "reason": ""}
 
-    def ticket_cursor(self, automation: str, system: str) -> Optional[dict]:
-        """`{updated, generation}` for a ticket_queue automation's reading of one system, or None (never read)."""
+    def ticket_cursor(self, automation: str, source: str) -> Optional[dict]:
+        """`{updated, generation}` for a ticket_queue automation's reading of one source, or None (never read)."""
         with self.connect() as conn:
             row = conn.execute("SELECT updated, generation FROM archi_ops.ticket_cursors WHERE automation = %s "
-                               "AND system = %s", (automation, system)).fetchone()
+                               "AND source = %s", (automation, source)).fetchone()
         return {"updated": row[0], "generation": row[1]} if row else None
 
-    def set_ticket_cursor(self, automation: str, system: str, updated: Optional[datetime], generation: str) -> None:
+    def set_ticket_cursor(self, automation: str, source: str, updated: Optional[datetime], generation: str) -> None:
         with self.connect() as conn:
             conn.execute(
-                "INSERT INTO archi_ops.ticket_cursors (automation, system, updated, generation) VALUES (%s, %s, %s, %s) "
-                "ON CONFLICT (automation, system) DO UPDATE SET updated = EXCLUDED.updated, "
-                "generation = EXCLUDED.generation, read_at = now()", (automation, system, updated, generation))
+                "INSERT INTO archi_ops.ticket_cursors (automation, source, updated, generation) VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (automation, source) DO UPDATE SET updated = EXCLUDED.updated, "
+                "generation = EXCLUDED.generation, read_at = now()", (automation, source, updated, generation))
 
     def mark_signal(self, automation: str, signal_id: str, status: str) -> None:
         with self.connect() as conn:

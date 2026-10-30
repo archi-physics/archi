@@ -15,7 +15,13 @@ with no `system` is a Redmine ticket; one of another tracker is not triaged (no 
 The queue is the project (ServiceNow: the assignment group).
 
 A ticket's entity, the `entity` of its signal and of the incident a run records, is `<system>:<key>`
-(`jira:OPS-12`, `redmine:4812`, `servicenow:INC0010001`).
+(`jira:OPS-12`, `redmine:4812`, `servicenow:INC0010001`). The key alone does not say which server holds the
+ticket: two JIRA servers can both have a project OPS. Each ticket therefore also carries its link (`url`, as its
+reader published it), and `site` is that link's scheme and host. An L2 change goes only to the server the link
+names (archi.triage.proposer, archi.tools.tickets), and a key found on two servers is never changed.
+
+Text read from a ticket has email addresses removed here too (the readers already remove them; this is the
+second guard, so no address reaches a proposal, a run's stored step output or a ticket note).
 """
 from __future__ import annotations
 
@@ -23,6 +29,9 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Optional
+from urllib.parse import urlsplit
+
+from archi.enrichment.anonymizer import redact_email_addresses
 
 
 @dataclass(frozen=True)
@@ -92,6 +101,7 @@ def subtypes_for(system: str, packs: Optional[Iterable[str]] = None) -> tuple[st
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 _OFFSET = re.compile(r"([+-]\d{2})(\d{2})$")
+_STAMP = "%Y%m%dT%H%M%SZ"
 
 
 class TicketError(ValueError):
@@ -112,6 +122,12 @@ def parse_time(value: Any) -> Optional[datetime]:
         except ValueError:
             return None
     return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def site_of(url: str) -> str:
+    """`scheme://host[:port]` of a URL, lower case; empty when it has no scheme or host."""
+    parts = urlsplit(str(url or ""))
+    return f"{parts.scheme.lower()}://{parts.netloc.lower()}" if parts.scheme and parts.netloc else ""
 
 
 def system_of(row: Mapping[str, Any]) -> str:
@@ -140,8 +156,8 @@ def _text(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, (list, tuple)):
-        return ", ".join(str(v) for v in value if v not in (None, ""))
-    return str(value).strip()
+        return ", ".join(_text(v) for v in value if v not in (None, ""))
+    return redact_email_addresses(str(value)).strip()
 
 
 def _list(value: Any) -> tuple[str, ...]:
@@ -180,6 +196,17 @@ class Ticket:
         return parse_time(self.updated)
 
     @property
+    def site(self) -> str:
+        """`scheme://host[:port]` of the ticket's link, lower case; empty when it has none."""
+        return site_of(self.url)
+
+    @property
+    def source(self) -> str:
+        """Where the ticket was read from: its subtype and site (`jira_issue@https://jira.example.org`). Each
+        source keeps its own cursor (archi.triage.signals), since two sources publish on their own schedules."""
+        return f"{self.subtype}@{self.site or '-'}"
+
+    @property
     def table(self) -> Optional[str]:
         """The ServiceNow table of the ticket; None for the other systems."""
         return SERVICENOW_TABLES.get(self.subtype)
@@ -209,7 +236,15 @@ class Ticket:
         )
 
     def as_dict(self) -> dict[str, Any]:
-        return {**asdict(self), "components": list(self.components), "entity": self.entity, "table": self.table}
+        return {**asdict(self), "components": list(self.components), "entity": self.entity, "table": self.table,
+                "site": self.site}
+
+    def as_context(self) -> dict[str, Any]:
+        """as_dict without the description: what a run's read step returns, and DBOS stores that output, so the
+        ticket's full text stays in the graph and out of the run history."""
+        d = self.as_dict()
+        d.pop("description")
+        return d
 
 
 def tickets_of(system: str, rows: Iterable[Mapping[str, Any]], *, closed_statuses: frozenset[str] = CLOSED_STATUSES,
@@ -229,5 +264,13 @@ def tickets_of(system: str, rows: Iterable[Mapping[str, Any]], *, closed_statuse
 def signal_id(ticket: Ticket) -> str:
     """`<system>-<key>-<updated, UTC>`: one signal per version of a ticket, and a legal run-id part (no `~`)."""
     moment = ticket.updated_at
-    stamp = moment.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ") if moment else "undated"
+    stamp = moment.astimezone(timezone.utc).strftime(_STAMP) if moment else "undated"
     return f"{ticket.system}-{_UNSAFE.sub('_', ticket.key)}-{stamp}"
+
+
+def signal_time(sid: str) -> Optional[datetime]:
+    """The update time a signal id holds (signal_id), or None (undated, or not a ticket signal)."""
+    try:
+        return datetime.strptime(sid.rsplit("-", 1)[-1], _STAMP).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None

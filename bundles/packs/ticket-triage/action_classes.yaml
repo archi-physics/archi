@@ -26,11 +26,12 @@ action_classes:
     description: Move one ticket to another status, with a note on the ticket naming the approval.
     payload_schema:
       type: object
-      required: [system, ticket, status, expected_status, note, endpoint]
+      required: [system, ticket, ticket_url, status, expected_status, note, endpoint]
       additionalProperties: false
       properties:
         system: {enum: [redmine, jira, servicenow]}
         ticket: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+        ticket_url: {type: string, maxLength: 2000, pattern: "^https?://[^\\s@]+$"}
         table: {enum: [incident, sc_request]}
         note: {type: string, minLength: 1, maxLength: 4000}
         endpoint:
@@ -38,7 +39,8 @@ action_classes:
           required: [url]
           additionalProperties: false
           properties:
-            url: {type: string, pattern: "^https?://[^\\s/?#]+(/[^\\s?#]*)?$"}
+            url: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            site: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
             token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
             user_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
             password_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
@@ -52,11 +54,12 @@ action_classes:
     description: Set one ticket's assignee (ServiceNow - its assignment group), with a note on the ticket naming the approval.
     payload_schema:
       type: object
-      required: [system, ticket, field, value, expected, note, endpoint]
+      required: [system, ticket, ticket_url, field, value, expected, note, endpoint]
       additionalProperties: false
       properties:
         system: {enum: [redmine, jira, servicenow]}
         ticket: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+        ticket_url: {type: string, maxLength: 2000, pattern: "^https?://[^\\s@]+$"}
         table: {enum: [incident, sc_request]}
         note: {type: string, minLength: 1, maxLength: 4000}
         endpoint:
@@ -64,7 +67,8 @@ action_classes:
           required: [url]
           additionalProperties: false
           properties:
-            url: {type: string, pattern: "^https?://[^\\s/?#]+(/[^\\s?#]*)?$"}
+            url: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            site: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
             token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
             user_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
             password_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}

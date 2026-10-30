@@ -10,6 +10,13 @@ generation (`okg filter`, `okg search`), so a proposal can cite only what this r
     docs        documentation ranked the same way, from the subtypes the instance names (`doc_subtypes`)
     precedents  ops-record incidents on the ticket or on a related ticket: what an automation proposed for
                 them before (the ops-record pack's operational memory)
+    rejected    the changes a person already rejected for this ticket (an ops_decision `rejected` on a
+                proposal of one of its incidents), so the proposer does not ask again on every comment
+    sites       the sites (scheme and host) of every server that holds a ticket with this key; more than one
+                means the key is ambiguous and the proposer changes nothing
+
+The read is a run step, and DBOS stores step output: tickets are returned without their description
+(archi.triage.tickets.Ticket.as_context), and the search text is not returned.
 
 A doc subtype the instance does not have is skipped with its reason in `context["skipped"]`; a ticket that is
 not in the generation is an error (the run records it and proposes nothing).
@@ -19,9 +26,11 @@ Configuration, from the automation's `proposer:` block in ops.yaml: `related_lim
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Iterable, Mapping, Optional
 
-from archi.triage.tickets import READINGS, Ticket, TicketError, closed_statuses, parse_entity, subtypes_for, tickets_of
+from archi.triage.tickets import (READINGS, Ticket, TicketError, closed_statuses, parse_entity, site_of, subtypes_for,
+                                  tickets_of)
 
 DEFAULT_DOC_SUBTYPES = ("servicenow_kb_article", "documentation_page")
 QUERY_CHARS = 300
@@ -56,6 +65,36 @@ def _ranked(io: Any, ids: list[str], generation: str) -> list[dict]:
     return [rows[i] for i in ids if i in rows]
 
 
+def _endpoint_site(config: Mapping[str, Any], system: str) -> str:
+    """`scheme://host` of the ticket links of the server the instance writes `system` to (proposer config
+    `systems.<system>.site`, else `.url`); empty when it names none."""
+    sys_config = ((config.get("systems") or {}).get(system) or {})
+    return site_of(str(sys_config.get("site") or sys_config.get("url") or ""))
+
+
+def _rejected(io: Any, generation: str, incident_ids: set[str]) -> list[dict]:
+    """`{action_class, payload, proposal}` of each proposal on one of `incident_ids` that a person rejected."""
+    if not incident_ids:
+        return []
+    decisions = io.read_by_attr("ops_decision", generation, "verdict", "rejected")
+    proposal_ids = sorted({f"ops_proposal:{(d.get('attrs') or {}).get('proposal_id')}" for d in decisions
+                           if (d.get("attrs") or {}).get("proposal_id")})
+    out = []
+    for row in io.read_ids(proposal_ids, generation) if proposal_ids else ():
+        a = row.get("attrs") or {}
+        if str(a.get("incident_id") or "") not in incident_ids:
+            continue
+        payload = a.get("payload")
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except ValueError:
+                payload = {}
+        out.append({"action_class": a.get("action_class") or "", "payload": payload if isinstance(payload, dict) else {},
+                    "proposal": row["node_id"]})
+    return sorted(out, key=lambda r: r["proposal"])
+
+
 def read_ticket_context(io: Any, entity: str, generation: str, config: Mapping[str, Any] | None = None,
                         packs: Optional[Iterable[str]] = None) -> dict:
     """`{"rows", "context", "node_ids"}`: the rows a proposal may carry (precedent incidents), the context
@@ -74,7 +113,10 @@ def read_ticket_context(io: Any, entity: str, generation: str, config: Mapping[s
         found += tickets_of(system, io.read_by_attr(subtype, generation, READINGS[subtype].key, key), closed_statuses=closed)
     if not found:
         raise ContextError(f"ticket {entity} is not in generation {generation}")
-    ticket = found[0]
+    sites = sorted({t.site for t in found})
+    # the copy the instance writes to, when the key is on two servers (the proposer then changes nothing)
+    home = _endpoint_site(config, system)
+    ticket = next((t for t in found if home and t.site == home), found[0])
     query = query_text(ticket)
     skipped: list[dict] = []
 
@@ -105,21 +147,26 @@ def read_ticket_context(io: Any, entity: str, generation: str, config: Mapping[s
 
     precedent_rows: list[dict] = []
     precedent_limit = int(config.get("precedent_limit", 5))
+    own_incidents: set[str] = set()
     for subject in [ticket, *related]:
         for row in io.read_by_attr("ops_incident", generation, "entity", subject.entity):
+            if subject is ticket:
+                own_incidents.add(str((row.get("attrs") or {}).get("record_id") or ""))
             if row["node_id"] not in {r["node_id"] for r in precedent_rows}:
                 precedent_rows.append(row)
+    rejected = _rejected(io, generation, own_incidents - {""})
     precedent_rows.sort(key=lambda r: str((r.get("attrs") or {}).get("detected_at") or ""), reverse=True)
     precedent_rows = precedent_rows[:precedent_limit]
     precedents = [{"node_id": r["node_id"], **{k: (r.get("attrs") or {}).get(k) for k in
                    ("entity", "title", "summary", "status", "detected_at", "automation")}} for r in precedent_rows]
 
     context = {
-        "ticket": ticket.as_dict(),
-        "related": [t.as_dict() for t in related],
+        "ticket": ticket.as_context(),
+        "related": [t.as_context() for t in related],
         "docs": docs,
         "precedents": precedents,
-        "query": query,
+        "rejected": rejected,
+        "sites": sites,
         "skipped": skipped,
     }
     node_ids = [ticket.node_id, *(t.node_id for t in related), *(d["node_id"] for d in docs),

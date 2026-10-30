@@ -727,11 +727,14 @@ def add_schedule_ticks(rt: Any, io: Any, now: datetime, say: Callable[[str], Non
 
 def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None] = start_run,
               say: Callable[[str], None] = log.info, now: Optional[datetime] = None) -> list[str]:
-    """Start at most one run per automation, and only when that automation has none in flight.
+    """Start at most one run per automation per scan.
 
-    One at a time keeps an L2 automation's budget and escalations simple: a run waiting hours for a
-    person holds the next signal in the table (status `new`) until it finishes. Nothing starts while
-    the scanner schedule is paused (a manual trigger of a paused schedule still runs this function).
+    Most automations run one at a time: that keeps an L2 automation's budget and escalations simple, and a
+    run waiting hours for a person holds the next signal in the table (status `new`) until it finishes. A
+    `ticket_queue` automation runs one at a time per ticket instead: a run waiting for a person to approve a
+    change to one ticket holds back only that ticket's next signal, and other tickets are still triaged, up to
+    TICKET_RUNS_IN_FLIGHT runs at once. Nothing starts while the scanner schedule is paused (a manual
+    trigger of a paused schedule still runs this function).
     """
     started: list[str] = []
     io.ensure_tables()  # idempotent: the worker does not depend on init or halt having made them
@@ -740,12 +743,28 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
         return started
     add_schedule_ticks(rt, io, now or datetime.now(timezone.utc), say)
     add_ticket_signals(rt, io, say)
-    in_flight = {run.automation for run in io.runs()}
+    in_flight: dict[str, set[str]] = {}
+    runs_of: dict[str, int] = {}
+    for run in io.runs():
+        in_flight.setdefault(run.automation, set()).add(getattr(run, "entity", ""))
+        runs_of[run.automation] = runs_of.get(run.automation, 0) + 1
     for name in sorted(rt.settings):
-        if name in in_flight:
+        waiting = io.new_signals(name)
+        if _per_ticket(rt, name):
+            busy = in_flight.get(name, set())
+            if runs_of.get(name, 0) >= TICKET_RUNS_IN_FLIGHT:
+                if waiting:
+                    say(f"archi_ops_scan: {name} has {runs_of[name]} runs in progress (the most at once); "
+                        "its next signal waits")
+                continue
+            held = [s for s in waiting if s["entity"] in busy]
+            waiting = [s for s in waiting if s["entity"] not in busy]
+            if held and not waiting:
+                say(f"archi_ops_scan: {name}: {len(held)} signal(s) wait for a run in progress on the same ticket")
+        elif name in in_flight:
             say(f"archi_ops_scan: {name} has a run in progress; its next signal waits")
             continue
-        for s in io.new_signals(name)[:1]:
+        for s in waiting[:1]:
             try:
                 run_id = make_run_id(name, s["id"], s["attempt"])
             except ValueError as exc:
@@ -757,6 +776,21 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
             started.append(run_id)
             say(f"archi_ops_scan: started {run_id}")
     return started
+
+
+#: the most runs a ticket_queue automation has in flight at once (each waits on its own ticket)
+TICKET_RUNS_IN_FLIGHT = 5
+
+
+def _per_ticket(rt: RuntimeConfig, name: str) -> bool:
+    """Whether `name` runs one at a time per ticket (a `ticket_queue` trigger) rather than one at a time."""
+    load = getattr(rt, "automation", None)
+    if load is None:
+        return False
+    try:
+        return (load(name).trigger or {}).get("type") == "ticket_queue"
+    except Exception:  # an unreadable automation file: keep the safe default, one at a time
+        return False
 
 
 @deployment_scheduled(SCANNER, default_cron="*/1 * * * *", automatic_backfill=False, guard_body=False)

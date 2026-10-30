@@ -22,8 +22,16 @@ What it proposes depends on the run's level:
             capped (a draft never runs at L2). Either action runs only after a person approves it.
 
 An L2 action needs the system's API (`systems.<system>.url` and the names of its credential variables);
-without it the run drafts and the summary says why. The proposal's payload carries the endpoint, so the
-person approving sees exactly where the change goes. The confidence is a heuristic (how much of the note
+without it the run drafts and the summary says why. The proposal's payload carries the endpoint and the
+ticket's link, so the person approving sees exactly where the change goes. It proposes no change, and drafts
+instead, when:
+
+    the ticket's link is not under the endpoint (`systems.<system>.site`, else `.url`): the ticket was read
+        from another server than the one the instance writes to (two JIRA servers can share a key);
+    the same key is on more than one server: which ticket the signal meant cannot be told;
+    a person already rejected the same change for this ticket (the context's `rejected`).
+
+The note written on the ticket names related tickets by their keys, never by graph node ids. The confidence is a heuristic (how much of the note
 the related tickets agree on), not a calibrated probability.
 
 ops.yaml:
@@ -39,6 +47,7 @@ ops.yaml:
           systems:
             redmine:
               url: https://redmine.example.org
+              # site: https://redmine.example.org   # ticket links root, when the API URL is a proxy
               token_env: REDMINE_API_KEY
               triaged_status: In Progress
               triage_from: [New]
@@ -53,10 +62,11 @@ from collections import Counter
 from typing import Any, Mapping, Optional
 
 from archi.ops.proposers import Proposed, ProposeRequest, ProposerError
+from archi.tools.tickets import under
 from archi.triage.tickets import ASSIGN_FIELDS
 
 DEFAULT_TRIAGE_FROM = ("new", "open", "to do", "backlog")
-ENDPOINT_KEYS = ("url", "token_env", "user_env", "password_env")
+ENDPOINT_KEYS = ("url", "site", "token_env", "user_env", "password_env")
 
 
 class _Cites:
@@ -172,31 +182,61 @@ class TriageProposer:
         }
         if request.level < 2:
             return Proposed(draft, cost=0.0)
-        return Proposed(self.l2(ticket, draft, assignee if agreed else "", as_ids, cite), cost=0.0)
+        keys = {r["node_id"]: f"{r['system']} {r['key']}" for r in related}
+        return Proposed(self.l2(ticket, draft, assignee if agreed else "", [keys.get(n, n) for n in as_ids], ctx),
+                        cost=0.0)
 
-    def l2(self, ticket: Mapping[str, Any], draft: dict, assignee: str, as_ids: list[str], cite: _Cites) -> dict:
-        """The L2 proposal: an assignment, a status change, or the draft (recorded as capped)."""
+    def l2(self, ticket: Mapping[str, Any], draft: dict, assignee: str, by: list[str], ctx: Mapping[str, Any]) -> dict:
+        """The L2 proposal: an assignment, a status change, or the draft (recorded as capped). `by` names the
+        related tickets that agree on the assignee, as `<system> <key>`."""
         system, key = ticket["system"], ticket["key"]
         config = self.system_config(system)
         endpoint = _endpoint(config)
+
+        def no_action(why: str) -> dict:
+            return {**draft, "summary": f"{draft['summary']}; no L2 action: {why}"}
+
         if endpoint is None:
-            return {**draft, "summary": f"{draft['summary']}; no L2 action: proposer.systems.{system}.url is not set"}
-        base = {"system": system, "ticket": key, "endpoint": endpoint}
+            return no_action(f"proposer.systems.{system}.url is not set")
+        sites = [s for s in ctx.get("sites") or () if s]
+        if len(set(sites)) > 1:
+            return no_action(f"the key {key} is on more than one {system} server ({', '.join(sorted(set(sites)))})")
+        root = endpoint.get("site") or endpoint["url"]
+        if not ticket.get("url") or not under(ticket["url"], root):
+            return no_action(f"the ticket's link ({ticket.get('url') or 'none'}) is not under {root}, the server "
+                             f"proposer.systems.{system} writes to")
+        base = {"system": system, "ticket": key, "ticket_url": ticket["url"], "endpoint": endpoint}
         if ticket.get("table"):
             base["table"] = ticket["table"]
+        rejected = list(ctx.get("rejected") or ())
+
+        def was_rejected(action_class: str, field: str, value: str) -> Optional[str]:
+            for r in rejected:
+                if r["action_class"] == action_class and str((r["payload"] or {}).get(field) or "").casefold() == \
+                        value.casefold():
+                    return r["proposal"]
+            return None
+
         field = ASSIGN_FIELDS[system]
         current = ticket["group"] if field == "assignment_group" else ticket["assignee"]
+        skipped = ""
         if assignee and not current:
-            note = (f"Assigned by the ticket-triage automation: {len(as_ids)} related tickets went to {assignee} "
-                    f"({', '.join(as_ids)}).")
-            return {**draft,
-                    "summary": f"{draft['summary']}; proposes: set {field} of {system} {key} to {assignee}",
-                    "action_class": "assign_ticket",
-                    "payload": {**base, "field": field, "value": assignee, "expected": current, "note": note},
-                    "rollback": f"Set the {field} of {system} {key} back to unassigned."}
+            before = was_rejected("assign_ticket", "value", assignee)
+            if before is None:
+                note = (f"Assigned by the ticket-triage automation: {len(by)} related tickets went to {assignee} "
+                        f"({', '.join(by)}).")
+                return {**draft,
+                        "summary": f"{draft['summary']}; proposes: set {field} of {system} {key} to {assignee}",
+                        "action_class": "assign_ticket",
+                        "payload": {**base, "field": field, "value": assignee, "expected": current, "note": note},
+                        "rollback": f"Set the {field} of {system} {key} back to unassigned."}
+            skipped = f"a person rejected assigning it to {assignee} before ({before}); "
         target = str(config.get("triaged_status") or "")
         from_statuses = {s.lower() for s in (config.get("triage_from") or DEFAULT_TRIAGE_FROM)}
         if target and ticket["status"] != target and ticket["status"].lower() in from_statuses:
+            before = was_rejected("set_ticket_status", "status", target)
+            if before is not None:
+                return no_action(f"{skipped}a person rejected moving it to {target} before ({before})")
             note = (f"Triaged by the ticket-triage automation: category {draft['payload']['category'] or 'unknown'}, "
                     f"likely component {draft['payload']['component'] or 'unknown'}.")
             return {**draft,
@@ -204,7 +244,7 @@ class TriageProposer:
                     "action_class": "set_ticket_status",
                     "payload": {**base, "status": target, "expected_status": ticket["status"], "note": note},
                     "rollback": f"Set the status of {system} {key} back to {ticket['status']}."}
-        return {**draft, "summary": f"{draft['summary']}; no L2 action: nothing to assign or move"}
+        return no_action(f"{skipped}nothing to assign or move" if skipped else "nothing to assign or move")
 
 
 def build(config: Mapping[str, Any], runtime: Any) -> TriageProposer:
