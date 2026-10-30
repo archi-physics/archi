@@ -1,0 +1,31 @@
+pact_version: 5
+id: cern-team-docs-superseded
+title: Mark the old cern-team quickstart and demo pages superseded
+tier: 2
+why: >-
+  docs/cern-team-quickstart.md and docs/cern-team-demo.md describe installing
+  cern-team as it was before the packs split, and read as current install
+  instructions (#859). The supported path is docs/docs/quickstart.md, which
+  the nightly test checks. Deleting them would break links from the docs
+  site (footguns, ADR reference, commands page), a test that reads the
+  quickstart's code-text section, about ten PACT affected_code lists, and
+  the archived w2/w6 evidence that cites the demo as its runbook. So both
+  stay, as reference, with a banner.
+affected_code:
+- docs/cern-team-quickstart.md
+- docs/cern-team-demo.md
+- bundles/cern-team/README.md
+requirements:
+- id: req.cern-team-docs-superseded.banner
+  statement: >-
+    Each page opens with "Superseded. Do not install from this page." and a
+    link to docs/docs/quickstart.md; neither page says its commands are
+    current. The cern-team bundle README names docs/docs/quickstart.md as the
+    supported path. The demo page names no host, personal path or dev-host
+    port.
+tasks:
+- id: task.cern-team-docs-superseded.banner
+  requirement: req.cern-team-docs-superseded.banner
+  verification: >-
+    head of both pages shows the banner; the links resolve to existing
+    files; python/tests/test_bundle_code_text.py and the docs tests pass.
