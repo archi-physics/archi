@@ -111,7 +111,8 @@ def add_parser(sub, roots) -> None:
     a.add_argument("--model-price", metavar="IN/OUT[/CACHED]",
                    help="the model's price in dollars per million input/output[/cached input] tokens (required)")
     a.add_argument("--max-output-tokens", type=int, default=16000,
-                   help="max_completion_tokens per agent call, also the spend guard's output bound (default 16000)")
+                   help="max_completion_tokens per agent call (max_output_tokens on the Responses API), also the "
+                        "spend guard's output bound (default 16000)")
     a.add_argument("--max-turns", type=int, default=30, help="model turns per try (default 30)")
     a.add_argument("--max-tool-calls", type=int, default=200, help="tool calls per try (default 200)")
     a.add_argument("--try-seconds", type=float, default=900.0, help="wall time per try (default 900)")

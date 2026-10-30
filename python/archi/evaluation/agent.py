@@ -91,7 +91,8 @@ class ChatReply:
 
 def assistant_message(reply: ChatReply) -> dict:
     """The chat-format assistant message for a reply with tool calls, as the next request sends it back.
-    A Responses reply also carries its output items, which `OpenAIResponses` sends back verbatim."""
+    A Responses reply also carries its output items, which `OpenAIResponses` sends back verbatim. The
+    spend guard sizes these messages, items and tool_calls both, so its input bound errs high, never low."""
     message: dict[str, Any] = {
         "role": "assistant",
         "content": reply.content,
@@ -337,7 +338,10 @@ def responses_input(messages: list[dict]) -> list[dict]:
             items.append({"type": "function_call_output", "call_id": str(message.get("tool_call_id") or ""),
                           "output": message.get("content") or ""})
         elif role == "assistant" and message.get("output_items"):
-            items.extend(dict(item) for item in message["output_items"])
+            # Nothing is stored at OpenAI, so a reasoning item without its encrypted content is only a
+            # dangling id the endpoint cannot look up: leave it out.
+            items.extend(dict(item) for item in message["output_items"]
+                         if item.get("type") != "reasoning" or item.get("encrypted_content"))
         elif role == "assistant":
             if message.get("content"):
                 items.append({"role": "assistant", "content": message["content"]})
@@ -374,7 +378,10 @@ class OpenAIResponses(OpenAIChat):
         return f"OpenAIResponses({self.base_url!r}, {self.name!r})"
 
     def complete(self, messages: list[dict], tools: list[dict]) -> ChatReply:
-        body: dict[str, Any] = {"model": self.name, "input": responses_input(messages), "store": False}
+        # With store false the reasoning comes back encrypted for the next turn; `include` asks for it
+        # explicitly, which OpenAI accepts though recent models return it unasked.
+        body: dict[str, Any] = {"model": self.name, "input": responses_input(messages), "store": False,
+                                "include": ["reasoning.encrypted_content"]}
         if self.temperature is not None and is_local_url(self.base_url):
             body["temperature"] = self.temperature
         if tools:
@@ -401,11 +408,15 @@ class OpenAIResponses(OpenAIChat):
             error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
             raise ModelError(f"{self.base_url}/responses: the response failed: "
                              f"{error.get('message') or response.text[:300]} ({error.get('code') or 'no code'})",
-                             status=500 if error.get("code") == "server_error" else None, sent=True)
-        text, calls = [], []
+                             status={"server_error": 500, "rate_limit_exceeded": 429}.get(error.get("code")),
+                             sent=True)
+        text, calls, kept = [], [], []
         for i, item in enumerate(output):
             if not isinstance(item, dict):
                 continue
+            if item.get("type") == "function_call" and item.get("status") in ("in_progress", "incomplete"):
+                continue  # cut off mid-call (max_output_tokens): its arguments are partial; never run or resend it
+            kept.append(dict(item))
             if item.get("type") == "message":
                 for part in item.get("content") or []:
                     if isinstance(part, dict) and part.get("type") == "output_text":
@@ -443,7 +454,7 @@ class OpenAIResponses(OpenAIChat):
                               if isinstance(output_details, dict) else 0),
             finish_reason=finish,
             usage_reported="input_tokens" in usage or "output_tokens" in usage,
-            output_items=tuple(dict(item) for item in output if isinstance(item, dict)) if calls else (),
+            output_items=tuple(kept) if calls else (),
         )
 
 

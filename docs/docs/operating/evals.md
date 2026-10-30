@@ -388,10 +388,10 @@ archi eval --context --questions /path/to/operator-questions.yaml \
 | `--reasoning-effort E` | Sent with each agent call. |
 | `--model-api auto\|chat\|responses` | The API the agent calls use. `auto` (the default) uses OpenAI's Responses API (`/responses`) for `api.openai.com` and `/chat/completions` for anything else, such as a local Ollama. Some OpenAI models take function tools with a reasoning effort only on `/responses`. Nothing is stored at OpenAI (`store: false`): each request sends the whole conversation back, with the encrypted reasoning of earlier turns. The ledger counts tokens the same way for both APIs, cached and reasoning tokens included, so `--cap` holds for both. |
 | `--max-turns`, `--max-tool-calls`, `--try-seconds` | Caps per try: 30 model turns, 200 tool calls, 900 s by default. A call is not started with under 60 s of the try left. |
-| `--max-output-tokens N` | `max_completion_tokens` per agent call (default 16000); also the spend guard's bound. |
+| `--max-output-tokens N` | `max_completion_tokens` per agent call (`max_output_tokens` on the Responses API; default 16000); also the spend guard's bound. |
 | `--cap DOLLARS` | The spend cap for the invocation, judge included and every question set together. **Required:** there is no default. |
 | `--judge` | Grade answers with a judge model. **Off by default.** |
-| `--judge-model`, `--judge-url`, `--judge-reasoning-effort`, `--judge-key-env`, `--judge-price`, `--judge-max-output-tokens` | The judge: any OpenAI-compatible endpoint (default `https://api.openai.com/v1`, reasoning `high`, key file path in `ARCHI_EVAL_JUDGE_KEY_FILE`, at most 16000 output tokens per call). |
+| `--judge-model`, `--judge-url`, `--judge-reasoning-effort`, `--judge-key-env`, `--judge-price`, `--judge-max-output-tokens` | The judge: any OpenAI-compatible endpoint (default `https://api.openai.com/v1`, reasoning `high`, key file path in `ARCHI_EVAL_JUDGE_KEY_FILE`, at most 16000 output tokens per call). The judge sends no tools and always uses `/chat/completions`; `--model-api` does not apply to it. |
 | `--judge-passes 1\|2` | Judge each answer once or twice; the score is the mean. |
 
 Before any model call, the run refuses (exit 2) and names the reason when:

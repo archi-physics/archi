@@ -33,11 +33,15 @@ requirements:
   statement: 'With `--model-api responses`, or with the default `auto` and a model URL whose
     host is api.openai.com, every agent-arm model call is POST {model-url}/responses with model,
     input, tools as flat function tools (strict false), reasoning {effort} from --reasoning-effort
-    (none with --no-think), max_output_tokens from --max-output-tokens and store false; no
-    temperature or seed goes to a remote endpoint. Each request carries the system message,
-    the question, and for every earlier turn its output items exactly as returned (reasoning
-    with encrypted_content, function_call) followed by a function_call_output per call id.
-    The reply''s function_call items become tool calls and its output_text the answer. Usage
+    (none with --no-think), max_output_tokens from --max-output-tokens, store false and
+    include ["reasoning.encrypted_content"]; no temperature or seed goes to a remote endpoint.
+    Each request carries the system message, the question, and for every earlier turn its
+    output items exactly as returned (reasoning with encrypted_content, function_call; a
+    reasoning item without encrypted content is left out) followed by a function_call_output
+    per call id. The reply''s complete function_call items become tool calls and its
+    output_text the answer; a function_call cut off mid-call (status incomplete or
+    in_progress) is neither run nor sent back. A 200 reply with status failed is retried for
+    code server_error or rate_limit_exceeded, as a 5xx or 429 is. Usage
     maps input_tokens, input_tokens_details.cached_tokens, output_tokens (reasoning included)
     and output_tokens_details.reasoning_tokens onto the ledger''s prompt, cached, completion
     and reasoning tokens, priced as before, so --cap stops a run before a call that could

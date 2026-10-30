@@ -145,6 +145,7 @@ def test_a_tool_call_round_trips_with_its_reasoning_sent_back(tmp_path, server):
     (url1, first, headers), (url2, second, _) = fake.requests
     assert url1 == url2 == OPENAI + "/responses" and headers["Authorization"] == "Bearer sk-test"
     assert first["model"] == "gpt-x" and first["store"] is False
+    assert first["include"] == ["reasoning.encrypted_content"]  # nothing is stored, so ask for it back
     assert first["reasoning"] == {"effort": "medium"} and first["max_output_tokens"] == 1000
     # none of the chat/completions fields, and no sampling fields for a remote reasoning model
     assert not {"messages", "reasoning_effort", "max_completion_tokens", "temperature", "seed", "stream"} & set(first)
@@ -158,6 +159,40 @@ def test_a_tool_call_round_trips_with_its_reasoning_sent_back(tmp_path, server):
     assert second["input"][2:4] == [REASONING, function_call("search", {"query": "transfer failures"})]
     assert second["input"][4:] == [{"type": "function_call_output", "call_id": "call_1",
                                     "output": search_rows("jira:DEMO-1")}]
+
+
+def test_a_reasoning_item_without_encrypted_content_is_not_sent_back():
+    bare = {"type": "reasoning", "id": "rs_2", "summary": []}
+    call = function_call("search", {"query": "x"})
+    items = agent_mod.responses_input([{"role": "assistant", "content": "", "tool_calls": [],
+                                        "output_items": [bare, REASONING, call]}])
+    assert items == [REASONING, call]
+
+
+def test_a_call_cut_off_by_max_output_tokens_is_never_run_or_sent_back(tmp_path, server):
+    partial = dict(function_call("search", {"query": "x"}, "c2"), status="incomplete", arguments='{"que')
+
+    def script(url, body, n):
+        if n == 1:
+            return 200, response(REASONING, function_call("search", {"query": "transfer failures"}), partial,
+                                 status="incomplete", incomplete="max_output_tokens")
+        return 200, response(message("Stuck transfers.\nSources: jira:DEMO-1"))
+
+    fake = server(script)
+    tools = FakeMcp({"transfer failures": search_rows("jira:DEMO-1")})
+    result = one_try(luna(tmp_path), tools)
+    assert result.status == ANSWERED and [c[0] for c in tools.calls] == ["search"]
+    second = fake.requests[1][1]["input"]
+    assert partial not in second and [i.get("call_id") for i in second if i.get("type") == "function_call_output"] \
+        == ["call_1"]
+
+
+def test_a_cut_off_lone_call_is_the_output_limit_failure(tmp_path, server):
+    partial = dict(function_call("search", {"query": "x"}), status="incomplete", arguments='{"que')
+    server(lambda url, body, n: (200, response(REASONING, partial, status="incomplete", incomplete="max_output_tokens")))
+    tools = FakeMcp()
+    result = one_try(luna(tmp_path), tools)
+    assert result.status == ERROR and result.reason == OUTPUT_LIMIT and tools.calls == []
 
 
 def test_a_chat_format_assistant_turn_becomes_input_items():
@@ -242,6 +277,28 @@ def test_a_response_that_failed_is_an_error_with_its_reason(tmp_path, server):
     server(lambda url, body, n: (200, failed))
     result = one_try(luna(tmp_path), FakeMcp())
     assert result.status == ERROR and "The model had a problem." in result.reason and "server_error" in result.reason
+
+
+def test_a_rate_limited_failed_response_is_retried(tmp_path, server):
+    def script(url, body, n):
+        if n == 1:
+            failed = response(status="failed", usage=None)
+            failed["error"] = {"code": "rate_limit_exceeded", "message": "Slow down."}
+            return 200, failed
+        return 200, response(message("hi"))
+
+    fake = server(script)
+    result = one_try(luna(tmp_path), FakeMcp())
+    assert result.status == ANSWERED and len(fake.requests) == 2
+    assert [r["outcome"] for r in rows(tmp_path / "ledger.jsonl")] == ["failed", "answered"]
+
+
+def test_a_context_length_error_on_responses_ends_the_try_not_the_run(tmp_path, server):
+    error = {"error": {"message": "Your input exceeds the context window of this model.",
+                       "type": "invalid_request_error", "param": "input", "code": "context_length_exceeded"}}
+    server(lambda url, body, n: (400, error))
+    result = one_try(luna(tmp_path), FakeMcp())  # a FatalModelError would raise here
+    assert result.status == ERROR and "context window" in result.reason
 
 
 class NotJson(Answer):
