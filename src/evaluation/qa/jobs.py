@@ -325,6 +325,12 @@ class EvaluationJobManager:
                 os.killpg(process_group_id, 0)
             except ProcessLookupError:
                 return
+            except PermissionError:
+                # macOS reports EPERM instead of ESRCH while the last members of a
+                # terminated group are exiting. Once the leader has been reaped,
+                # the group is gone; otherwise keep polling until the deadline.
+                if process.poll() is not None:
+                    return
             time.sleep(PROCESS_GROUP_POLL_SECONDS)
 
         try:
