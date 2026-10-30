@@ -414,10 +414,18 @@ def _prepare_group(group: GroupConfig, tmp_dir: str | Path | None) -> PreparedGr
                 "pages_with_fallback_runs": 0,
                 "pages_bytes_dropped": 0,
                 "fallback_bytes": {"cp1252": 0, "latin-1": 0},
+                "renamed_files": [],
             }
-        for rel, path in text_files:
+        for rel, path, shown in text_files:
             data = path.read_bytes()
-            if empty_files is not None and is_blank_topic(data):
+            blank = empty_files is not None and is_blank_topic(data)
+            if shown is not None and text_stats is not None:
+                # An empty topic is listed too, though it is not archived.
+                text_stats["renamed_files"].append(
+                    {"source_name": shown, "archive_name": rel, "archived": not blank}
+                )
+            if blank:
+                assert empty_files is not None
                 empty_files.append(rel)
                 continue
             page = _read_text(group.name, rel, path, fallback=fallback, data=data)
@@ -513,17 +521,19 @@ def _safe_file(group: str, root: Path, rel: str) -> Path:
     """``root/rel`` if it is a regular file reached without links or dot names."""
     parts = PurePosixPath(rel).parts
     if any(part.startswith(".") for part in parts):
-        raise GroupRefused(group, f"{rel}: hidden path (a name starts with '.')")
+        raise GroupRefused(
+            group, f"{_shown_name(rel)}: hidden path (a name starts with '.')"
+        )
     current = root
     for part in parts:
         current = current / part
         if current.is_symlink():
-            raise GroupRefused(group, f"{rel}: symbolic link")
+            raise GroupRefused(group, f"{_shown_name(rel)}: symbolic link")
     resolved = current.resolve(strict=True)
     if not resolved.is_relative_to(root):
-        raise GroupRefused(group, f"{rel}: resolves outside {root}")
+        raise GroupRefused(group, f"{_shown_name(rel)}: resolves outside {root}")
     if not resolved.is_file():
-        raise GroupRefused(group, f"{rel}: not a regular file")
+        raise GroupRefused(group, f"{_shown_name(rel)}: not a regular file")
     return resolved
 
 
@@ -539,9 +549,11 @@ def _check_tree(group: str, root: Path) -> list[str]:
             full = Path(dirpath) / name
             rel = full.relative_to(root).as_posix()
             if name.startswith("."):
-                raise GroupRefused(group, f"{rel}: hidden path (a name starts with '.')")
+                raise GroupRefused(
+                    group, f"{_shown_name(rel)}: hidden path (a name starts with '.')"
+                )
             if full.is_symlink():
-                raise GroupRefused(group, f"{rel}: symbolic link")
+                raise GroupRefused(group, f"{_shown_name(rel)}: symbolic link")
         files.extend(
             (Path(dirpath) / name).relative_to(root).as_posix() for name in filenames
         )
@@ -770,7 +782,8 @@ def _dump_json(payload: Any) -> bytes:
     ).encode("utf-8")
 
 
-def _text_files(spec: GroupSpec, source: Path) -> list[tuple[str, Path]]:
+def _text_files(spec: GroupSpec, source: Path) -> list[tuple[str, Path, Optional[str]]]:
+    """``(archive name, path, source name if renamed)`` for each text file."""
     assert spec.text is not None
     if spec.text.recursive:
         names = [
@@ -783,7 +796,76 @@ def _text_files(spec: GroupSpec, source: Path) -> list[tuple[str, Path]]:
         if not (candidate.exists() or candidate.is_symlink()):
             raise GroupRefused(spec.name, f"{spec.text.pattern} is missing in {source}")
         names = [spec.text.pattern]
-    return [(rel, _safe_file(spec.name, source, rel)) for rel in sorted(names)]
+    files: list[tuple[str, Path, Optional[str]]] = []
+    seen: dict[str, str] = {}
+    folders: dict[str, str] = {}
+    for rel in sorted(names):
+        path = _safe_file(spec.name, source, rel)
+        archive_rel, renamed = _archive_name(
+            spec.name, rel, spec.text.fallback_invalid_bytes
+        )
+        parents = [p.as_posix() for p in PurePosixPath(archive_rel).parents][:-1]
+        clash = (
+            seen.get(archive_rel)
+            or folders.get(archive_rel)
+            or next((seen[p] for p in parents if p in seen), None)
+        )
+        if clash is not None:
+            raise GroupRefused(
+                spec.name,
+                f"file names {_shown_name(clash)} and {_shown_name(rel)} "
+                f"collide as {archive_rel} once their invalid bytes are decoded",
+            )
+        seen[archive_rel] = rel
+        for parent in parents:
+            folders.setdefault(parent, rel)
+        files.append((archive_rel, path, _shown_name(rel) if renamed else None))
+    return files
+
+
+def _archive_name(group: str, rel: str, fallback: bool) -> tuple[str, bool]:
+    """``rel`` as valid Unicode, and whether its bytes had to be decoded.
+
+    Python reads a file name that is not UTF-8 with ``surrogateescape``: each
+    invalid byte becomes one lone surrogate (U+DC80 to U+DCFF), which UTF-8
+    cannot store, so the reader (and the archive) would fail on it. With
+    ``fallback`` each such byte becomes its cp1252 (else Latin-1) character,
+    as in page text (a TWiki ``DsTotauTo`` + ``0xB5`` x3 reads as ``µµµ``);
+    without it the group is refused. It is refused too when a byte would
+    become a control or invisible character (0x81, 0xA0, 0xAD ...), or when
+    the name with its invalid bytes left out holds an address (``jdoe`` +
+    0x93 + ``@cern.ch`` would otherwise be stored as ``jdoe“@cern.ch``).
+    """
+    if not _SURROGATE_RE.search(rel):
+        return rel, False
+    shown = _shown_name(rel)
+    if not fallback:
+        raise GroupRefused(group, f"file name {shown} is not valid UTF-8")
+    chars = []
+    for char in rel:
+        if "\udc80" <= char <= "\udcff":
+            char = _fallback_char(ord(char) - 0xDC00)[0]
+            if not char.isprintable() or _HIDDEN_RE.match(char):
+                raise GroupRefused(
+                    group,
+                    f"file name {shown}: an invalid byte would become the "
+                    f"hidden character U+{ord(char):04X}",
+                )
+        chars.append(char)
+    decoded = "".join(chars)
+    dropped = "".join(char for char in rel if not _SURROGATE_RE.match(char))
+    for label, reading in (
+        ("decoded", decoded),
+        ("with its invalid bytes left out", dropped),
+        ("as listed in the lock", shown),
+    ):
+        _check_string(group, f"file name {shown} ({label})", reading)
+    return decoded, True
+
+
+def _shown_name(rel: str) -> str:
+    """A file name as printable ASCII-safe text: invalid bytes as ``\\xNN``."""
+    return os.fsencode(rel).decode("utf-8", errors="backslashreplace")
 
 
 #: C0 controls other than tab, newline, vertical tab, form feed and carriage

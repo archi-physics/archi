@@ -41,8 +41,8 @@ What each command does:
 - `archi doctor` exits 0 when no check failed.
 - The last command prints the question, the record ids it cited and the
   source that wrote them.
-- The nightly build runs these same commands on an empty runner and fails if
-  the whole path takes longer than 15 minutes. A test keeps this page and
+- The nightly build runs these same commands on an empty runner and reports
+  how long the whole path took (the target is 15 minutes). A test keeps this page and
   that build in step.
 
 ## Where next

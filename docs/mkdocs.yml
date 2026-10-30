@@ -17,6 +17,7 @@ nav:
       - archi eval: operating/evals.md
       - Data persistence: operating/persistence.md
       - Upgrade and migration: operating/upgrade-and-migration.md
+      - Cutover runbook: operating/cutover.md
       - Footgun ledger: operating/footguns.md
   - Contributing a pack: contributing-a-pack.md
   - Library (generated): library/index.md

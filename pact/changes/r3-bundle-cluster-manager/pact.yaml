@@ -48,8 +48,8 @@ requirements:
     executed_test]'
 - id: req.r3-bundle-cluster-manager.bundle
   statement: 'bundles/cluster-manager depends on no CERN pack, defaults to docsite, tickets
-    and ops-record, ships ticket-triage as an automation pack, offers servicenow, slurm, htcondor,
-    git-code and node-health, and SubMIT is rebuilt from it.
+    and ops-record, offers servicenow, slurm, htcondor, git-code and node-health, and SubMIT is
+    rebuilt from it. The ticket-triage automation pack ships after 3.0 (board d405).
 
 
     Acceptance:
@@ -173,7 +173,48 @@ evidence:
     with its defaults and with every optional pack; cern-team and cms-comp-ops do too. The tickets pack is fed its
     Redmine fixture here; its JIRA path is covered by the unit run above, not by this install. The lab smoke run is
     evidenced in r3-bundle-evals, not here.'
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.bundle
+  status: pass
+  command: 'python -m archi.downloaders.slurm --cluster submit --since-days 1; archi init <name> --bundle cluster-manager
+    --without tickets --with slurm --runtime podman --answer docsite_urls=... (stopped in okg provision, finished with
+    archi.cli.init.provision, okg db role-passwords and the .env write, the steps init had left); python -m
+    archi.downloaders.static_docs --skip-gitlab --docsite-output <data root>/docsite/records.json --urls <22 public
+    pages>; okg ingest; okg run --once --apply; okg deployment lint; archi up; archi doctor --json; MCP search over 6
+    questions (on a dev host, okg 0.2.0 wheel, heavy jobs through heavy.sh)'
+  head: 6dd8f7a22735b9f40958b04ac12684e2e0fd7bd8
+  at: '2026-10-29T18:48:22+00:00'
+  note: 'acc.r3-bundle-cluster-manager.submit (#740): a new SubMIT instance was built from the cluster-manager bundle
+    beside the live v2 SubMIT deployment, which was not stopped, changed or replaced; the new instance uses its own
+    containers, database and loopback ports. Its archi source tree was checked file by file against head (787 files
+    and 84 symlinks identical, nothing extra). Packs: docsite and ops-record (bundle defaults) plus slurm. tickets, a
+    bundle default, is left out: no Redmine credential for the SubMIT tracker exists under the lab account, and the
+    tickets downloader takes an API key only, so #735 is not proven here. htcondor is left out because the pool
+    refuses condor_status from the build host. archi init did not finish on its own: its first okg provision died
+    when okg''s cache under the home directory hit the home quota; with the cache moved, the steps init had left
+    (archi''s own provision, role passwords, the .env) were run by a script that calls archi''s functions. The Slurm
+    snapshot came from read-only sinfo, scontrol and sacct; docsite holds 20 public SubMIT site pages (user guide, home and blog) plus
+    the Slurm and HTCondor manual roots. At publish (generation 2): 5,150 nodes and 10,123 edges; per source, slurm appended
+    5,082 nodes and 10,077 edges (5,000 jobs at the --max-jobs cap, 76 nodes, 4 partitions, 2 reservations) and docsite
+    68 nodes and 46 edges (22 pages, 46 chunks); no source failed. okg deployment lint (static; live checks skipped):
+    zero blockers. archi up exited 125 because graph-db and MCP were already running, but created chat-db and Open
+    WebUI; archi doctor then passed every check, with all four services healthy (before the ops runtime was turned on
+    for r3-ops-self-monitoring; instance-health later found okg-doctor failing, see that PACT). MCP search, no model,
+    6 SubMIT questions, top 10 rows each (rerun with titles on a later generation, same sources): all return rows with a source, but only 4 of 6 return relevant ones (the four
+    partitions; the backup and quota pages; the HTCondor manual and the SubMIT batch page; the one drained node ranked
+    first). For the GPU-request and node-drain how-tos only Slurm node records come back, outranking the
+    documentation. This row claims the rebuild, not answer quality. The chat site has no model wired, and the v2
+    Redmine and mailbox answer bots have no 3.0 equivalent (ticket-triage ships after 3.0, d405): the rebuild covers
+    chat and data. Found on the way (drafted for filing): the docsite refresh command writes <data root>/data/docsite/
+    while the pack reads <data root>/docsite/; archi up fails when graph-db and MCP are already running; init dies
+    when the home quota is full because okg caches under the home directory.'
 decisions:
+- digest: sha256:d4376f5386610ca8fde5023cf45f0f1aa3b7e30632d0609cb25c1141851626d6
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Board d405, Jason (2026-10-27 17:19Z): "Drop ticket-triage from 3.0: amend both requirements, ship it later". The bundle requirement no longer says it ships
+    ticket-triage; the pack (#746, branch claude/r3-ticket-triage, parked with its review findings on
+    #746) ships after 3.0.'
 - digest: sha256:a778c39f69df6d9a84a392d384691758b953294523aa51396742c8e12f2966fe
   reviewer: Jason Mohoney
   at: '2026-10-27'

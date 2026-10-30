@@ -1,0 +1,52 @@
+pact_version: 5
+id: runtime-database
+title: archi init declares the instance's database when the ops runtime is enabled
+tier: 1
+why: >-
+  An automation pack turns okg's runtime on. okg 0.2.0's lint then blocks the
+  deployment with deployment.runtime.database_undeclared until
+  postgres.database is declared, so the worker runs against a named database
+  rather than whatever OKG_DSN resolves to. okg install writes its own
+  postgres block, replacing any a profile carries, so no bundle can declare
+  it. Every instance that selects an automation pack (instance-health today,
+  ticket-triage later) was therefore lint-blocked. Found by the independent
+  review of the ticket-triage pack (#746), whose branch had made a test
+  expect the blocker instead of fixing it. Jason, 2026-10-27: fix the lint
+  blocker on its own and park ticket-triage.
+affected_code:
+- python/archi/cli/init.py
+- python/archi/cli/up.py
+- python/tests/cli/test_runtime_bootstrap.py
+- python/tests/test_bundle_cluster_manager.py
+requirements:
+- id: req.runtime-database.declared
+  statement: >-
+    When the rendered instance enables okg's runtime, archi init declares
+    postgres.database in deployment.yaml right after okg install, naming the
+    instance's own database (the one OKG_DSN names). It changes nothing when
+    the runtime is off, refuses rather than overwrites a different declared
+    database, and is idempotent. archi up does the same, so an instance made
+    before this fix is repaired. A profile with an automation pack then passes
+    okg's own lint with no blocker.
+tasks:
+- id: task.runtime-database.declare
+  requirement: req.runtime-database.declared
+  verification: >-
+    python/tests/cli/test_runtime_bootstrap.py (unit) and
+    python/tests/test_bundle_cluster_manager.py (okg's lint on a
+    cluster-manager profile with instance-health, before and after) pass.
+evidence:
+- kind: executed_test
+  requirement: req.runtime-database.declared
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests/cli/test_runtime_bootstrap.py
+    tests/test_bundle_cluster_manager.py tests/cli/test_init.py; python -m pytest tests (own git worktree on
+    a dev host, okg 0.2.0)
+  head: de1a34ec40832c369291c30c0d2eb9453b7fab34
+  at: '2026-10-27T16:35:08+00:00'
+  note: '67 targeted passed, among them the okg lint test (a cluster-manager profile with instance-health has
+    the deployment.runtime.database_undeclared blocker before declare_runtime_database and none after) and
+    the archi up repair test. Full suite 3617 passed, 28 skipped, 1 failed: the anonymizer 1.0 s timing test,
+    which fails the same way on archi_v3 on a loaded host. Not covered: archi add of an automation pack,
+    which does not turn the runtime on at all (separate gap).'
+decisions: []

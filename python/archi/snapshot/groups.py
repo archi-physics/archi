@@ -353,6 +353,26 @@ def _dbs(root: Path) -> Any:
     )
 
 
+# The cluster-manager caches (``${archi_data_root}/<name>/records.json``, see
+# connector-caches.md). Their readers skip a malformed item and then withhold
+# the completed scope, which the reader check refuses, so the identity rule is
+# only "an object". No schema: the records are kept whole (their downloaders
+# write only what the readers read, and the readers remove email addresses).
+
+
+def _cluster(module: str, cls: str, name: str, *, meta: bool = True) -> Callable[[Path], Any]:
+    def make(root: Path) -> Any:
+        import importlib
+
+        source = getattr(importlib.import_module(f"archi.sources.{module}"), cls)
+        kwargs: dict[str, Any] = {"records_path": f"data/{name}/records.json", "base": str(root)}
+        if meta:
+            kwargs["meta_path"] = f"data/{name}/meta.json"
+        return source(**kwargs)
+
+    return make
+
+
 # --- schemas -----------------------------------------------------------------
 
 _JIRA_PERSON = _keys("displayName", "name", "key")
@@ -794,6 +814,48 @@ GROUPS: dict[str, GroupSpec] = {
                         r"/[^/]+/[^/]+/[^/]+", "dataset_name", "dataset"
                     ),
                 ),
+            ),
+        ),
+        GroupSpec(
+            "tickets",
+            "data/tickets",
+            _cluster("tickets", "TicketSource", "tickets"),
+            json_files=(
+                JsonFile("records.json", "list", None, _require_text("key", "id")),
+                JsonFile("meta.json", "object", _keys("record_count"), required=False),
+            ),
+        ),
+        GroupSpec(
+            "servicenow",
+            "data/servicenow",
+            _cluster("servicenow", "ServiceNowSource", "servicenow"),
+            json_files=(
+                JsonFile("records.json", "list", None, _require_text("number")),
+                JsonFile("meta.json", "object", _keys("record_count"), required=False),
+            ),
+        ),
+        GroupSpec(
+            "node-health",
+            "data/node-health",
+            _cluster("node_health", "NodeHealthSource", "node-health", meta=False),
+            json_files=(JsonFile("records.json", "list", None, _require_text("node")),),
+        ),
+        GroupSpec(
+            "slurm",
+            "data/slurm",
+            _cluster("slurm", "SlurmSource", "slurm"),
+            json_files=(
+                JsonFile("records.json", "object", None, _require_dict),
+                JsonFile("meta.json", "object", _keys("record_count"), required=False),
+            ),
+        ),
+        GroupSpec(
+            "htcondor",
+            "data/htcondor",
+            _cluster("htcondor", "HTCondorSource", "htcondor"),
+            json_files=(
+                JsonFile("records.json", "object", None, _require_dict),
+                JsonFile("meta.json", "object", _keys("record_count"), required=False),
             ),
         ),
     )

@@ -13,7 +13,20 @@ affected_code:
 - python/archi/bundles/
 - python/archi/ops/
 - python/archi/evaluation/
+- python/archi/snapshot/groups.py
+- python/tests/snapshot/test_snapshot_builder.py
+- docs/cache-snapshot.md
 - python/archi/enrichment/
+- python/archi/cli/evaluate.py
+- python/archi/health/signals.py
+- python/tests/evaluation/
+- python/tests/ops/test_workflow.py
+- python/tests/ops/test_health_signals.py
+- docs/docs/operating/evals.md
+- docs/docs/reference/cli.md
+- docs/docs/reference/pack-format.md
+- docs/docs/context-layer.md
+- docs/docs/migration-from-v2.md
 requirements:
 - id: req.r3-context-quality.freshness
   statement: 'Every context pack declares max_staleness per source; archi doctor reports each
@@ -43,7 +56,18 @@ requirements:
     Acceptance:
 
     - acc.r3-context-quality.run: context eval on the comp-ops instance produces a report
-    with the baseline arm. [evidence: executed_test]'
+    with the baseline arm. [evidence: executed_test] Preconditions (board d406): the comp-ops
+    instance has the jira pack and git-code enabled, multi-repo git-code if the gold cites
+    several repositories (it does; #726, the comp-ops rebuild); and the drafted gold_sources
+    mapping for CompOps-42 has had one review by the person who built answer key v1.
+
+    - acc.r3-context-quality.raw-arm: a bash agent over the files the graph was built from,
+    scored on gold-evidence recall next to a graph-tool agent on the same model, caps and scorer,
+    with a spend ledger and a cap. [evidence: executed_test]
+
+    - acc.r3-context-quality.raw-arm-safety: fixture tests show the sandbox has no network, cannot
+    write to the corpus and holds no credential; the arm refuses to start without a cap, a corpus
+    digest and a resolved gold map. [evidence: pytest]'
 - id: req.r3-context-quality.gate
   statement: 'A context gate (sources, max staleness, minimum context-eval score, required
     invariants) can be evaluated against the current generation and returns pass, or fail
@@ -78,7 +102,112 @@ tasks:
 
     Test plan:
 
+    - comp-ops run [evidence: executed_test]
+
+
+    Fixture results so far (NOT the acceptance; the comp-ops run has not happened: it waits on access
+    and on the private operator set, boards d379 and d380, so the requirement stays unproven): at
+    6e94ae5c on submit75 (okg 0.2.0), python -m pytest python/tests/evaluation python/tests/ops/test_context_gate.py
+    python/tests/ops/test_health_signals.py python/tests/ops/test_workflow.py -q: 264 passed; python -m
+    pytest python/tests -q: 3611 passed, 28 skipped (2026-10-27T12:17:38+00:00). They prove, on a fake
+    MCP search tool and an invented fixture set, the eval mode itself: no model; okg JSON results; a
+    graph arm and a lexical baseline arm; recall@k, MRR, failed calls, the baseline delta over questions
+    both arms executed, the generation read, the question file''s hash and count; runs kept under
+    <data root>/eval/context/<bundle>/<UTC stamp>/ and written atomically. The baseline is the server''s
+    lexical index over chunks and attributes, not the raw documents; whether the requirement''s
+    "raw-document baseline" wording stands is a decision for Jason (board d398).
+
+
+    Jason, board d398 (2026-10-27): keep the wording and build the raw-document arm before 3.0, as
+    an agent with bash over the files the graph was built from. Tasks raw-corpus, raw-arm-harness
+    and raw-arm-scoring build it.'
+- id: task.r3-context-quality.raw-corpus
+  requirement: req.r3-context-quality.context-eval
+  verification: 'archi eval --raw-corpus: the instance''s enabled sources whose connector cache an
+    archi.snapshot group reads are packed with archi.snapshot (each checked with its reader, email
+    addresses removed) and unpacked one file per record to <data root>/eval/raw-corpus/<bundle>/<lock
+    sha>/ with README.md, MANIFEST.txt (path, sha256), keys.json (source and natural key -> path) and
+    corpus.json; every other source is left out with its reason. ops-record has no cache and an MCP
+    export could not be shown complete, so it is left out of both agent arms. The corpus digest is the
+    sha256 of MANIFEST.txt and goes in the report. TWiki keeps the pages the instance''s TWiki reader
+    keeps (its physics_filter, seed topics, skip patterns); git-code checkouts go in as their tracked
+    files at HEAD under git-repo/<repo>/ (emails removed, binaries and files over 1 MiB left out and
+    counted); the published generation is recorded beside the digest; symbolic links under records/
+    refuse the corpus; a coverage line names what is in and what is out, with why.
+
+
+    Test plan:
+
+    - python/tests/evaluation/test_raw_corpus.py [evidence: pytest]
+
+    - python/tests/snapshot/test_snapshot_builder.py (the five cluster-manager groups) [evidence: pytest]'
+- id: task.r3-context-quality.raw-arm-harness
+  requirement: req.r3-context-quality.context-eval
+  verification: 'archi eval --context --agents: agent-bash (one bash tool in bubblewrap: no network,
+    corpus read-only at /corpus, tmpfs HOME, empty environment, 120 s and 64 KiB per command) and
+    agent-graph (the instance''s MCP tools), one OpenAI-compatible model, one prompt but for the
+    paragraph on where knowledge lives, caps of 30 turns, 200 tool calls and 900 s per try, k tries.
+    Every model call, answered or not, is written to <data root>/eval/context/<bundle>/<stamp>/ledger.jsonl
+    (a call that failed after it was sent, or a reply without usage, is charged at its bound); one
+    ledger and one cap per invocation; the run refuses to start without a cap (--cap has no default), a plausible price, a
+    sandbox that runs (bwrap present, `true` and a pipeline pass) or a corpus that matches its digest,
+    prints the one-call bound before the first call, starts no call with under 60 s of the try left,
+    and stops before a call that could cross the cap. Sandbox limits per process: 256 processes (in
+    bwrap''s user namespace), 4 GiB address space, 256 MiB per file, CPU time; where the user''s systemd
+    manager runs, a systemd-run --user scope per command also caps the whole command (tmpfs included) at
+    4 GiB, no swap and 256 tasks, and the report records limit_scope (command or process, with why); a scope that stops starting
+    mid-run aborts the run. 429 and 5xx retried at
+    most three times; another 4xx aborts the run (exit 2); error tries are listed and left out of the
+    averages; no temperature or seed to a remote endpoint.
+
+    Fixture results, not acceptance evidence (no row, so req.context-eval stays unproven until the
+    comp-ops run; orchestrator decision on #698): at 84752d6d on submit75 (okg 0.2.0, bubblewrap 0.6.3,
+    ARCHI_REQUIRE_BWRAP=1, so no sandbox test could skip), test_raw_sandbox.py, test_raw_arm.py,
+    test_raw_corpus.py and test_draft_gold_sources.py gave 128 passed, none skipped; python/tests/evaluation
+    and python/tests/snapshot 673 passed. They show no network inside the sandbox, a read-only /corpus,
+    a tmpfs HOME, no key visible inside, the time, output, memory, process and file-size limits (a 3 GiB
+    allocation and a fork bomb stopped), and the refusals (no bwrap, a sandbox that cannot run true, no
+    cap, a tiny price, no price, a stale corpus, a symlink in it, an unresolved gold id). No model was
+    called. Full suite python -m pytest python/tests -q: 3745 passed, 28 skipped, 1 failed (the
+    anonymizer linear-time test, known to fail under load), 2026-10-27T17:47:49+00:00. CI skips the
+    sandbox tests (no bwrap there); a host that must prove the sandbox sets ARCHI_REQUIRE_BWRAP=1.
+
+
+    Test plan:
+
+    - python/tests/evaluation/test_raw_sandbox.py [evidence: pytest]
+
+    - python/tests/evaluation/test_raw_arm.py [evidence: pytest]
+
     - comp-ops run [evidence: executed_test]'
+- id: task.r3-context-quality.raw-arm-scoring
+  requirement: req.r3-context-quality.context-eval
+  verification: 'Gold ids resolved to corpus files through MCP inspect (source and node id against
+    keys.json) or a question''s gold_sources; an id that does not resolve refuses the run by name and
+    is never a 0; a gold record from a source left out of the corpus is unavailable in both arms.
+    A gold record is credited only when the tool responses the model saw show two of its field values or
+    lines, or its only one (a six-word run, or a whole value of four or five words; shorter values and
+    title fields such as summary or title never count), after dropping every fingerprint a second corpus file also holds (a record left with none is
+    unavailable); recall, MRR and the answer score compare the arms only on the (question, try) pairs
+    every arm finished without an error, and the arms alternate going first. Responses include the visible part of cut
+    output and non-zero exits; its path, key or id alone lists it, uncredited and counted.
+    Evidence recall per try over the available gold (never tool inputs or the answer), MRR from the
+    first gold record read among the records met, the same scorer for both arms; an answer judge
+    behind --judge (off by default, reasoning high, max_completion_tokens) that runs only where answer
+    keys exist, else the report says "no answer keys". Provenance sources match as okg writes them
+    (cms-physics.twiki-eos finds twiki_eos). Questions may carry atoms with answer_source; an atom only
+    a live system answers (live_rucio, live_dbs, monitoring) is unavailable in both arms and listed, a
+    mixed one counts through its file source. python -m archi.evaluation.draft_gold_sources drafts
+    gold_sources from a set''s sources, verification evidence and atoms, for review (private; refused
+    inside this repository). python -m archi.evaluation.gold_check samples 20 gold ids at two
+    generations.
+
+
+    Test plan:
+
+    - python/tests/evaluation/test_raw_arm.py [evidence: pytest]
+
+    - python/tests/evaluation/test_draft_gold_sources.py [evidence: pytest]'
 - id: task.r3-context-quality.gate
   requirement: req.r3-context-quality.gate
   verification: 'Context gate evaluator.
@@ -136,4 +265,38 @@ evidence:
     Only True or a passing string counts as an invariant pass (not 1, not a list). A malformed spec is
     refused. Passing and failing fixtures covered. The gate is a library; its first caller is the
     automation runtime (r3-ops-runtime).'
-decisions: []
+- kind: executed_test
+  requirement: req.r3-context-quality.gate
+  status: pass
+  command: python -m pytest python/tests/ops/test_context_gate.py python/tests/ops/test_workflow.py
+    python/tests/evaluation/test_context.py -q (submit75, okg 0.2.0)
+  head: 6e94ae5c4225ea6d64a3c9f4aaafe36b49ef9572
+  at: '2026-10-27T12:17:56+00:00'
+  note: 'acc.r3-context-quality.gate, now with the context-eval score read from real reports: 143 passed.
+    The gate''s min_context_eval_score check reads the newest archi eval --context run of one bundle
+    (context_eval_bundle, else the instance''s only bundle) under <data root>/eval/context/<bundle>/ and
+    passes on a fresh, clean fixture run; it fails, with the reason named in the context_eval check, on no
+    run, an unreadable or unlistable directory, another schema or bundle, an execution_failed run or any
+    failed graph-arm call, an overridden graph arm, a missing question hash or a count that does not match,
+    a run older than max_age_days (default 14, at most 3650) or more than five minutes in the future, a k
+    or question count outside the optional context_eval_k and context_eval_min_questions pins, and a score
+    below the minimum. The ops workflow''s gate step turns an old or unreadable run into a failing check
+    instead of raising (test_workflow.py). Malformed gate keys are refused. This row is about the gate
+    only: it says nothing of req.r3-context-quality.context-eval, whose comp-ops acceptance has not run.
+    Full suite at this head: 3611 passed, 28 skipped.'
+decisions:
+- digest: sha256:2b644e2b8e11d4be069b07ce5d888e78f5eb461414d8853dfc7aa1f1516834a2
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'The comp-ops operator top-50 named in req.r3-context-quality.context-eval and #698 is
+    superseded by CompOps-42, the okg comp-ops benchmark bundle, with its corrected answer key v1
+    (board d373). Board d406, Jason: "isn''t this the comp ops benchmark we have with 42 questions?";
+    orchestrator decision. The requirement statement is kept as written; this row records which set
+    it now means. CompOps-42 names its evidence in prose (sources, verification evidence, per-atom
+    answer_source), not as node ids, so its gold_sources are drafted with python -m
+    archi.evaluation.draft_gold_sources and reviewed once by the person who built key v1 before the
+    run; atoms answered only by a live system (live_rucio, live_dbs, monitoring) are unavailable in
+    both agent arms. The set and the draft are private to the instance and are not in this
+    repository. Preconditions for acc.r3-context-quality.run: the jira pack and git-code (multi-repo)
+    on the comp-ops instance (#726). This row proves nothing: req.r3-context-quality.context-eval
+    stays unproven until the comp-ops run.'

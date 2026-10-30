@@ -351,6 +351,25 @@ def write_sources(root: Path) -> dict[str, Path]:
             }
         ],
     )
+    # The cluster-manager caches, from the recorded shapes the pack tests use
+    # (each writer puts its cache under <root>/<group>/, as dirs expects).
+    # This directory has no __init__.py, so tests/ is not on the path by itself.
+    import sys
+
+    tests_dir = str(Path(__file__).resolve().parents[1])
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    from packs.cluster_fixtures import (
+        write_condor_cache,
+        write_node_health_cache,
+        write_servicenow_cache,
+        write_slurm_cache,
+        write_tickets_cache,
+    )
+
+    for write in (write_tickets_cache, write_servicenow_cache, write_node_health_cache,
+                  write_slurm_cache, write_condor_cache):
+        write(root)
     return dirs
 
 
@@ -371,6 +390,11 @@ COLLECTED = {
     "wmstats": "2026-08-31",
     "dbs": "2026-08-31",
     "cmssst-site-status": "2026-10-07",
+    "tickets": "2026-10-20",
+    "servicenow": "2026-10-20",
+    "node-health": "2026-10-20",
+    "slurm": "2026-10-20",
+    "htcondor": "2026-10-20",
 }
 
 
@@ -833,6 +857,111 @@ def test_cp1252_and_latin1_runs_are_decoded_and_counted(tmp_path, sources):
     row = lock["groups"]["twiki-eos"]
     assert row["pages_with_fallback_runs"] == 2
     assert row["fallback_bytes"] == {"cp1252": 5, "latin-1": 1}
+
+
+def _write_bytes_name(folder: Path, name: bytes, data: bytes) -> None:
+    """Write a file whose name is raw bytes (not always valid UTF-8)."""
+    target = os.path.join(os.fsencode(folder), name)
+    try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as handle:
+            handle.write(data)
+    except OSError as exc:  # APFS and some others refuse non-UTF-8 names
+        pytest.skip(f"this filesystem refuses the name {name!r}: {exc}")
+
+
+def test_a_latin1_file_name_is_decoded_and_listed(tmp_path, sources):
+    # A real TWiki dump: "DsTotauTo" + 0xB5 x3 (Latin-1 micro signs). Python
+    # reads the name with surrogates, which the reader could not re-encode.
+    twiki = sources["twiki-eos"]
+    _write_bytes_name(
+        twiki,
+        b"BPH-DsTotauTo\xb5\xb5\xb5.txt",
+        b"---+ Decay\nTau to three muons.\n" + PADDING,
+    )
+    _write_bytes_name(twiki, "Sub\u00b5/Empty".encode("utf-8") + b"\xb5.txt", b"")
+    out = tmp_path / "out"
+    lock = build(load_config(write_config(tmp_path, sources, only=["twiki-eos"])), out)
+    members = read_archive(out / "twiki-eos.tar.zst")
+    page = members["data/twiki-eos/BPH-DsTotauToµµµ.txt"].decode("utf-8")
+    assert page.startswith("---+ Decay\nTau to three muons.\n")
+    row = lock["groups"]["twiki-eos"]
+    assert row["record_count"] == 3
+    assert row["renamed_files"] == [
+        {
+            "source_name": "BPH-DsTotauTo\\xb5\\xb5\\xb5.txt",
+            "archive_name": "BPH-DsTotauToµµµ.txt",
+            "archived": True,
+        },
+        {
+            "source_name": "Subµ/Empty\\xb5.txt",
+            "archive_name": "Subµ/Emptyµ.txt",
+            "archived": False,
+        },
+    ]
+    assert row["empty_topic_names"] == ["Subµ/Emptyµ.txt"]
+    assert verify(out / LOCK_NAME, out).ok
+
+
+def test_a_latin1_folder_name_is_decoded(tmp_path, sources):
+    twiki = sources["twiki-eos"]
+    _write_bytes_name(twiki, b"Web\xe9/Page.txt", b"---+ Page\n" + PADDING)
+    out = tmp_path / "out"
+    lock = build(load_config(write_config(tmp_path, sources, only=["twiki-eos"])), out)
+    assert "data/twiki-eos/Webé/Page.txt" in read_archive(out / "twiki-eos.tar.zst")
+    assert [
+        r["archive_name"] for r in lock["groups"]["twiki-eos"]["renamed_files"]
+    ] == ["Webé/Page.txt"]
+
+
+def test_file_names_that_decode_to_the_same_name_refuse_the_group(tmp_path, sources):
+    twiki = sources["twiki-eos"]
+    _write_bytes_name(twiki, b"Mu\xb5.txt", b"---+ Latin-1 name\n" + PADDING)
+    _write_bytes_name(twiki, "Muµ.txt".encode("utf-8"), b"---+ UTF-8 name\n" + PADDING)
+    with pytest.raises(BuildRefused, match=r"Muµ\.txt and Mu\\xb5\.txt collide as"):
+        build(
+            load_config(write_config(tmp_path, sources, only=["twiki-eos"])),
+            tmp_path / "out",
+        )
+
+
+def test_a_file_name_that_decodes_to_a_folder_name_refuses_the_group(tmp_path, sources):
+    twiki = sources["twiki-eos"]
+    _write_bytes_name(twiki, "Aµ.txt".encode("utf-8"), b"---+ File\n" + PADDING)
+    _write_bytes_name(twiki, b"A\xb5.txt/x.txt", b"---+ Inside\n" + PADDING)
+    with pytest.raises(BuildRefused, match=r"collide as Aµ\.txt/x\.txt"):
+        build(
+            load_config(write_config(tmp_path, sources, only=["twiki-eos"])),
+            tmp_path / "out",
+        )
+
+
+@pytest.mark.parametrize("byte", [b"\x81", b"\x9d", b"\xa0", b"\xad"])
+def test_a_name_byte_that_becomes_a_hidden_character_refuses_the_group(
+    tmp_path, sources, byte
+):
+    _write_bytes_name(
+        sources["twiki-eos"], b"Odd" + byte + b"Name.txt", b"---+ P\n" + PADDING
+    )
+    with pytest.raises(BuildRefused, match=r"would become the hidden character U\+"):
+        build(
+            load_config(write_config(tmp_path, sources, only=["twiki-eos"])),
+            tmp_path / "out",
+        )
+
+
+def test_an_address_hidden_by_a_fallback_byte_in_a_name_refuses_the_group(
+    tmp_path, sources
+):
+    # Decoded, 0x93 is a left quote, which ends the address for the redactor.
+    _write_bytes_name(
+        sources["twiki-eos"], b"jdoe\x93@cern.ch.txt", b"---+ P\n" + PADDING
+    )
+    with pytest.raises(BuildRefused, match=r"file name jdoe\\x93@cern\.ch\.txt"):
+        build(
+            load_config(write_config(tmp_path, sources, only=["twiki-eos"])),
+            tmp_path / "out",
+        )
 
 
 def test_an_address_split_by_a_c1_fallback_byte_is_removed(tmp_path, sources):

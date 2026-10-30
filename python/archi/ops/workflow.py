@@ -73,7 +73,14 @@ from okg.deployment import (
     request_escalation,
 )
 
-from archi.ops.context_gate import GateCheck, GateFacts, GateResult, GateSpec, evaluate_gate
+from archi.ops.context_gate import (
+    GateCheck,
+    GateFacts,
+    GateResult,
+    GateSpec,
+    context_eval_reading,
+    evaluate_gate,
+)
 from archi.ops.escalation import (
     DECISION_SCHEMA,
     Decision,
@@ -229,7 +236,13 @@ def _gate_step(automation: str) -> dict:
             "max_staleness_seconds": parse_duration(slo) if slo else None,
             "reason": "" if stamp else "no completed run recorded in okg's watermarks",
         })
-    result = evaluate_gate(spec, GateFacts(None, tuple(freshness), {}, None, published))
+    # The newest `archi eval --context` run of the gate's bundle. Never raises: an unreadable, foreign,
+    # failed or too old run is a failing `context_eval` check that names the reason.
+    score, problem = None, None
+    if spec.min_context_eval_score is not None:
+        reading = context_eval_reading(spec, rt.instance_dir)
+        score, problem = reading.score, reading.problem
+    result = evaluate_gate(spec, GateFacts(None, tuple(freshness), {}, score, published, problem))
     return result.as_dict()
 
 

@@ -6,8 +6,8 @@ build-backend = "hatchling.build"
 # The distribution is `archi-kb` (ADR 0002 D2): the name `archi` on PyPI
 # belongs to an unrelated package. The import name stays `archi`.
 name = "archi-kb"
-version = "3.0.0a1"
-description = "Archi — the HEP distribution of OKG (v3 distribution)"
+version = "3.0.0"
+description = "Operations automation for scientific computing: agents propose actions, people approve them, and every step cites the facility's own knowledge"
 requires-python = ">=3.12"
 dependencies = [
     "requests>=2.31",

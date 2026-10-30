@@ -357,3 +357,28 @@ def test_the_node_health_page_says_what_the_exporter_must_write():
     description = manifest("node-health")["description"]
     for word in ("node-health/records.json", "node", "cluster", "observed_at", "checks", "status", "detail"):
         assert word in description
+
+
+def test_an_automation_profile_lints_clean_once_archi_declares_the_runtime_database(catalog, tmp_path):
+    # An automation pack turns okg's runtime on (archi.bundles.compose), and okg 0.2.0's lint then
+    # blocks until postgres.database is declared, which `okg install` never writes. `archi init`
+    # declares it right after the install (archi.cli.init.declare_runtime_database); this is the same
+    # step on the same scaffold okg writes, then okg's own lint.
+    from archi.cli.init import declare_runtime_database
+
+    instance = tmp_path / "instance"
+    rendered = render(resolve(catalog, ["cluster-manager"], with_packs=["instance-health"]), instance)
+    assert rendered.composition.automations
+    asked = {q["id"] for q in rendered.composition.questions}
+    answers = {qid: value for qid, value in ANSWERS.items() if qid in asked}
+    plan = build_plan(
+        profile=discover_profile(rendered.name, profiles_root=instance / PROFILES_DIR),
+        deployment_name="qt",
+        deployments_root=tmp_path / "deployments-rendered",
+        raw_answers=answers,
+    )
+    _write_scaffold(plan)
+    undeclared = ("/postgres/database", "deployment.runtime.database_undeclared")
+    assert undeclared in _blockers(plan.deployment_dir, instance)
+    assert declare_runtime_database(plan.deployment_dir, "qt") is True
+    assert _blockers(plan.deployment_dir, instance) == set()

@@ -3,6 +3,7 @@ the at-most-once attempt marker, the scanner, and the thin wrappers around the s
 
 These import `archi.ops.workflow`, which imports okg and dbos (CI installs the okg wheel)."""
 import inspect
+import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -446,3 +447,55 @@ def test_the_demotion_step_takes_the_later_of_the_log_and_the_published_history(
     assert step(Io(None, [old, ("not a demotion", "2026-10-25T12:00:00Z")]))["reason"] == "demoted to shadow: old"
     assert step(Io({"at": "2026-10-25T09:00:00+00:00", "reason": "demoted to shadow: stale log"}, [old]))["reason"] == "demoted to shadow: old"
     assert step(Io(None, [])) is None
+
+
+# --- the gate step's context-eval check (PACT r3-context-quality) -------------------------------
+
+
+def gate_step_on(monkeypatch, tmp_path, report=None):
+    """`_gate_step` for a gate that asks only for a context-eval score, on an instance whose only bundle
+    is `demo`, with `report` (a dict, or raw text) as its newest context-eval run."""
+    from archi.ops.context_gate import GateSpec
+    from archi.stack.instance import Instance, Ports
+
+    inst = Instance(dir=tmp_path / "inst", name="demo", bundles=["demo"], data_root=tmp_path / "data",
+                    runtime="podman", ports=Ports(graph_db=1, mcp=2, webui=3))
+    inst.dir.mkdir()
+    inst.save()
+    if report is not None:
+        run = tmp_path / "data" / "eval" / "context" / "demo" / "20261020T120000Z"
+        run.mkdir(parents=True)
+        (run / "report.json").write_text(report if isinstance(report, str) else json.dumps(report))
+    spec = GateSpec.from_mapping({"min_context_eval_score": 0.5})
+    rt = SimpleNamespace(instance_dir=inst.dir, automation=lambda name: SimpleNamespace(gate=spec))
+    monkeypatch.setattr(wf, "_runtime", lambda: rt)
+    return wf._gate_step("triage")
+
+
+def good_report(finished_at):
+    return {"schema": "archi-context-eval-report/1", "bundle": "demo", "status": "pass", "errors": 0,
+            "score": 0.75, "arms": {"graph": {"errors": 0, "tool": "search", "arguments": {}}},
+            "k": 10, "questions_sha256": "sha256:" + "0" * 64,
+            "question_count": 1, "questions": [{"id": "q"}], "finished_at": finished_at, "generation": "41"}
+
+
+def test_the_gate_step_passes_on_a_recent_good_context_eval(monkeypatch, tmp_path):
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    result = gate_step_on(monkeypatch, tmp_path, good_report(now))
+    assert result["ok"] and result["checks"] == [
+        {"name": "context_eval", "ok": True, "detail": "score 0.75 meets the minimum 0.5"}]
+
+
+def test_the_gate_step_fails_an_old_context_eval_by_name(monkeypatch, tmp_path):
+    result = gate_step_on(monkeypatch, tmp_path, good_report("2026-01-01T00:00:00Z"))
+    assert result["failing"] == ["context_eval"] and "more than the 14 days" in result["message"]
+
+
+def test_the_gate_step_fails_an_unreadable_context_eval_without_raising(monkeypatch, tmp_path):
+    result = gate_step_on(monkeypatch, tmp_path, "{not json")
+    assert result["failing"] == ["context_eval"] and "cannot be read" in result["message"]
+
+
+def test_the_gate_step_fails_when_no_context_eval_ran(monkeypatch, tmp_path):
+    result = gate_step_on(monkeypatch, tmp_path)
+    assert result["failing"] == ["context_eval"] and "run `archi eval --context`" in result["message"]

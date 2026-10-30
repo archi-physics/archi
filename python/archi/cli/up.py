@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional
 
-from archi.cli.init import commit_all, ensure_ops_tables, has_automations
+from archi.cli.init import commit_all, declare_runtime_database, ensure_ops_tables, has_automations
 from archi.stack import compose as stack_compose
 from archi.stack import webui
 from archi.stack.instance import Instance, InstanceError, graph_dsn, read_env
@@ -51,6 +51,9 @@ def up(
             "`archi down --purge --yes` and a fresh `archi init`"
         )
     stack_compose.write_stack_files(instance)
+    # An instance made before archi declared the runtime's database (okg lint
+    # deployment.runtime.database_undeclared) is repaired here; idempotent otherwise.
+    declare_runtime_database(instance.deployment_dir, instance.database)
     commit_all(instance.dir, "archi up: render the stack")
     compose = stack_compose.Compose(instance, runner=compose_runner)
     echo("starting graph-db, chat-db, mcp and webui (the first start pulls and builds images) ...")

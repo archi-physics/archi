@@ -12,8 +12,8 @@ requirements:
 - id: req.r3-release.cutover
   statement: 'Every live v2 deployment is listed with an owner and is migrated or pinned to
     a tagged v2.x; the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover
-    clause is evidenced; the ticket-triage four-week shadow report is published with the release
-    (ADR 0002 §7.4).
+    clause is evidenced. The ticket-triage automation and its four-week shadow report (ADR 0002
+    §7.4) come after 3.0 (board d405), so the v2 queue bots stay on a tagged v2.x until then.
 
 
     Acceptance:
@@ -55,5 +55,24 @@ tasks:
     Test plan:
 
     - clean-venv install [evidence: executed_test]'
-evidence: []
-decisions: []
+evidence:
+- kind: manual
+  requirement: req.r3-release.cutover
+  status: pass
+  command: read-only ps, podman ps and ss on two SubMIT hosts; gh api forks and environments
+    of archi-physics/archi; v2 configs on main; confirmed by Jason on board d384
+  head: 3d29c58beb9aa1cac801373032f7c6275794c617
+  at: '2026-10-27T01:58:57+00:00'
+  note: 'acc.r3-release.r1 only: the inventory is in docs/docs/operating/cutover.md step 1 and on
+    #758. Two live 2.x deployments, both moving to 3.0 (Jason, d384, 2026-10-27 01:56Z): SubMIT
+    A2rchi on a SubMIT host (chat, data manager, Redmine and mailbox bots; owner SubMIT team, no person
+    named) and a second chat on SubMIT (owner Maria D''Alfonso, per her fork). Jason confirmed FASRC, a
+    CMS comp-ops bot at CERN, WisDQM, CRAB and course deployments do not run 2.x. Not yet done: the
+    v2 version of each, read in its owner''s environment, and the migration itself (condition 2);
+    acc.r3-release.main is not evidenced.'
+decisions:
+- digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Board d405, Jason (2026-10-27 17:19Z): "Drop ticket-triage from 3.0: amend both requirements, ship it later". The cutover requirement no longer requires the
+    ticket-triage shadow report with the release; ticket-triage ships after 3.0.'

@@ -87,7 +87,16 @@ pacts:
       task.r3-context-quality.freshness: "Freshness SLOs per source, reported by archi doctor"
       task.r3-context-quality.linking: "Link-coverage targets and invariants per pack"
       task.r3-context-quality.context-eval: "archi eval --context: retrieval scoring with a raw-document baseline"
+      task.r3-context-quality.raw-corpus: "Raw-document corpus from the instance's connector caches"
+      task.r3-context-quality.raw-arm-harness: "Sandboxed bash and graph-tool agent arms, with a spend ledger and cap"
+      task.r3-context-quality.raw-arm-scoring: "Gold ids to corpus files; evidence recall, MRR and an optional judge"
       task.r3-context-quality.gate: "Context gate evaluator for automations"
+
+  r3-responses-api:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-responses-api.agent-calls: "Agent arms call OpenAI models through the Responses API"
 
   r3-ops-record:
     milestone: "3.0 · M2 Context layer"

@@ -1,0 +1,22 @@
+# A fixture context set for the tests in test_context.py. Nothing here is a real
+# question set or a real corpus: the ids are invented and answer only the fake
+# MCP server the tests build. Real question sets (an instance's operator
+# questions) live with the instance, not in this repository.
+bundle: demo
+k: 3
+min_recall: 0.5
+corpus: the fake search results in test_context.py
+pass_threshold: 2          # a smoke key; read and ignored
+questions:
+  - id: transfer-tool
+    question: Which service moves files between storage sites?
+    gold: [documentation_page:fx-transfer]
+    must_cite: {sources: [docsite]}    # a smoke key; read and ignored
+  - id: replica-rules
+    question: How are dataset replica rules written?
+    gold: [documentation_page:fx-rules, ticket:FX-7]
+  - id: site-downtime
+    question: Where is a planned site downtime announced?
+    gold: [event:fx-meeting-1]
+  - id: no-gold-yet
+    question: A question whose evidence is not chosen yet.

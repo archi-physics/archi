@@ -395,3 +395,21 @@ def test_the_bundle_list_comes_from_archi_yaml_by_default(tmp_path):
     runs(tmp_path / "eval", 4, bundle="cms-physics")
     obs = collect(tmp_path, read_bundles=None)
     assert [p.key for p in obs.problems] == ["eval/cms-physics"]
+
+
+def test_context_eval_runs_and_hidden_directories_are_never_read(tmp_path):
+    """`archi eval --context` runs live under `eval/context/`, and a run being written sits in a hidden
+    directory: neither is read, so a broken file there cannot break the eval signal."""
+    good = write_report(tmp_path, started_at="2026-10-26T10:00:00Z", statuses=scored(8))
+    claims = '{"schema": "archi-eval-report/1", "bundle": '  # claims the schema, then breaks off
+    for rel in ("context/demo/20261027T030144Z/report.json", "context/report.json",
+                "cern-team/.20261027T030144Z.tmp-7/report.json", ".partial/report.json"):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(claims)
+    assert [r.path for r in signals.read_eval_runs(tmp_path)] == [good.relative_to(tmp_path).as_posix()]
+    broken = tmp_path / "cms-physics" / "report.json"
+    broken.parent.mkdir()
+    broken.write_text(claims)
+    with pytest.raises(ValueError, match="not readable JSON"):  # a visible smoke report is still checked
+        signals.read_eval_runs(tmp_path)

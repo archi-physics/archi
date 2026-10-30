@@ -85,4 +85,33 @@ evidence:
     separation, unlisted bundles, the age note, duplicate, foreign and malformed reports, the data-root and
     archi.yaml defaults, and a proposal from a real archi.yaml that validates against the pack schema. Health
     tests 141 passed; full suite 3481 passed, 27 skipped. A context-eval report, once #698 lands, is not read.'
+- kind: executed_test
+  requirement: req.r3-ops-self-monitoring.health
+  status: pass
+  command: 'archi add instance-health --no-okg; runtime enabled with archi.ops.workflow, ops.yaml (instance-health:
+    mode shadow, proposer instance-health, tracker local), archi.yaml automations.instance-health.level L1,
+    automations/instance-health.yaml committed; okg catalog ownership claim and load --apply; okg runtime bootstrap;
+    archi ops tables; okg run --once --apply --inline; okg runtime worker (bounded runs); okg runtime cancel-workflow (two stuck workflows); okg
+    deployment apply (dry run) on a dev host, okg 0.2.0 wheel'
+  head: 6dd8f7a22735b9f40958b04ac12684e2e0fd7bd8
+  at: '2026-10-29T20:07:38+00:00'
+  note: 'task.r3-ops-self-monitoring.rollout, SubMIT half (#719): instance-health is enabled in shadow mode on the new
+    SubMIT instance (r3-bundle-cluster-manager, #740), with local issue files only; the configuration is committed in
+    the instance repository. Scheduled runs happen only while an okg runtime worker is up, and the worker is not a
+    service yet: the worker was started four times; two bounded runs worked (18:52 to 19:07Z and 19:31 to 20:22Z), and
+    two starts in between exited at once (a broken script path in the rebuilt environment, then the refusal below).
+    No worker runs now. The runtime scanner started it from the
+    pack''s schedule: the 18:07Z tick (caught up at 18:53Z) and the 20:07Z tick each ended SUCCESS with status observed,
+    reason shadow, level L1, and wrote an ops incident, proposal and decision record; no issue file exists in the
+    instance repository, as shadow mode requires. Each proposal (draft_issue) named one real problem, archi doctor
+    okg-doctor failing: at 18:07Z because no okg substrate doctor workflow had run yet, at 20:07Z because deployment
+    apply was incomplete or stale. Both skipped eval trends because no eval report exists, and said so. The 20:07Z
+    problem is not fixed here: okg deployment apply has one pending stage, worker_reload, because okg expects the
+    runtime worker to run from a .venv and src import root inside the instance directory while it ran from the
+    environment archi was installed in; that mismatch is drafted as an issue, not worked around. The 19:07Z tick was
+    cut off when a bounded worker stopped; after the environment was rebuilt, okg refused to start a worker while that
+    run and its admission step were active (runtime_cutover_blocked), and both were cancelled with okg runtime
+    cancel-workflow. Known gap met on the way: archi add of an automation pack left the runtime off and did not commit
+    automations/instance-health.yaml (both done in a separate commit). The cms-compops half of this task is not covered
+    by this row.'
 decisions: []

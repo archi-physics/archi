@@ -178,7 +178,7 @@
           }
         },
         "context_gate": {
-          "description": "The context the automation needs (ADR 0002 section 6.3); the keys of archi.ops.context_gate.GateSpec: sources, max_staleness, min_context_eval_score, invariants.",
+          "description": "The context the automation needs (ADR 0002 section 6.3); the keys of archi.ops.context_gate.GateSpec: sources, max_staleness, min_context_eval_score (with max_age_days, default 14, at most 3650; context_eval_bundle, default the instance's only bundle; and the optional pins context_eval_k and context_eval_min_questions), invariants, published.",
           "type": "object"
         },
         "playbook": {

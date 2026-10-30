@@ -2,10 +2,14 @@
 
 Archi automates operations for scientific computing: experiment computing
 operations, analysis user support, data quality and cluster management.
-Agents watch the system, triage what comes in and propose actions. Once a
-policy or a person approves a proposal, a separate component carries it out.
-Every step is grounded in your facility's own knowledge, and its result is
-written back into that knowledge.
+Agents watch the system and propose actions. Once a person approves a
+proposal, a separate component carries it out; in 3.0 no automation acts on
+its own. Every step is grounded in your facility's own knowledge, and its
+result is written back into that knowledge.
+
+Today Archi ships the context layer, the automation runtime and one
+automation, `instance-health`, which watches the Archi instance itself. The
+first automation for operations work, `ticket-triage`, is in progress.
 
 Archi is built on OKG, a knowledge graph with a publish step, a set of read
 tools and a review ledger. You do not need to know OKG to start. This site
@@ -38,10 +42,19 @@ handle what needs reading and judgment.
 
 You install a [bundle](bundles-and-packs.md): a named selection of packs. A
 pack is the smallest installable piece, such as one source family or one
-automation. Four bundles are planned for 3.0: `cern-team`, `cms-comp-ops`,
-`cms-physics` and `cluster-manager`. The [library](library/index.md) lists
-what this branch ships today. Start with the [quickstart](quickstart.md): it
-takes an empty machine to a cited answer with the `cern-team` bundle.
+automation. Four bundles ship today:
+
+| Bundle | For |
+|---|---|
+| `cern-team` | Any CERN team: documentation and meetings, with no credentials needed to start. |
+| `cms-physics` | CMS physics: analysis notes, published summaries, physics TWiki pages and the analyses that link them. |
+| `cms-comp-ops` | CMS computing operations: sites, storage, datasets, workflows, site status and past incidents. |
+| `cluster-manager` | Any cluster operator, at any site: documentation, tickets, operational memory, and optionally Slurm, HTCondor, ServiceNow and node health. |
+
+The [library](library/index.md) lists every bundle and pack with what it
+reads. Your own sources and automations can ship as packs from your own
+package. Start with the [quickstart](quickstart.md): it takes an empty machine
+to a cited answer with the `cern-team` bundle.
 
 ## Parts you can replace
 
@@ -60,8 +73,8 @@ of the box.
 ## Who it is for
 
 First, operations teams: CMS computing operations, CRAB support, WisDQM and
-cluster managers. Second, a CERN team operator who only wants the context
-layer and an agent over it in an afternoon. That operator installs the same
+cluster managers at any site. Second, a team that only wants the context
+layer and an agent over it in an afternoon. That team installs the same
 bundles with no automation selected.
 
 The design is in [ADR 0002](reference/adr.md).

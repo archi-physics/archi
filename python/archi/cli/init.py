@@ -23,7 +23,10 @@ this does instead:
    -> `okg db role-passwords --apply`, into the instance's .secrets/.
 8. with an automation pack selected, `runtime.enabled` is in deployment.yaml from the start and
    provision stops at its ingest stage (the DBOS schema does not exist yet; upstream ask O12)
-   -> `okg runtime bootstrap`, then provision again (`provision`, below).
+   -> `okg runtime bootstrap`, then provision again (`provision`, below);
+   and okg's lint blocks a runtime-enabled deployment that names no `postgres.database`, which
+   `okg install` never writes
+   -> the instance's database is declared right after the install (`declare_runtime_database`).
 9. run each source's cache downloader by hand before the first ingest
    -> the selected packs' `prepare` steps, before anything is started.
 """
@@ -280,6 +283,39 @@ def ensure_ops_tables(instance: Instance, secrets: Mapping[str, str]) -> None:
     OpsIO(graph_dsn(instance, secrets), instance.name).ensure_tables()
 
 
+def declare_runtime_database(deployment_dir: Path, database: str) -> bool:
+    """Name the instance's database in deployment.yaml when the ops runtime is enabled.
+
+    okg 0.2.0's lint blocks a runtime-enabled deployment that declares no `postgres.database`
+    (`deployment.runtime.database_undeclared`): its worker must not run against whatever `${OKG_DSN}`
+    happens to name. `okg install` writes `postgres: {dsn: ...}` itself, replacing any `postgres:` block
+    a profile carries, so no profile can declare it; archi does, after the install. The name is the one
+    `OKG_DSN` already points at (`Instance.database`), so okg's DSN/target agreement check holds.
+    Returns whether the file changed. No deployment.yaml (nothing installed) changes nothing.
+    """
+    from archi.bundles.lock import _dump_yaml, _load_yaml
+
+    path = Path(deployment_dir) / "deployment.yaml"
+    if not path.is_file():
+        return False
+    manifest = _load_yaml(path) or {}
+    if not (manifest.get("runtime") or {}).get("enabled"):
+        return False
+    postgres = manifest.get("postgres") or {}
+    manifest["postgres"] = postgres
+    declared = postgres.get("database")
+    if declared == database:
+        return False
+    if isinstance(declared, str) and declared.strip():
+        raise InitError(
+            f"{path} declares postgres.database {declared!r}, but this instance's database is "
+            f"{database!r}; fix one of them"
+        )
+    postgres["database"] = database
+    _dump_yaml(path, manifest)
+    return True
+
+
 def provision(okg: Okg, name: str, *, runtime: bool, echo: Callable[[str], None]):
     """`okg provision`, and with an automation pack (runtime enabled from the start) the one hand step.
 
@@ -322,6 +358,7 @@ def install_and_publish(
         "--non-interactive", "--no-publish",
         *answer_flags(resolved),
     )
+    declare_runtime_database(instance_dir / DEPLOYMENTS_DIR / name, instance.database)
     # okg publishes only from committed configuration; the install just wrote it.
     stack_compose.write_stack_files(instance)
     commit_all(instance_dir, f"archi init: okg deployment {name}")

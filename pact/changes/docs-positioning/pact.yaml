@@ -1,0 +1,77 @@
+pact_version: 5
+id: docs-positioning
+title: Describe Archi as what it is, not as "the HEP distribution of OKG"
+tier: 1
+why: >-
+  The README title, its first paragraph, the package description that PyPI
+  will show, the package docstring and the first line of AGENTS.md all
+  called Archi "the HEP distribution of OKG". That was the v3 program's
+  first framing (ADR 0001). ADR 0002 section 1 replaced it: Archi automates
+  operations for scientific computing, with a context layer kept solid and
+  cited and an operations layer whose automations propose, get approval for
+  and record actions. The docs site's home page already says so; the front
+  door did not. "HEP distribution" also hides that the cluster-manager
+  bundle is for any cluster operator, at any site. Jason, 2026-10-27: "we
+  shouldn't just say HEP distribution of the OKG. It's reductive". The docs
+  home page also still said the four bundles were planned; all four ship.
+affected_code:
+- README.md
+- AGENTS.md
+- python/pyproject.toml
+- python/archi/__init__.py
+- docs/docs/index.md
+requirements:
+- id: req.docs-positioning.front-door
+  statement: >-
+    The README, the package description, the package docstring and the
+    AGENTS.md introduction describe Archi as ADR 0002 section 1 does:
+    automating operations for scientific computing on a context layer and
+    an operations layer, built on OKG. None of them uses "the HEP
+    distribution of OKG" to describe Archi; AGENTS.md quotes it once, to say
+    not to use it. ADR 0001 keeps its wording as a historical record. The
+    text says what ships today (one automation, approval by a person) apart
+    from what ADR 0002 aims at.
+- id: req.docs-positioning.true
+  statement: >-
+    Every command, package name, bundle and link the new text names exists
+    on this branch (this does not cover the descriptive claims, which the
+    review checked), and the docs home page lists the four shipped bundles
+    instead of calling them planned. The docs site builds.
+tasks:
+- id: task.docs-positioning.rewrite
+  requirement: req.docs-positioning.front-door
+  verification: >-
+    git grep for "HEP distribution" outside pact/ and docs/adr/ finds
+    nothing.
+- id: task.docs-positioning.check
+  requirement: req.docs-positioning.true
+  verification: >-
+    mkdocs build --strict passes; python/tests/test_docs_generated.py and
+    the packaging tests pass; the named commands appear in
+    docs/docs/reference/cli.md.
+evidence:
+- kind: executed_test
+  requirement: req.docs-positioning.front-door
+  status: pass
+  command: git grep -n 'HEP distribution' -- ':!pact' ':!docs/adr'
+  head: b5a3998f80dc33fad641d0f087384614571ef74a
+  at: '2026-10-27T12:18:36+00:00'
+  note: 'One match, AGENTS.md:13, the sentence that tells agents not to use the phrase. The README,
+    python/pyproject.toml description, python/archi/__init__.py docstring and the AGENTS.md introduction
+    follow ADR 0002 section 1, and say what ships today (instance-health only; a person approves every
+    action) apart from what ADR 0002 aims at. ADR 0001 keeps its wording as a historical record.'
+- kind: executed_test
+  requirement: req.docs-positioning.true
+  status: pass
+  command: mkdocs build --config-file docs/mkdocs.yml --strict (mkdocs 1.6.1); python -m pytest
+    python/tests/test_docs_generated.py python/tests/test_packaging.py python/tests/test_docs_quickstart.py
+    on a dev host
+  head: b5a3998f80dc33fad641d0f087384614571ef74a
+  at: '2026-10-27T12:18:36+00:00'
+  note: 'The strict build passed; its only messages are INFO notes about anchors in the v2 legacy pages,
+    which predate this change. 20 tests passed. The six archi commands the README names (init, up,
+    doctor, connect, eval, ops) are in docs/docs/reference/cli.md, the archi.packs entry point is in
+    python/pyproject.toml, the four bundles in the tables are the four under bundles/, and every
+    relative link in the README resolves. The descriptive claims were checked by an independent
+    review, not by these commands.'
+decisions: []

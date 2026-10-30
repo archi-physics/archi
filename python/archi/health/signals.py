@@ -36,6 +36,8 @@ EVAL_REPORT = "report.json"
 EVAL_SCHEMA_FAMILY = "archi-eval-report/"
 EVAL_SCHEMAS = frozenset({"archi-eval-report/1"})
 EVAL_STATUSES = frozenset({"pass", "fail", "execution_failed"})
+#: `<data root>/eval/context/`: `archi eval --context` runs, never read by the eval signal
+CONTEXT_EVAL_PART = "context"
 
 
 # --- doctor ---------------------------------------------------------------------
@@ -224,9 +226,15 @@ def read_eval_runs(directory: Path) -> list[EvalRun]:
     A `report.json` with no `archi-eval-report/...` schema is another kind of report and is left out. One that
     claims the schema but cannot be read, or is a version this reader does not know, raises: a report that
     cannot be read is not evidence of health.
+
+    Never read: anything under `context/` (`archi eval --context` runs, which this signal does not judge, so a
+    broken one cannot break it) and any path with a part that starts with `.` (a run still being written).
     """
     runs: dict[tuple[str, str, str], EvalRun] = {}
     for path in sorted(directory.rglob(EVAL_REPORT)) if directory.is_dir() else []:
+        parts = path.relative_to(directory).parts
+        if parts[0] == CONTEXT_EVAL_PART or any(p.startswith(".") for p in parts):
+            continue
         rel = path.relative_to(directory).as_posix()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))

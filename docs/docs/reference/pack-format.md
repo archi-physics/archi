@@ -269,8 +269,8 @@ added outside archi).
 ## Context quality
 
 ADR 0002 section 6.1 asks that the context layer be measured, not assumed.
-Packs carry three of the measures; the fourth, the context eval, is a separate
-change.
+Packs carry three of the measures; the fourth, the context eval, is a question
+set run by `archi eval --context` (see [archi eval](../operating/evals.md#context-evals-archi-eval-context)).
 
 **Freshness.** Every source of a context pack declares `max_staleness` in
 `freshness:`. No source template sets a schedule (their triggers are `manual`
@@ -350,7 +350,8 @@ automation:
   context_gate:                       # the keys of archi.ops.context_gate.GateSpec
     sources: [redmine.tickets]
     max_staleness: 24h
-    min_context_eval_score: 0.8
+    min_context_eval_score: 0.8       # the newest `archi eval --context` run's graph recall@k
+    max_age_days: 14                  # optional; that run may be at most this old (default 14)
     invariants: [redmine_link_ticket_site]
   playbook: triage.md                 # under playbooks/
   action_classes: [draft_reply, set_ticket_status]
