@@ -1,0 +1,47 @@
+pact_version: 5
+id: site-names-scrub
+title: Keep site host names, instance paths and account names out of the public repository
+tier: 1
+why: >-
+  AGENTS.md says nothing in this public repository may carry a site host
+  name or an instance's configuration. PACT evidence rows, archived PACT
+  notes, three docs pages, a bundle schema description and four tests named
+  lab hosts, shared-filesystem paths, personal venvs, user accounts and
+  dev-host ports (#861). Evidence rows only need to say where a command ran
+  in kind ("on a dev host"); the full host and path belong in the run's
+  private record.
+affected_code:
+- docs/adr/0001-archi-v3-program-spec.md
+- docs/eval-transition-audit.md
+- docs/ops-runtime-akmon-asks.md
+- docs/okg-alignment.md
+- bundles/packs/ops-record/schemas/ops_record.yaml
+- python/tests/ops/test_ops_cli.py
+- python/tests/ops/test_promotion.py
+- python/tests/sources/test_reference_targets_hep.py
+- python/tests/test_packaging.py
+requirements:
+- id: req.site-names-scrub.clean
+  statement: >-
+    Outside the documented exceptions, git grep for lab host names
+    (submitNN, CERN VM names), site paths (/ceph/, /work/submit, /home/submit),
+    and the user accounts found in #861 finds nothing under pact/, docs/,
+    bundles/ and python/. Documented exceptions: leak-detector patterns in
+    tests; public CERN and grid service names in fixtures; recorded test
+    outputs and evidence artifacts whose sha256 a PACT records (editing them
+    would break that record); docs/cern-team-demo.md, handled by #859.
+- id: req.site-names-scrub.harmless
+  statement: >-
+    The edit changes no PACT's check result other than intent digests whose
+    text was edited, and the full test suite passes.
+tasks:
+- id: task.site-names-scrub.rewrite
+  requirement: req.site-names-scrub.clean
+  verification: >-
+    git grep -nE 'submit[0-9]{2}|vocms[0-9]|/ceph/|/work/submit|/home/submit|mohoney|pmlugato|lavezzo'
+    -- pact docs bundles python lists only the documented exceptions.
+- id: task.site-names-scrub.check
+  requirement: req.site-names-scrub.harmless
+  verification: >-
+    okg pact check --strict --json for every manifest before and after:
+    same state, blocked_by and warnings; python -m pytest python/tests passes.

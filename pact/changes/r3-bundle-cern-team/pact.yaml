@@ -86,7 +86,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-cern-team.bundle
   status: pass
-  command: archi eval --bundle cern-team on a dev host lab instance with GPT-6 Luna (lab-only ledgered
+  command: archi eval --bundle cern-team on a dev-host lab instance with GPT-6 Luna (lab-only ledgered
     wrapper), cited from r3-bundle-evals (acc.r3-bundle-evals.sets row, head 5105bfdd)
   head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
   at: '2026-10-27T03:49:42+00:00'

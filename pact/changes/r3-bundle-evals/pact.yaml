@@ -101,11 +101,11 @@ evidence:
   requirement: req.r3-bundle-evals.harness
   status: pass
   command: pytest python/tests/evaluation python/tests/test_bundle_cern_team.py (a dev host, network off);
-    archi eval on a dev host lab instances
+    archi eval on a dev-host lab instances
   head: 5105bfdd58e5271c4993f1ac28ffb8bbc01c80d3
   at: '2026-10-26T21:26:07+00:00'
   note: 'task.r3-bundle-evals.harness and acc.r3-bundle-evals.run: 82 passed at this head; full suite
-    3441 passed, 39 skipped on a dev host at this head. archi eval runs on a dev host wrote report.md and
+    3441 passed, 39 skipped on a dev host at this head. archi eval runs on another dev host wrote report.md and
     report.json for both bundles: qwen2.5:7b-instruct on a local GPU (35d42f25; cern-team 3/10,
     cms-physics 3/10) and GPT-6 Luna through a lab-only wrapper (ed895186 and this head; cern-team
     7/10 then 8/10, cms-physics 10/10 twice). Reports and the Luna ledger stay on the lab host.'
@@ -123,7 +123,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-evals.ci
   status: pass
-  command: archi eval smoke sets (cern-team, cms-physics) on a dev host lab instances with GPT-6 Luna
+  command: archi eval smoke sets (cern-team, cms-physics) on a dev-host lab instances with GPT-6 Luna
     (reasoning medium, OpenAI Responses API, lab-only ledgered wrapper around archi.evaluation)
   head: 5105bfdd58e5271c4993f1ac28ffb8bbc01c80d3
   at: '2026-10-26T21:26:05+00:00'
