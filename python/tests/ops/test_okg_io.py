@@ -61,7 +61,7 @@ def io_with(monkeypatch, tmp_path, view=None, stdout=None, row=(APPROVED_AT,), r
 def test_an_approved_change_is_read_with_its_approval_time(monkeypatch, tmp_path):
     io, seen, conn = io_with(monkeypatch, tmp_path, {"state": "retired", "authoritative": True})
     status = io.promotion_status(tmp_path, "promote-x", "triage")
-    assert status == {"approved": True, "at": APPROVED_AT.isoformat(), "reason": ""}
+    assert status == {"approved": True, "at": APPROVED_AT.isoformat(), "reason": "", "no_trial": ""}
     assert seen["cmd"] == ["okg", "pact", "--root", str(tmp_path), "view", "promote-x", "--format", "status", "--json"]
     assert seen["env"]["OKG_PACT_GRAPH_DEPLOYMENT"] == "dep" and seen["env"]["OKG_DSN"] == "postgresql://x"
     assert seen["cwd"] == str(tmp_path)

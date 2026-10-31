@@ -209,7 +209,8 @@ def mediate(io, entry, tool, esc=None, at_l1=True):
     return wf.run_mediation(
         io, mediator_entry=lambda: entry, action_class="x", payload={"p": 1}, proposal_id="prop-1",
         idempotency_key="k", esc=esc, workflow_id="k", dsn="postgresql://x", halt=lambda io: None,
-        resolve=lambda e: tool, refused=lambda v, r: None, instance_dir="/inst", at_l1=at_l1)
+        resolve=lambda e: tool, refused=lambda v, r: None, instance_dir="/inst", at_l1=at_l1,
+        mode_now=lambda: "live")
 
 
 def test_a_step_runs_without_an_escalation_and_gets_the_instance_directory():
@@ -230,7 +231,8 @@ def test_a_step_is_still_stopped_by_halt_and_by_an_earlier_attempt():
     assert mediate(io, "draft_issue", tool)["status"] == "unknown" and tool.calls == []
     halted = wf.run_mediation(FakeIO(), mediator_entry=lambda: "draft_issue", action_class="x", payload={}, proposal_id="p",
                               idempotency_key="k2", esc=None, workflow_id="k2", dsn="d", halt=lambda io: "paused",
-                              resolve=lambda e: tool, refused=lambda v, r: None, at_l1=True)
+                              resolve=lambda e: tool, refused=lambda v, r: None, at_l1=True,
+                              mode_now=lambda: "live")
     assert halted["refused"][0] == "halted" and tool.calls == []
 
 
@@ -349,7 +351,8 @@ def test_a_stale_source_over_two_runs_leaves_exactly_one_committed_issue(tmp_pat
             out = wf.run_mediation(self.io, mediator_entry=lambda: auto.action_classes[action_class].mediator,
                                    action_class=action_class, payload=payload, proposal_id=proposal_id,
                                    idempotency_key=idempotency_key, esc=None, workflow_id=idempotency_key, dsn="d",
-                                   halt=lambda io: None, instance_dir=str(tmp_path), at_l1=level == "L1")
+                                   halt=lambda io: None, instance_dir=str(tmp_path), at_l1=level == "L1",
+                                   mode_now=lambda: "live")
             return MediatorResult(out["status"], out["result"])
 
     results = []

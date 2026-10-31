@@ -87,6 +87,9 @@ def status_report(instance_dir: Path, io, *, proposals: Optional[list] = None,
     out = []
     for row in rows:
         d = row.as_dict()
+        if d.get("mode") == "live":  # ops.yaml asks for live; it counts only once the promotion is approved
+            cfg = next((c for c in configs if c.name == row.name), None)
+            d["promotion"] = io.promotion_status(instance_dir, getattr(cfg, "promotion_change", None), row.name)
         if shadow is not None:
             try:
                 d["shadow_report"] = shadow(row.name)
@@ -297,7 +300,12 @@ def _line(row: Mapping[str, Any]) -> str:
     level = row["level"] or f"REFUSED ({row['level_problem']})"
     cap = "-" if b["per_day_cap"] is None else f"{b['per_day_cap']:g}"
     spent = "-" if b["day_spent"] is None else f"{b['day_spent']:g}"
-    return (f"{row['name']}: level {level}, mode {row['mode']}, budget today {spent} of {cap}"
+    mode = row["mode"]
+    p = row.get("promotion")
+    if mode == "live" and p is not None:
+        mode = ("live (promotion approved" + (f"; no shadow evidence: {p['no_trial']}" if p.get("no_trial") else "") + ")"
+                if p.get("approved") else f"live requested, runs in shadow until approved ({p.get('reason')})")
+    return (f"{row['name']}: level {level}, mode {mode}, budget today {spent} of {cap}"
             f"{' (exhausted)' if b['exhausted'] else ''}, proposals shadow {s['shadow_proposals']} "
             f"live {s['live_proposals']}, demotions {s['demotions']}")
 
@@ -371,6 +379,9 @@ def cmd_promote(args: argparse.Namespace) -> int:
     from archi.ops import shadow as shadow_mod
     from archi.ops.promotion import PromotionRefused, promote
 
+    if args.no_trial and not (args.note or "").strip():
+        raise OpsCliError("--no-trial needs --note naming the decision that waived the shadow trial "
+                          "(for example a board item); nothing was changed")
     io = make_io(args)
     thresholds = {"min_proposals": args.min_proposals, "min_answered": args.min_answered,
                   "min_response_coverage": args.min_coverage, "min_agreement": args.min_agreement,
@@ -381,7 +392,8 @@ def cmd_promote(args: argparse.Namespace) -> int:
     try:
         result = promote(Path(args.instance), args.automation, report=report, readiness=readiness,
                          thresholds=thresholds, principal=decider_name(args.as_user), note=args.note or "",
-                         dsn=io.dsn, deployment=io.deployment)
+                         dsn=io.dsn, deployment=io.deployment,
+                         no_trial=(args.note or "").strip() if args.no_trial else "")
     except PromotionRefused as exc:
         raise OpsCliError(str(exc)) from exc
     print(json.dumps(result, indent=2) if args.json else
@@ -435,6 +447,9 @@ def add_parser(sub, roots=None) -> None:
         p.add_argument("--min-coverage", type=float, default=0.5)
         p.add_argument("--min-agreement", type=float, default=0.8)
         p.add_argument("--max-false-rate", type=float, default=0.1)
+        p.add_argument("--no-trial", action="store_true",
+                       help="go live with no shadow results, on the decision --note names (required); the change "
+                            "records that there is no shadow evidence, and an operator still approves it")
 
     command("promote", "ask for an automation to go live: opens a PACT change for an operator to approve", cmd_promote,
             extra=promote_args)

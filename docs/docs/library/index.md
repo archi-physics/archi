@@ -39,6 +39,6 @@ Each page below is generated from the manifest in the repository, so it cannot d
 | [`ops-record`](packs/ops-record.md) | context | Operational memory, the incidents, proposals, decisions, actions and outcomes automations record through okg admission (ADR 0002 section 6.2). |
 | [`servicenow`](packs/servicenow.md) | context | ServiceNow incidents, requests and knowledge-base articles, read from the records cache the ServiceNow downloader writes. |
 | [`slurm`](packs/slurm.md) | context | Slurm partitions, nodes, reservations and job summaries from an exported snapshot, with live squeue and sinfo tools and gated drain, resume and requeue actions. |
-| [`ticket-triage`](packs/ticket-triage.md) | automation | Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change that runs only after a person approves it (L2). |
+| [`ticket-triage`](packs/ticket-triage.md) | automation | Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change or a posted reply that runs only after a person approves it (L2). |
 | [`tickets`](packs/tickets.md) | context | Generic tracker tickets from Redmine, any JIRA, or both, read from the records cache the tickets downloader writes. |
 | [`twiki`](packs/twiki.md) | context | TWiki topics, read from an EOS dump of the wiki's raw markup. |

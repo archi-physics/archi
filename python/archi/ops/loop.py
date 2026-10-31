@@ -74,6 +74,8 @@ from archi.ops.proposers import Proposed, ProposeRequest, Proposer
 from archi.ops.steps import get_step
 
 MODES = ("shadow", "live")
+#: Proposal `mode_reason` prefix of a live run whose promotion had no shadow trial (`promote --no-trial`).
+NO_SHADOW_EVIDENCE_PREFIX = "no shadow evidence: "
 #: Proposal `mode_reason` prefix when `mode: live` was not honoured: no approved promotion.
 NOT_PROMOTED_PREFIX = "not promoted: "
 #: Proposal `mode_reason` prefix when a live automation was dropped to shadow.
@@ -380,6 +382,8 @@ class PromotionState:
     at: Optional[datetime] = None
     #: why not, when it is not approved
     reason: str = ""
+    #: the decision that waived the shadow trial (`archi ops promote --no-trial`), when there was one
+    no_trial: str = ""
 
 
 class PromotionCheck(Protocol):
@@ -664,6 +668,9 @@ class _Run:
                 self.mode = "shadow"
             else:
                 promoted_at = promotion.at or promoted_at
+                if promotion.no_trial:
+                    self.mode_reason = (f"{NO_SHADOW_EVIDENCE_PREFIX}promotion {a.promotion_change} went live with no "
+                                        f"shadow trial, on the decision: {promotion.no_trial}")
         if failure is not None:
             if self.mode == "live":
                 self.mode_reason = DEMOTED_PREFIX + failure

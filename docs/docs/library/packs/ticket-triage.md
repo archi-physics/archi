@@ -2,7 +2,7 @@
 
 # Pack: ticket-triage
 
-Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change that runs only after a person approves it (L2).
+Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change or a posted reply that runs only after a person approves it (L2).
 
 | Field | Value |
 |---|---|
@@ -47,6 +47,7 @@ The pack declares no invariant.
 
 - `archi.tools.tickets:set_ticket_status` (idempotent)
 - `archi.tools.tickets:assign_ticket` (idempotent)
+- `archi.tools.tickets:post_reply` (idempotent)
 
 ## Automation
 
@@ -67,4 +68,5 @@ The instance sets the level in `archi.yaml`. A bundle can lower the upper bound 
 |---|---|---|---|---|
 | `assign_ticket` | `archi.tools.tickets:assign_ticket` | no | `L2` | One ticket's assignee or assignment group and one note on it; the rollback sets it back. |
 | `draft_reply` | `draft_reply` | yes | `L1` | Nothing outside the ops record; the draft is on the proposal and nobody is sent anything. |
+| `post_reply` | `archi.tools.tickets:post_reply` | no | `L2` | One note on one ticket, visible to the person who opened it, in the ticket system the payload names. |
 | `set_ticket_status` | `archi.tools.tickets:set_ticket_status` | no | `L2` | One ticket's status and one note on it, in the ticket system the payload names; the rollback moves it back. |

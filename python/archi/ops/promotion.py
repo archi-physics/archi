@@ -16,6 +16,13 @@ does the part before it:
 4. set `mode: live` and `promotion: <change>` in `ops.yaml` and commit those and the change directory,
    by name. Then it stops.
 
+With no trial (`archi ops promote <automation> --no-trial --note "<decision>"`), step 1 is replaced: the
+request names the decision that waived the shadow trial (for example a board decision to switch a queue
+without one), and the change records it in its intent, in `promotion.json` (`no_trial`) and in its junit
+evidence (`test_promotion_without_trial`, passing, with the decision and the shadow report at request time).
+Everything after it is the same: an operator still approves the change, and until then the automation
+runs in shadow.
+
 An operator reads the change and approves it:
 
     okg pact decide <change> --verdict approve --principal <name> --dsn $OKG_DSN
@@ -66,8 +73,15 @@ def summary(report: Mapping[str, Any]) -> str:
     return ", ".join(f"{k}={report.get(k)}" for k in keys)
 
 
-def readiness_junit(readiness: Mapping[str, Any], report: Mapping[str, Any], thresholds: Mapping[str, Any]) -> str:
-    """A junit file that says what the readiness check said: one test, failing with the reasons if not ready."""
+def readiness_junit(readiness: Mapping[str, Any], report: Mapping[str, Any], thresholds: Mapping[str, Any],
+                    no_trial: str = "") -> str:
+    """A junit file that says what the readiness check said: one test, failing with the reasons if not ready.
+    With `no_trial` it is `test_promotion_without_trial`, passing, and names the decision that waived the trial."""
+    if no_trial:
+        out = escape(f"no shadow evidence: no shadow trial, on the decision: {no_trial}\nreport at request time: {summary(report)}")
+        return ('<?xml version="1.0" encoding="utf-8"?>\n<testsuites><testsuite name="archi-ops-promotion" tests="1" '
+                'failures="0" errors="0"><testcase classname="promotion.no_trial" '
+                f'name="test_promotion_without_trial"><system-out>{out}</system-out></testcase></testsuite></testsuites>\n')
     reasons = list(readiness.get("reasons") or [])
     failed = not readiness.get("ready")
     body = f"<failure message={quoteattr('; '.join(reasons) or 'not ready')}/>" if failed else ""
@@ -127,12 +141,15 @@ def promote(
     now: Optional[datetime] = None,
     run: Runner = subprocess.run,
     okg: Optional[str] = None,
+    no_trial: str = "",
 ) -> dict[str, Any]:
-    """Open the promotion PACT change for `automation`; see the module docstring. Raises PromotionRefused."""
+    """Open the promotion PACT change for `automation`; see the module docstring. Raises PromotionRefused.
+    `no_trial` names the decision that waived the shadow trial; with it the readiness verdict is not required."""
     instance_dir = Path(instance_dir)
     thresholds = dict(thresholds or {})
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    if not readiness.get("ready"):
+    no_trial = (no_trial or "").strip()
+    if not no_trial and not readiness.get("ready"):
         raise PromotionRefused(
             f"{automation} is not ready to promote: " + "; ".join(readiness.get("reasons") or ["no shadow report"]))
     inside = _git(instance_dir, "rev-parse", "--is-inside-work-tree", run=run)
@@ -147,8 +164,11 @@ def promote(
 
     change = change_id(automation, now)
     exe = okg or _okg()
-    text = (f"Promote automation {automation} from shadow to live. Shadow report: {summary(report)}. "
-            f"Thresholds: {json.dumps(thresholds, sort_keys=True)}."
+    basis = (f"No shadow evidence: there was no shadow trial, on the decision: {no_trial}. Shadow report at request time: "
+             f"{summary(report)}."
+             if no_trial else
+             f"Shadow report: {summary(report)}. Thresholds: {json.dumps(thresholds, sort_keys=True)}.")
+    text = (f"Promote automation {automation} from shadow to live. {basis}"
             + (f" Requested by {principal}." if principal else "")
             + (f" Note: {note}" if note else ""))
     pact_env = {**os.environ, "OKG_PACT_QUIET_NUDGE": "1"}
@@ -159,7 +179,10 @@ def promote(
         pact_env["OKG_DSN"] = dsn
     change_dir = instance_dir / "pact" / "changes" / change
     rel = f"pact/changes/{change}"
-    test_id = "promotion/shadow_report.py::test_promotion_readiness"
+    test_id = ("promotion/no_trial.py::test_promotion_without_trial" if no_trial else
+               "promotion/shadow_report.py::test_promotion_readiness")
+    acceptance = (f"No shadow evidence: an operator approves going live with no shadow trial, on the decision: {no_trial}." if no_trial
+                  else "The shadow report passes promotion_readiness and an operator approves.")
 
     def pact(*args: str, what: str) -> None:
         done = run([exe, "pact", "--root", str(instance_dir), *args], capture_output=True, text=True,
@@ -171,7 +194,7 @@ def promote(
                                    f"committed: {detail}")
 
     pact("new", change, "--shape", "fast", "--title", f"Promote {automation} to live", "--intent", text,
-         "--acceptance", "The shadow report passes promotion_readiness and an operator approves.",
+         "--acceptance", acceptance,
          "--task-title", f"Promote {automation}", "--test-id", test_id,
          "--test-command", f"archi ops promote {automation}", what="new")
     (change_dir / "shadow-report.json").write_text(json.dumps(report, indent=2, sort_keys=True, default=str),
@@ -180,8 +203,10 @@ def promote(
     # What binds the change to this automation: the runtime reads it back, so an id in ops.yaml is not enough.
     (change_dir / PROMOTION_FILE).write_text(json.dumps(
         {"automation": automation, "change": change, "requested_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-         "requested_by": principal}, indent=2, sort_keys=True), encoding="utf-8")
-    (change_dir / "readiness.xml").write_text(readiness_junit(readiness, report, thresholds), encoding="utf-8")
+         "requested_by": principal, **({"no_trial": no_trial} if no_trial else {})},
+        indent=2, sort_keys=True), encoding="utf-8")
+    (change_dir / "readiness.xml").write_text(readiness_junit(readiness, report, thresholds, no_trial),
+                                                   encoding="utf-8")
     pact("evidence", "ingest", change, "--pytest-report", f"{rel}/readiness.xml", what="evidence ingest")
     pact("gate", "task-done", change, f"task.{change}", what="gate task-done")
 
@@ -195,5 +220,6 @@ def promote(
                                f"{(committed.stderr or added.stderr or committed.stdout)[-1500:]}")
     return {"automation": automation, "change": change, "state": "awaiting_review", "report": summary(report),
             "thresholds": thresholds,
+            "no_trial": no_trial or None,
             "next": f"an operator approves it: okg pact decide {change} --verdict approve --principal <name>; "
                     "until then the automation runs in shadow"}

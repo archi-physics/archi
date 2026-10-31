@@ -113,6 +113,7 @@ class FakeTicketSystem:
             if method == "GET":
                 return 200, {"issue": {"id": int(m.group(1)), "project": {"id": issue["project_id"]},
                                        "status": {"name": issue["status"]},
+                                       "journals": [{"notes": n} for n in issue["notes"]],
                                        **({"assigned_to": {"name": issue["assignee"]}} if issue.get("assignee") else {})}}
             change = body["issue"]
             if "status_id" in change:
@@ -137,6 +138,10 @@ class FakeTicketSystem:
             if tail == "/assignee":
                 issue["assignee"] = next(u["displayName"] for u in jr["users"] if u["name"] == body["name"])
                 return 204, None
+            if tail == "/comment" and method == "GET":
+                start, size = int(params.get("startAt", 0)), int(params.get("maxResults", 50))
+                return 200, {"comments": [{"body": n} for n in issue["notes"][start:start + size]],
+                             "startAt": start, "total": len(issue["notes"])}
             if tail == "/comment":
                 issue["notes"].append(body["body"])
                 return 201, {"id": str(len(issue["notes"]))}
@@ -153,9 +158,13 @@ class FakeTicketSystem:
                 return 200, {"result": [{"sys_id": r["sys_id"], "state": r["state"], "assigned_to": r.get("assignee", ""),
                                          "assignment_group": r.get("assignment_group", "")} for r in rows]}
             rec = next(r for r in sn["records"].values() if r["sys_id"] == sys_id)
+            if method == "GET":  # the display value of `comments` holds every entry
+                return 200, {"result": {"comments": "\n\n".join(rec.get("comments", []))}}
             for field, value in body.items():
-                if field == "work_notes":
+                if field in ("work_notes", "comments"):
                     rec["notes"].append(value)
+                    if field == "comments":
+                        rec.setdefault("comments", []).append(value)
                 else:
                     rec[{"state": "state", "assigned_to": "assignee"}.get(field, field)] = value
             return 200, {"result": {"sys_id": sys_id}}

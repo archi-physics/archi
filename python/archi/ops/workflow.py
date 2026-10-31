@@ -350,11 +350,13 @@ def run_mediation(
     refused: Callable[[str, str], None] = log_refusal,
     instance_dir: Optional[str] = None,
     at_l1: bool = False,
+    mode_now: Callable[[], str],
 ) -> dict:
     """The body of the mediator step: the only place an action happens.
 
     Order: (1) an earlier attempt for this idempotency key decides everything (a replay never
-    asks again); (2) halt; (3) the escalation row, read again, must pass `may_execute` (a workflow step
+    asks again); (2) halt, and `mode_now()` (ops.yaml read again now): an automation set back to shadow while
+    its run waited (a rollback) sends nothing; (3) the escalation row, read again, must pass `may_execute` (a workflow step
     with an implementation has no escalation only at L1, where it has no external effect; at L2 the
     escalation is re-read for a step too); (4) the
     attempt is recorded durably; (5) the mediator is called with the key. Any exception in
@@ -367,6 +369,11 @@ def run_mediation(
             return _earlier_attempt(earlier)
         reason = halt(io)
         if reason:
+            refused("halted", reason)
+            return {"refused": ["halted", reason]}
+        mode = mode_now()
+        if mode != "live":
+            reason = f"ops.yaml now sets mode {mode!r} for this automation (set back after the run started); nothing was sent"
             refused("halted", reason)
             return {"refused": ["halted", reason]}
         entry = mediator_entry()
@@ -416,7 +423,7 @@ def _mediate_step(automation: str, action_class: str, payload: dict, proposal_id
         _io(rt), mediator_entry=lambda: rt.automation(automation).action_classes[action_class].mediator,
         action_class=action_class, payload=payload, proposal_id=proposal_id, idempotency_key=idempotency_key,
         esc=esc, workflow_id=DBOS.workflow_id, dsn=rt.dsn, instance_dir=str(rt.instance_dir),
-        at_l1=level == "L1")
+        at_l1=level == "L1", mode_now=lambda: _runtime().settings[automation].mode)
 
 
 @deployment_step(name="archi_ops_decision")
@@ -541,7 +548,8 @@ class _Demotions:
 class _Promotions:
     def check(self, automation: str, change: Optional[str]) -> PromotionState:
         d = _promotion_step(automation)
-        return PromotionState(bool(d["approved"]), _moment(d["at"]) if d.get("at") else None, d.get("reason") or "")
+        return PromotionState(bool(d["approved"]), _moment(d["at"]) if d.get("at") else None, d.get("reason") or "",
+                              d.get("no_trial") or "")
 
 
 class _Recorder:
@@ -592,11 +600,17 @@ def escalation_reason(automation: str, proposal: Any) -> str:
     a newline and "Action: ..." cannot make a second Action line or move the real one. A live tool binds an
     approval to the payload by reading line 2, and refuses a reason with any other line that starts with
     `Action: ` (archi.tools._live.ops_verifier).
+    For `post_reply` the reply follows, every line quoted with "> ", so the approver reads it as it will be
+    posted; a quoted line never starts with `Action: `.
     """
-    return (f"{automation}: {_one_line(proposal.summary)}\n"
-            f"{ACTION_PREFIX}{_one_line(proposal.action_class)} {json.dumps(dict(proposal.payload), sort_keys=True)}\n"
-            f"Rollback: {_one_line(proposal.rollback)}\n"
-            f"Evidence: {_one_line(', '.join(proposal.evidence_ids))}")
+    reason = (f"{automation}: {_one_line(proposal.summary)}\n"
+              f"{ACTION_PREFIX}{_one_line(proposal.action_class)} {json.dumps(dict(proposal.payload), sort_keys=True)}\n"
+              f"Rollback: {_one_line(proposal.rollback)}\n"
+              f"Evidence: {_one_line(', '.join(proposal.evidence_ids))}")
+    reply = (proposal.payload or {}).get("reply") if proposal.action_class == "post_reply" else None
+    if isinstance(reply, str) and reply:  # what the approver reads: the reply as it will be posted, quoted
+        reason += "\nReply as it will be posted:\n" + "\n".join(f"> {line}" for line in reply.splitlines())
+    return reason
 
 
 class _Decider:

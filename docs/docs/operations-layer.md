@@ -96,6 +96,15 @@ approves that change with `okg pact decide`. Archi never takes that step.
 Until it is approved, the automation stays in shadow. Editing `ops.yaml` to
 say `live` changes nothing.
 
+An automation can go live with no shadow trial when someone decided so:
+`archi ops promote <automation> --no-trial --note "<decision>"` skips the
+thresholds and records the decision in the change. An operator still
+approves it.
+
+To go back, set `mode: shadow` for the automation in `ops.yaml`. From the
+next run on it sends nothing, and a run already waiting for an approval
+sends nothing either: the step that acts reads `ops.yaml` again.
+
 A live automation whose context gate fails runs in shadow for that run. It
 stays in shadow until a promotion is approved after the failure.
 
@@ -129,7 +138,8 @@ a crash) are in
 
 Two automation packs ship. [`ticket-triage`](library/packs/ticket-triage.md), the reference
 automation in the design, triages new and updated Redmine, JIRA and ServiceNow tickets: a cited
-draft at L1, an approved assignment or status change at L2. At SubMIT it replaces the v2 Redmine
+draft at L1, and at L2 an approved assignment, status change or posted reply
+(the reply written by a model when `proposer.drafter` is set). At SubMIT it replaces the v2 Redmine
 bot at the 3.0 cutover, with no shadow trial first (board d717). [`instance-health`](library/packs/instance-health.md) is
 an automation that watches the instance itself (doctor results, source
 freshness, failed ingests, automation error rates) and keeps one issue per

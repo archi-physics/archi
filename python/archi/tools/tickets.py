@@ -118,12 +118,23 @@ PAYLOAD_SCHEMAS: dict[str, dict[str, Any]] = {
             "expected": {"type": "string", "maxLength": 200},
         },
     },
+    "post_reply": {
+        "type": "object",
+        "required": ["system", "ticket", "ticket_url", "reply", "endpoint"],
+        "additionalProperties": False,
+        "properties": {
+            **{k: v for k, v in _COMMON.items() if k != "note"},
+            "reply": {"type": "string", "minLength": 1, "maxLength": 8000},
+        },
+    },
 }
 
 #: What the pack ships, in one place: the tests hold this equal to pack.yaml and action_classes.yaml.
 TOOLS: dict[str, dict[str, Any]] = {
     "set_ticket_status": {"kind": "act", "idempotent": True},
     "assign_ticket": {"kind": "act", "idempotent": True},
+    # a repeat finds its own note (it names the escalation) and posts nothing
+    "post_reply": {"kind": "act", "idempotent": True},
 }
 
 
@@ -184,8 +195,8 @@ def _check_site(data: Mapping[str, Any]) -> None:
 ENDPOINT_KEYS = ("url", "site", "token_env", "user_env", "password_env")
 
 
-def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]:
-    """The endpoints the instance's ticket-triage automations configure for `system` (ops.yaml)."""
+def system_configs(instance_dir: Any, system: str) -> list[Mapping[str, Any]]:
+    """`proposer.systems.<system>` of each ticket-triage automation in the instance's ops.yaml."""
     from pathlib import Path
 
     from archi.ops.runtime_config import read_settings
@@ -193,12 +204,14 @@ def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]
     found = []
     for settings in read_settings(Path(instance_dir)).values():
         proposer = settings.proposer or {}
-        if proposer.get("kind") != "ticket-triage":
-            continue
-        config = (proposer.get("systems") or {}).get(system) or {}
-        if config.get("url"):
-            found.append({k: str(config[k]) for k in ENDPOINT_KEYS if config.get(k)})
+        if proposer.get("kind") == "ticket-triage" and ((proposer.get("systems") or {}).get(system) or {}).get("url"):
+            found.append(proposer["systems"][system])
     return found
+
+
+def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]:
+    """The endpoints the instance's ticket-triage automations configure for `system` (ops.yaml)."""
+    return [{k: str(c[k]) for k in ENDPOINT_KEYS if c.get(k)} for c in system_configs(instance_dir, system)]
 
 
 def _check_configured(data: Mapping[str, Any], context: Optional[Mapping[str, Any]]) -> None:
@@ -301,6 +314,13 @@ class Redmine(_Client):
         self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"status_id": found[0]["id"], "notes": note}},
                   write=True)
 
+    def notes(self, key, table, current):
+        issue = (self.call("GET", f"/issues/{quote(key)}.json", params={"include": "journals"}) or {}).get("issue") or {}
+        return [str(j.get("notes") or "") for j in issue.get("journals") or []]
+
+    def post(self, key, table, current, text):
+        self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"notes": text}}, write=True)
+
     def assign(self, key, table, current, field, value, note):
         members = (self.call("GET", f"/projects/{quote(current['project'])}/memberships.json",
                              params={"limit": 100}) or {}).get("memberships") or []
@@ -329,6 +349,20 @@ class Jira(_Client):
             raise NoteFailed(f"{exc}; add it by hand") from None
         except WriteUnknown as exc:
             raise NoteFailed(f"{exc}; it may have been posted, check the ticket before adding it") from None
+
+    def notes(self, key, table, current):
+        out, start = [], 0
+        while True:  # every page: comments come oldest first, and an earlier post may be on any of them
+            page = self.call("GET", f"/rest/api/2/issue/{quote(key)}/comment",
+                             params={"startAt": start, "maxResults": 100}) or {}
+            comments = page.get("comments") or []
+            out += [str(c.get("body") or "") for c in comments]
+            start += len(comments)
+            if not comments or start >= int(page.get("total") or 0):
+                return out
+
+    def post(self, key, table, current, text):
+        self.call("POST", f"/rest/api/2/issue/{quote(key)}/comment", json={"body": text}, write=True)
 
     def set_status(self, key, table, current, status, note):
         moves = (self.call("GET", f"/rest/api/2/issue/{quote(key)}/transitions") or {}).get("transitions") or []
@@ -365,6 +399,15 @@ class ServiceNow(_Client):
     def patch(self, table, current, body):
         self.call("PATCH", f"/api/now/table/{table}/{quote(current['sys_id'])}",
                   params={"sysparm_input_display_value": "true"}, json=body, write=True)
+
+    def notes(self, key, table, current):
+        # the record's own `comments`, as display text (every entry), not sys_journal_field, which ACLs often close
+        row = (self.call("GET", f"/api/now/table/{table}/{quote(current['sys_id'])}", params={
+            "sysparm_fields": "comments", "sysparm_display_value": "true"}) or {}).get("result") or {}
+        return [str(row.get("comments") or "")]
+
+    def post(self, key, table, current, text):
+        self.patch(table, current, {"comments": text})  # visible to the caller, as a reply is
 
     def set_status(self, key, table, current, status, note):
         self.patch(table, current, {"state": status, "work_notes": note})
@@ -448,3 +491,41 @@ def assign_ticket(*, payload: Mapping[str, Any], context: Mapping[str, Any], ses
     return _act("assign_ticket", payload, context, session, env, verify,
                 field_of=lambda d: d["field"], target_of=lambda d: d["value"], expected_of=lambda d: d["expected"],
                 write=lambda c, d, cur, note: c.assign(d["ticket"], d.get("table"), cur, d["field"], d["value"], note))
+
+
+def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], session: Any = None,
+               env: Optional[Mapping[str, str]] = None, verify: Optional[Verifier] = None) -> dict[str, Any]:
+    """Post an approved reply on one ticket (Redmine note, JIRA comment, ServiceNow comment), followed by a line
+    naming the approval. Same checks as the other tools. Idempotent: it reads the ticket's notes first and posts
+    nothing when one already names this escalation. A write with no answer is `unknown`."""
+    data = _checked(payload, "post_reply")
+    approval = require_approval(context, verify, payload=data, action_class="post_reply")
+    _check_configured(data, context)
+    endpoint = {k: str(v) for k, v in data["endpoint"].items() if k in ENDPOINT_KEYS and v}
+    if not any(c.get("post_replies") and {k: str(c[k]) for k in ENDPOINT_KEYS if c.get(k)} == endpoint
+               for c in system_configs(context["instance_dir"], data["system"])):
+        raise ToolError(f"ops.yaml no longer sets post_replies for {data['system']} at this endpoint; nothing was posted")
+    client = CLIENTS[data["system"]](data["endpoint"], os.environ if env is None else env, session)
+    key, table = data["ticket"], data.get("table")
+    label = f"{data['system']} {key}"
+    try:
+        current = client.read(key, table)
+    except TicketToolError as exc:
+        return _out("failed", f"could not read {label} ({exc}); nothing was posted")
+    text = (f"{data['reply']}\n\n-- Posted by the archi ticket-triage automation after approval by "
+            f"{approval.decided_by} in escalation {approval.escalation_id} (proposal {approval.proposal_id}).")
+    try:
+        trailer = f"in escalation {approval.escalation_id} (proposal {approval.proposal_id})."
+        if any(trailer in n for n in client.notes(key, table, current)):
+            return _out("succeeded", f"{label}: the reply for escalation {approval.escalation_id} is already posted; "
+                                     "nothing was posted again")
+    except TicketToolError as exc:
+        return _out("failed", f"could not read the notes of {label} ({exc}); nothing was posted")
+    try:
+        client.post(key, table, current, text)
+    except WriteUnknown as exc:
+        return _out("unknown", f"{label}: the post got no answer ({exc}); it may have been posted, check the "
+                               "ticket before posting again")
+    except TicketToolError as exc:
+        return _out("failed", f"{label}: {exc}; nothing was posted")
+    return _out("succeeded", f"{label}: reply posted, noting escalation {approval.escalation_id}")

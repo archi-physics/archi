@@ -110,6 +110,11 @@ def cmd_configure(a: argparse.Namespace) -> None:
                          "systems": {"redmine": {"url": f"http://127.0.0.1:{a.port}", "site": "https://redmine.example.org",
                                                  "token_env": TOKEN_ENV,
                                                  "triaged_status": "In Progress", "triage_from": ["New"]}}}
+    if os.environ.get("LAB_DRAFTER_URL"):  # the fake model (fake_model.py): the drafter writes every reply
+        entry["proposer"]["drafter"] = {"model": "fake-luna", "url": os.environ["LAB_DRAFTER_URL"], "max_output_tokens": 200,
+                                        "price": {"input_per_million": 0.10, "output_per_million": 0.50}}
+    if a.post_replies:
+        entry["proposer"]["systems"]["redmine"]["post_replies"] = True
     (inst / "ops.yaml").write_text(yaml.safe_dump(ops, sort_keys=False), encoding="utf-8")
     commit_all(inst, f"configure: {' '.join(sys.argv[2:])}")
 
@@ -180,6 +185,7 @@ def main() -> None:
     c.add_argument("--mode", choices=["shadow", "live"])
     c.add_argument("--timeout", type=int)
     c.add_argument("--port", type=int, required=True)
+    c.add_argument("--post-replies", action="store_true", help="L2 proposes posting the model's reply")
     c.set_defaults(f=cmd_configure)
     ar = sub.add_parser("arrive")
     ar.add_argument("system", choices=sorted(CACHE_DIRS))
