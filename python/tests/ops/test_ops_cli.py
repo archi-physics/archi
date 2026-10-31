@@ -134,6 +134,9 @@ def test_a_row_for_another_subject_cannot_execute():
 class FakeIO:
     deployment, dsn = "dep", "postgresql://x"
 
+    def promotion_status(self, instance_dir, change, automation=None):
+        return {"approved": False, "at": None, "reason": "ops.yaml names no promotion change"}
+
     def __init__(self, schedules=None, runs=(), escalations=(), halts=()):
         self._schedules = dict(schedules if schedules is not None else {"archi_ops_scan": False})
         self._runs, self._escalations, self._halts = list(runs), list(escalations), list(halts)
@@ -341,6 +344,7 @@ def test_status_reports_levels_schedules_budgets_and_pending(instance):
     (row,) = report["automations"]
     assert row["name"] == "fixture-triage" and row["level"] is None and "L3" in row["level_problem"]
     assert row["mode"] == "live" and row["schedule_paused"] is False  # keyed by automation name, not the scanner
+    assert row["promotion"]["approved"] is False  # live is only requested: no approved promotion
     assert row["budget"]["day_spent"] == 3.0 and row["budget"]["per_day_cap"] == 10.0
     assert row["shadow"]["shadow_proposals"] == 1 and row["shadow_report"] == {"incidents": 0}
     assert len(report["pending"]) == 1
