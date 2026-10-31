@@ -169,47 +169,56 @@ tasks:
 evidence:
 - kind: executed_test
   requirement: req.r3-code-text-all-files.all-text
-  status: pass
-  command: "cd python && python -m pytest tests -q --junitxml=full_suite.junit.xml -> 3921 passed, 28 skipped, 1 failed (timing; see note)"
+  status: fail
+  command: "cd python && python -m pytest tests -q --junitxml=full_suite.junit.xml -> 3925 passed, 28 skipped, 1 failed"
   artifact: pact/changes/r3-code-text-all-files/evidence/full_suite.junit.xml
-  sha256: 9d039ad8a7153d06e327d846d8c40bf0a1731a9d1333c6fc109589d5aae71fdb
-  head: 657e577193ff96dfc83b40072d26e3f26edba62c
-  at: "2026-10-31T14:53:10+00:00"
-  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit. 1 failed, 3921 passed, 28 skipped: the one failure is tests/enrichment/test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear, a timing check, at load average 7-8; test_anonymizer.py alone then passed (441 passed). The change does not touch the anonymizer. Lab paths and the host name in the junit are replaced by placeholders."
-- kind: executed_test
-  requirement: req.r3-code-text-all-files.secret-screen
-  status: pass
-  command: "cd python && python -m pytest tests -q --junitxml=full_suite.junit.xml (includes tests/sources/test_code_text_screen.py and tests/test_bundle_code_text.py) -> 3921 passed, 28 skipped, 1 failed (timing; see note)"
-  artifact: pact/changes/r3-code-text-all-files/evidence/full_suite.junit.xml
-  sha256: 9d039ad8a7153d06e327d846d8c40bf0a1731a9d1333c6fc109589d5aae71fdb
-  head: 657e577193ff96dfc83b40072d26e3f26edba62c
-  at: "2026-10-31T14:53:10+00:00"
-  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit. 1 failed, 3921 passed, 28 skipped: the one failure is tests/enrichment/test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear, a timing check, at load average 7-8; test_anonymizer.py alone then passed (441 passed). The change does not touch the anonymizer. Lab paths and the host name in the junit are replaced by placeholders."
+  sha256: dd68c831e09e762f4d11f53dad9f9cead96df4a8f4f8699f21388705eb30d529
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:06:41+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The one failure is tests/enrichment/test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear, a wall-clock check, with other lanes' test suites running on the host (load average 7-8). Recorded as fail because the artifact holds a failure; the next row is that file rerun alone. The change does not touch the anonymizer."
 - kind: executed_test
   requirement: req.r3-code-text-all-files.all-text
   status: pass
-  command: "cd python && python -m pytest tests/packs/test_pack_isolation.py -k 'code-text or git-code or cern_team or cms_comp_ops' (four tests, by node id) -> 4 passed"
+  command: "cd python && python -m pytest tests/enrichment/test_anonymizer.py -q --junitxml=anonymizer_rerun.junit.xml -> 441 passed"
+  artifact: pact/changes/r3-code-text-all-files/evidence/anonymizer_rerun.junit.xml
+  sha256: 52ae40d8c3f023a985e177c570e9db2e6788d56ced3d6408d83f5191b996d049
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:23:39+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The full suite's only failure, rerun alone at the same head: it passes."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.all-text
+  status: pass
+  command: "cd python && python -m pytest tests/packs/test_pack_isolation.py, four tests by node id (code-text alone, git-code alone, cern-team with every optional pack, cms-comp-ops) -> 4 passed"
   artifact: pact/changes/r3-code-text-all-files/evidence/pack_isolation.junit.xml
-  sha256: 218a150d13036ac4c9dd76b254614ac99b9c243c30efa6ee6b74b7beb36b96b4
-  head: 657e577193ff96dfc83b40072d26e3f26edba62c
-  at: "2026-10-31T14:53:10+00:00"
-  note: "ARCHI_PACK_ISOLATION_DSN set to a throwaway akmon-postgres v0.2.0 container. Each test renders, runs okg install, ingest and publish, checks published status and zero lint blockers; with code-text selected it also plants an invented secret in git-code's fixture repository and checks the published graph has no document and no grep hit for it (okg filter / okg search)."
+  sha256: be0cd6ddad4a0887adc977e0a1de592f0382082286243df4746fbcab87f432c1
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:12:32+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. ARCHI_PACK_ISOLATION_DSN set to a throwaway akmon-postgres v0.2.0 container. Each test renders, runs okg install, ingest and publish, and checks published status and zero lint blockers."
 - kind: executed_test
   requirement: req.r3-code-text-all-files.secret-screen
   status: pass
-  command: "cd python && python -m pytest tests/packs/test_pack_isolation.py (code-text alone, git-code alone, cern-team, cms-comp-ops) -> 4 passed; the planted-secret check runs in the code-text and cern-team cases"
+  command: "same pack-isolation run -> 4 passed; with code-text selected (code-text alone, cern-team) it checks the planted secret is absent from the published graph"
   artifact: pact/changes/r3-code-text-all-files/evidence/pack_isolation.junit.xml
-  sha256: 218a150d13036ac4c9dd76b254614ac99b9c243c30efa6ee6b74b7beb36b96b4
-  head: 657e577193ff96dfc83b40072d26e3f26edba62c
-  at: "2026-10-31T14:53:10+00:00"
-  note: "ARCHI_PACK_ISOLATION_DSN set to a throwaway akmon-postgres v0.2.0 container. Each test renders, runs okg install, ingest and publish, checks published status and zero lint blockers; with code-text selected it also plants an invented secret in git-code's fixture repository and checks the published graph has no document and no grep hit for it (okg filter / okg search)."
+  sha256: be0cd6ddad4a0887adc977e0a1de592f0382082286243df4746fbcab87f432c1
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:12:32+00:00"
+  note: "git-code's fixture repository holds a file with an invented password. After publish, okg filter lists the README's code-text document and not the planted file's; okg grep search finds the README's own text (positive control) and nothing for the password."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.secret-screen
+  status: pass
+  command: "rule and end-to-end screen tests inside the full-suite run: tests/sources/test_code_text_screen.py and tests/test_bundle_code_text.py, all passed (see full_suite.junit.xml)"
+  artifact: pact/changes/r3-code-text-all-files/evidence/full_suite.junit.xml
+  sha256: dd68c831e09e762f4d11f53dad9f9cead96df4a8f4f8699f21388705eb30d529
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:06:41+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. Every testcase of these two files passed; the suite's one failure is the anonymizer timing check (rows above)."
 - kind: manual
   requirement: req.r3-code-text-all-files.secret-screen
   status: pass
   command: "lane script: secret_classes over git ls-files of the comp-ops instance's 18 checkouts, filtered by the shipped globs and 1 MB cap; compared with the instance's hand-made exclusion list and the CompOps-42 gold"
   artifact: pact/changes/r3-code-text-all-files/evidence/compops-repos-screen.md
-  sha256: e1411f091f36af8469c3bed08ee54377002d84e6ad265a998655ce408bae88bb
-  head: 5e423ca0a09604c4c878af52dc3c3e5c6a1ca197
-  at: "2026-10-31T14:49:57+00:00"
-  note: "Measured at 5e423ca0; python/archi and bundles are unchanged from there to 657e5771. 9,008 files screened, 156 left out (150 also on the hand list of 303), 0 of 44 gold git files left out. Counts only; no path or value of the private instance is in the repository."
+  sha256: 0fb6a9e9d7af9a205cf35b1539a19dcf561510f2f45fdb2a28ff2fc31cb4197b
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:23:25+00:00"
+  note: "9,008 files screened, 168 left out (162 also on the hand list of 303), 0 of 44 gold git files left out. Counts only; no path or value of the private instance is in the repository."
 decisions: []
