@@ -81,7 +81,12 @@ def _substrate_native(cls):
     """
     from okg.substrate.library.sources.doc_corpus import DocCorpusSource
 
-    return DocCorpusSource if issubclass(cls, DocCorpusSource) else None
+    from archi.sources.code_text import SecretScreenedDocCorpusSource
+
+    # An allowlist, not any subclass: each entry overrides only how files are
+    # listed and keeps DocCorpusSource's run(), which the install test runs.
+    native = {SecretScreenedDocCorpusSource: DocCorpusSource}
+    return native.get(cls)
 
 
 @pytest.mark.parametrize(("filename", "name", "entry"), ENTRIES, ids=ENTRY_IDS)

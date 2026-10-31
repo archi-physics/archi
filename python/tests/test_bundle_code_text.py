@@ -218,9 +218,10 @@ def _documents(facts):
 def test_the_excludes_keep_credential_named_code_out(tmp_path):
     """The shipped excludes, not the include globs, stop these files.
 
-    The include globs match both files. The control run, okg's own reader
-    with no excludes (archi's secret screen would also stop them), stores
-    them, which proves the shipped list is what keeps them out.
+    The include globs match both files, and their invented values are too
+    plain for the secret screen. The control run, okg's own reader with no
+    excludes, stores them, which proves the shipped list is what keeps them
+    out.
     """
     from okg.substrate.library.sources.doc_corpus import DocCorpusSource
 
@@ -340,7 +341,7 @@ def _secret_files() -> dict:
         "deploy/db-values.yaml": "db:\n  user: archi\n  password: " + _PW + "\n",
         "scripts/upload.sh": "curl -H 'X-Token: " + "gh" + "p_" + "Q7x" * 12 + "' https://example.org\n",
         "notes/server.txt": "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIabc\n",
-        "app/settings.py": 'DATABASE_URL = "postgres://archi:' + _PW + '@db.example.org/archi"\n',
+        "app/settings.py": 'DATABASE_URL = "postgres://archi:' + _PW + '@db01:5432/archi"\n',
     }
 
 

@@ -232,8 +232,37 @@ def _install_and_publish(tmp_path: Path, resolution, name: str, overrides: dict 
         assert blockers == [], blockers
 
         _assert_coverage_invariants_hold(resolution.pack_names)
+        if "code-text" in resolution.pack_names:
+            _assert_planted_secret_stays_out(instance, env)
     finally:
         server.close()
+
+
+def _assert_planted_secret_stays_out(instance: Path, env: dict) -> None:
+    """code-text's secret screen held through install, ingest and publish.
+
+    git-code's fixture repository holds a clean README and a file with a
+    planted, invented password. In the published graph the README has a
+    code-text document and the planted file has none, and a literal search
+    for the password finds nothing anywhere in the graph. This fails if the
+    pack stops naming the screened source or the screen stops running.
+    """
+    from packs.pack_support import PLANTED_SECRET, PLANTED_SECRET_PATH
+
+    # The read commands connect as okg's least-privilege read role, which a
+    # fresh database creates without a login; give it one (local test DB).
+    roles = run_okg(["db", "role-passwords", "--apply", "--deployment", "px"], cwd=instance, env=env)
+    assert roles.returncode == 0, _report(roles)
+    docs = run_okg(["filter", "--deployment", "px", "--type", "document", "--ids", "--all"],
+                   cwd=instance, env=env)
+    assert docs.returncode == 0, _report(docs)
+    ids = set(docs.stdout.split())
+    assert "doc:demo:README.md" in ids, sorted(ids)[:20]
+    assert f"doc:demo:{PLANTED_SECRET_PATH}" not in ids, sorted(ids)
+    hits = run_okg(["search", "--deployment", "px", "--method", "grep", "--ids", "--all",
+                    PLANTED_SECRET], cwd=instance, env=env)
+    assert hits.returncode == 0, _report(hits)
+    assert hits.stdout.split() == [], hits.stdout[:2000]
 
 
 def _fixture_env(pack_names, tmp_path: Path) -> dict:

@@ -24,11 +24,22 @@ why: 'On the comp-ops instance (CompOps-42, 2026-10-30) the agent with the graph
   import of okg''s private transcript-redaction module.
 
 
+  Known lint finding. `okg lint deployments` reports DEPLOYMENT-001 ("a connector may not import
+  okg.substrate") for `archi.sources.code_text`, which subclasses okg''s DocCorpusSource. It is the
+  one recorded connector-side exception (docs/okg-alignment.md), accepted on 2026-10-31 because
+  okg''s public SDK has no per-file content hook; runtime does not enforce the lint. Removal path:
+  a public content-screen hook on DocCorpusSource in okg, requested through the coordinator.
+
+
   Known limits. okg''s `search(view="windows")` trusts stored character positions only from
   registry entries naming okg''s own DocCorpusSource, so a phrase, NEAR or regex window search
   inside code-text documents may answer `window_continuity_unknown`; plain search and text reads
   are unaffected (an okg-side hook would remove this). The screen is pattern matching: values
-  under 8 characters and plain words are kept. It covers code-text documents only: git-code''s
+  under 8 characters and plain words are kept, and so are passwords under a key with no secret
+  word (a Kubernetes `name:` / `value:` pair), values that start like a template (`$2b$` bcrypt
+  hashes, `{...}`), keys over 64 characters and .netrc `default` lines; URLs to documentation
+  hosts (loopback, `example.*`, `*.invalid`, `*.test`) and placeholder passwords (`pass`,
+  `password`) are not counted. It covers code-text documents only: git-code''s
   history source stores per-file diffs, which okg redacts by its own patterns, so a secret removed
   from the current files can still be read in the diff that removed it. The file cap is okg''s
   default (25,000), since every text file now counts. The pack takes one repository per install; the
@@ -42,6 +53,8 @@ affected_code:
 - python/tests/sources/test_code_text_screen.py
 - python/tests/test_bundle_code_text.py
 - python/tests/test_bundle_source_adapters.py
+- python/tests/packs/pack_support.py
+- python/tests/packs/test_pack_isolation.py
 - docs/cern-team-quickstart.md
 - docs/okg-alignment.md
 - docs/release-notes-3.0.0.md
@@ -84,10 +97,13 @@ requirements:
     a password that is not a template (plain-word, URL-encoded and empty-user forms included), an
     Authorization or Bearer header or `curl -u` with a literal value, a key ending in a secret word
     (password, passwd, passphrase, pwd, pass, secret, token, credential(s), api/access/secret/
-    private/auth key) assigned a literal value on the same line, a bare `auth` key with a literal
-    of 16 or more characters, or a `--password VALUE` flag, .netrc `password` line or XML secret
-    element with a literal value. Templates, environment lookups, YAML aliases, expressions, paths,
-    prose and plain words are references and are kept. Every pattern is bounded, so a 1 MB line
+    private/auth key) assigned a literal value on the same line with `=`, `=>` or `:`, a bare
+    `auth` key with a literal of 16 or more characters, a quoted multi-word passphrase, or a flag
+    ending in a secret word (`--password`, `--client-secret`, `--access-token`), `mysql -p`, a
+    .netrc `password` line or an XML secret element with a literal value. An identifier-shaped
+    value with a digit is a literal (`archi_Xk9..._db`); one without is a variable name. Templates, environment lookups, YAML aliases, expressions, paths,
+    prose and plain words are references and are kept; a URL to a documentation host or with a
+    placeholder password is not counted. Every pattern is bounded, so a 1 MB line
     screens in linear time. The verdict cache is keyed by the content''s SHA-256. A left-out file gets no document and no chunk; the
     source records the left-out paths (never values) in `screened_paths` and logs them.
 
@@ -104,6 +120,12 @@ requirements:
     secret files (control). A file that gains a secret in a later commit drops out of the next run
     of the same source object and comes back when the secret is removed, and a same-size rewrite
     with the old modification time is still left out. [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.planted: in the pack-isolation install (fresh Postgres, okg
+    install, ingest, publish), git-code''s fixture repository holds a file with a planted, invented
+    password; the published graph has a code-text document for the clean README and none for the
+    planted file, and okg''s grep search for the password finds no record anywhere in the graph.
+    [evidence: executed_test]
 
     - acc.r3-code-text-all-files.real-repos: run over the 18 repositories of the comp-ops instance
     with the shipped globs, the screen''s exclusions are reported (files selected, files left out,
@@ -140,6 +162,8 @@ tasks:
 
     - python/tests/sources/test_code_text_screen.py [evidence: pytest]
 
-    - python/tests/test_bundle_code_text.py [evidence: pytest]'
+    - python/tests/test_bundle_code_text.py [evidence: pytest]
+
+    - python/tests/packs/test_pack_isolation.py [evidence: pytest]'
 evidence: []
 decisions: []

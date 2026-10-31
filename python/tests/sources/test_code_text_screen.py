@@ -31,8 +31,8 @@ LITERAL = {
     "slack token": (f"SLACK={_SLACK}\n", "token"),
     "jwt": (f"cookie: {_JWT}\n", "jwt"),
     "base64 blob": (f"tls.key: {_BLOB}\n", "base64_blob"),
-    "url with a password": (f"DB=postgres://archi:{_PW}@db.example.org/archi\n", "credential_url"),
-    "url with a plain-word password": ("mysql://root:" + "admin" + "@localhost/test\n", "credential_url"),
+    "url with a password": (f"DB=postgres://archi:{_PW}@db01/archi\n", "credential_url"),
+    "url with a plain-word password": ("mysql://root:" + "admin" + "@db01/test\n", "credential_url"),
     "url-encoded password": ("postgres://u:" + "Zx9%40v" + "@h/db\n", "credential_url"),
     "url with an empty user": ("redis://:" + _PW + "@cache:6379/0\n", "credential_url"),
     "authorization header": ('headers = {"Authorization": "Bearer ' + _LONG + '"}\n', "authorization_header"),
@@ -53,6 +53,17 @@ LITERAL = {
     "xml element": (f"<password>{_PW}</password>\n", "secret_assignment"),
     "dollar inside a quoted password": ('password = "Pa' + "$$" + 'w0rd!x"\n', "secret_assignment"),
     "symbol first": ("password: '!" + "Qaz2wsx3edc'\n", "secret_assignment"),
+    "unquoted identifier-shaped yaml password": ("POSTGRES_PASSWORD: archi_" + _PW + "_db\n", "secret_assignment"),
+    "dotted env password": ("DB_PASSWORD=prod." + _PW + "\n", "secret_assignment"),
+    "ini password": ("[db]\npassword = Prod_" + _PW + "\n", "secret_assignment"),
+    "quoted all-caps password": ('password = "XK9P' + 'Q2MZ7RT4"\n', "secret_assignment"),
+    "puppet arrow": ("password => '" + _PW + "',\n", "secret_assignment"),
+    "quoted key arrow": ('"db_password" => "' + _PW + '"\n', "secret_assignment"),
+    "passphrase of words": ('passphrase = "correct horse battery staple"\n', "secret_assignment"),
+    "client secret flag": ("login --client-secret " + _PW + "\n", "secret_assignment"),
+    "access token flag": ("run --access-token " + _LONG + "\n", "secret_assignment"),
+    "mysql -p": ("mysql -u root -p" + _PW + " ops\n", "secret_assignment"),
+    "data uri that is not an image": ("x = data:application/octet-stream;base64," + "eyJh" * 30 + "\n", "base64_blob"),
 }
 
 REFERENCE = {
@@ -95,6 +106,10 @@ REFERENCE = {
     "f-string with a call": 'token = f"tk-{time.time()}"\n',
     "quote that spans code": 'password = ask("password", getpass("x"))\n',
     "upper-case variable name": "PASSWORD=DB_PASSWORD_VAR\n",
+    "loopback url in docs": "postgresql://postgres:okg@127.0.0.1:5491/packtest\n",
+    "example host url": "https://alice:" + _PW + "@example.com/repo.git\n",
+    "placeholder url password": "scheme://user:pass@host/path\n",
+    "comparison arrow": "if ($token >= 3) {\n",
 }
 
 
@@ -113,10 +128,14 @@ def test_empty_text_has_no_secret():
     assert secret_classes("") == []
 
 
-@pytest.mark.parametrize("unit", ["a_", "a-b.", "Q7x_", "ab" * 3 + "=", "x" * 7 + "/"])
+@pytest.mark.parametrize("unit", [
+    "a_", "a-b.", "Q7x_", "ab" * 3 + "=", "x" * 7 + "/",
+    "a:", "://", "Authorization: ", "password ", "<password>", "-u x:",
+    "machine a login b password ", "--x-token ", "mysql ", "a => ",
+])
 def test_a_long_line_costs_linear_time(unit):
-    """A 1 MB line of key characters, the worst case for the key pattern,
-    screens in well under a second (it once took minutes)."""
+    """A 1 MB line built from one pattern's own pieces screens in under two
+    seconds (the key pattern once took minutes on 80 KB)."""
     line = unit * (1_000_000 // len(unit))
     start = time.perf_counter()
     secret_classes(line)

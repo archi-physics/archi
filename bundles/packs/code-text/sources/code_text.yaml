@@ -31,9 +31,9 @@
 #
 # Size. On a 99-file repository with 77 Python files (686 KB of source, 528
 # functions), reading only code gave 77 documents, 613 chunk records holding
-# 1.03x the source text, 1,313 links and 14.5 MB more database. Reading all
-# text files of 18 operations repositories added 48,502 nodes and 92,839
-# edges (documents and chunks) to one instance.
+# 1.03x the source text, 1,313 links and 14.5 MB more database. Reading every
+# text file adds a document and its chunks per file, so expect the counts to
+# grow with the repository's non-code files.
 #
 # SECRETS. File contents become searchable, so a credential committed to the
 # repository would become findable. Two guards:
