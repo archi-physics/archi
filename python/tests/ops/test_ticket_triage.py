@@ -614,10 +614,10 @@ def test_a_ticket_time_far_ahead_of_the_clock_does_not_move_the_cursor():
     now = parse_time("2026-10-26T12:00:00Z")
     tickets = [Ticket.from_row(_new("redmine", "4820", "real", "2026-10-26T11:00:00Z")),
                Ticket.from_row(_new("redmine", "4821", "bad clock", "2036-01-01T00:00:00Z"))]
-    fresh, mark, _ = new_or_updated(tickets, parse_time("2026-10-26T10:00:00Z"), now=now)
+    fresh, mark, seen = new_or_updated(tickets, parse_time("2026-10-26T10:00:00Z"), now=now)
     assert [t.key for t in fresh] == ["4820"] and mark == parse_time("2026-10-26T11:00:00Z")
     later = parse_time("2036-01-01T00:30:00Z")
-    fresh, mark, _ = new_or_updated(tickets, mark, now=later)
+    fresh, mark, _ = new_or_updated(tickets, mark, seen=seen, now=later)
     assert [t.key for t in fresh] == ["4821"]
 
 
