@@ -22,6 +22,7 @@ from archi.ops import workflow as wf  # noqa: E402
 from archi.ops.context_gate import GateResult  # noqa: E402
 from archi.ops.escalation import Escalation, decision_from_row, subject_for  # noqa: E402
 from archi.ops.loop import Deps, MediationRefused, MediatorResult, ReadResult, Signal, load_automation, make_run_id, run_once  # noqa: E402
+from archi.ops.runtime_config import read_settings  # noqa: E402
 from archi.tools import tickets as tools  # noqa: E402
 from archi.tools._live import ops_verifier  # noqa: E402
 from archi.triage.context import read_ticket_context  # noqa: E402
@@ -48,7 +49,9 @@ def instance(tmp_path_factory):
     # the live tools send only to an endpoint the instance configures (ops.yaml proposer.systems)
     ops = root / "inst" / "ops.yaml"
     data = (yaml.safe_load(ops.read_text()) if ops.is_file() else None) or {}
-    data.setdefault("automations", {}).setdefault(NAME, {})["proposer"] = {"kind": "ticket-triage", **CONFIG}
+    block = data.setdefault("automations", {}).setdefault(NAME, {})
+    block["proposer"] = {"kind": "ticket-triage", **CONFIG}
+    block["mode"] = "live"  # what the mediator step reads again (the rollback test sets it back to shadow)
     ops.write_text(yaml.safe_dump(data))
     return root / "inst"
 
@@ -98,8 +101,9 @@ class Person:
     """Opens the escalation the way the workflow does (its id, its reason with the Action line) and answers
     `verdict` (approve, reject or None: nobody answers before the deadline)."""
 
-    def __init__(self, clock, esc_io, run_id, verdict):
+    def __init__(self, clock, esc_io, run_id, verdict, on_wait=None):
         self.clock, self.io, self.run_id, self.verdict, self.opened = clock, esc_io, run_id, verdict, []
+        self.on_wait = on_wait
 
     def open(self, *, automation, proposal_id, proposal, timeout_at):
         eid = wf.expected_escalation_id(self.run_id)
@@ -110,6 +114,8 @@ class Person:
         return Escalation(eid, proposal_id, self.clock.now(), timeout_at)
 
     def wait(self, escalation):
+        if self.on_wait:
+            self.on_wait()
         attrs = self.io.row[1]
         if self.verdict is None:
             self.clock.t = escalation.timeout_at + timedelta(seconds=1)
@@ -146,7 +152,8 @@ class ToolMediator:
             self.io, mediator_entry=lambda: self.auto.action_classes[action_class].mediator, action_class=action_class,
             payload=payload, proposal_id=proposal_id, idempotency_key=idempotency_key, esc=esc,
             workflow_id=self.run_id, dsn="postgresql://fixture", halt=lambda io: None, now=self.clock.now,
-            resolve=tool, refused=lambda verdict, reason: None, instance_dir=self.instance_dir, at_l1=level == "L1")
+            resolve=tool, refused=lambda verdict, reason: None, instance_dir=self.instance_dir, at_l1=level == "L1",
+            mode_now=lambda: read_settings(Path(self.instance_dir))[NAME].mode)
         if "refused" in out:
             raise MediationRefused(*out["refused"])
         return MediatorResult(out["status"], out["result"])
@@ -168,12 +175,12 @@ class World:
         self.system = FakeTicketSystem()
         self.system.add("redmine", "4820", status="New", assignee="")
 
-    def run(self, instance, signal_id, *, level, mode="live", verdict="approve", halt=(False,)):
+    def run(self, instance, signal_id, *, level, mode="live", verdict="approve", halt=(False,), on_wait=None):
         auto = load_automation(instance, NAME, instance_level=level, mode=mode, timeout_seconds=600)
         s = self.graph.signals[(NAME, signal_id)]
         run_id = make_run_id(NAME, signal_id, 1)
         clock, esc_io, recorder = Clock(at(0)), EscalationIO(), Recorder()
-        person = Person(clock, esc_io, run_id, verdict)
+        person = Person(clock, esc_io, run_id, verdict, on_wait)
         mediator = ToolMediator(auto, clock, esc_io, self.system, run_id, instance)
         deps = Deps(gate=Gate(GateResult(None, PASS.checks)), reader=GraphReader(self.graph), proposer=TriageProposer(CONFIG), decider=person,
                     mediator=mediator, outcome=Outcome(), recorder=recorder, halt=Halt(*halt), clock=clock,
@@ -280,3 +287,25 @@ def test_l3_is_refused_at_run_start(instance):
     assert person.opened == [] and mediator.calls == [] and w.system.requests == []
     (incident,) = records(rec, "incident")
     assert incident["summary"].startswith("run not started")
+
+
+def test_the_rollback_is_one_line_of_ops_yaml_and_holds_for_a_run_already_waiting(instance):
+    """Board d717 rollback: `mode: shadow` for ticket-triage in ops.yaml. A run waiting for its approval when
+    the line changes is approved after it, and still sends nothing: the mediator step reads ops.yaml again."""
+    ops = instance / "ops.yaml"
+    before = ops.read_text()
+
+    def roll_back():
+        data = yaml.safe_load(ops.read_text())
+        data["automations"][NAME]["mode"] = "shadow"
+        ops.write_text(yaml.safe_dump(data))
+
+    try:
+        w = World()
+        result, rec, person, mediator = w.run(instance, "redmine-4820-20261025T120000Z", level="L2",
+                                              verdict="approve", on_wait=roll_back)
+        assert person.opened and not result.mediated, result
+        assert "mode 'shadow'" in result.reason and "nothing was sent" in result.reason
+        assert w.system.writes() == [] and w.system.ticket("redmine", "4820")["assignee"] == ""
+    finally:
+        ops.write_text(before)

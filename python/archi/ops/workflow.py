@@ -350,11 +350,13 @@ def run_mediation(
     refused: Callable[[str, str], None] = log_refusal,
     instance_dir: Optional[str] = None,
     at_l1: bool = False,
+    mode_now: Callable[[], str] = lambda: "live",
 ) -> dict:
     """The body of the mediator step: the only place an action happens.
 
     Order: (1) an earlier attempt for this idempotency key decides everything (a replay never
-    asks again); (2) halt; (3) the escalation row, read again, must pass `may_execute` (a workflow step
+    asks again); (2) halt, and `mode_now()` (ops.yaml read again now): an automation set back to shadow while
+    its run waited (a rollback) sends nothing; (3) the escalation row, read again, must pass `may_execute` (a workflow step
     with an implementation has no escalation only at L1, where it has no external effect; at L2 the
     escalation is re-read for a step too); (4) the
     attempt is recorded durably; (5) the mediator is called with the key. Any exception in
@@ -367,6 +369,11 @@ def run_mediation(
             return _earlier_attempt(earlier)
         reason = halt(io)
         if reason:
+            refused("halted", reason)
+            return {"refused": ["halted", reason]}
+        mode = mode_now()
+        if mode != "live":
+            reason = f"ops.yaml now sets mode {mode!r} for this automation (set back after the run started); nothing was sent"
             refused("halted", reason)
             return {"refused": ["halted", reason]}
         entry = mediator_entry()
@@ -416,7 +423,7 @@ def _mediate_step(automation: str, action_class: str, payload: dict, proposal_id
         _io(rt), mediator_entry=lambda: rt.automation(automation).action_classes[action_class].mediator,
         action_class=action_class, payload=payload, proposal_id=proposal_id, idempotency_key=idempotency_key,
         esc=esc, workflow_id=DBOS.workflow_id, dsn=rt.dsn, instance_dir=str(rt.instance_dir),
-        at_l1=level == "L1")
+        at_l1=level == "L1", mode_now=lambda: _runtime().settings[automation].mode))
 
 
 @deployment_step(name="archi_ops_decision")

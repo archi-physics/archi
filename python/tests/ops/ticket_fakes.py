@@ -154,7 +154,7 @@ class FakeTicketSystem:
                                          "assignment_group": r.get("assignment_group", "")} for r in rows]}
             rec = next(r for r in sn["records"].values() if r["sys_id"] == sys_id)
             for field, value in body.items():
-                if field == "work_notes":
+                if field in ("work_notes", "comments"):
                     rec["notes"].append(value)
                 else:
                     rec[{"state": "state", "assigned_to": "assignee"}.get(field, field)] = value

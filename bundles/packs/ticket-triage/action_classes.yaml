@@ -79,3 +79,29 @@ action_classes:
     reversible: false  # the assignee can be set back, but the note on the ticket stays
     blast_radius: One ticket's assignee or assignment group and one note on it; the rollback sets it back.
     max_level: L2
+  post_reply:
+    description: Post the suggested reply (written by the model when proposer.drafter is set) on one ticket, with a line naming the approval.
+    payload_schema:
+      type: object
+      required: [system, ticket, ticket_url, reply, endpoint]
+      additionalProperties: false
+      properties:
+        system: {enum: [redmine, jira, servicenow]}
+        ticket: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+        ticket_url: {type: string, maxLength: 2000, pattern: "^https?://[^\\s@]+$"}
+        table: {enum: [incident, sc_request]}
+        endpoint:
+          type: object
+          required: [url]
+          additionalProperties: false
+          properties:
+            url: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            site: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            user_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            password_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+        reply: {type: string, minLength: 1, maxLength: 8000}
+    mediator: archi.tools.tickets:post_reply
+    reversible: false  # a posted note cannot be withdrawn by archi; a person corrects or removes it on the ticket
+    blast_radius: One note on one ticket, visible to the person who opened it, in the ticket system the payload names.
+    max_level: L2

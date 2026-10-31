@@ -167,3 +167,47 @@ def test_the_cli_refuses_without_a_passing_report_and_passes_the_thresholds_on(m
     args = build_parser().parse_args(["ops", "--instance", str(repo), "promote", "triage", "--min-proposals", "5"])
     assert args.func(args) == 0
     assert seen["thresholds"]["min_proposals"] == 5 and seen["thresholds"]["max_false_rate"] == 0.1
+
+
+EMPTY = {"scored": 0, "answered": 0, "response_coverage": None, "agreement_rate": None,
+         "false_proposal_rate_upper": None}
+
+
+def test_no_trial_opens_the_change_with_no_shadow_history_and_records_the_decision(repo):
+    """Board d717: SubMIT switches to ticket-triage at the cutover with no trial. With no shadow history the
+    readiness check can never pass, so --no-trial names the decision instead; a person still approves."""
+    with pytest.raises(PromotionRefused, match="not ready"):
+        run(repo, report=EMPTY)
+    result, okg = run(repo, report=EMPTY, no_trial="board d717: switch at the 3.0 cutover, unchecked")
+    change = result["change"]
+    assert result["state"] == "awaiting_review" and result["no_trial"].startswith("board d717")
+    new, ingest, gate = okg.calls
+    intent = new[new.index("--intent") + 1]
+    assert "No shadow trial, on the decision: board d717" in intent and "scored=0" in intent
+    assert "no shadow trial" in new[new.index("--acceptance") + 1]
+    assert new[new.index("--test-id") + 1] == "promotion/no_trial.py::test_promotion_without_trial"
+    assert not any("decide" in c for c in okg.calls)  # the approval stays a person's step
+    change_dir = repo / "pact" / "changes" / change
+    assert json.loads((change_dir / "promotion.json").read_text())["no_trial"].startswith("board d717")
+    case = ET.parse(change_dir / "readiness.xml").getroot().find(".//testcase")
+    assert case.get("name") == "test_promotion_without_trial" and case.find("failure") is None
+    assert "board d717" in case.find("system-out").text
+    ops = yaml.safe_load((repo / "ops.yaml").read_text())["automations"]["triage"]
+    assert ops["mode"] == "live" and ops["promotion"] == change
+
+
+def test_no_trial_needs_a_decision_and_the_cli_passes_it_on(monkeypatch, repo):
+    with pytest.raises(PromotionRefused, match="not ready"):
+        run(repo, report=EMPTY, no_trial="   ")
+    from archi.bundles.cli import build_parser
+    from archi.cli import ops
+    from archi.ops import shadow
+    import archi.ops.promotion as promotion
+
+    seen = {}
+    monkeypatch.setattr(ops, "make_io", lambda args: type("Io", (), {"deployment": "dep", "dsn": "x"})())
+    monkeypatch.setattr(shadow, "okg_source", lambda *a, **k: None)
+    monkeypatch.setattr(shadow, "score_automation", lambda *a, **k: EMPTY)
+    monkeypatch.setattr(promotion, "promote", lambda *a, **k: seen.update(k) or {"change": "c", "next": "n"})
+    args = build_parser().parse_args(["ops", "--instance", str(repo), "promote", "triage", "--no-trial", "board d717"])
+    assert args.func(args) == 0 and seen["no_trial"] == "board d717"

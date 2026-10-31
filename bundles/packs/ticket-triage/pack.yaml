@@ -15,6 +15,7 @@ requires:
 live_tools:
   - archi.tools.tickets:set_ticket_status
   - archi.tools.tickets:assign_ticket
+  - archi.tools.tickets:post_reply
 # Each reads the ticket first and changes nothing when the field already holds the value.
 idempotent_tools:
   - archi.tools.tickets:set_ticket_status
@@ -34,7 +35,7 @@ automation:
     sources: [tickets.tickets, jira.jira, servicenow.servicenow]
   narrow_to_selected: true
   playbook: triage.md
-  action_classes: [draft_reply, set_ticket_status, assign_ticket]
+  action_classes: [draft_reply, set_ticket_status, assign_ticket, post_reply]
   proposal_schema:
     type: object
     required: [summary, evidence_ids, action_class, payload, confidence, rollback]

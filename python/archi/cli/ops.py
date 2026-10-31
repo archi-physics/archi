@@ -381,7 +381,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
     try:
         result = promote(Path(args.instance), args.automation, report=report, readiness=readiness,
                          thresholds=thresholds, principal=decider_name(args.as_user), note=args.note or "",
-                         dsn=io.dsn, deployment=io.deployment)
+                         dsn=io.dsn, deployment=io.deployment, no_trial=args.no_trial or "")
     except PromotionRefused as exc:
         raise OpsCliError(str(exc)) from exc
     print(json.dumps(result, indent=2) if args.json else
@@ -435,6 +435,9 @@ def add_parser(sub, roots=None) -> None:
         p.add_argument("--min-coverage", type=float, default=0.5)
         p.add_argument("--min-agreement", type=float, default=0.8)
         p.add_argument("--max-false-rate", type=float, default=0.1)
+        p.add_argument("--no-trial", metavar="DECISION",
+                       help="go live with no shadow trial, on this decision (for example a board item); the change "
+                            "records it and an operator still approves it")
 
     command("promote", "ask for an automation to go live: opens a PACT change for an operator to approve", cmd_promote,
             extra=promote_args)

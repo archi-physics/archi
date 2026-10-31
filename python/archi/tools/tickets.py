@@ -118,12 +118,23 @@ PAYLOAD_SCHEMAS: dict[str, dict[str, Any]] = {
             "expected": {"type": "string", "maxLength": 200},
         },
     },
+    "post_reply": {
+        "type": "object",
+        "required": ["system", "ticket", "ticket_url", "reply", "endpoint"],
+        "additionalProperties": False,
+        "properties": {
+            **{k: v for k, v in _COMMON.items() if k != "note"},
+            "reply": {"type": "string", "minLength": 1, "maxLength": 8000},
+        },
+    },
 }
 
 #: What the pack ships, in one place: the tests hold this equal to pack.yaml and action_classes.yaml.
 TOOLS: dict[str, dict[str, Any]] = {
     "set_ticket_status": {"kind": "act", "idempotent": True},
     "assign_ticket": {"kind": "act", "idempotent": True},
+    # posting twice posts twice: the mediator step's idempotency key is what keeps it to once
+    "post_reply": {"kind": "act", "idempotent": False},
 }
 
 
@@ -301,6 +312,9 @@ class Redmine(_Client):
         self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"status_id": found[0]["id"], "notes": note}},
                   write=True)
 
+    def post(self, key, table, current, text):
+        self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"notes": text}}, write=True)
+
     def assign(self, key, table, current, field, value, note):
         members = (self.call("GET", f"/projects/{quote(current['project'])}/memberships.json",
                              params={"limit": 100}) or {}).get("memberships") or []
@@ -329,6 +343,9 @@ class Jira(_Client):
             raise NoteFailed(f"{exc}; add it by hand") from None
         except WriteUnknown as exc:
             raise NoteFailed(f"{exc}; it may have been posted, check the ticket before adding it") from None
+
+    def post(self, key, table, current, text):
+        self.call("POST", f"/rest/api/2/issue/{quote(key)}/comment", json={"body": text}, write=True)
 
     def set_status(self, key, table, current, status, note):
         moves = (self.call("GET", f"/rest/api/2/issue/{quote(key)}/transitions") or {}).get("transitions") or []
@@ -365,6 +382,9 @@ class ServiceNow(_Client):
     def patch(self, table, current, body):
         self.call("PATCH", f"/api/now/table/{table}/{quote(current['sys_id'])}",
                   params={"sysparm_input_display_value": "true"}, json=body, write=True)
+
+    def post(self, key, table, current, text):
+        self.patch(table, current, {"comments": text})  # visible to the caller, as a reply is
 
     def set_status(self, key, table, current, status, note):
         self.patch(table, current, {"state": status, "work_notes": note})
@@ -448,3 +468,30 @@ def assign_ticket(*, payload: Mapping[str, Any], context: Mapping[str, Any], ses
     return _act("assign_ticket", payload, context, session, env, verify,
                 field_of=lambda d: d["field"], target_of=lambda d: d["value"], expected_of=lambda d: d["expected"],
                 write=lambda c, d, cur, note: c.assign(d["ticket"], d.get("table"), cur, d["field"], d["value"], note))
+
+
+def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], session: Any = None,
+               env: Optional[Mapping[str, str]] = None, verify: Optional[Verifier] = None) -> dict[str, Any]:
+    """Post an approved reply on one ticket (Redmine note, JIRA comment, ServiceNow comment), followed by a line
+    naming the approval. Same checks as the other tools; a write with no answer is `unknown`, so it is not
+    posted twice by a retry."""
+    data = _checked(payload, "post_reply")
+    approval = require_approval(context, verify, payload=data, action_class="post_reply")
+    _check_configured(data, context)
+    client = CLIENTS[data["system"]](data["endpoint"], os.environ if env is None else env, session)
+    key, table = data["ticket"], data.get("table")
+    label = f"{data['system']} {key}"
+    try:
+        current = client.read(key, table)
+    except TicketToolError as exc:
+        return _out("failed", f"could not read {label} ({exc}); nothing was posted")
+    text = (f"{data['reply']}\n\n-- Posted by the archi ticket-triage automation after approval by "
+            f"{approval.decided_by} in escalation {approval.escalation_id} (proposal {approval.proposal_id}).")
+    try:
+        client.post(key, table, current, text)
+    except WriteUnknown as exc:
+        return _out("unknown", f"{label}: the post got no answer ({exc}); it may have been posted, check the "
+                               "ticket before posting again")
+    except TicketToolError as exc:
+        return _out("failed", f"{label}: {exc}; nothing was posted")
+    return _out("succeeded", f"{label}: reply posted, noting escalation {approval.escalation_id}")

@@ -73,13 +73,15 @@ class Tool:
         return self.result
 
 
-def mediate(io, tool=None, *, halt=lambda io: None, now=T0 + timedelta(seconds=120), esc=ESC, entry=lambda: "m:f"):
+def mediate(io, tool=None, *, halt=lambda io: None, now=T0 + timedelta(seconds=120), esc=ESC, entry=lambda: "m:f",
+            mode="live"):
     tool = tool or Tool()
     refusals = []
     out = wf.run_mediation(
         io, mediator_entry=entry, action_class="write_marker", payload={"entity": "T2"}, proposal_id="prop-1",
         idempotency_key=KEY, esc=esc, workflow_id=KEY, dsn="postgresql://x", halt=halt, now=lambda: now,
-        resolve=lambda entry: tool, refused=lambda verdict, reason: refusals.append((verdict, reason)))
+        resolve=lambda entry: tool, refused=lambda verdict, reason: refusals.append((verdict, reason)),
+        mode_now=lambda: mode)
     return out, tool, refusals
 
 
@@ -101,6 +103,15 @@ def test_halt_refuses_before_anything_is_recorded_or_called():
     out, tool, refusals = mediate(io, halt=lambda io: "the archi_ops_scan schedule is paused (archi ops halt)")
     assert out == {"refused": ["halted", "the archi_ops_scan schedule is paused (archi ops halt)"]}
     assert refusals == [("halted", "the archi_ops_scan schedule is paused (archi ops halt)")]
+    assert tool.calls == [] and io.begun == []
+
+
+def test_an_automation_set_back_to_shadow_while_its_run_waited_sends_nothing():
+    """The rollback: ops.yaml says shadow again (a person approved the escalation after that, or the run was
+    already waiting); the mediator step reads the mode again and refuses before anything is recorded."""
+    io = FakeIO()
+    out, tool, refusals = mediate(io, mode="shadow")
+    assert out["refused"][0] == "halted" and "mode 'shadow'" in out["refused"][1] and "nothing was sent" in out["refused"][1]
     assert tool.calls == [] and io.begun == []
 
 

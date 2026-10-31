@@ -59,7 +59,7 @@ ops.yaml:
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 from urllib.parse import urlsplit
 
 from archi.enrichment.anonymizer import redact_email_addresses
@@ -100,8 +100,12 @@ def _endpoint(config: Mapping[str, Any]) -> Optional[dict]:
 
 
 class TriageProposer:
-    def __init__(self, config: Optional[Mapping[str, Any]] = None):
+    def __init__(self, config: Optional[Mapping[str, Any]] = None, *, drafter: Any = None,
+                 read_text: Optional[Callable[[Mapping[str, Any], str], str]] = None):
+        """`drafter` (archi.triage.drafter.Drafter) writes the suggested reply; `read_text(ticket, generation)`
+        reads the ticket's text again from the graph for it (the run's context leaves the text out)."""
         self.config = dict(config or {})
+        self.drafter, self.read_text = drafter, read_text
         self.min_agreement = int(self.config.get("min_agreement", 2))
 
     def system_config(self, system: str) -> Mapping[str, Any]:
@@ -164,6 +168,23 @@ class TriageProposer:
         if docs:
             reply.append(f"This documentation may help: {docs[0]['title']} {cite(docs[0]['node_id'])}.")
         reply.append("We will follow up on this ticket.")
+        cost, written, why_not = 0.0, "", ""
+        if self.drafter is not None:
+            from archi.triage.drafter import DrafterError
+
+            allowed = [ticket["node_id"], *(r["node_id"] for r in related), *(d["node_id"] for d in docs),
+                       *(p["node_id"] for p in precedents)]
+            try:
+                text = self.read_text(ticket, request.generation) if self.read_text else ""
+                out = self.drafter.write(ticket, text, related, docs, precedents, allowed)
+            except DrafterError as exc:
+                cost, why_not = float(getattr(exc, "cost", 0.0)), str(exc)
+            else:
+                cost, written = out.cost, out.text
+                for node in out.cited:
+                    cite(node)
+                reply = ["", f"Suggested reply (written by {self.drafter.model_name}; check it before it is posted):",
+                         written]
         sources = ["", "Sources:", *(f"[{i + 1}] {node}" for i, node in enumerate(cite.ids))]
         body = "\n".join(lines + reply + sources)
 
@@ -171,6 +192,8 @@ class TriageProposer:
         confidence = round(min(0.9, 0.3 + (0.2 if related else 0.0) + (0.1 if docs else 0.0) + 0.3 * agreement), 2)
         summary = (f"Triage {label}: category {category or 'unknown'}; component {component or 'unknown'}; "
                    f"{len(related)} related ticket(s), {len(precedents)} precedent(s), {len(docs)} document(s)")
+        if why_not:
+            summary += f"; the model reply was not used ({why_not}), the template reply stands"
         draft = {
             "summary": summary,
             "evidence_ids": list(cite.ids),
@@ -181,13 +204,15 @@ class TriageProposer:
             "rollback": "Nothing to undo: the draft was not sent.",
         }
         if request.level < 2:
-            return Proposed(draft, cost=0.0)
+            return Proposed(draft, cost=cost)
         keys = {r["node_id"]: f"{r['system']} {r['key']}" for r in related}
-        return Proposed(self.l2(ticket, draft, assignee if agreed else "", [keys.get(n, n) for n in as_ids], ctx),
-                        cost=0.0)
+        return Proposed(self.l2(ticket, draft, assignee if agreed else "", [keys.get(n, n) for n in as_ids], ctx,
+                                reply=written), cost=cost)
 
-    def l2(self, ticket: Mapping[str, Any], draft: dict, assignee: str, by: list[str], ctx: Mapping[str, Any]) -> dict:
-        """The L2 proposal: an assignment, a status change, or the draft (recorded as capped). `by` names the
+    def l2(self, ticket: Mapping[str, Any], draft: dict, assignee: str, by: list[str], ctx: Mapping[str, Any],
+           reply: str = "") -> dict:
+        """The L2 proposal: posting the model's reply (when `systems.<system>.post_replies` is set and the reply
+        was used), else an assignment, a status change, or the draft (recorded as capped). `by` names the
         related tickets that agree on the assignee, as `<system> <key>`."""
         system, key = ticket["system"], ticket["key"]
         config = self.system_config(system)
@@ -213,6 +238,12 @@ class TriageProposer:
         if ticket.get("table"):
             base["table"] = ticket["table"]
         rejected = list(ctx.get("rejected") or ())
+        if reply and config.get("post_replies"):
+            return {**draft,
+                    "summary": f"{draft['summary']}; proposes: post the suggested reply on {system} {key}",
+                    "action_class": "post_reply",
+                    "payload": {**base, "reply": reply},
+                    "rollback": f"archi cannot withdraw a posted note: correct or remove it on {system} {key} by hand."}
 
         def was_rejected(action_class: str, field: str, value: str) -> Optional[str]:
             for r in rejected:
@@ -255,4 +286,21 @@ class TriageProposer:
 
 def build(config: Mapping[str, Any], runtime: Any) -> TriageProposer:
     """`archi.ops.proposers.PROPOSER_KINDS["ticket-triage"]`: from the `proposer:` block of ops.yaml."""
-    return TriageProposer(config)
+    if not config.get("drafter"):
+        return TriageProposer(config)
+    from archi.ops.okg_io import OpsIO
+    from archi.triage.drafter import Drafter
+
+    io = OpsIO(runtime.dsn, runtime.deployment)
+    return TriageProposer(config, drafter=Drafter(config["drafter"]), read_text=lambda t, g: ticket_text(io, t, g))
+
+
+def ticket_text(io: Any, ticket: Mapping[str, Any], generation: str) -> str:
+    """The ticket's text (redacted, as Ticket reads it) at `generation`, read again from the graph."""
+    from archi.triage.tickets import READINGS, Ticket
+
+    spec = READINGS[str(ticket["subtype"])]
+    for row in io.read_by_attr(ticket["subtype"], generation, spec.key, ticket["key"]):
+        if row.get("node_id") == ticket["node_id"]:
+            return Ticket.from_row(row).description
+    return ""
