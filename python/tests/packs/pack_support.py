@@ -309,6 +309,12 @@ def _analysis_notes(data: Path, server: FixtureServer) -> dict:
     return {"mirror_root": str(write_note_mirror(data / "analysis-notes"))}
 
 
+#: An invented password, assembled from pieces so no complete secret-shaped
+#: string sits in the repository. git-code's fixture plants it in a file.
+PLANTED_SECRET = "Pk7w" + "Rq2Zt9Lx"
+PLANTED_SECRET_PATH = "deploy/db-values.yaml"
+
+
 def _git_code(data: Path, server: FixtureServer) -> dict:
     upstream = data.parent / "upstream" / "demo"
     if not (upstream / ".git").is_dir():
@@ -326,6 +332,12 @@ def _git_code(data: Path, server: FixtureServer) -> dict:
             encoding="utf-8",
         )
         (upstream / "README.md").write_text("# demo\n\nA test repository.\n", encoding="utf-8")
+        # A planted, invented secret: code-text's screen must keep this file's
+        # text out of the graph (test_pack_isolation checks after publish).
+        (upstream / "deploy").mkdir()
+        (upstream / "deploy" / "db-values.yaml").write_text(
+            "db:\n  user: demo\n  password: " + PLANTED_SECRET + "\n", encoding="utf-8"
+        )
         git(["init", "-q", "-b", "main"], upstream)
         git(["add", "-A"], upstream)
         git(["commit", "-q", "-m", "first commit"], upstream)
