@@ -56,8 +56,8 @@ tasks:
   requirement: req.chunk-char-end.positions
   verification: 'Return the stripped start from both _chunks copies; add char_end to the five
     emitters; add python/tests/sources/test_chunk_char_end.py (fails on main). Run the full
-    archi suite on submit76 on main and on this branch against the CI okg pin. Run the real-data
-    probe read-only on submit76 for main and branch.
+    archi suite on a dev host on main and on this branch against the CI okg pin. Run the real-data
+    probe read-only on a dev host for main and branch.
 
 
     Test plan:
@@ -70,7 +70,7 @@ evidence:
   command: cd python && python -m pytest tests -q
   head: 5bb8e991fa0ee15c70861195f5a7edf8ea89c8f1
   at: '2026-09-29T20:55:03+00:00'
-  note: 'Full archi suite on submit76 against the CI okg pin ac078aabd5: this commit 1665
+  note: 'Full archi suite on a dev host against the CI okg pin ac078aabd5: this commit 1665
     passed (includes the 8 new tests in tests/sources/test_chunk_char_end.py); main 4f8f338f
     1656 passed, 1 failed (timing test test_redact_email_addresses_quoted_local_part_is_linear,
     passes on rerun: 441/441 in test_anonymizer.py). The new file on main: 7 failed, 1 passed
@@ -85,7 +85,7 @@ evidence:
   sha256: 60cc95e09050571402a68ace873693add5fa4881593b5c66776706345bdc2ffc
   head: db2f05f445642f36561759a288903c51ee287398
   at: '2026-09-29T20:55:04+00:00'
-  note: 'Read-only on submit76. Each record rebuilt from its emitted chunks with okg dev record_text.order_segments
+  note: 'Read-only on a dev host. Each record rebuilt from its emitted chunks with okg dev record_text.order_segments
     + trim_overlap (imported), joined, compared to the text handed to _chunks. TWiki Aug 31
     stage (43,744 pages, 188,896 chunks): main 24,249 byte-identical, 19,478 multi-chunk pages
     with every overlap repeated; branch 43,712 byte-identical, 145,152/145,152 pairs trimmed,

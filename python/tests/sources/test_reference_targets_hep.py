@@ -49,7 +49,7 @@ def test_dataset_pattern_matches_real_dataset_paths(text):
 
 
 @pytest.mark.parametrize("text", [
-    "/afs/cern.ch/user/p/pmlugato/work",          # a file path
+    "/afs/cern.ch/user/j/jdoe/work",          # a file path
     "https://twiki.cern.ch/twiki/bin/view/CMS",   # a URL
     "see signal/background/ratio for details",    # prose with slashes
     "/store/data/Run2018D/SingleMuon/MINIAOD/file.root",  # a FILE, not a dataset

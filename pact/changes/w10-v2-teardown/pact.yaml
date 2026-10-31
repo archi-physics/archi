@@ -43,7 +43,7 @@ evidence:
 - kind: executed_test
   requirement: req.w10-v2-teardown
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
     -q
   artifact: python/tests/test_packaging.py
   sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76

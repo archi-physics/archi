@@ -3,7 +3,7 @@ id: w6-cern-team-bundle
 title: 'W6: cern-team bundle + install demo'
 tier: 1
 why: 'ADR 0001 W6 / okg#1185: the cern-team bundle turns a blank OKG install into a working
-  HEP instance. Demo executed 2026-08-21 on submit82: okg install --profile cern-team on a
+  HEP instance. Demo executed 2026-08-21 on a dev host: okg install --profile cern-team on a
   fresh DB, lint zero blocker/warning, four connectors ingest OK (live cmssw fetch), a generation
   published with cross-connector reference edges, idempotent re-run. Runbook docs/cern-team-demo.md;
   results + friction log in w2-consolidate-hep-sources/cern-team-demo-evidence.md.
@@ -38,7 +38,7 @@ evidence:
 - kind: executed_test
   requirement: req.w6-cern-team-bundle
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_bundle_cern_team.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_bundle_cern_team.py
     -q
   artifact: python/tests/test_bundle_cern_team.py
   sha256: f3515d5aec7d8600fd5eaec289ea42b349ecea6a6928c0605ae1d7378f411a31

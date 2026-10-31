@@ -180,7 +180,7 @@ archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarde
 `okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
 
 **CI was testing a different okg than this page claimed.** Until 2026-09-10 the
-workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev` silently
+workflow installed okg at `f5ec3b58d` from a personal *fork*, whose `dev` silently
 stopped tracking upstream on 2026-08-25. So while this page recorded two pin bumps
 and a passing suite, CI re-checked a three-week-old okg; every "passed against `dev`"
 claim here was true of local runs only. Nothing failed, which is why nobody noticed.

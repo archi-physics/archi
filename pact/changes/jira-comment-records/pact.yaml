@@ -154,7 +154,7 @@ evidence:
   requirement: req.jira-comment-records.main
   status: pass
   command: python -m pytest tests -q; python -m pytest tests/sources/test_jira_comments.py
-    tests/test_catalog_handle_fields.py tests/packs -q (python/, submit76, okg 0.2.0 wheel, Python
+    tests/test_catalog_handle_fields.py tests/packs -q (python/, a dev host, okg 0.2.0 wheel, Python
     3.12)
   head: 4f8c4856140ea331923c930b90786e3814238a3b
   at: '2026-10-25T15:57:45+00:00'

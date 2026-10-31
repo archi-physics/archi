@@ -8,21 +8,21 @@ MCP `search` and `query` returned the facts generation-pinned with provenance
 `source: archi.cmssw-releases, trust: trusted`. `okg deployment lint` reports only
 info-level findings (producer write envelope missing — same as OKG's own scaffold fixture).
 
-**Environment:** submit82.mit.edu · okg `dev` @ `21c5b8c3e` (editable install, uv venv,
+**Environment:** a dev host · okg `dev` @ `21c5b8c3e` (editable install, uv venv,
 python 3.12) · postgres = `okg-pg17:local` (timescaledb-ha pg17 + pg_textsearch) rootless
-podman, port 5455 · deployment at `/work/submit/lavezzo/okg-scratch/w1-scratch` ·
+podman · deployment at `<scratch>/w1-scratch` ·
 wheel at `w1-seam/dist/`.
 
 **Working bring-up sequence** (the order matters — see friction 3):
 
 ```bash
-uv venv --python 3.12 /work/submit/lavezzo/okg-venv
+uv venv --python 3.12 <okg-venv>
 VIRTUAL_ENV=... uv pip install -e <okg-clone>          # + pip install <archi wheel>
 podman build --from docker.io/timescale/timescaledb-ha:pg17-all@sha256:7fb5b82... \
   --network=host -t okg-pg17:local <okg>/ops/pg        # unqualified FROM fails rootless (friction 0)
 podman run ... okg-pg17:local postgres -c shared_preload_libraries=timescaledb,pg_cron,pg_textsearch ...
-export OKG_DSN=postgresql://postgres:okg@127.0.0.1:5455/okg_w1_scratch
-export OKG_DEPLOYMENTS_DIR=/work/submit/lavezzo/okg-scratch
+export OKG_DSN=postgresql://postgres:okg@127.0.0.1:<port>/okg_w1_scratch
+export OKG_DEPLOYMENTS_DIR=<scratch>
 okg deployment new w1-scratch --deployments-root $OKG_DEPLOYMENTS_DIR
 # add nomos.rollout deferred block (friction 1); register sources; copy schema in
 okg migrate --deployment w1-scratch

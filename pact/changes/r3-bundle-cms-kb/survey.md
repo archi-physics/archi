@@ -41,7 +41,7 @@ real boundary to draw between the two: they are one bundle under two names.
 | `skills/` | symlink to archi-okg skills (whole set, including rucio/condor ops playbooks) plus its own `chat-system-prompt.md` | bundle selects the physics-relevant playbooks; prompt goes to the bundle |
 | `benchmarks/golden-set` | 100 reviewed questions (82 mined from ARC review exchanges), 100 reserve, 20 graph regression | bundle smoke eval set (`r3-bundle-evals`) |
 | `benchmarks/arc`, `benchmarks/entity-candidates` | tools that mine the golden set and entity aliases | stay in cms-kb (research tooling) |
-| init answers | TWiki/AN mirror roots on `/ceph/submit`, cache root, ports, model `qwen3.8:27B`, OIDC issuer/audience | instance |
+| init answers | TWiki/AN mirror roots on the site's shared filesystem, cache root, ports, model `qwen3.8:27B`, OIDC issuer/audience | instance |
 | `scripts/setup-postgres.sh`, `ops/pg` | own Postgres container on a free port | replaced by `archi up` (`r3-golden-path`) |
 | `scripts/chat-up.sh` | works around `okg chat-instance up` failing on hosts where `host.docker.internal` can't reach the host | footgun ledger; file upstream |
 | `scripts/sync-archi-schemas.sh` | copies schemas because okg refuses a `schemas:` path outside the profile | gone once bundles ship without symlinks (`r3-bundle-format.packaging`) |

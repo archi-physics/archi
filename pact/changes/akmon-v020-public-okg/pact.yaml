@@ -53,7 +53,7 @@ evidence:
   head: 4a43a3f1f3642b8e42146168ce1cca18f0e3f85f
   at: '2026-10-20T11:20:02+00:00'
   note: '1795 passed, 1 failed against okg 0.2.0 installed from the release wheel by URL
-    and sha256 (Python 3.12, submit76; the docs-only edits since that run do not touch
+    and sha256 (Python 3.12, a dev host; the docs-only edits since that run do not touch
     python/); the failure is test_redact_email_addresses_quoted_local_part_is_linear,
     a 1-second timing test that also fails on unmodified main on a loaded host and passes
     alone. A wrong sha256 was rejected by pip. Quickstart step 2 container from

@@ -84,7 +84,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-ops-record.write
   status: pass
-  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:5461/r3ops python/tests/packs/scratch_ops_record_run.sh
+  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:<port>/r3ops python/tests/packs/scratch_ops_record_run.sh
     <empty dir>
   head: 8aea6e855d350b04993d942bc07b1e19051984e2
   at: '2026-10-25T15:12:13+00:00'
@@ -135,7 +135,7 @@ evidence:
   requirement: req.r3-ops-record.recall
   status: pass
   command: python -m pytest python/tests/packs/test_ops_record_recall.py python/tests/test_skills.py
-    python/tests/packs/test_ops_record.py -q; python -m pytest python/tests -q (submit76, okg 0.2.0)
+    python/tests/packs/test_ops_record.py -q; python -m pytest python/tests -q (a dev host, okg 0.2.0)
   head: 94597b2ebb3975b7fc76adbab843520b9e4094fc
   at: '2026-10-25T15:37:29+00:00'
   note: 'acc.r3-ops-record.precedent, after the independent review of #790: a precedent''s
