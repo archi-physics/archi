@@ -30,14 +30,15 @@ no text.
   drafted with `python -m archi.evaluation.draft_gold_sources`, reviewed by an independent agent
   reviewer (Jason, 2026-10-29), checked by a fresh verifier, then frozen. Gold v3: 76 gold ids over the
   33 questions, 66 distinct records: 44 git files and 22 tickets. One git file is unavailable to the
-  scorer (every line of it also appears in another corpus file), so 65 records count: 43 git files and
+  scorer (every recognisable line of it also appears in another corpus file), so 65 records count: 43
+  git files and
   22 tickets.
 - Facts only a live system can answer: 4 of the 33 questions carry 9 such facts in the answer key (live
   Rucio state). Neither arm can reach them, so they cap answer correctness for both.
 - `archi eval --context --agents agent-bash,agent-graph` at archi_v3 2426842c (okg 0.2.0): model
   gpt-6-luna, reasoning medium, Responses API; one prompt for both arms but for the paragraph on where
-  knowledge lives; 3 tries per question; caps 30 turns, 200 tool calls, 900 s and 16,000 output tokens
-  per model call; one spend ledger and a hard cap per run; judge off in the runs.
+  knowledge lives; 3 tries per question; caps per try: 30 turns, 200 tool calls, 900 s; 16,000 output
+  tokens per model call; one spend ledger and a hard cap per run; judge off in the runs.
 - agent-bash: bash in bubblewrap over the raw corpus the graph was built from (corpus digest
   `sha256:036684f98e5069a2fc7129c904618dafea93959691ceab4c36b7583a4c197136`, 1,910,219 record files),
   identical in both runs.
@@ -103,8 +104,9 @@ The instance's search tool called directly, no model; recall@10 of the gold over
 | graph search (server default) | 0.153 (MRR 0.155) | 0.143 (MRR 0.165) |
 | lexical baseline | 0.143 (MRR 0.152) | 0.128 (MRR 0.160) |
 
-Both runs report status pass. Plain recall@10 fell slightly after the fix: about 48,500 new text
-passages now compete for the top ten. The agents, which search, read and search again, gained.
+Both runs report status pass. Plain recall@10 fell slightly after the fix while MRR rose; a likely
+cause, not measured, is that the 48,502 new document and chunk nodes compete for the top ten. The
+agents, which search, read and search again, gained.
 
 ## Why records are missed
 
@@ -143,4 +145,4 @@ function that neither agent's search reached. The replay matched the recorded sc
 
 Before: agent arms $1.81, judge $0.07. After: agent arms $1.72 over four attempts (the complete run
 $1.56; one killed by a host event at try 11, $0.04; one stopped at try 24 by a disk rule, $0.13; one
-stopped before its first call, $0), judge $0.08.
+stopped before its first model call, $0, with no ledger written, per the lane's run log), judge $0.08.

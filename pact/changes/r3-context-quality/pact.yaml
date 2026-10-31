@@ -62,10 +62,10 @@ requirements:
     git-code enabled, multi-repo git-code if the gold cites several repositories (it does; #726,
     the comp-ops rebuild); and the drafted gold_sources mapping for CompOps-42 has had one
     independent review before the run (Jason, 2026-10-29: an independent agent reviewer in place
-    of the person who built answer key v1; a fresh verifier then checked the corrected mapping).
+    of the person who built answer key v1). A fresh verifier then checked the corrected mapping.
 
     - acc.r3-context-quality.raw-arm: on the comp-ops instance, an agent with the instance''s MCP
-    graph tools (agent-graph) compared with an agent with bash over the files the graph was built
+    graph tools (agent-graph) is compared with an agent with bash over the files the graph was built
     from (agent-bash), on the same model, caps and scorer and one prompt but for the paragraph on
     where knowledge lives, with a spend ledger and a cap. Compared per arm: gold-evidence recall;
     answer correctness against CompOps-42 answer key v1, graded by an LLM judge and by a blind
