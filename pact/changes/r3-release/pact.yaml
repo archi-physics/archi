@@ -9,16 +9,26 @@ affected_code:
 - README.md
 - .github/workflows/
 requirements:
-- id: req.r3-release.cutover
-  statement: 'Every live v2 deployment is listed with an owner and is migrated or pinned to
-    a tagged v2.x; the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover
-    clause is evidenced. The ticket-triage automation and its four-week shadow report (ADR 0002
-    §7.4) come after 3.0 (board d405), so the v2 queue bots stay on a tagged v2.x until then.
+- id: req.r3-release.inventory
+  statement: 'Every live v2 deployment is listed with its services, the v2 version it runs, an
+    owner and a decision (move to 3.0, or pin to a tagged v2.x).
 
 
     Acceptance:
 
-    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]
+    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]'
+- id: req.r3-release.cutover
+  statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
+    the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
+    evidenced. The v2 queue bots (Redmine, mailbox) move to 3.0''s ticket-triage automation
+    (board d701, reversing d405), so the cutover waits on it and on its SubMIT shadow (trial) report
+    (d701; the trial length is board d705).
+
+
+    Acceptance:
+
+    - acc.r3-release.migrated: each deployment migrated or pinned, signed off by its owner. [evidence:
+    manual]
 
     - acc.r3-release.main: default branch is the v3 line; v2 branch exists. [evidence: manual]'
 - id: req.r3-release.tag
@@ -32,7 +42,7 @@ requirements:
     [evidence: executed_test]'
 tasks:
 - id: task.r3-release.r1
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   verification: 'Inventory live v2 deployments and owners.
 
 
@@ -46,7 +56,9 @@ tasks:
 
     Test plan:
 
-    - repo settings [evidence: manual]'
+    - repo settings [evidence: manual]
+
+    - each deployment migrated or pinned, owner sign-off [evidence: manual]'
 - id: task.r3-release.tag
   requirement: req.r3-release.tag
   verification: 'Tag, publish, announce.
@@ -57,7 +69,7 @@ tasks:
     - clean-venv install [evidence: executed_test]'
 evidence:
 - kind: manual
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   status: pass
   command: read-only ps, podman ps and ss on two SubMIT hosts; gh api forks and environments
     of archi-physics/archi; v2 configs on main; confirmed by Jason on board d384
@@ -69,7 +81,25 @@ evidence:
     named) and a second chat on SubMIT (owner Maria D''Alfonso, per her fork). Jason confirmed FASRC, a
     CMS comp-ops bot at CERN, WisDQM, CRAB and course deployments do not run 2.x. Not yet done: the
     v2 version of each, read in its owner''s environment, and the migration itself (condition 2);
-    acc.r3-release.main is not evidenced.'
+    acc.r3-release.main is not evidenced. Superseded for versions, the row 1 owner and the
+    decision by the 2026-10-30 row below.'
+- kind: manual
+  requirement: req.r3-release.inventory
+  status: pass
+  command: >-
+    read-only file hashes of each deployment's code compared with the v2 tags (2026-10-29); owner
+    and decision from Jason (2026-10-30, board d701); recorded in docs/docs/operating/cutover.md step 1
+    and on #758
+  head: 124030ada00692de4cde675d0acbc2bc7e9c5535
+  at: '2026-10-31T00:04:51+00:00'
+  note: >-
+    Refreshes acc.r3-release.r1. Two live v2 deployments, both moving to 3.0. SubMIT A2rchi (chatbot,
+    data manager, Redmine and mailbox bots): about v2.3.x with local patches, hand-built, not at a tag;
+    owner named by Jason on 2026-10-30, Jason is confirming with them; the bots move to 3.0 with
+    ticket-triage (d701). Second chat on SubMIT (chatbot, data manager): v2.5.0 code, not checked out at
+    a tag; owner Maria D''Alfonso (per her fork). Versions are to be confirmed with the owners; Jason
+    contacts them. The migrations themselves (acc.r3-release.migrated) and the branch swap
+    (acc.r3-release.main) are not evidenced.
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
