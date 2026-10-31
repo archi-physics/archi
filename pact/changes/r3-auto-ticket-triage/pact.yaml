@@ -42,7 +42,8 @@ requirements:
     used and the draft says why; each call is charged to the pack budget. At L2, with post_replies set, the
     reply is proposed as post_reply and posted on the ticket only after a person approves, by a live tool
     with the same checks as the others (approval, the configured endpoint, the ticket link) that posts it
-    once. Board d704 (G2); mail intake and the resolution email stay with the v2 bots until 3.1.
+    once. Board d704 (G2). Mail intake stays with v2 until 3.1 (d704); resolution emails pause until 3.1
+    and ticket-triage does not send them (d719).
 
 
     Acceptance:
