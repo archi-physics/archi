@@ -1,0 +1,50 @@
+pact_version: 5
+id: cern-team-docs-superseded
+title: Mark the old cern-team quickstart and demo pages superseded
+tier: 2
+why: >-
+  docs/cern-team-quickstart.md and docs/cern-team-demo.md describe installing
+  cern-team as it was before the packs split, and read as current install
+  instructions (#859). The supported path is docs/docs/quickstart.md, which
+  the nightly test checks. Deleting them would break links from the docs
+  site (footguns, ADR reference, commands page), two tests that read or
+  cite the quickstart (test_bundle_code_text, test_pack_isolation), about
+  ten PACT affected_code lists, docs/okg-alignment.md, and the archived
+  w2/w6 evidence that cites the demo as its runbook. So both stay, as
+  reference, with a banner.
+affected_code:
+- docs/cern-team-quickstart.md
+- docs/cern-team-demo.md
+- docs/okg-alignment.md
+- bundles/cern-team/README.md
+requirements:
+- id: req.cern-team-docs-superseded.banner
+  statement: >-
+    Each page opens with "Superseded. Do not install from this page." and a
+    link to docs/docs/quickstart.md; neither page says its commands are
+    current. The cern-team bundle README names docs/docs/quickstart.md as the
+    supported path. The demo page names no host, personal path or dev-host
+    port (the w1/w2 evidence pages it links to still do; #861 tracks them).
+    docs/okg-alignment.md calls the demo superseded and no longer cites it
+    by line number.
+tasks:
+- id: task.cern-team-docs-superseded.banner
+  requirement: req.cern-team-docs-superseded.banner
+  verification: >-
+    head of both pages shows the banner; the links resolve to existing
+    files; python/tests/test_bundle_code_text.py and the docs tests pass.
+evidence:
+- kind: executed_test
+  requirement: req.cern-team-docs-superseded.banner
+  status: pass
+  command: >-
+    python -m pytest python/tests/test_bundle_code_text.py python/tests/test_docs_generated.py
+    python/tests/test_docs_quickstart.py python/tests/test_packaging.py (okg 0.2.0, Python 3.12, on a
+    dev host); git cat-file -e for each link target; head of both pages read
+  head: dd7b21b2ee2e0a79bf22a22322fe32a6bac956bc
+  at: '2026-10-30T23:59:06+00:00'
+  note: >-
+    27 passed. Both pages open with the Superseded banner and link docs/docs/quickstart.md (resolves from
+    docs/), docs/docs/operating/footguns.md and docs/docs/reference/pack-format.md; the bundle README
+    links ../../docs/docs/quickstart.md. The demo page names no host, personal path or port; the w1/w2
+    evidence pages it links still do (#861).

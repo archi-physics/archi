@@ -46,7 +46,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-ops-self-monitoring.health
   status: pass
-  command: python/tests/ops/scratch_instance_health_run.sh on submit76 (okg 0.2.0 worker, a clean clone of the
+  command: python/tests/ops/scratch_instance_health_run.sh on a dev host (okg 0.2.0 worker, a clean clone of the
     head); python -m pytest python/tests -q (network off)
   head: 3cd8d739fcd42fd89fdf8baa5da22a93f9ebb052
   at: '2026-10-26T03:21:50+00:00'
@@ -71,7 +71,7 @@ evidence:
     -q; python -m pytest python/tests -q
   head: c20ee8d6ce3431e5e05a011e4f55fd608c925140
   at: '2026-10-27T02:58:52+00:00'
-  note: 'Run on submit76 from a clean clone of the head, with the okg 0.2.0 wheel and Python 3.12. Eval trends
+  note: 'Run on a dev host from a clean clone of the head, with the okg 0.2.0 wheel and Python 3.12. Eval trends
     are now read. The instance-health eval signal reads every report.json that archi eval wrote under
     <data root>/eval/ (or eval.reports_dir), for the bundles archi.yaml lists, and raises one issue per bundle
     (eval/<bundle>) when the latest run ended execution_failed (reported as a failed health signal, not a low

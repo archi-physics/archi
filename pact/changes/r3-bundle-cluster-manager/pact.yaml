@@ -114,7 +114,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-cluster-manager.connectors
   status: pass
-  command: 'python -m pytest python/tests -q (submit76, a clean clone, network off); ARCHI_PACK_ISOLATION_DSN=...
+  command: 'python -m pytest python/tests -q (a dev host, a clean clone, network off); ARCHI_PACK_ISOLATION_DSN=...
     python -m pytest python/tests/packs/test_pack_isolation.py'
   head: 234014132038de4ff107557b846830930ffdf2e7
   at: '2026-10-26T16:03:19+00:00'
@@ -146,7 +146,7 @@ evidence:
   status: pass
   command: 'python -m pytest python/tests/downloaders python/tests/sources/test_tickets.py python/tests/test_bundle_cluster_manager.py
     python/tests/packs python/tests/test_docs_generated.py -q -p no:cacheprovider; python -m pytest python/tests -q
-    -p no:cacheprovider (submit75, a clean clone, okg 0.2.0 wheel, through heavy.sh)'
+    -p no:cacheprovider (a dev host, a clean clone, okg 0.2.0 wheel, through heavy.sh)'
   head: fefc89acf4506bb554897e9575d38870d4d32eaa
   at: '2026-10-27T03:20:09+00:00'
   note: 'task.r3-bundle-cluster-manager.tickets (#735): the tickets pack reads JIRA as well as Redmine, with nothing
@@ -164,8 +164,8 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-cluster-manager.bundle
   status: pass
-  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:...@127.0.0.1:5893/packtest python -m pytest python/tests/packs/test_pack_isolation.py
-    -q -p no:cacheprovider -rA (submit75, through heavy.sh; a fresh ghcr.io/mitdbg/akmon-postgres:v0.2.0 container
+  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:...@127.0.0.1:<port>/packtest python -m pytest python/tests/packs/test_pack_isolation.py
+    -q -p no:cacheprovider -rA (a dev host, through heavy.sh; a fresh ghcr.io/mitdbg/akmon-postgres:v0.2.0 container
     of this run's own)
   head: fefc89acf4506bb554897e9575d38870d4d32eaa
   at: '2026-10-27T03:43:48+00:00'

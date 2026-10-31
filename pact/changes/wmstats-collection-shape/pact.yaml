@@ -85,7 +85,7 @@ evidence:
     9 fail on main a1544047 and pass here (reader: collection shape reads like the list, no-workflow
     cache_missing, duplicate stops scope, authority count; snapshot: builds and checks count,
     4 refusal cases); the drift test (endpoint_failed) passes on both as a control. Real-data
-    check, read-only on submit76: the patched reader yields 4231 records from the Aug 31 file,
+    check, read-only on a dev host: the patched reader yields 4231 records from the Aug 31 file,
     equal to its authority.json record_count, health ok, scope claimed; a wmstats-only scratch
     build archives 4231 records with no RequestorDN or DN key.'
 decisions: []

@@ -6,7 +6,7 @@ The superseded v2 application was removed from the archi_v3 line
 Run with an okg-bearing interpreter (adapter modules import okg at
 module scope):
 
-    /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/ -v
+    <okg-venv>/bin/python -m pytest python/tests/ -v
 """
 import re
 import subprocess

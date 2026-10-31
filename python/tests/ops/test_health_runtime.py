@@ -282,7 +282,8 @@ def test_a_healthy_instance_still_gets_a_proposal_so_the_issues_can_close(tmp_pa
 
 
 def test_eval_reports_under_the_instance_data_root_reach_the_proposal(tmp_path, auto):
-    """The default place: `archi eval` writes <data root>/eval/<bundle>/report.json; the proposer reads it there."""
+    """The default place: `archi eval` writes <data root>/eval/<bundle>/<UTC stamp>/report.json (an older archi wrote
+    <data root>/eval/<bundle>/report.json; both are read); the proposer reads it there."""
     from archi.ops.loop import validate_proposal
     from archi.stack.instance import Instance, Ports
     from health_eval_reports import scored, write_report

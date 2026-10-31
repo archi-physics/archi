@@ -92,7 +92,7 @@ same `atom_score`, recall and `passed`. The port did faithfully carry his math.
 Judge-contract validation otherwise matches: both reject missing judgments,
 unknown fact ids, duplicates, and invalid outcomes.
 
-Harness: `/home/submit/lavezzo/.claude/jobs/e250c02c/tmp/parity/` (scratch, not
+Harness: `<scratch>/parity/` (scratch, not
 committed).
 
 ## 4. Capability ledger

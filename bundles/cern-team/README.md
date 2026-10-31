@@ -25,8 +25,10 @@ okg install --profile cern-team --deployment-name <slug> \
 ```
 
 Each pack's questions become `--<pack>-<question>` flags. Then commit the
-deployment directory, `okg ingest` and `okg run --once --apply`; the
-[cern-team quickstart](../../docs/cern-team-quickstart.md) has every step.
+deployment directory, `okg ingest` and `okg run --once --apply`. The
+[quickstart](../../docs/docs/quickstart.md) is the supported install path; the older
+[cern-team quickstart](../../docs/cern-team-quickstart.md) (superseded, kept as
+reference) shows these manual steps in full.
 `archi add <pack>` adds a pack to an installed instance.
 
 ## A bare install publishes

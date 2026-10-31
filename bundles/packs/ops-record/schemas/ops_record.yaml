@@ -66,7 +66,7 @@ classes:
         required: true
         description: >-
           What broke, by the name operators use for it: a site (T2_US_MIT), a
-          node (submit04), a service, a dataset. Precedent lookup filters on it.
+          node (node-04), a service, a dataset. Precedent lookup filters on it.
         annotations:
           filterable: 'true'
           value_type: text

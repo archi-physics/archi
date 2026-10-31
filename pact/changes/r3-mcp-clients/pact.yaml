@@ -62,7 +62,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-mcp-clients.connect
   status: pass
-  command: 'on submit76 from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file; webui_check.py for open-webui; python -m pytest python/tests -q (network off)'
+  command: 'on a dev host from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file; webui_check.py for open-webui; python -m pytest python/tests -q (network off)'
   head: 819e65cd84db7fa237e89a7b94b7636864f27160
   at: '2026-10-26T03:37:02+00:00'
   note: 'acc.r3-mcp-clients.recipes: one recorded run per client, each a scripted search call through the
@@ -77,7 +77,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-mcp-clients.external
   status: pass
-  command: 'on submit76 from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file, with an echo MCP server fixture declared under mcp_servers in archi.yaml; pip install of the archi-fixture-packs package, then archi add repo-mirror'
+  command: 'on a dev host from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file, with an echo MCP server fixture declared under mcp_servers in archi.yaml; pip install of the archi-fixture-packs package, then archi add repo-mirror'
   head: 819e65cd84db7fa237e89a7b94b7636864f27160
   at: '2026-10-26T03:37:02+00:00'
   note: 'acc.r3-mcp-clients.mcp: with the fixture server declared in archi.yaml (header secrets named by

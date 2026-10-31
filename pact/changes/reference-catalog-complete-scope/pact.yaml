@@ -126,7 +126,7 @@ evidence:
     tests/test_alignment_page.py
   head: b59b2abf880d8f8248ea12fbb5aa2565d0932b4e
   at: '2026-10-05T03:06:35+00:00'
-  note: '80 passed at this commit (okg ac078aabd, submit76). On main 46d3daef reader code
+  note: '80 passed at this commit (okg ac078aabd, a dev host). On main 46d3daef reader code
     the cmssw and github_repos release-mode claim cases fail (round 1: 8 failed across the
     four readers); cursor-mode controls pass on both.'
 - kind: executed_test

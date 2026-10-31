@@ -6,7 +6,7 @@ why: 'ADR 0001 W7, model corrected 2026-08-21: gitlab.cern.ch/archi/cms-compops 
   is THE comp-ops instance repo; it gains a v3 instance definition built on the archi distribution,
   replacing its v2 A2rchi configs at cutover. okg-deployments/cms is the frozen prototype/parity
   reference and retires at parity. Local half: author + fixture-validate the instance from
-  submit82. Credentialed half (live bring-up + strict parity vs the v2 corpus) runs on a CERN
+  a dev host. Credentialed half (live bring-up + strict parity vs the v2 corpus) runs on a CERN
   host per docs/bring-up.md and is the W7 exit gate.
 
 

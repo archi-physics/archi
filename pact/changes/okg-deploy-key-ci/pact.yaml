@@ -3,7 +3,7 @@ id: okg-deploy-key-ci
 title: CI installs okg from mitdbg/okg with a read-only deploy key
 tier: 1
 why: 'Every CI run since 2026-09-24 fails at the okg install with "Authentication failed".
-  The workflow installed okg from the fork lucalavezzo/okg with the fine-grained token OKG_REPO_TOKEN,
+  The workflow installed okg from a personal fork with the fine-grained token OKG_REPO_TOKEN,
   which no longer authenticates. That token could never read mitdbg/okg (403, run 34494575759),
   so the fork had to be synced by hand before every pin bump, and it once silently stopped
   tracking upstream for three weeks.

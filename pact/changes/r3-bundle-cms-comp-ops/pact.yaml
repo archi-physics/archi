@@ -62,7 +62,7 @@ evidence:
   requirement: req.r3-bundle-cms-comp-ops.bundle
   status: pass
   command: python -m pytest tests/test_bundle_cern_team.py tests/test_bundle_cms_comp_ops.py -q (from
-    python/, submit76)
+    python/, a dev host)
   head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
   at: '2026-10-27T03:49:42+00:00'
   note: 'task.r3-bundle-cms-comp-ops.playbooks only: 22 passed, 9 of them in test_bundle_cms_comp_ops.py.
@@ -75,7 +75,7 @@ evidence:
   requirement: req.r3-bundle-cms-comp-ops.bundle
   status: pass
   command: python -m pytest tests/packs/test_pack_isolation.py -q -k cms_comp_ops (from python/,
-    submit76, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0 via ARCHI_PACK_ISOLATION_DSN)
+    a dev host, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0 via ARCHI_PACK_ISOLATION_DSN)
   head: ad2565b3b69eccf65be9a9137f9b172ff32d0cbc
   at: '2026-10-27T03:59:23+00:00'
   note: 'acc.r3-bundle-cms-comp-ops.install, as reworded by board d380 Q7: 1 passed, 26 deselected.

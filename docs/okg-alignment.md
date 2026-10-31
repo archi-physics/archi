@@ -180,7 +180,7 @@ archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarde
 `okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
 
 **CI was testing a different okg than this page claimed.** Until 2026-09-10 the
-workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev` silently
+workflow installed okg at `f5ec3b58d` from a personal *fork*, whose `dev` silently
 stopped tracking upstream on 2026-08-25. So while this page recorded two pin bumps
 and a passing suite, CI re-checked a three-week-old okg; every "passed against `dev`"
 claim here was true of local runs only. Nothing failed, which is why nobody noticed.
@@ -348,8 +348,8 @@ single-defined. **The cern-team bundle + end-to-end install demo are DONE and ga
 (PACT w6-cern-team-bundle)** — `okg install --profile cern-team` on a fresh DB: lint
 zero blocker/warning, four connectors ingest OK (live cmssw releases.map fetch, 314
 nodes), generation `gen:20260821T155948019759Z:56ad3d3dafec` published with
-cross-connector reference edges, idempotent re-run. **The reproducible runbook is
-`docs/cern-team-demo.md` — this is the external-distribution release-claim artifact**; run results
+cross-connector reference edges, idempotent re-run. **The reproducible runbook was
+`docs/cern-team-demo.md` (now marked superseded) — the external-distribution release-claim artifact at the time**; run results
 + 7-item friction log in `pact/changes/w2-consolidate-hep-sources/`. For the install contract: two
 manual steps remain outside the profile contract (wheel schema-slice copy incl. a
 pruned operations bridge; role passwords post-migrate) — both flagged in the runbook.
@@ -531,10 +531,10 @@ worth copying.** (Previously reported here as an external-schemas blocker.) Copy
 `bridge_subtype_unknown`, because its narrowings lack
 `optional_when_subtypes_missing` and therefore require every referenced subtype
 to be in the composed module set. First failure, verbatim from the executed
-runbook (`docs/cern-team-demo.md:106-110`): narrowing
+runbook (`docs/cern-team-demo.md`, step 2): narrowing
 `documentation_page_references_dataset`, child subtype `dataset`. Both
 consumers hit it independently and both had to hand-prune: the cern-team demo
-(friction 2, `docs/cern-team-demo.md:269-275`) and the comp-ops instance, whose
+(friction 2 in `docs/cern-team-demo.md`) and the comp-ops instance, whose
 committed copy "prunes the five narrowings owned by the ticket/service/code
 modules" (`cms-compops docs/bring-up.md:63-67`). **The fix already has
 precedent in our own tree** — `schemas/bridges/sources.yaml` flags exactly this
