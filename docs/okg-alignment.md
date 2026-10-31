@@ -20,6 +20,18 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**The code-text pack subclasses okg's DocCorpusSource (2026-10-31).**
+`archi.sources.code_text.SecretScreenedDocCorpusSource` is okg's
+`DocCorpusSource` with `_walk_files` overridden: it reads each selected file
+and leaves out any file whose text holds a literal secret, so the change probe
+and the run (both list files through that method) skip it. It is the first
+connector-side private import since the SDK move, and it relies on a private
+method. Two okg asks would remove it: a content-screen hook on
+DocCorpusSource, and letting `search(view="windows")` trust positions from a
+registry entry that names a DocCorpusSource subclass (today it compares
+module and class exactly). Tested against the v0.2.0 release (no pin change).
+PACT `r3-code-text-all-files`.
+
 **The cms-analyses pack adds one private okg import (2026-10-26).**
 `archi.enrichment.physics_cross_links.PhysicsCrossLinker` subclasses okg's
 `DeclarativeLinker` (already imported by `GlobalTagReleaseLinker`) and calls
@@ -415,12 +427,14 @@ dereference (your "materialized payload" wording already covers this).
 ## The exact substrate surface Archi consumes today
 
 **The connector half is done (2026-09-10).** Everything Archi's connectors need now
-comes from the public `okg.deployment` SDK, so OKG's boundary lint has nothing left
-to find on that side. What remains below is enricher-only, and is blocked on the
-enricher read surface, which OKG deferred at our own recommendation.
+comes from the public `okg.deployment` SDK, with one exception since 2026-10-31: the
+code-text source subclasses okg's `DocCorpusSource` (see Current state). The rest of
+what remains below is enricher-only, and is blocked on the enricher read surface,
+which OKG deferred at our own recommendation.
 
 **Python imports (all of them).** The first entry is the public SDK; everything
-below it is still private substrate, and all of it is enricher-side.
+below it is still private substrate, all of it enricher-side except
+`DocCorpusSource`, which the code-text source subclasses.
 
 ```
 okg.deployment:
@@ -447,6 +461,7 @@ okg.substrate.publisher.enricher_loader: derive_write_envelope
 okg.substrate.alias.protocol:     AliasMatch
 okg.substrate.deployment_bootstrap.profile_init:
     build_plan, discover_profile, planned_writes, source_default_entries
+okg.substrate.library.sources.doc_corpus: DocCorpusSource
 ```
 
 **The ops runtime (2026-10-25).** `python/archi/ops/workflow.py` is the one module that

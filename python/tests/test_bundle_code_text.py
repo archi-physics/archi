@@ -123,18 +123,25 @@ def test_a_bare_cern_team_render_ships_neither_the_source_nor_extractors(tmp_pat
 
 
 @pytest.mark.parametrize("name", sorted(EXAMPLES))
-def test_the_entry_binds_against_doc_corpus_source(name):
+def test_the_entry_binds_against_the_screened_doc_corpus_source(name):
+    """The source is okg's DocCorpusSource behind archi's secret screen, with
+    DocCorpusSource's parameters unchanged."""
     from okg.substrate.library.sources.doc_corpus import DocCorpusSource
 
+    from archi.sources.code_text import SecretScreenedDocCorpusSource
+
     entry = _entry(name)
-    assert entry["module"] == "okg.substrate.library.sources.doc_corpus"
-    assert entry["class"] == "DocCorpusSource"
-    inspect.signature(DocCorpusSource).bind(**entry["params"])
+    assert entry["module"] == "archi.sources.code_text"
+    assert entry["class"] == "SecretScreenedDocCorpusSource"
+    assert issubclass(SecretScreenedDocCorpusSource, DocCorpusSource)
+    inspect.signature(SecretScreenedDocCorpusSource).bind(**entry["params"])
 
 
 @pytest.mark.parametrize("name", sorted(EXAMPLES))
-def test_every_matched_extension_reaches_a_parser(name):
-    """A matched file with no parser becomes a document that stores nothing."""
+def test_every_text_format_reaches_a_parser(name):
+    """The source selects every file, so every format okg can route a
+    selected file to must have a parser here, or that file becomes a
+    document that stores nothing. Binary formats are excluded instead."""
     from okg.substrate.library.extraction.chunk.python_symbols import (
         PythonSymbolChunker,
     )
@@ -142,13 +149,15 @@ def test_every_matched_extension_reaches_a_parser(name):
     from okg.substrate.library.sources.doc_corpus import DEFAULT_EXTENSION_TO_FORMAT
 
     params = _entry(name)["params"]
+    assert params["include_globs"] == ["**/*"]
+    assert params["text_fallback"] is True
     routes = dict(DEFAULT_EXTENSION_TO_FORMAT)
     routes.update(params["extension_to_format"])
+    excluded = {g[len("**/*"):] for g in params["exclude_globs"] if g.startswith("**/*.")}
     bundle = load_extractors(PACK)
-    for glob in params["include_globs"]:
-        ext = "." + glob.rsplit(".", 1)[1]
-        fmt = routes.get(ext)
-        assert fmt is not None, f"{ext} is matched but has no format"
+    for ext, fmt in sorted(routes.items()):
+        if ext in excluded:
+            continue
         assert fmt in bundle.parsers, (
             f"{ext} routes to {fmt!r}, which extractors.yaml has no parser for"
         )
@@ -182,20 +191,24 @@ def _git_repo(root: Path) -> Path:
     return repo
 
 
-def _run(repo: Path, **overrides):
-    """Run okg's reader with the shipped parameters over `repo`.
+def _run(repo: Path, cls=None, **overrides):
+    """Run the reader with the shipped parameters over `repo`.
 
     `predecessor_source` is dropped because it needs a database; the live
     install proves it (pact evidence).
     """
-    from okg.substrate.library.sources.doc_corpus import DocCorpusSource
+    return list(_source(repo, cls, **overrides).run("probe", mode="scope_complete").facts)
+
+
+def _source(repo: Path, cls=None, **overrides):
+    """The shipped source over `repo` (archi's screened class unless `cls`)."""
+    from archi.sources.code_text import SecretScreenedDocCorpusSource
 
     params = dict(_entry("code_text")["params"])
     params.pop("predecessor_source")
     params.update(repo="demo", repo_root=str(repo), extractors_dir=str(PACK))
     params.update(overrides)
-    run = DocCorpusSource(**params).run("probe", mode="scope_complete")
-    return list(run.facts)  # an iterator: read it once
+    return (cls or SecretScreenedDocCorpusSource)(**params)
 
 
 def _documents(facts):
@@ -205,14 +218,16 @@ def _documents(facts):
 def test_the_excludes_keep_credential_named_code_out(tmp_path):
     """The shipped excludes, not the include globs, stop these files.
 
-    Both files end in `.py`, so the include globs match them. The control run
-    with no excludes stores them, which proves the shipped list is what keeps
-    them out.
+    The include globs match both files. The control run, okg's own reader
+    with no excludes (archi's secret screen would also stop them), stores
+    them, which proves the shipped list is what keeps them out.
     """
+    from okg.substrate.library.sources.doc_corpus import DocCorpusSource
+
     repo = _git_repo(tmp_path)
     credential_docs = sorted(f"doc:demo:{rel}" for rel in _CREDENTIAL_CODE)
 
-    assert _documents(_run(repo, exclude_globs=[])) == sorted(
+    assert _documents(_run(repo, DocCorpusSource, exclude_globs=[])) == sorted(
         ["doc:demo:pkg/buckets.py", *credential_docs]
     )
     shipped = _run(repo)
@@ -261,3 +276,147 @@ def test_the_guide_tells_an_existing_deployment_how_to_add_the_pack():
     assert "archi add code-text" in section
     assert "--code-text-extractors-dir" in section
     assert _entry("code_text")["params"]["predecessor_source"] == "${deployment_name}.git-repo"
+
+
+#: Text files that are not code, each holding a word found nowhere else. The
+#: Helm template does not parse as YAML; plain text still stores it.
+_TEXT_FILES = {
+    "README.md": ("# Demo\n\nRestart with the quokka procedure.\n", "quokka"),
+    "deploy/values.yaml": ("replicas: {{ .Values.replicas }}\nmode: wombat\n", "wombat"),
+    "deploy/config.json": ('{"queue": "platypus"}\n', "platypus"),
+    "scripts/rotate.sh": ("#!/bin/bash\necho numbat\n", "numbat"),
+    "scripts/cleanup": ("#!/bin/sh\necho bilby\n", "bilby"),
+    "Makefile": ("all:\n\techo dingo\n", "dingo"),
+    "setup.cfg": ("[tool]\nname = echidna\n", "echidna"),
+    "docs/index.html": ("<p>wallaby</p>\n", "wallaby"),
+}
+_BINARY_FILES = {"docs/logo.png": b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR", "dist/tool.jar": b"PK\x03\x04\x00"}
+
+
+def _commit(repo: Path, files: dict, message: str = "x") -> None:
+    for rel, body in files.items():
+        path = repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(body, bytes):
+            path.write_bytes(body)
+        else:
+            path.write_text(body, encoding="utf-8")
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid",
+    }
+    for cmd in (["add", "-A", "-f"], ["commit", "-q", "-m", message]):
+        subprocess.run(["git", "-C", str(repo), *cmd], check=True, env=env)
+
+
+def test_every_text_file_is_stored_as_text(tmp_path):
+    """Markdown, YAML (templated), JSON, shell, extensionless scripts, a
+    Makefile, config and HTML each become a document whose chunks hold the
+    file's text; binary files become no document at all."""
+    repo = _git_repo(tmp_path)
+    _commit(repo, {**{rel: body for rel, (body, _) in _TEXT_FILES.items()}, **_BINARY_FILES})
+    facts = _run(repo)
+    docs = _documents(facts)
+    stored = "\n".join(
+        str(f.attrs.get("text", "")) for f in facts if getattr(f, "subtype", None) == "document_chunk"
+    )
+    for rel, (_, marker) in _TEXT_FILES.items():
+        assert f"doc:demo:{rel}" in docs, rel
+        assert marker in stored, (rel, marker)
+    for rel in _BINARY_FILES:
+        assert f"doc:demo:{rel}" not in docs, rel
+    assert "doc:demo:pkg/buckets.py" in docs
+
+
+#: An invented password, assembled from pieces so this file holds no
+#: complete secret-shaped string.
+_PW = "Zx9v" + "Q2mT7rLp"
+
+
+def _secret_files() -> dict:
+    """Files holding an invented literal secret, assembled at run time."""
+    return {
+        "deploy/db-values.yaml": "db:\n  user: archi\n  password: " + _PW + "\n",
+        "scripts/upload.sh": "curl -H 'X-Token: " + "gh" + "p_" + "Q7x" * 12 + "' https://example.org\n",
+        "notes/server.txt": "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIabc\n",
+        "app/settings.py": 'DATABASE_URL = "postgres://archi:' + _PW + '@db.example.org/archi"\n',
+    }
+
+
+#: Files that only name or pass a secret around: kept.
+_REFERENCE_FILES = {
+    "deploy/app-values.yaml": "db:\n  password: ${DB_PASSWORD}\n  secretName: archi-db\n",
+    "app/auth.py": 'import os\n\nTOKEN = os.environ["ARCHI_TOKEN"]\nheaders = {"Authorization": f"Bearer {TOKEN}"}\n',
+}
+
+
+def test_the_screen_leaves_out_files_that_hold_a_literal_secret(tmp_path):
+    """No document and no stored text for a file holding a literal secret;
+    files that only reference a secret are kept. The control run, okg's own
+    reader with the same parameters, stores the secret files, so the screen
+    is what keeps them out."""
+    from okg.substrate.library.sources.doc_corpus import DocCorpusSource
+
+    repo = _git_repo(tmp_path)
+    secrets = _secret_files()
+    _commit(repo, {**secrets, **_REFERENCE_FILES})
+
+    control = _documents(_run(repo, DocCorpusSource))
+    for rel in secrets:
+        assert f"doc:demo:{rel}" in control, rel
+
+    source = _source(repo)
+    facts = list(source.run("probe", mode="scope_complete").facts)
+    docs = _documents(facts)
+    for rel in secrets:
+        assert f"doc:demo:{rel}" not in docs, rel
+    for rel in _REFERENCE_FILES:
+        assert f"doc:demo:{rel}" in docs, rel
+    assert set(secrets) <= set(source.screened_paths)
+    stored = "\n".join(str(getattr(f, "attrs", {}).get("text", "")) for f in facts)
+    assert _PW not in stored
+    assert "PRIVATE KEY" not in stored
+
+
+def test_a_file_that_gains_a_secret_drops_out_and_returns_when_it_is_removed(tmp_path):
+    """The screen reads the file on every listing, so a later commit that adds
+    a secret leaves the file out of the next run, and a commit that removes
+    the secret brings it back. Same source object, so the screen's cache must
+    notice the change. (The run is proven here; retracting the document from
+    a published graph is okg's completed-scope deletion.)"""
+    repo = _git_repo(tmp_path)
+    clean = "db:\n  password: ${DB_PASSWORD}\n"
+    _commit(repo, {"deploy/values.yaml": clean})
+    source = _source(repo)
+
+    def docs():
+        return _documents(list(source.run("probe", mode="scope_complete").facts))
+
+    assert "doc:demo:deploy/values.yaml" in docs()
+    _commit(repo, {"deploy/values.yaml": "db:\n  password: " + _PW + "\n"}, "leak")
+    assert "doc:demo:deploy/values.yaml" not in docs()
+    assert source.screened_paths == ("deploy/values.yaml",)
+    _commit(repo, {"deploy/values.yaml": clean + "# rotated\n"}, "fix")
+    assert "doc:demo:deploy/values.yaml" in docs()
+    assert source.screened_paths == ()
+
+
+def test_a_same_size_edit_with_the_same_timestamp_is_screened(tmp_path):
+    """The cache is keyed by content, not size and timestamp: a clean file
+    rewritten with a same-length secret and its old modification time is
+    still left out."""
+    repo = _git_repo(tmp_path)
+    path = repo / "deploy" / "values.yaml"
+    clean = "db:\n  password: ${DB_PASSWORD_X}\n"
+    leak = "db:\n  password: " + _PW + "abcd\n"
+    assert len(clean) == len(leak)
+    _commit(repo, {"deploy/values.yaml": clean})
+    stat = path.stat()
+    source = _source(repo)
+    assert "doc:demo:deploy/values.yaml" in _documents(list(source.run("probe", mode="scope_complete").facts))
+    path.write_text(leak, encoding="utf-8")
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert path.stat().st_size == stat.st_size and path.stat().st_mtime_ns == stat.st_mtime_ns
+    assert "doc:demo:deploy/values.yaml" not in _documents(list(source.run("probe", mode="scope_complete").facts))
+    assert source.screened_paths == ("deploy/values.yaml",)
