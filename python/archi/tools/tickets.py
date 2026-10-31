@@ -133,8 +133,8 @@ PAYLOAD_SCHEMAS: dict[str, dict[str, Any]] = {
 TOOLS: dict[str, dict[str, Any]] = {
     "set_ticket_status": {"kind": "act", "idempotent": True},
     "assign_ticket": {"kind": "act", "idempotent": True},
-    # posting twice posts twice: the mediator step's idempotency key is what keeps it to once
-    "post_reply": {"kind": "act", "idempotent": False},
+    # a repeat finds its own note (it names the escalation) and posts nothing
+    "post_reply": {"kind": "act", "idempotent": True},
 }
 
 
@@ -312,6 +312,10 @@ class Redmine(_Client):
         self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"status_id": found[0]["id"], "notes": note}},
                   write=True)
 
+    def notes(self, key, table, current):
+        issue = (self.call("GET", f"/issues/{quote(key)}.json", params={"include": "journals"}) or {}).get("issue") or {}
+        return [str(j.get("notes") or "") for j in issue.get("journals") or []]
+
     def post(self, key, table, current, text):
         self.call("PUT", f"/issues/{quote(key)}.json", json={"issue": {"notes": text}}, write=True)
 
@@ -343,6 +347,10 @@ class Jira(_Client):
             raise NoteFailed(f"{exc}; add it by hand") from None
         except WriteUnknown as exc:
             raise NoteFailed(f"{exc}; it may have been posted, check the ticket before adding it") from None
+
+    def notes(self, key, table, current):
+        found = self.call("GET", f"/rest/api/2/issue/{quote(key)}/comment", params={"maxResults": 1000}) or {}
+        return [str(c.get("body") or "") for c in found.get("comments") or []]
 
     def post(self, key, table, current, text):
         self.call("POST", f"/rest/api/2/issue/{quote(key)}/comment", json={"body": text}, write=True)
@@ -382,6 +390,12 @@ class ServiceNow(_Client):
     def patch(self, table, current, body):
         self.call("PATCH", f"/api/now/table/{table}/{quote(current['sys_id'])}",
                   params={"sysparm_input_display_value": "true"}, json=body, write=True)
+
+    def notes(self, key, table, current):
+        rows = (self.call("GET", "/api/now/table/sys_journal_field", params={
+            "sysparm_query": f"element_id={current['sys_id']}^element=comments", "sysparm_fields": "value",
+            "sysparm_limit": 1000}) or {}).get("result") or []
+        return [str(r.get("value") or "") for r in rows]
 
     def post(self, key, table, current, text):
         self.patch(table, current, {"comments": text})  # visible to the caller, as a reply is
@@ -473,8 +487,8 @@ def assign_ticket(*, payload: Mapping[str, Any], context: Mapping[str, Any], ses
 def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], session: Any = None,
                env: Optional[Mapping[str, str]] = None, verify: Optional[Verifier] = None) -> dict[str, Any]:
     """Post an approved reply on one ticket (Redmine note, JIRA comment, ServiceNow comment), followed by a line
-    naming the approval. Same checks as the other tools; a write with no answer is `unknown`, so it is not
-    posted twice by a retry."""
+    naming the approval. Same checks as the other tools. Idempotent: it reads the ticket's notes first and posts
+    nothing when one already names this escalation. A write with no answer is `unknown`."""
     data = _checked(payload, "post_reply")
     approval = require_approval(context, verify, payload=data, action_class="post_reply")
     _check_configured(data, context)
@@ -487,6 +501,12 @@ def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], sessio
         return _out("failed", f"could not read {label} ({exc}); nothing was posted")
     text = (f"{data['reply']}\n\n-- Posted by the archi ticket-triage automation after approval by "
             f"{approval.decided_by} in escalation {approval.escalation_id} (proposal {approval.proposal_id}).")
+    try:
+        if any(f"in escalation {approval.escalation_id} " in n for n in client.notes(key, table, current)):
+            return _out("succeeded", f"{label}: the reply for escalation {approval.escalation_id} is already posted; "
+                                     "nothing was posted again")
+    except TicketToolError as exc:
+        return _out("failed", f"could not read the notes of {label} ({exc}); nothing was posted")
     try:
         client.post(key, table, current, text)
     except WriteUnknown as exc:

@@ -16,10 +16,12 @@ live_tools:
   - archi.tools.tickets:set_ticket_status
   - archi.tools.tickets:assign_ticket
   - archi.tools.tickets:post_reply
-# Each reads the ticket first and changes nothing when the field already holds the value.
+# Each reads the ticket first and changes nothing when the field already holds the value (post_reply: when a
+# note already names the escalation).
 idempotent_tools:
   - archi.tools.tickets:set_ticket_status
   - archi.tools.tickets:assign_ticket
+  - archi.tools.tickets:post_reply
 playbooks: skills/
 action_classes: action_classes.yaml
 # L1 needs no credential. An instance that raises the automation to L2 names the ticket system's

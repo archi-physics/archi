@@ -113,6 +113,7 @@ class FakeTicketSystem:
             if method == "GET":
                 return 200, {"issue": {"id": int(m.group(1)), "project": {"id": issue["project_id"]},
                                        "status": {"name": issue["status"]},
+                                       "journals": [{"notes": n} for n in issue["notes"]],
                                        **({"assigned_to": {"name": issue["assignee"]}} if issue.get("assignee") else {})}}
             change = body["issue"]
             if "status_id" in change:
@@ -137,12 +138,18 @@ class FakeTicketSystem:
             if tail == "/assignee":
                 issue["assignee"] = next(u["displayName"] for u in jr["users"] if u["name"] == body["name"])
                 return 204, None
+            if tail == "/comment" and method == "GET":
+                return 200, {"comments": [{"body": n} for n in issue["notes"]]}
             if tail == "/comment":
                 issue["notes"].append(body["body"])
                 return 201, {"id": str(len(issue["notes"]))}
         if path == "/rest/api/2/user/search":
             q = str(params.get("username", "")).casefold()
             return 200, [u for u in jr["users"] if q in u["name"].casefold() or q in u["displayName"].casefold()]
+        if path == "/api/now/table/sys_journal_field":
+            sys_id = str(params.get("sysparm_query", "")).split("^")[0].removeprefix("element_id=")
+            rec = next(r for r in sn["records"].values() if r["sys_id"] == sys_id)
+            return 200, {"result": [{"value": n} for n in rec["notes"]]}
         m = re.fullmatch(r"/api/now/table/(incident|sc_request)(?:/(\w+))?", path)
         if m:
             table, sys_id = m.groups()

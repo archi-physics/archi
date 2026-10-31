@@ -163,3 +163,17 @@ def test_a_post_with_no_answer_is_unknown_not_failed():
     out = tickets.post_reply(payload=post("redmine", "4820"), context=CONTEXT, session=s.session(), env=ENV,
                              verify=approved)
     assert out["status"] == "unknown" and "check the ticket before posting again" in out["result"]
+
+
+@pytest.mark.parametrize("payload, key", [
+    (post("redmine", "4820"), ("redmine", "4820")),
+    (post("jira", "OPS-15"), ("jira", "OPS-15")),
+    (post("servicenow", "INC0010003", table="incident"), ("servicenow", "INC0010003")),
+])
+def test_a_repeat_finds_its_own_note_and_posts_nothing(payload, key):
+    """A crash after the post and before the attempt was recorded runs the tool again for the same escalation."""
+    s = system()
+    for _ in range(2):
+        out = tickets.post_reply(payload=payload, context=CONTEXT, session=s.session(), env=ENV, verify=approved)
+        assert out["status"] == "succeeded"
+    assert len(s.ticket(*key)["notes"]) == 1 and "already posted" in out["result"]
