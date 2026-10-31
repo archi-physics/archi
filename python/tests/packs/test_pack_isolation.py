@@ -259,10 +259,16 @@ def _assert_planted_secret_stays_out(instance: Path, env: dict) -> None:
     ids = set(docs.stdout.split())
     assert "doc:demo:README.md" in ids, sorted(ids)[:20]
     assert f"doc:demo:{PLANTED_SECRET_PATH}" not in ids, sorted(ids)
-    hits = run_okg(["search", "--deployment", "px", "--method", "grep", "--ids", "--all",
-                    PLANTED_SECRET], cwd=instance, env=env)
-    assert hits.returncode == 0, _report(hits)
-    assert hits.stdout.split() == [], hits.stdout[:2000]
+    def grep(text):
+        found = run_okg(["search", "--deployment", "px", "--method", "grep", "--ids", "--all", text],
+                        cwd=instance, env=env)
+        assert found.returncode == 0, _report(found)
+        return found.stdout.split()
+
+    # Positive control: the same search finds the README's own text, so an
+    # empty answer for the secret means it is absent, not that grep saw nothing.
+    assert grep("A test repository"), "grep found nothing at all; the absence check would be vacuous"
+    assert grep(PLANTED_SECRET) == []
 
 
 def _fixture_env(pack_names, tmp_path: Path) -> dict:

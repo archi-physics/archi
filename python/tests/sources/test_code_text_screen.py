@@ -35,6 +35,9 @@ LITERAL = {
     "url with a plain-word password": ("mysql://root:" + "admin" + "@db01/test\n", "credential_url"),
     "url-encoded password": ("postgres://u:" + "Zx9%40v" + "@h/db\n", "credential_url"),
     "url with an empty user": ("redis://:" + _PW + "@cache:6379/0\n", "credential_url"),
+    "default password on a real host": ("postgres://admin:" + "password" + "@prod-db.example-corp.net/x\n", "credential_url"),
+    "changeme on an internal ip": ("amqp://ops:" + "changeme" + "@10.0.0.5:5672/\n", "credential_url"),
+    "host under a non-reserved example name": ("https://u:" + "secret" + "@db.example.cern/x\n", "credential_url"),
     "authorization header": ('headers = {"Authorization": "Bearer ' + _LONG + '"}\n', "authorization_header"),
     "basic auth header": (f"curl -H 'Authorization: Basic {_BASIC}' x\n", "authorization_header"),
     "curl user": (f"curl -u admin:{_PW} https://example.org\n", "authorization_header"),
@@ -109,6 +112,7 @@ REFERENCE = {
     "loopback url in docs": "postgresql://postgres:okg@127.0.0.1:5491/packtest\n",
     "example host url": "https://alice:" + _PW + "@example.com/repo.git\n",
     "placeholder url password": "scheme://user:pass@host/path\n",
+    "loopback url with a real-looking password": "redis://:" + _PW + "@127.0.0.1:6379/0\n",
     "comparison arrow": "if ($token >= 3) {\n",
 }
 

@@ -52,9 +52,9 @@ This is a pattern screen, not a proof that no secret remains. Known misses: a
 password under a key with no secret word (`x`, a Kubernetes `name:` /
 `value:` pair), values under 8 characters or plain words, values that start
 like a template (`$2b$...` bcrypt hashes, `{...}`), keys longer than 64
-characters, and .netrc `default` lines. URLs to documentation hosts
-(loopback, `example.*`, `*.invalid`, `*.test`) and placeholder passwords
-(`pass`, `password`) are not counted. It covers the documents this source
+characters, and .netrc `default` lines. URLs to documentation or
+placeholder hosts (loopback, `example.com/.org/.net`, `*.example`,
+`*.invalid`, `*.test`, `host`, `server`) are not counted. It covers the documents this source
 writes only; git-code's history source stores per-file diffs, which okg
 redacts by its own patterns, not by this screen. Narrow `include_globs` for a repository
 nobody has reviewed. The screen reports the paths it left out (never the
@@ -114,10 +114,13 @@ _CREDENTIAL_URL = re.compile(
     r"\b[a-z][a-z0-9+.-]{0,32}://[^/\s:@'\"]{0,256}:(?P<value>[^@\s/'\"]{1,256})@(?P<host>[^/\s:'\"?#]{0,256})",
     re.I,
 )
-# Documentation hosts and placeholder passwords: `postgres://u:okg@127.0.0.1`
-# in a quickstart, `scheme://user:pass@` in prose.
-_DOC_HOST = re.compile(r"^(?:localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|(?:[\w-]+\.)*example(?:\.[a-z]+)?|.*\.(?:invalid|test|example))$", re.I)
-_PLACEHOLDER_PASSWORD = re.compile(r"^(?:pass|passwd|password|pw|pwd|secret|changeme|x+|\.+)$", re.I)
+# Documentation and placeholder hosts: `postgres://u:okg@127.0.0.1` in a
+# quickstart, `scheme://user:pass@host` in prose.
+_DOC_HOST = re.compile(
+    r"^(?:localhost|127\.\d+\.\d+\.\d+|\[?::1\]?|(?:[\w-]+\.)*example(?:\.(?:com|org|net))?"
+    r"|.*\.(?:invalid|test|example)|host|hostname|server|myhost|your-?host|<[^>]*>)$",
+    re.I,
+)
 _AUTHORIZATION = re.compile(
     r"\bAuthorization['\"]?[ \t]*[:=,][ \t]*['\"]?(?:(?:Bearer|Basic|Token)[ \t]+)?(?P<value>[^\s,;'\"}]+)", re.I
 )
@@ -211,12 +214,15 @@ def _url_password(m: re.Match) -> bool:
     elsewhere: `user:Zx9@db` and `user:p%40ss@db` count, `user:${PASS}@` and
     `{user}:{pw}@` do not. Stricter than `_literal`, because a URL with a
     password is a working credential even when the password is a plain word.
-    A placeholder word (`pass`, `password`) and a documentation host
-    (loopback, `example.*`, `*.invalid`, `*.test`) are not counted."""
+    A URL to a documentation or placeholder host (loopback,
+    `example.com/.org/.net`, `*.example`, `*.invalid`, `*.test`, `host`,
+    `server`) is not counted. A placeholder password word (`password`,
+    `secret`, `changeme`) on any other host is: it is a working default
+    credential."""
     value = m.group("value")
     if _TEMPLATE.search(value) or value.startswith(("*", "<")):
         return False
-    return not (_PLACEHOLDER_PASSWORD.match(value) or _DOC_HOST.match(m.group("host") or ""))
+    return not _DOC_HOST.match(m.group("host") or "")
 
 
 def _assignment_secret(m: re.Match) -> bool:

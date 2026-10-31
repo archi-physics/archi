@@ -38,8 +38,8 @@ why: 'On the comp-ops instance (CompOps-42, 2026-10-30) the agent with the graph
   under 8 characters and plain words are kept, and so are passwords under a key with no secret
   word (a Kubernetes `name:` / `value:` pair), values that start like a template (`$2b$` bcrypt
   hashes, `{...}`), keys over 64 characters and .netrc `default` lines; URLs to documentation
-  hosts (loopback, `example.*`, `*.invalid`, `*.test`) and placeholder passwords (`pass`,
-  `password`) are not counted. It covers code-text documents only: git-code''s
+  or placeholder hosts (loopback, `example.com/.org/.net`, `*.example`, `*.invalid`, `*.test`,
+  `host`, `server`) are not counted, whatever their password. It covers code-text documents only: git-code''s
   history source stores per-file diffs, which okg redacts by its own patterns, so a secret removed
   from the current files can still be read in the diff that removed it. The file cap is okg''s
   default (25,000), since every text file now counts. The pack takes one repository per install; the
@@ -103,8 +103,8 @@ requirements:
     ending in a secret word (`--password`, `--client-secret`, `--access-token`), `mysql -p`, a
     .netrc `password` line or an XML secret element with a literal value. An identifier-shaped
     value with a digit is a literal (`archi_Xk9..._db`); one without is a variable name. Templates, environment lookups, YAML aliases, expressions, paths,
-    prose and plain words are references and are kept; a URL to a documentation host or with a
-    placeholder password is not counted. Every pattern is bounded, so a 1 MB line
+    prose and plain words are references and are kept; a URL to a documentation or placeholder
+    host is not counted, and any other URL password that is not a template is, even `password`. Every pattern is bounded, so a 1 MB line
     screens in linear time. The verdict cache is keyed by the content''s SHA-256. A left-out file gets no document and no chunk; the
     source records the left-out paths (never values) in `screened_paths` and logs them.
 
