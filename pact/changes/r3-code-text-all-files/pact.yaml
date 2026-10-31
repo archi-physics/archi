@@ -55,6 +55,7 @@ affected_code:
 - python/tests/test_bundle_source_adapters.py
 - python/tests/packs/pack_support.py
 - python/tests/packs/test_pack_isolation.py
+- python/tests/evaluation/test_raw_corpus.py
 - docs/cern-team-quickstart.md
 - docs/okg-alignment.md
 - docs/release-notes-3.0.0.md

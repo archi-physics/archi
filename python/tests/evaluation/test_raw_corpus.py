@@ -309,7 +309,9 @@ def test_git_code_checkouts_go_in_as_their_tracked_files(tmp_path):
     plan = plan_sources(registry, data_root=data, answers={"repo_name": "demo"})
     corpus = build_corpus(plan, bundle="cms-comp-ops", out_root=corpus_root(data, "cms-comp-ops"))
     files = sorted(p.relative_to(corpus.records).as_posix() for p in corpus.records.rglob("*") if p.is_file())
-    assert files == ["git-repo/demo/OWNERS", "git-repo/demo/README.md", "git-repo/demo/pkg/transfer.py"]
+    # deploy/db-values.yaml is the fixture's planted secret file (for code-text's screen test).
+    assert files == ["git-repo/demo/OWNERS", "git-repo/demo/README.md", "git-repo/demo/deploy/db-values.yaml",
+                     "git-repo/demo/pkg/transfer.py"]
     assert PLANTED not in (corpus.records / "git-repo" / "demo" / "OWNERS").read_text()
     row = corpus.sources["git_repo"]
     assert row["repos"]["demo"]["left_out_files"]["binary"] == 1 and len(row["repos"]["demo"]["head"]) == 40
