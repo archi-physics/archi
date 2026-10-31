@@ -1,7 +1,7 @@
 pact_version: 5
 id: docs-positioning
 title: Describe Archi as what it is, not as "the HEP distribution of OKG"
-tier: 1
+tier: 2
 why: >-
   The README title, its first paragraph, the package description that PyPI
   will show, the package docstring and the first line of AGENTS.md all

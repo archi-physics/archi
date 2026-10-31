@@ -1,7 +1,7 @@
 pact_version: 5
 id: skills-read-page-text
 title: 'Skills: read a named page''s text before answering'
-tier: 1
+tier: 2
 why: 'In a skills benchmark run on 2026-09-28, a question named one specific TWiki page. In
   0 of 15 agent runs did the agent read that page''s text first. Inspecting the page node
   (inspect with kind "node") returns only its metadata, such as title and URL. Only the runs

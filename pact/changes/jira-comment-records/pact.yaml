@@ -122,37 +122,6 @@ evidence:
 - kind: executed_test
   requirement: req.jira-comment-records.main
   status: pass
-  command: python -m pytest tests -q (python/, shared lab host, okg db513de0bc); python -m pytest
-    tests/sources/test_jira_comments.py tests/test_passage_rollup_declarations.py
-    tests/test_catalog_handle_fields.py -q against the okg record-parts WIP (56f5ebff208)
-  head: 98d426a2
-  at: '2026-10-14T16:20:00+00:00'
-  note: 'Focused set (jira, jira comments, rollup and handle-field declarations, bundle and bridge
-    tests): 176 passed, 1 skipped (the record-parts read-back, which skips on an okg without
-    okg_record_parts). Against the okg WIP that parses okg_record_parts: 42 passed, 0 skipped.
-    Full suite: 1820 passed, 2 failed, 4 errors, 1 skipped. All six are environment failures that
-    also fail on main''s code on the same host: five wheel builds (the test venv has no hatchling)
-    and one wall-clock anonymizer test (1.0 s limit, load average about 20). The new tests fail on
-    main''s code (test_jira_comments.py stops at import; the handle-field pin expects 27, finds 26)
-    and 16 of them fail on the pre-review head 0eca4ca4 (zone, raw-time, stability, no-text and
-    fingerprint tests).'
-- kind: executed_test
-  requirement: req.jira-comment-records.main
-  status: pass
-  command: chunkcmp.py over the comp-ops JIRA records snapshot (2026-09-18 fetch, 76,662 issues),
-    main e1c28860 with the option off against this branch with it off and on; read only
-  head: 98d426a2
-  at: '2026-10-14T16:30:00+00:00'
-  note: 'sha256 over every document_chunk node and every contains and references edge, in emission
-    order: bd8519a02c1e on main and on this branch with the option off and on; 96,233 chunks,
-    96,233 contains, 5,418 references. The jira_issue nodes without the six new attributes are
-    identical too (2206421f3fc5). With the option on: 206,470 jira_comment records, has_comment
-    edges and authored_by edges, equal to the snapshot''s comment_count sum and to its non-empty
-    comments counted without the adapter; 206,470 distinct ids, 6 with a repeat suffix;
-    comment_count sums to 206,470; person nodes 650 to 949. Nothing was ingested or published.'
-- kind: executed_test
-  requirement: req.jira-comment-records.main
-  status: pass
   command: python -m pytest tests -q; python -m pytest tests/sources/test_jira_comments.py
     tests/test_catalog_handle_fields.py tests/packs -q (python/, a dev host, okg 0.2.0 wheel, Python
     3.12)

@@ -1,7 +1,7 @@
 pact_version: 5
 id: runtime-database
 title: archi init declares the instance's database when the ops runtime is enabled
-tier: 1
+tier: 2
 why: >-
   An automation pack turns okg's runtime on. okg 0.2.0's lint then blocks the
   deployment with deployment.runtime.database_undeclared until
