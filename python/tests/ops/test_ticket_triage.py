@@ -49,12 +49,13 @@ def test_the_pack_is_an_automation_that_starts_at_l1_and_allows_at_most_l2(catal
     assert (PACK / "skills" / auto["playbook"]).is_file()
 
 
-def test_the_action_classes_are_one_draft_at_l1_and_two_live_tools_at_l2(catalog):
+def test_the_action_classes_are_one_draft_at_l1_and_three_live_tools_at_l2(catalog):
     classes = yaml.safe_load((PACK / "action_classes.yaml").read_text())["action_classes"]
     assert {n: (c["mediator"], c["max_level"]) for n, c in classes.items()} == {
         "draft_reply": ("draft_reply", "L1"),
         "set_ticket_status": ("archi.tools.tickets:set_ticket_status", "L2"),
         "assign_ticket": ("archi.tools.tickets:assign_ticket", "L2"),
+        "post_reply": ("archi.tools.tickets:post_reply", "L2"),
     }
 
 
