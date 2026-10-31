@@ -25,6 +25,7 @@ The primary user-facing service. Provides a web-based chat application for inter
 - Streaming responses with tool-call visualization
 - Agent selector dropdown for switching between agents
 - Built-in [Data Viewer](data_sources.md#data-viewer) at `/data`
+- Optional built-in MCP server at `/mcp/sse` for IDE and agent integrations
 - Settings panel for model/provider selection
 - [BYOK](models_providers.md#bring-your-own-key-byok) support
 - Conversation history
@@ -50,6 +51,24 @@ services:
 ```bash
 archi create [...] --services chatbot
 ```
+
+### Built-in MCP Server
+
+The chat service can expose Archi itself as an MCP server over Server-Sent
+Events. Enable it when you want tools like VS Code, Cursor, Claude Desktop, or
+Claude Code to connect directly to your deployment.
+
+```yaml
+services:
+  mcp_server:
+    enabled: true
+    url: "https://chat.example.org"
+```
+
+- **Endpoint:** `/mcp/sse`
+- **Auth page:** `/mcp/auth` for generating bearer tokens when auth is enabled
+- **Tools exposed:** query, document discovery, metadata search, content grep,
+  chunk inspection, corpus stats, deployment info, and agent-spec inspection
 
 ---
 

@@ -10,7 +10,10 @@ from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, Iterator, List, Optional
 from pathlib import Path
-from urllib.parse import urlparse
+import base64
+import hashlib
+import secrets
+from urllib.parse import urlparse, urlencode, urlunparse, parse_qs, urljoin
 from functools import wraps
 
 import requests
@@ -2758,6 +2761,7 @@ class FlaskAppWrapper(object):
         self.auth_enabled = auth_config.get('enabled', False)
         self.sso_enabled = auth_config.get('sso', {}).get('enabled', False)
         self.basic_auth_enabled = auth_config.get('basic', {}).get('enabled', False)
+        self.mcp_enabled = self.services_config.get('mcp_server', {}).get('enabled', False)
         
         logger.info(f"Auth enabled: {self.auth_enabled}, SSO: {self.sso_enabled}, Basic: {self.basic_auth_enabled}")
         
@@ -2922,9 +2926,234 @@ class FlaskAppWrapper(object):
             self.add_endpoint('/api/permissions', 'get_permissions', self.get_permissions, methods=['GET'])
             self.add_endpoint('/api/permissions/check', 'check_permission', self.check_permission_endpoint, methods=['POST'])
 
-            
             if self.sso_enabled:
                 self.add_endpoint('/redirect', 'sso_callback', self.sso_callback)
+
+        # MCP SSE endpoint – exposes archi as MCP tools over HTTP+SSE.
+        if self.mcp_enabled:
+            logger.info("MCP server enabled – registering /mcp/* endpoints")
+            from src.interfaces.chat_app.mcp_sse import register_mcp_sse
+            _mcp_auth_required = self.auth_enabled and self.sso_enabled
+            _mcp_public_url = self.services_config.get('mcp_server', {}).get('url', '').rstrip('/')
+            register_mcp_sse(
+                self.app, self,
+                pg_config=self.pg_config,
+                auth_enabled=_mcp_auth_required,
+                public_url=_mcp_public_url or None,
+            )
+            self.add_endpoint('/.well-known/oauth-authorization-server', 'oauth_metadata', self.oauth_metadata, methods=['GET'])
+            self.add_endpoint('/.well-known/oauth-protected-resource', 'oauth_protected_resource', self.oauth_protected_resource, methods=['GET'])
+            self.add_endpoint('/mcp/oauth/register', 'oauth_register', self.oauth_register, methods=['POST'])
+            self.add_endpoint('/mcp/oauth/authorize', 'oauth_authorize', self.oauth_authorize, methods=['GET'])
+            self.add_endpoint('/mcp/oauth/token', 'oauth_token', self.oauth_token, methods=['POST'])
+            if self.auth_enabled and self.sso_enabled:
+                self.add_endpoint('/mcp/auth', 'mcp_auth', self.mcp_auth, methods=['GET'])
+                self.add_endpoint('/mcp/auth/regenerate', 'mcp_auth_regenerate', self.mcp_auth_regenerate, methods=['POST'])
+        else:
+            logger.info("MCP server disabled (set services.mcp_server.enabled: true to enable)")
+
+    # ------------------------------------------------------------------
+    # OAuth2 PKCE endpoints (used by MCP clients like Claude Desktop)
+    # ------------------------------------------------------------------
+
+    def _mcp_public_base_url(self) -> str:
+        """Return the public base URL for MCP endpoints."""
+        configured = self.services_config.get('mcp_server', {}).get('url', '').rstrip('/')
+        if configured:
+            return configured
+        fwd_proto = request.headers.get("X-Forwarded-Proto") or request.scheme
+        fwd_host = request.headers.get("X-Forwarded-Host") or request.host
+        return f"{fwd_proto}://{fwd_host}"
+
+    def oauth_metadata(self):
+        """GET /.well-known/oauth-authorization-server — RFC 8414 discovery doc."""
+        base = self._mcp_public_base_url()
+        return jsonify({
+            "issuer": base,
+            "authorization_endpoint": base + "/mcp/oauth/authorize",
+            "token_endpoint": base + "/mcp/oauth/token",
+            "registration_endpoint": base + "/mcp/oauth/register",
+            "response_types_supported": ["code"],
+            "grant_types_supported": ["authorization_code"],
+            "code_challenge_methods_supported": ["S256"],
+        })
+
+    def oauth_protected_resource(self):
+        """GET /.well-known/oauth-protected-resource — RFC 8707 resource metadata."""
+        base = self._mcp_public_base_url()
+        return jsonify({
+            "resource": base + "/",
+            "authorization_servers": [base],
+        })
+
+    def oauth_register(self):
+        """POST /mcp/oauth/register — RFC 7591 dynamic client registration.
+
+        MCP clients (mcp-remote, Claude Desktop, VS Code) call this once to
+        obtain a client_id before starting the authorization flow.  We keep
+        it simple: any caller may register; we persist the client and return
+        a client_id immediately (no client_secret for public clients).
+        """
+        body = request.get_json(silent=True) or {}
+        redirect_uris = body.get("redirect_uris", [])
+        client_name = body.get("client_name", "")
+
+        if not redirect_uris:
+            return jsonify({"error": "invalid_client_metadata",
+                            "error_description": "redirect_uris is required"}), 400
+
+        client_id = secrets.token_hex(16)
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO mcp_oauth_clients (client_id, client_name, redirect_uris)
+                       VALUES (%s, %s, %s)""",
+                    (client_id, client_name, redirect_uris),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        base = self._mcp_public_base_url()
+        return jsonify({
+            "client_id": client_id,
+            "client_name": client_name,
+            "redirect_uris": redirect_uris,
+            "grant_types": ["authorization_code"],
+            "response_types": ["code"],
+            "token_endpoint_auth_method": "none",
+            "registration_client_uri": base + "/mcp/oauth/register",
+        }), 201
+
+    def oauth_authorize(self):
+        """GET /mcp/oauth/authorize — OAuth2 authorization code endpoint with PKCE.
+
+        If the user is not logged in they are redirected to SSO login and
+        returned here afterwards via ``session['sso_next']``.  Once logged in
+        an auth code is generated, stored in ``mcp_auth_codes``, and the
+        browser is redirected back to the client's ``redirect_uri``.
+        """
+        client_id = request.args.get('client_id', '')
+        response_type = request.args.get('response_type', '')
+        code_challenge = request.args.get('code_challenge', '')
+        code_challenge_method = request.args.get('code_challenge_method', 'S256')
+        redirect_uri = request.args.get('redirect_uri', '')
+        state = request.args.get('state', '')
+
+        if response_type != 'code' or not code_challenge or not redirect_uri:
+            return jsonify({"error": "invalid_request",
+                            "error_description": "response_type=code, code_challenge, and redirect_uri are required"}), 400
+
+        if not session.get('logged_in'):
+            # Preserve all OAuth params so we return here after SSO login.
+            session['sso_next'] = request.url
+            if self.sso_enabled and self.oauth:
+                # Reuse the existing SSO config directly — no intermediate login page.
+                sso_callback_uri = url_for('sso_callback', _external=True)
+                return self.oauth.sso.authorize_redirect(sso_callback_uri)
+            return redirect(url_for('login'))
+
+        user_id = session.get('user', {}).get('id')
+        if not user_id:
+            return jsonify({"error": "server_error", "error_description": "Could not determine user identity"}), 500
+
+        # Create a short-lived auth code.
+        code = secrets.token_hex(32)
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO mcp_auth_codes
+                           (code, user_id, code_challenge, code_challenge_method, redirect_uri, client_id)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (code, user_id, code_challenge, code_challenge_method, redirect_uri, client_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+        # Safely append code (and optional state) to the redirect_uri.
+        parsed = urlparse(redirect_uri)
+        params = {"code": code}
+        if state:
+            params["state"] = state
+        new_query = urlencode(params) if not parsed.query else parsed.query + '&' + urlencode(params)
+        return redirect(urlunparse(parsed._replace(query=new_query)))
+
+    def oauth_token(self):
+        """POST /token — OAuth2 token exchange with PKCE verification."""
+        grant_type = request.form.get('grant_type', '')
+        code = request.form.get('code', '')
+        code_verifier = request.form.get('code_verifier', '')
+        redirect_uri = request.form.get('redirect_uri', '')
+
+        if grant_type != 'authorization_code' or not code or not code_verifier:
+            return jsonify({"error": "invalid_request",
+                            "error_description": "grant_type=authorization_code, code, and code_verifier are required"}), 400
+
+        # Verify PKCE before touching the DB.
+        digest = hashlib.sha256(code_verifier.encode()).digest()
+        computed_challenge = base64.urlsafe_b64encode(digest).rstrip(b'=').decode()
+
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                # Atomically mark the code as used and return its fields.
+                # This prevents replay attacks without a separate SELECT + UPDATE.
+                cur.execute(
+                    """UPDATE mcp_auth_codes
+                          SET used = TRUE
+                        WHERE code = %s
+                          AND used = FALSE
+                          AND expires_at > NOW()
+                    RETURNING user_id, code_challenge, redirect_uri""",
+                    (code,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return jsonify({"error": "invalid_grant",
+                                    "error_description": "Authorization code is invalid, expired, or already used"}), 400
+
+                user_id, stored_challenge, stored_redirect = row
+
+                # Validate redirect_uri matches what was used in /authorize.
+                if redirect_uri and redirect_uri != stored_redirect:
+                    return jsonify({"error": "invalid_grant",
+                                    "error_description": "redirect_uri does not match the authorization request"}), 400
+
+                # Verify PKCE: BASE64URL(SHA256(code_verifier)) == code_challenge
+                if computed_challenge != stored_challenge:
+                    return jsonify({"error": "invalid_grant",
+                                    "error_description": "code_verifier does not match code_challenge"}), 400
+
+                # Opportunistically delete expired codes to keep the table tidy.
+                cur.execute("DELETE FROM mcp_auth_codes WHERE expires_at < NOW()")
+
+                # Fetch or create the user's long-lived MCP token in the same
+                # connection to avoid opening extra DB connections.
+                cur.execute(
+                    """SELECT token FROM mcp_tokens
+                       WHERE user_id = %s
+                         AND (expires_at IS NULL OR expires_at > NOW())
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (user_id,),
+                )
+                token_row = cur.fetchone()
+                if token_row:
+                    token = token_row[0]
+                else:
+                    token = secrets.token_hex(32)
+                    cur.execute(
+                        "INSERT INTO mcp_tokens (token, user_id) VALUES (%s, %s)",
+                        (token, user_id),
+                    )
+
+            conn.commit()
+        finally:
+            conn.close()
+
+        return jsonify({"access_token": token, "token_type": "bearer"})
 
     def _set_user_session(self, email: str, name: str, username: str, user_id: str = '', auth_method: str = 'sso', roles: list = None):
         """Set user session with well-defined structure."""
@@ -3103,7 +3332,12 @@ class FlaskAppWrapper(object):
             )
             
             logger.info(f"SSO login successful for user: {user_email} with roles: {user_roles}")
-            
+
+            # Honour any pending post-login redirect (e.g. /mcp/auth)
+            next_url = session.pop('sso_next', None)
+            if next_url:
+                return redirect(next_url)
+
             # Redirect to main page
             return redirect(url_for('index'))
             
@@ -3118,6 +3352,109 @@ class FlaskAppWrapper(object):
             )
             flash(f"Authentication failed: {str(e)}")
             return redirect(url_for('login'))
+
+    # ------------------------------------------------------------------
+    # MCP token helpers
+    # ------------------------------------------------------------------
+
+    def _get_mcp_token(self, user_id: str) -> Optional[str]:
+        """Return the existing MCP token for a user, or None."""
+        import secrets as _secrets
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT token FROM mcp_tokens
+                       WHERE user_id = %s
+                         AND (expires_at IS NULL OR expires_at > NOW())
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (user_id,),
+                )
+                row = cur.fetchone()
+                return row[0] if row else None
+        finally:
+            conn.close()
+
+    def _create_mcp_token(self, user_id: str) -> str:
+        """Create and store a new MCP token for a user, returning the token string."""
+        import secrets as _secrets
+        token = _secrets.token_hex(32)
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO mcp_tokens (token, user_id) VALUES (%s, %s)",
+                    (token, user_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return token
+
+    def _rotate_mcp_token(self, user_id: str) -> str:
+        """Delete all existing MCP tokens for a user and create a fresh one."""
+        import secrets as _secrets
+        token = _secrets.token_hex(32)
+        conn = psycopg2.connect(**self.pg_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM mcp_tokens WHERE user_id = %s", (user_id,))
+                cur.execute(
+                    "INSERT INTO mcp_tokens (token, user_id) VALUES (%s, %s)",
+                    (token, user_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return token
+
+    # ------------------------------------------------------------------
+    # MCP auth page
+    # ------------------------------------------------------------------
+
+    def mcp_auth(self):
+        """Show the MCP token page.
+
+        Requires SSO login.  If the user is not logged in they are
+        redirected to the SSO provider; after login the SSO callback
+        returns them here via ``session['sso_next']``.
+        """
+        if not session.get('logged_in'):
+            session['sso_next'] = '/mcp/auth'
+            return redirect(url_for('login') + '?method=sso')
+
+        user_info = session.get('user', {})
+        user_id = user_info.get('id')
+        if not user_id:
+            flash("Could not determine your user identity. Please log in again.")
+            return redirect(url_for('login'))
+
+        token = self._get_mcp_token(user_id)
+        if not token:
+            token = self._create_mcp_token(user_id)
+
+        mcp_url = self._mcp_public_base_url() + '/mcp/sse'
+        regenerated = request.args.get('regenerated') == '1'
+
+        return render_template(
+            'mcp_auth.html',
+            token=token,
+            mcp_url=mcp_url,
+            user=user_info,
+            regenerated=regenerated,
+        )
+
+    def mcp_auth_regenerate(self):
+        """Rotate the user's MCP token (POST /mcp/auth/regenerate)."""
+        if not session.get('logged_in'):
+            return jsonify({'error': 'Authentication required'}), 401
+
+        user_id = session.get('user', {}).get('id')
+        if not user_id:
+            return jsonify({'error': 'Could not determine user identity'}), 400
+
+        self._rotate_mcp_token(user_id)
+        return redirect(url_for('mcp_auth') + '?regenerated=1')
 
     def get_user(self):
         """API endpoint to get current user information including roles and permissions"""
