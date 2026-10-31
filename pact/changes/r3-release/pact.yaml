@@ -21,9 +21,10 @@ requirements:
   statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
     the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
     evidenced. At the cutover, 3.0''s ticket-triage automation replaces the
-    SubMIT v2 queue bots, with no shadow trial first (board d717); the v2 Redmine service stops
+    SubMIT v2 Redmine bot, with no shadow trial first (board d717); the v2 Redmine service stops
     at the cutover, so resolution emails pause until 3.1 (board d719); mail intake stays with v2
-    until 3.1 (board d704).
+    until 3.1 (board d704), so SubMIT''s v2 mail intake keeps running on its untagged v2
+    deployment until then, an exception named in the written acceptance.
 
 
     Acceptance:
@@ -112,10 +113,10 @@ decisions:
   at: '2026-10-31'
   note: 'Jason Mohoney (board d717, 2026-10-31T16:40:28Z: "Ship it and switch SubMIT to it at the
     3.0 cutover, unchecked"). Supersedes d405 above and the d701 trial: ticket-triage ships in 3.0
-    and replaces the SubMIT v2 queue bots at the cutover with no shadow trial or report first;
+    and replaces the SubMIT v2 Redmine bot at the cutover with no shadow trial or report first;
     mail intake stays with v2 until 3.1 (board d704). Runbook step 9a has the switch and its
     rollback.'
-- digest: sha256:71bad7dc5243168fe8284a5fc759cbc2df1b55fd33fcb752fcb4384c9dee7b16
+- digest: sha256:9cecae28f92dc331629a1f1a82e17a143f9dfb557c33946f1f81d80ff5e6876c
   reviewer: Jason Mohoney
   at: '2026-10-31'
   note: 'Jason Mohoney (board d719, 2026-10-31T18:14:17Z: "Stop v2''s Redmine service at cutover;

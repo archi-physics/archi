@@ -21,8 +21,8 @@ before". Where each stands when 3.0.0 is prepared:
 | Condition | State | What closes it |
 |---|---|---|
 | 1. Every live v2 deployment has a named owner (R1). | **Answered** 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1. | Step 1 (done). |
-| 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. | Step 4. |
-| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** The v2 queue bots move to 3.0's `ticket-triage` automation at the cutover, with no trial first (board d717, 2026-10-31; d701 brought it back into 3.0). Mail intake stays with v2 until 3.1 (board d704); the resolution email pauses from the cutover until 3.1 (board d719). And the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
+| 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. One known exception: SubMIT's v2 mail intake keeps running on the untagged, patched v2.3.x until 3.1 (board d704); step 2 names it in the written acceptance. | Step 4. |
+| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** The v2 Redmine bot is replaced by 3.0's `ticket-triage` automation at the cutover, with no trial first (board d717, 2026-10-31; d701 brought it back into 3.0). Mail intake stays with v2 until 3.1 (board d704); the resolution email pauses from the cutover until 3.1 (board d719). And the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
 | 4. The last v2 release is tagged and documented. | The newest tag is `v2.5.0`. `main` has had 52 commits since (check: step 0). | Step 3. |
 
 State today of the repository settings this runbook changes (read with `gh`
@@ -51,7 +51,7 @@ This page was last brought up to date on 2026-10-30, after #849 to #874
 merged and a local rehearsal (steps 0, 3 to 5, 6.3, the git side of 7, and 9
 with a locally built wheel), and on 2026-10-31 after a rehearsal of step 7 on a
 private copy of the repository (branch protection not exercised; see step 7).
-`ticket-triage` (#746) is in 3.0 and replaces SubMIT's v2 queue bots at the
+`ticket-triage` (#746) is in 3.0 and replaces SubMIT's v2 Redmine bot at the
 cutover (board d717); mail intake stays with v2 until 3.1 (board d704), and
 resolution emails pause from the cutover until 3.1 (board d719). If anything else
 lands before the freeze in step 3, update the "not in 3.0.0" lists in the
@@ -103,7 +103,7 @@ do.
 
 | Deployment | Host | Services | v2 version | Owner | Decision |
 |---|---|---|---|---|---|
-| SubMIT A2rchi | a SubMIT host; linked from SubMIT's public A2rchi page | chatbot, data manager, Redmine bot, mailbox bot (a SubMIT service account) | about v2.3.x with local patches, hand-built; not a tag | owner named by Jason on 2026-10-30; Jason is confirming with them | move to 3.0; queue bots replaced by `ticket-triage` at the cutover (d717) |
+| SubMIT A2rchi | a SubMIT host; linked from SubMIT's public A2rchi page | chatbot, data manager, Redmine bot, mailbox bot (a SubMIT service account) | about v2.3.x with local patches, hand-built; not a tag | owner named by Jason on 2026-10-30; Jason is confirming with them | move to 3.0; the Redmine bot is replaced by `ticket-triage` at the cutover (d717); the mailbox bot (mail intake) stays on this v2 deployment until 3.1 (d704) |
 | Second chat on SubMIT | a second SubMIT host | chatbot, data manager (her own account) | v2.5.0 code; not checked out at a tag | Maria D'Alfonso (per her fork) | move to 3.0 |
 
 The versions were read on 2026-10-29 by comparing file hashes of the deployed
@@ -120,11 +120,15 @@ writing. 3.0.0 does not have parity. Write the acceptance and keep it with the
 inventory. It lists the known limits in the changelog, which are the canonical
 list, and the v2 features in [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). In short:
 
-- `ticket-triage` replaces SubMIT's v2 queue bots at the cutover with no
+- `ticket-triage` replaces SubMIT's v2 Redmine bot at the cutover with no
   shadow trial first (board d717); its proposals are not checked against a
   trial before it goes live;
 - mail intake has no 3.0 equivalent yet and stays with v2 until 3.1 (board
-  d704);
+  d704). So SubMIT's v2 deployment is neither migrated nor pinned to a tag
+  until then: its `-mailer` container keeps running the untagged, patched
+  v2.3.x, with the v2 postgres and config it depends on. The acceptance names
+  this as the exception to condition 2, and the SubMIT owner does not take
+  that v2 deployment down in step 4;
 - **SubMIT users get no resolution emails from the cutover until 3.1** (board
   d719): the v2 service that sends them also posts v2's answers, so it stops
   when `ticket-triage` takes over (step 9a), and 3.0 has no resolution email
@@ -400,13 +404,29 @@ Run this block as one. Do not run anything else in between.
 
 GitHub applies a rename in the background. For a few seconds after `main`
 becomes `v2`, the name `main` is still listed, and renaming `archi_v3` onto
-it fails with HTTP 422 "New branch already exists". The `until` line waits
-for the old name to leave the branch list (2 seconds in the 2026-10-31
-rehearsal).
+it fails with HTTP 422 "New branch already exists". `gone main` waits for
+the old name to leave the branch list (2 seconds in the 2026-10-31
+rehearsal). It fails, and so stops the block, if the API call fails or the
+name is still listed after 60 seconds. Define it first, in the same shell:
+
+```bash
+gone() {   # wait until branch $1 is no longer listed; fail on an API error or after 60 s
+  local i names
+  for i in $(seq 30); do
+    names=$(gh api repos/archi-physics/archi/branches --paginate --jq '.[].name') || return 1
+    grep -qx "$1" <<<"$names" || return 0
+    sleep 2
+  done
+  echo "branch $1 still listed after 60 s" >&2
+  return 1
+}
+```
+
+Then the block:
 
 ```bash
 gh api --method POST repos/archi-physics/archi/branches/main/rename -f new_name=v2 \
-&& until ! gh api repos/archi-physics/archi/branches --paginate --jq '.[].name' | grep -qx main; do sleep 2; done \
+&& gone main \
 && gh api --method POST repos/archi-physics/archi/branches/archi_v3/rename -f new_name=main \
 && gh api --method PUT repos/archi-physics/archi/branches/main/protection --input main-protection-put.json \
 && gh repo edit archi-physics/archi --default-branch main
@@ -422,8 +442,12 @@ do anything:
 gh api repos/archi-physics/archi/branches --paginate --jq '.[].name' | grep -xE 'main|v2|archi_v3'
 ```
 
+- `main` and `archi_v3`, no `v2`: the first rename failed and nothing
+  changed. Find out why before you run the block again.
+- All three listed: a rename is still being applied. Wait a few seconds and
+  list again.
 - `v2` and `archi_v3`, no `main`: only the first rename happened. Either run
-  the rest of the block (from the `until` line), or undo with
+  the rest of the block (from `gone main`), or undo with
   `gh api --method POST repos/archi-physics/archi/branches/v2/rename -f new_name=main`
   and `gh repo edit archi-physics/archi --default-branch main`.
 - `main` and `v2`, no `archi_v3`: both renames happened. Re-run the `PUT` and
@@ -474,13 +498,23 @@ fails, stop and talk first: a swap back moves their pull requests again.
 
 ```bash
 gh api --method POST repos/archi-physics/archi/branches/main/rename -f new_name=archi_v3 \
-&& until ! gh api repos/archi-physics/archi/branches --paginate --jq '.[].name' | grep -qx main; do sleep 2; done \
+&& gone main \
 && gh api --method POST repos/archi-physics/archi/branches/v2/rename -f new_name=main \
 && gh repo edit archi-physics/archi --default-branch main
 ```
 
-The wait is there for the same reason as in 7b. Open pull requests move back
-to `main` with the rename (seen in the rehearsal). The rules follow the branches again: the new `archi_v3` carries the rule the
+`gone` is the function from 7b; define it again in a new shell. The wait is
+there for the same reason as in 7b. If the block stops, list the branches as
+in 7b:
+
+- `main` and `v2`, no `archi_v3`: nothing changed yet.
+- `archi_v3` and `v2`, no `main` (the default is now `archi_v3`): only the
+  first rename happened. Run the rest of the block from `gone main`.
+- `main` and `archi_v3`, no `v2`: both renames happened. Run the
+  `gh repo edit` line.
+
+Open pull requests move back to `main` with the rename (seen in the
+rehearsal). The rules follow the branches again: the new `archi_v3` carries the rule the
 new `main` had, and `main` (v2) gets back the rule it had. Check with the
 same commands as 7c with the names swapped, using `git ls-remote --heads
 origin` and the web pages, and re-apply `main-protection-put.json` to `main`
@@ -611,16 +645,21 @@ containers. The one whose name ends in `-redmine` runs
 and sends the resolution email when a ticket is resolved. The one whose name
 ends in `-mailer` runs `src/bin/service_mailbox.py`, the mail intake that
 turns emails into tickets. No setting turns off only the answers, so
-stopping the `-redmine` container ends both. Mail intake keeps running on v2
-until 3.1 (board d704).
+stopping the `-redmine` container ends both. The `-mailer` container, and the
+v2 postgres and config it depends on, keep running until 3.1 (board d704).
 
 Before the cutover, `JASON` tells the SubMIT A2rchi owner and the SubMIT
-users that resolution emails pause from the cutover until 3.1 (step 2).
+users that resolution emails pause from the cutover until 3.1 (runbook
+step 2).
 
 This step needs `archi ops promote --no-trial` and the status line that
 tells a requested promotion from an approved one. Both come with the
 follow-up to #884, PR #885; without it the runtime refuses live mode for an
 automation that has no shadow results.
+
+The order keeps v2 and `ticket-triage` from both replying: v2 stops (4)
+before `ticket-triage` may act (5). Between 4 and 5 nobody replies, so do
+them one after the other.
 
 1. In the SubMIT instance repository, ask for the promotion:
 
@@ -630,7 +669,8 @@ automation that has no shadow results.
 
    `--note` is required. The command opens a PACT change that records "no
    shadow evidence" and sets `mode: live` and `promotion: <change>` in
-   `ops.yaml`. `ticket-triage` keeps running in shadow until step 2.
+   `ops.yaml`. `ticket-triage` keeps running in shadow until sub-step 2
+   below.
 
 2. An operator approves the change, then commits the archived change:
 
@@ -638,8 +678,10 @@ automation that has no shadow results.
    okg pact decide <change> --verdict approve --principal <name>
    ```
 
-3. In `archi.yaml`, set `automations.ticket-triage.level: L2`, so the
-   approved actions run.
+3. Check: the `ticket-triage` line of `archi ops status` starts with
+   `ticket-triage: level` and says `mode live (promotion approved; no shadow
+   evidence: board d717)`. Before the approval it says `mode live requested,
+   runs in shadow until approved`.
 
 4. On the v2 host, stop the `-redmine` container and leave the `-mailer`
    container running (`podman` or `docker`, whichever the deployment uses):
@@ -649,17 +691,23 @@ automation that has no shadow results.
    podman stop <name>-redmine
    ```
 
-   v2's compose file gives that container `restart: always`, so a restart
-   of the container engine or of the host starts it again, and v2 would
-   answer tickets alongside `ticket-triage`. To keep it stopped, also set
-   its restart policy to `no` (`docker update --restart=no <name>-redmine`,
-   or the podman equivalent on that host), or remove the container.
+   v2's compose file gives that container `restart: always`. With Docker, a
+   restart of the daemon or the host starts it again; with podman, a host
+   restart does if `podman-restart.service` is enabled. Then v2 would answer
+   tickets alongside `ticket-triage`. To keep it stopped, set its restart
+   policy to `no`: `docker update --restart=no <name>-redmine`, or, with
+   podman, `podman update --restart=no <name>-redmine` where
+   `podman update --help` lists `--restart` (older podman does not have it;
+   then disable `podman-restart.service` for that user, or check after any
+   reboot). Do not remove the container: the rollback starts it again.
+
+5. In `archi.yaml`, set `automations.ticket-triage.level: L2`, so the
+   approved actions run.
 
 **Check:** the `ticket-triage` line of `archi ops status` starts with
 `ticket-triage: level L2, mode live (promotion approved; no shadow evidence:
-board d717)`. Before the approval it says `mode live requested, runs in
-shadow until approved`. On the v2 host, only the `-mailer` container is
-running. Record the time in the tracking issue.
+board d717)`. On the v2 host, of the `-redmine` and `-mailer` containers,
+only `-mailer` is running. Record the time in the tracking issue.
 
 ### Rollback of step 9a
 
@@ -670,10 +718,17 @@ Right away, in this order:
    the next run on, `ticket-triage` writes nothing to Redmine, and a run
    already waiting for an approval writes nothing either, because the step
    that acts reads `ops.yaml` again.
-2. On the v2 host, start the `-redmine` container again
-   (`podman start <name>-redmine`), and set its restart policy back to
-   `always` if you changed it. That brings back both v2 answers and the
-   resolution emails.
+2. On the v2 host, set the `-redmine` container's restart policy back to
+   `always` if you changed it, and start it (`podman start <name>-redmine`).
+   That brings back both v2 answers and the resolution emails.
+
+Know what starting it does. v2's loop answers every ticket assigned to its
+Redmine user that is in `New` or `In Progress`, and sends the resolution
+email for every ticket in `Resolved`, then closes it. So it sends, at once,
+the resolution emails held since the cutover, and it answers again any
+ticket `ticket-triage` already answered but left in one of those statuses.
+Before you start it, look at the queue for both, and tell the SubMIT users if
+a batch of emails is coming. The same backlog waits at 3.1.
 
 **Check:** `archi ops status` shows `mode shadow`; the v2 bot answers a new
 ticket. Say in the tracking issue why it was rolled back.
