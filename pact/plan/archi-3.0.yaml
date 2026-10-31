@@ -148,6 +148,13 @@ pacts:
       task.r3-code-text-all-files.pack: "code-text reads every text file"
       task.r3-code-text-all-files.screen: "code-text leaves out files holding a literal secret"
 
+  r3-bundle-companions:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context", "bundle:cms-comp-ops"]
+    tasks:
+      task.r3-bundle-companions.rule: "Bundles name companion packs that come with a selected pack"
+      task.r3-bundle-companions.comp-ops: "cms-comp-ops brings code-text whenever git-code is selected"
+
   r3-bundle-cms-comp-ops:
     milestone: "3.0 · M5 Bundles & automations"
     labels: ["bundle:cms-comp-ops"]

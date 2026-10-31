@@ -6,10 +6,16 @@ description: A CMS computing operations knowledge instance - sites, storage, dat
 # incident playbooks ride with the packs that own their data (cms-catalogs,
 # monit-live). The ticket-triage automation pack triages the JIRA
 # queue, so it needs jira selected with it.
+# Companions (PACT r3-bundle-companions, decision d716): an install that
+# selects git-code also gets code-text, the text of the repository's files
+# (code, YAML, shell, Markdown), behind its secret screen. Opt out with
+# --without code-text. An install without git-code is unchanged.
 extends: [cern-team]
 packs:
   default: [cms-catalogs, cmssst, cmssw-releases, ops-record]
-  optional: [monit-live, dqm, hypernews, jira, ticket-triage]
+  optional: [monit-live, dqm, hypernews, jira, git-code, ticket-triage]
+  companions:
+    git-code: [code-text]
 chat:
   site_name: CMS computing operations chat
   description: >-

@@ -110,6 +110,7 @@ prepare:
 | `description` | yes | One sentence. |
 | `packs.default` | yes | Packs installed unless removed with `--without`. |
 | `packs.optional` | | Packs offered for `--with`. |
+| `packs.companions` | | `{<pack>: [<companion>, ...]}`: when `<pack>` is selected (by default or with `--with`), each companion comes on too, with the packs it requires. Opt out with `--without <companion>`. Merged over `extends`. |
 | `extends` | | Bundles whose default packs this one inherits. |
 | `chat` | | `site_name`, `default_model`, `description`, `suggestions`. |
 | `answers` | | Install-question defaults, `{<rendered question id>: value}` (for example `analysis_notes_min_notes: 2500`). A later bundle overrides an earlier one; an id no selected pack asks is refused. |
