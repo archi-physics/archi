@@ -38,6 +38,17 @@
           "type": "array",
           "items": {"$ref": "#/$defs/name"},
           "uniqueItems": true
+        },
+        "companions": {
+          "description": "Packs that come on whenever another pack is selected, {<pack>: [<companion>, ...]} (ADR 0002 section 3.3, amended 2026-10-31). When <pack> is selected, by default or with --with, each companion is added with the packs it requires, unless it is removed with --without. Merged over extends, parents first.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/name"},
+          "additionalProperties": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/name"},
+            "minItems": 1,
+            "uniqueItems": true
+          }
         }
       }
     },

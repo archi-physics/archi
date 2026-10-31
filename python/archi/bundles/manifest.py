@@ -252,6 +252,12 @@ class Bundle:
         return tuple(self.manifest["packs"].get("optional", ()))
 
     @property
+    def companions(self) -> dict[str, tuple[str, ...]]:
+        """Pack -> packs that come on whenever it is selected (ADR 0002 section 3.3).
+        This bundle's own; `merged_companions` adds those it inherits."""
+        return {k: tuple(v) for k, v in self.manifest["packs"].get("companions", {}).items()}
+
+    @property
     def answers(self) -> dict[str, Any]:
         return dict(self.manifest.get("answers", {}))
 
@@ -589,6 +595,17 @@ def extends_closure(
     return out
 
 
+def merged_companions(name: str, bundles: Mapping[str, "Bundle"]) -> dict[str, tuple[str, ...]]:
+    """The companions bundle `name` resolves with: its own and those of every
+    bundle it extends, parents first (the rule `resolve` applies)."""
+    out: dict[str, list[str]] = {}
+    for item in extends_closure(name, bundles):
+        for trigger, companions in bundles[item].companions.items():
+            merged = out.setdefault(trigger, [])
+            merged.extend(c for c in companions if c not in merged)
+    return {k: tuple(v) for k, v in out.items()}
+
+
 def validate_bundle(
     directory: Path,
     packs: Mapping[str, Pack],
@@ -616,6 +633,17 @@ def validate_bundle(
         for name in bundle.manifest["packs"].get(group, ()):
             if name not in packs:
                 problems.append(Problem(manifest_path, f"packs.{group}: unknown pack {name!r}"))
+    for trigger, companions in bundle.companions.items():
+        if trigger not in packs:
+            problems.append(Problem(manifest_path, f"packs.companions: unknown pack {trigger!r}"))
+        for name in companions:
+            if name not in packs:
+                problems.append(Problem(
+                    manifest_path,
+                    f"packs.companions.{trigger}: unknown companion pack {name!r}",
+                ))
+            elif name == trigger:
+                problems.append(Problem(manifest_path, f"packs.companions.{trigger}: a pack cannot be its own companion"))
     for name in bundle.automation_bounds:
         if name in packs and packs[name].kind != "automation":
             problems.append(Problem(manifest_path, f"automations.{name}: pack {name!r} is not an automation pack"))

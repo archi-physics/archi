@@ -15,7 +15,7 @@ One Git repository's tracked files and history (commits, tags, authors, per-file
 ## In which bundles
 
 - Default in: none
-- Optional in: [`cern-team`](../bundles/cern-team.md), [`cluster-manager`](../bundles/cluster-manager.md)
+- Optional in: [`cern-team`](../bundles/cern-team.md), [`cluster-manager`](../bundles/cluster-manager.md), [`cms-comp-ops`](../bundles/cms-comp-ops.md)
 
 Add it to an instance with `archi add git-code`.
 
