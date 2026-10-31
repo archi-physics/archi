@@ -219,6 +219,19 @@ issues = s['redmine']['issues']
 print(json.dumps({k: len(v['notes']) for k, v in issues.items()}))" | tee "$RUN/notes.json" \
   | check "across the run, only the approved ticket was ever written" "d == {'4820': 0, '4821': 0, '4822': 1, '4823': 0, '4824': 0, '4825': 0, '4826': 0}"
 
+echo "== 12b. the worker path, as an instance runs after archi init: a ticket arrives; the ingest and the publish are queued for the worker (no --inline), and the publish makes a new generation"
+grep -c "DBOS launched" "$RUN/worker.log" | check "the worker registered with the runtime (DBOS launched)" "d >= 1"
+$T arrive redmine 4827 "Login node slow after the kernel update" > /dev/null
+"$V/okg" ingest --deployment $D --json > "$RUN/ingest-worker.json" 2>&1 || tail -3 "$RUN/ingest-worker.json"
+publish worker
+"$V/python" -c "
+import json
+final, worker = (json.load(open('$RUN/publish-%s.json' % n)) for n in ('final', 'worker'))
+print(json.dumps({'path': worker['path'], 'workflow': worker['workflow_status'], 'status': worker['publish_status'],
+                  'new': worker['generation_id'] != final['generation_id']}))" | tee "$RUN/worker-path.json" \
+  | check "the queued publish ran on the worker and published a new generation" \
+  "d['path'] == 'dbos' and d['workflow'] == 'SUCCESS' and d['status'] == 'published' and d['new']"
+
 echo "== 13. no traceback through archi code in the worker log"
 "$V/python" -c "
 import re
