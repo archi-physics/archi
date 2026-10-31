@@ -37,8 +37,9 @@ graph.
 | `--instance DIR` | The instance directory (default: the current directory). |
 | `--model M` | The model name at the endpoint. Default: the bundle's `chat.default_model`, if it sets one. |
 | `--model-url URL` | An OpenAI-compatible base URL. Must be on this host or a private network. |
-| `--out DIR` | Where to write the report. Default: `eval/<bundle>/` under the instance's data root, outside the instance repository. |
-| `--mcp-url URL` | An MCP endpoint other than the instance's own. The instance is then not read at all: the bearer token comes from `OKG_CHAT_MCP_TOKEN`, `--bundle` is required, and there is no default chat prompt. An instance's token is never sent to another endpoint. |
+| `--out DIR` | Write the report straight into DIR, replacing the one there. Default: a new `eval/<bundle>/<UTC stamp>/` per run under the instance's data root, outside the instance repository; `latest.json` beside the runs names the newest. |
+| `--keep N` | Without `--out`: keep the newest N runs per bundle and delete older ones (default 20; `0` keeps all). Only directories named like a run stamp are deleted. |
+| `--mcp-url URL` | An MCP endpoint other than the instance's own. The instance is then not read at all: reports go under `./eval-reports/<bundle>/<UTC stamp>/` in the current directory unless `--out` is given; the bearer token comes from `OKG_CHAT_MCP_TOKEN`, `--bundle` is required, and there is no default chat prompt. An instance's token is never sent to another endpoint. |
 | `--chat-prompt FILE` | The chat system prompt to give the agent. Default: the instance's `deployments/<name>/skills/chat-system-prompt.md`, the one `archi up` gives the chat. |
 | `--max-steps N` | Tool-call rounds allowed per question (default 8). |
 | `--no-think` | Ask a reasoning model to skip its thinking pass. |
@@ -110,9 +111,9 @@ and out, wall time and the answer text. `report.md` is the same for reading.
 The [`instance-health`](../library/packs/instance-health.md) automation reads
 every `report.json` under `<data root>/eval/` and raises an issue per bundle
 when the latest run is `execution_failed`, below the threshold, or more than
-`min_drop` below the earlier runs of the same model and question set. Each run overwrites the
-report in the default `--out` directory, so to give it a trend, keep runs
-apart: `archi eval --bundle cern-team --out <data root>/eval/cern-team/$(date +%F)`.
+`min_drop` below the earlier runs of the same model and question set. Each default run is kept in its own
+`<data root>/eval/<bundle>/<UTC stamp>/`, so two runs are enough for a
+trend. A run written with `--out` replaces the report in that directory.
 It does not read [context evals](#context-evals-archi-eval-context): it skips
 `<data root>/eval/context/` and hidden directories.
 

@@ -1,0 +1,76 @@
+pact_version: 5
+id: eval-dated-reports
+title: archi eval keeps dated reports by default, so instance-health sees a trend
+tier: 2
+why: >-
+  archi eval wrote report.md and report.json to one folder per bundle and
+  overwrote them on every run. instance-health judges the eval trend by
+  comparing the latest run with up to three earlier comparable runs, so with
+  the default output only one run ever existed and the drop check never
+  fired; operators had to pass --out <data root>/eval/<bundle>/<date> by
+  hand (#854).
+affected_code:
+- python/archi/cli/evaluate.py
+- python/archi/evaluation/runner.py
+- python/archi/health/signals.py
+- bundles/packs/instance-health/skills/health.md
+- docs/docs/operating/evals.md
+- docs/docs/reference/pack-format.md
+- docs/docs/reference/cli.md
+requirements:
+- id: req.eval-dated-reports.dated
+  statement: >-
+    Without --out, each archi eval smoke run is written, atomically, to
+    <data root>/eval/<bundle>/<UTC stamp>/ (a -2, -3 suffix on a same-second
+    collision); <data root>/eval/<bundle>/latest.json names the newest run;
+    the newest --keep runs stay (default 20, 0 keeps all) and only directories
+    named like a run stamp are deleted. An explicit --out keeps its meaning:
+    the report is written straight into it. Two runs started in the same
+    second both stay on disk; instance-health counts them once (it keys runs
+    by bundle, model and start time).
+- id: req.eval-dated-reports.trend
+  statement: >-
+    Two default runs of the same bundle, model and question set are compared
+    by instance-health with no --out flag. The docs and the instance-health
+    playbook describe the dated default instead of the --out workaround.
+tasks:
+- id: task.eval-dated-reports.publish
+  requirement: req.eval-dated-reports.dated
+  verification: >-
+    python/tests/evaluation/test_run.py: two default runs leave two reports
+    and latest.json; same-second runs both stay; pruning keeps the newest N
+    and leaves other files; keep 0 keeps all; --out is unchanged.
+- id: task.eval-dated-reports.trend
+  requirement: req.eval-dated-reports.trend
+  verification: >-
+    python/tests/ops/test_health_signals.py: two published runs give a drop
+    warning and no eval-trend note; test_docs_generated passes.
+evidence:
+- kind: executed_test
+  requirement: req.eval-dated-reports.dated
+  status: pass
+  command: >-
+    python -m pytest python/tests/evaluation/test_run.py python/tests/ops/test_health_signals.py
+    python/tests/ops/test_health_runtime.py python/tests/test_docs_generated.py (okg 0.2.0, Python 3.12,
+    on a dev host)
+  head: aaf1809c6324e3a51cc90fc72ec8a44029ede10d
+  at: '2026-10-30T23:59:06+00:00'
+  note: >-
+    139 passed. New tests: two default runs leave two dated reports and latest.json; same-second runs
+    both stay (-2); pruning keeps the newest N and leaves other files; keep 0 keeps all; a negative keep
+    or a non-UTC start is refused; no hidden temp directory is left; --out writes straight into the
+    directory and replaces the report; the parser default lives in one number.
+- kind: executed_test
+  requirement: req.eval-dated-reports.trend
+  status: pass
+  command: >-
+    python -m pytest python/tests -q (okg 0.2.0, Python 3.12, on a dev host), after python -m
+    archi.docs_gen
+  head: aaf1809c6324e3a51cc90fc72ec8a44029ede10d
+  at: '2026-10-30T23:59:06+00:00'
+  note: >-
+    3813 passed, 28 skipped, 2 failed: test_redact_email_addresses_git_scan_is_linear and
+    test_redact_email_addresses_quoted_local_part_is_linear miss their 1.0 s budget on the loaded host
+    and fail the same way on origin/archi_v3 (anonymizer code is not touched here). The end-to-end test
+    drives the command (_run_one) twice with no --out and instance-health compares the two runs with no
+    eval-trend note; a run pruned while instance-health walks the directory is skipped, not an error.

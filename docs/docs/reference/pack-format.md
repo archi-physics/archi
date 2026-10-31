@@ -635,5 +635,5 @@ to an instance that raises the pack's `max_level` to L2 (and its own level in `a
 an escalation. A draft pull request for a mechanical fix is not built yet.
 
 `ops.yaml` can also set `ignore_checks: [services]`, `include_warnings`, `error_rate: {window_hours,
-min_decisions, max_rate}` and `eval: {min_drop, reports_dir, max_age_days}` under `proposer`. `archi eval` overwrites the report
-in its default directory, so a trend needs runs kept apart: `archi eval --out <data root>/eval/<bundle>/<date>`.
+min_decisions, max_rate}` and `eval: {min_drop, reports_dir, max_age_days}` under `proposer`. `archi eval` keeps each default
+run in its own `<data root>/eval/<bundle>/<UTC stamp>/` (`--keep`, default 20), so a trend needs no extra flag.

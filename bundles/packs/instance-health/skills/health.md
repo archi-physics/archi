@@ -18,9 +18,9 @@ The `instance-health` automation watches this instance. It runs on a schedule (h
 - With no report, eval is skipped, and the proposal says so. When the latest run has no earlier run to compare
   with (only one run, or none of the same model and question set), it is judged on its threshold only.
 - A newest run older than `eval.max_age_days` (default 14) is a note in the proposal, not an issue.
-- `archi eval` overwrites `report.json` in its default directory, so by default there is only ever one run per
-  bundle and no trend. To keep a history, run it as
-  `archi eval --bundle <bundle> --out <data root>/eval/<bundle>/<date>`.
+- `archi eval` keeps each run in its own `<data root>/eval/<bundle>/<UTC stamp>/` (the newest 20 by default,
+  `--keep N`), so two runs are enough for a trend. A run written with `--out` replaces the report in that
+  directory; it is read only if that directory is under the eval reports directory.
 
 **What it does**
 
