@@ -74,13 +74,14 @@ def _endpoint_root(config: Mapping[str, Any], system: str) -> str:
     return str(sys_config.get("site") or sys_config.get("url") or "")
 
 
-def _rejected(io: Any, generation: str, incident_ids: set[str]) -> list[dict]:
+def _rejected(io: Any, generation: str, incident_ids: set[str],
+              verdicts: tuple[str, ...] = ("rejected", "timed_out")) -> list[dict]:
     """`{action_class, payload, proposal, verdict}` of each proposal on one of `incident_ids` that a person
-    rejected or let time out. Reads the instance's rejected and timed-out decisions (few: a person writes
-    each), then only their proposals."""
+    decided with one of `verdicts` (by default: rejected or let time out). Reads the instance's decisions with
+    those verdicts (few: a person writes each), then only their proposals."""
     if not incident_ids:
         return []
-    decisions = [d for verdict in ("rejected", "timed_out")
+    decisions = [d for verdict in verdicts
                  for d in io.read_by_attr("ops_decision", generation, "verdict", verdict)]
     verdict_of = {str((d.get("attrs") or {}).get("proposal_id")): (d.get("attrs") or {}).get("verdict") for d in decisions}
     proposal_ids = sorted({f"ops_proposal:{(d.get('attrs') or {}).get('proposal_id')}" for d in decisions
@@ -161,6 +162,9 @@ def read_ticket_context(io: Any, entity: str, generation: str, config: Mapping[s
             if row["node_id"] not in {r["node_id"] for r in precedent_rows}:
                 precedent_rows.append(row)
     rejected = _rejected(io, generation, own_incidents - {""})
+    # a reply already approved, rejected or let time out for this ticket: the proposer proposes no second one
+    replied = [r for r in _rejected(io, generation, own_incidents - {""}, ("approved", "rejected", "timed_out"))
+               if r["action_class"] == "post_reply"]
     precedent_rows.sort(key=lambda r: str((r.get("attrs") or {}).get("detected_at") or ""), reverse=True)
     precedent_rows = precedent_rows[:precedent_limit]
     precedents = [{"node_id": r["node_id"], **{k: (r.get("attrs") or {}).get(k) for k in
@@ -171,7 +175,7 @@ def read_ticket_context(io: Any, entity: str, generation: str, config: Mapping[s
         "related": [t.as_context() for t in related],
         "docs": docs,
         "precedents": precedents,
-        "rejected": rejected,
+        "rejected": rejected, "replied": replied,
         "sites": sites,
         "skipped": skipped,
     }

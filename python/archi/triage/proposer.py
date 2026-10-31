@@ -172,11 +172,11 @@ class TriageProposer:
         if self.drafter is not None:
             from archi.triage.drafter import DrafterError
 
-            allowed = [ticket["node_id"], *(r["node_id"] for r in related), *(d["node_id"] for d in docs),
-                       *(p["node_id"] for p in precedents)]
+            # the reply goes to the person who opened the ticket: no ops record (internal) is shown to the model
+            allowed = [ticket["node_id"], *(r["node_id"] for r in related), *(d["node_id"] for d in docs)]
             try:
                 text = self.read_text(ticket, request.generation) if self.read_text else ""
-                out = self.drafter.write(ticket, text, related, docs, precedents, allowed)
+                out = self.drafter.write(ticket, text, related, docs, [], allowed)
             except DrafterError as exc:
                 cost, why_not = float(getattr(exc, "cost", 0.0)), str(exc)
             else:
@@ -206,8 +206,9 @@ class TriageProposer:
         if request.level < 2:
             return Proposed(draft, cost=cost)
         keys = {r["node_id"]: f"{r['system']} {r['key']}" for r in related}
+        public = public_reply(written, ticket, related, docs) if written else ""
         return Proposed(self.l2(ticket, draft, assignee if agreed else "", [keys.get(n, n) for n in as_ids], ctx,
-                                reply=written), cost=cost)
+                                reply=public), cost=cost)
 
     def l2(self, ticket: Mapping[str, Any], draft: dict, assignee: str, by: list[str], ctx: Mapping[str, Any],
            reply: str = "") -> dict:
@@ -238,7 +239,13 @@ class TriageProposer:
         if ticket.get("table"):
             base["table"] = ticket["table"]
         rejected = list(ctx.get("rejected") or ())
-        if reply and config.get("post_replies"):
+        replied = list(ctx.get("replied") or ())
+        if reply and config.get("post_replies") and replied:
+            r = replied[0]
+            how = {"approved": "posted", "timed_out": "let time out"}.get(r.get("verdict"), "rejected")
+            draft = {**draft, "summary": f"{draft['summary']}; a reply for this ticket was already {how} "
+                                         f"({r['proposal']}), so none is proposed again"}
+        elif reply and config.get("post_replies"):
             return {**draft,
                     "summary": f"{draft['summary']}; proposes: post the suggested reply on {system} {key}",
                     "action_class": "post_reply",
@@ -282,6 +289,23 @@ class TriageProposer:
                     "payload": {**base, "status": target, "expected_status": ticket["status"], "note": note},
                     "rollback": f"Set the status of {system} {key} back to {ticket['status']}."}
         return no_action(f"{skipped}nothing to assign or move" if skipped else "nothing to assign or move")
+
+
+def public_reply(text: str, ticket: Mapping[str, Any], related: list, docs: list) -> str:
+    """The reply as the person who opened the ticket reads it: each `[node id]` becomes a reference they can
+    use (another ticket's system and key, a document's title and link) or goes (their own ticket)."""
+    import re
+
+    labels = {ticket["node_id"]: ""}
+    labels.update({r["node_id"]: f"{r['system']} {r['key']}" for r in related})
+    labels.update({d["node_id"]: (d.get("title") or "") + (f" <{d['url']}>" if d.get("url") else "") for d in docs})
+
+    def label(m: "re.Match") -> str:
+        shown = labels.get(m.group(1), "")
+        return f" (see {shown})" if shown else ""
+
+    out = re.sub(r"\s*\[([A-Za-z_][A-Za-z0-9_]*:[^\]\s]+)\]", label, text)
+    return re.sub(r"[ \t]+([.,;:])", r"\1", out).strip()
 
 
 def build(config: Mapping[str, Any], runtime: Any) -> TriageProposer:

@@ -139,17 +139,15 @@ class FakeTicketSystem:
                 issue["assignee"] = next(u["displayName"] for u in jr["users"] if u["name"] == body["name"])
                 return 204, None
             if tail == "/comment" and method == "GET":
-                return 200, {"comments": [{"body": n} for n in issue["notes"]]}
+                start, size = int(params.get("startAt", 0)), int(params.get("maxResults", 50))
+                return 200, {"comments": [{"body": n} for n in issue["notes"][start:start + size]],
+                             "startAt": start, "total": len(issue["notes"])}
             if tail == "/comment":
                 issue["notes"].append(body["body"])
                 return 201, {"id": str(len(issue["notes"]))}
         if path == "/rest/api/2/user/search":
             q = str(params.get("username", "")).casefold()
             return 200, [u for u in jr["users"] if q in u["name"].casefold() or q in u["displayName"].casefold()]
-        if path == "/api/now/table/sys_journal_field":
-            sys_id = str(params.get("sysparm_query", "")).split("^")[0].removeprefix("element_id=")
-            rec = next(r for r in sn["records"].values() if r["sys_id"] == sys_id)
-            return 200, {"result": [{"value": n} for n in rec["notes"]]}
         m = re.fullmatch(r"/api/now/table/(incident|sc_request)(?:/(\w+))?", path)
         if m:
             table, sys_id = m.groups()
@@ -160,9 +158,13 @@ class FakeTicketSystem:
                 return 200, {"result": [{"sys_id": r["sys_id"], "state": r["state"], "assigned_to": r.get("assignee", ""),
                                          "assignment_group": r.get("assignment_group", "")} for r in rows]}
             rec = next(r for r in sn["records"].values() if r["sys_id"] == sys_id)
+            if method == "GET":  # the display value of `comments` holds every entry
+                return 200, {"result": {"comments": "\n\n".join(rec.get("comments", []))}}
             for field, value in body.items():
                 if field in ("work_notes", "comments"):
                     rec["notes"].append(value)
+                    if field == "comments":
+                        rec.setdefault("comments", []).append(value)
                 else:
                     rec[{"state": "state", "assigned_to": "assignee"}.get(field, field)] = value
             return 200, {"result": {"sys_id": sys_id}}

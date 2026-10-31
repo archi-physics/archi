@@ -20,8 +20,12 @@ ops-record precedents, each with its node id. One call per run, with no tools.
 drafter whose cost cannot be counted is refused. A reply the model gives without token usage is charged at
 its bound (every input character as a token, plus `max_output_tokens`).
 
-The reply must cite records as `[node id]`, and only records the run read. A reply that cites any other id,
-or a model that fails, is not used: the draft keeps the template reply and its summary says why. Email
+The reply must cite at least one record as `[node id]`, only records the run read, and hold no link that
+is not in those records. A reply that breaks any of these, or a model that fails, is not used: the draft keeps
+the template reply and its summary says why. These checks constrain the reply's form, not its truth: text in a
+ticket can still steer what the model writes, so the person who approves `post_reply` reads the reply (the
+escalation shows it as it will be posted) and is the check on its content. Ops records are not shown to the
+model: the reply goes to the person who opened the ticket. Email
 addresses are removed from the reply. Posting it on the ticket is a separate L2 action (`post_reply`,
 archi.tools.tickets) that runs only after a person approves.
 """
@@ -39,11 +43,13 @@ DEFAULT_KEY_ENV = "OPENAI_API_KEY"
 DEFAULT_MAX_OUTPUT = 1000
 MAX_TEXT = 4000  # characters of the ticket text, and of each excerpt, sent to the model
 CITED = re.compile(r"\[([A-Za-z_][A-Za-z0-9_]*:[^\]\s]+)\]")
+URL = re.compile(r"https?://[^\s)>\]]+")
 
 INSTRUCTIONS = """\
 You write the first reply to a support ticket, for an operator to review before it is posted on the ticket.
 Use only the records below. Cite every fact you take from a record with its id in square brackets, exactly
-as given, for example [tracker_ticket:redmine:4799]. Do not cite anything else. If the records do not answer
+as given, for example [tracker_ticket:redmine:4799]. Do not cite anything else. Do not include any link that is not
+in the records. If the records do not answer
 the ticket, say what the operators need to know to help, and do not guess. Do not promise actions or dates.
 Write plain text, at most 200 words, addressed to the person who opened the ticket. Do not sign it."""
 
@@ -102,7 +108,8 @@ def records_text(ticket: Mapping[str, Any], description: str, related: Sequence[
                      f"(status {r.get('status') or '-'}; resolution: {_clip(r.get('resolution'), 600) or 'none'})")
     lines.append("Documentation:" if docs else "Documentation: none")
     for d in docs:
-        lines.append(f"- [{d['node_id']}] {d.get('title') or ''}: {_clip(d.get('excerpt'), 1200)}")
+        link = f" <{d['url']}>" if d.get("url") else ""
+        lines.append(f"- [{d['node_id']}] {d.get('title') or ''}{link}: {_clip(d.get('excerpt'), 1200)}")
     lines.append("Earlier operational records:" if precedents else "Earlier operational records: none")
     for p in precedents:
         lines.append(f"- [{p['node_id']}] {p.get('title') or ''}: {_clip(p.get('summary'), 600)}")
@@ -156,8 +163,12 @@ class Drafter:
         text = redact_email_addresses(str(reply.content or "")).strip()
         cited = tuple(dict.fromkeys(CITED.findall(text)))
         unknown = [c for c in cited if c not in set(allowed)]
+        links = [u.rstrip(".,;:") for u in URL.findall(text)]
+        foreign = [u for u in links if u not in user]
         problem = ("the model gave an empty reply" if not text
                    else f"the reply cites records the run did not read: {', '.join(unknown[:5])}" if unknown
+                   else "the reply cites no record" if not cited
+                   else f"the reply has links that are in no record: {', '.join(foreign[:3])}" if foreign
                    else "the reply was cut off at max_output_tokens" if reply.finish_reason == "length"
                    else "")
         if problem:

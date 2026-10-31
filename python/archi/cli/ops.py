@@ -88,8 +88,8 @@ def status_report(instance_dir: Path, io, *, proposals: Optional[list] = None,
     for row in rows:
         d = row.as_dict()
         if d.get("mode") == "live":  # ops.yaml asks for live; it counts only once the promotion is approved
-            cfg = next(c for c in configs if c.name == row.name)
-            d["promotion"] = io.promotion_status(instance_dir, cfg.promotion_change, row.name)
+            cfg = next((c for c in configs if c.name == row.name), None)
+            d["promotion"] = io.promotion_status(instance_dir, getattr(cfg, "promotion_change", None), row.name)
         if shadow is not None:
             try:
                 d["shadow_report"] = shadow(row.name)

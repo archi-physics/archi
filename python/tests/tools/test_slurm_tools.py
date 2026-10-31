@@ -478,7 +478,7 @@ def test_the_ops_runtime_mediator_step_and_the_tool_both_refuse():
             io, mediator_entry=lambda: "archi.tools.slurm:drain_node", action_class="drain_node",
             payload=DRAIN_001, proposal_id="prop-1", idempotency_key="run-77", esc=esc_arg, workflow_id="wf-1",
             dsn="postgresql://unused", halt=lambda io: None, now=lambda: NOW, resolve=lambda entry: tool,
-            refused=lambda *a: None)
+            refused=lambda *a: None, mode_now=lambda: "live")
         return out, scheduler
 
     io = IO()

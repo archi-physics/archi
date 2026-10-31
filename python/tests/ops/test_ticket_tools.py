@@ -23,7 +23,7 @@ def instance_dir(tmp_path_factory):
     """The instance the mediator step names in its context: its ops.yaml configures the endpoints the tests
     use (a second automation holds the loopback proxy)."""
     root = tmp_path_factory.mktemp("ticket-tools")
-    systems = {name: endpoint(name) for name in ("redmine", "jira", "servicenow")}
+    systems = {name: {**endpoint(name), "post_replies": True} for name in ("redmine", "jira", "servicenow")}
     (root / "ops.yaml").write_text(yaml.safe_dump({"automations": {
         "ticket-triage": {"proposer": {"kind": "ticket-triage", "systems": systems}},
         "ticket-triage-proxy": {"proposer": {"kind": "ticket-triage", "systems": {"redmine": PROXY}}},

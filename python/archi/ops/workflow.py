@@ -350,7 +350,7 @@ def run_mediation(
     refused: Callable[[str, str], None] = log_refusal,
     instance_dir: Optional[str] = None,
     at_l1: bool = False,
-    mode_now: Callable[[], str] = lambda: "live",
+    mode_now: Callable[[], str],
 ) -> dict:
     """The body of the mediator step: the only place an action happens.
 
@@ -600,11 +600,17 @@ def escalation_reason(automation: str, proposal: Any) -> str:
     a newline and "Action: ..." cannot make a second Action line or move the real one. A live tool binds an
     approval to the payload by reading line 2, and refuses a reason with any other line that starts with
     `Action: ` (archi.tools._live.ops_verifier).
+    For `post_reply` the reply follows, every line quoted with "> ", so the approver reads it as it will be
+    posted; a quoted line never starts with `Action: `.
     """
-    return (f"{automation}: {_one_line(proposal.summary)}\n"
-            f"{ACTION_PREFIX}{_one_line(proposal.action_class)} {json.dumps(dict(proposal.payload), sort_keys=True)}\n"
-            f"Rollback: {_one_line(proposal.rollback)}\n"
-            f"Evidence: {_one_line(', '.join(proposal.evidence_ids))}")
+    reason = (f"{automation}: {_one_line(proposal.summary)}\n"
+              f"{ACTION_PREFIX}{_one_line(proposal.action_class)} {json.dumps(dict(proposal.payload), sort_keys=True)}\n"
+              f"Rollback: {_one_line(proposal.rollback)}\n"
+              f"Evidence: {_one_line(', '.join(proposal.evidence_ids))}")
+    reply = (proposal.payload or {}).get("reply") if proposal.action_class == "post_reply" else None
+    if isinstance(reply, str) and reply:  # what the approver reads: the reply as it will be posted, quoted
+        reason += "\nReply as it will be posted:\n" + "\n".join(f"> {line}" for line in reply.splitlines())
+    return reason
 
 
 class _Decider:

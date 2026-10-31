@@ -195,8 +195,8 @@ def _check_site(data: Mapping[str, Any]) -> None:
 ENDPOINT_KEYS = ("url", "site", "token_env", "user_env", "password_env")
 
 
-def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]:
-    """The endpoints the instance's ticket-triage automations configure for `system` (ops.yaml)."""
+def system_configs(instance_dir: Any, system: str) -> list[Mapping[str, Any]]:
+    """`proposer.systems.<system>` of each ticket-triage automation in the instance's ops.yaml."""
     from pathlib import Path
 
     from archi.ops.runtime_config import read_settings
@@ -204,12 +204,14 @@ def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]
     found = []
     for settings in read_settings(Path(instance_dir)).values():
         proposer = settings.proposer or {}
-        if proposer.get("kind") != "ticket-triage":
-            continue
-        config = (proposer.get("systems") or {}).get(system) or {}
-        if config.get("url"):
-            found.append({k: str(config[k]) for k in ENDPOINT_KEYS if config.get(k)})
+        if proposer.get("kind") == "ticket-triage" and ((proposer.get("systems") or {}).get(system) or {}).get("url"):
+            found.append(proposer["systems"][system])
     return found
+
+
+def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]:
+    """The endpoints the instance's ticket-triage automations configure for `system` (ops.yaml)."""
+    return [{k: str(c[k]) for k in ENDPOINT_KEYS if c.get(k)} for c in system_configs(instance_dir, system)]
 
 
 def _check_configured(data: Mapping[str, Any], context: Optional[Mapping[str, Any]]) -> None:
@@ -349,8 +351,15 @@ class Jira(_Client):
             raise NoteFailed(f"{exc}; it may have been posted, check the ticket before adding it") from None
 
     def notes(self, key, table, current):
-        found = self.call("GET", f"/rest/api/2/issue/{quote(key)}/comment", params={"maxResults": 1000}) or {}
-        return [str(c.get("body") or "") for c in found.get("comments") or []]
+        out, start = [], 0
+        while True:  # every page: comments come oldest first, and an earlier post may be on any of them
+            page = self.call("GET", f"/rest/api/2/issue/{quote(key)}/comment",
+                             params={"startAt": start, "maxResults": 100}) or {}
+            comments = page.get("comments") or []
+            out += [str(c.get("body") or "") for c in comments]
+            start += len(comments)
+            if not comments or start >= int(page.get("total") or 0):
+                return out
 
     def post(self, key, table, current, text):
         self.call("POST", f"/rest/api/2/issue/{quote(key)}/comment", json={"body": text}, write=True)
@@ -392,10 +401,10 @@ class ServiceNow(_Client):
                   params={"sysparm_input_display_value": "true"}, json=body, write=True)
 
     def notes(self, key, table, current):
-        rows = (self.call("GET", "/api/now/table/sys_journal_field", params={
-            "sysparm_query": f"element_id={current['sys_id']}^element=comments", "sysparm_fields": "value",
-            "sysparm_limit": 1000}) or {}).get("result") or []
-        return [str(r.get("value") or "") for r in rows]
+        # the record's own `comments`, as display text (every entry), not sys_journal_field, which ACLs often close
+        row = (self.call("GET", f"/api/now/table/{table}/{quote(current['sys_id'])}", params={
+            "sysparm_fields": "comments", "sysparm_display_value": "true"}) or {}).get("result") or {}
+        return [str(row.get("comments") or "")]
 
     def post(self, key, table, current, text):
         self.patch(table, current, {"comments": text})  # visible to the caller, as a reply is
@@ -492,6 +501,10 @@ def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], sessio
     data = _checked(payload, "post_reply")
     approval = require_approval(context, verify, payload=data, action_class="post_reply")
     _check_configured(data, context)
+    endpoint = {k: str(v) for k, v in data["endpoint"].items() if k in ENDPOINT_KEYS and v}
+    if not any(c.get("post_replies") and {k: str(c[k]) for k in ENDPOINT_KEYS if c.get(k)} == endpoint
+               for c in system_configs(context["instance_dir"], data["system"])):
+        raise ToolError(f"ops.yaml no longer sets post_replies for {data['system']} at this endpoint; nothing was posted")
     client = CLIENTS[data["system"]](data["endpoint"], os.environ if env is None else env, session)
     key, table = data["ticket"], data.get("table")
     label = f"{data['system']} {key}"
@@ -502,7 +515,8 @@ def post_reply(*, payload: Mapping[str, Any], context: Mapping[str, Any], sessio
     text = (f"{data['reply']}\n\n-- Posted by the archi ticket-triage automation after approval by "
             f"{approval.decided_by} in escalation {approval.escalation_id} (proposal {approval.proposal_id}).")
     try:
-        if any(f"in escalation {approval.escalation_id} " in n for n in client.notes(key, table, current)):
+        trailer = f"in escalation {approval.escalation_id} (proposal {approval.proposal_id})."
+        if any(trailer in n for n in client.notes(key, table, current)):
             return _out("succeeded", f"{label}: the reply for escalation {approval.escalation_id} is already posted; "
                                      "nothing was posted again")
     except TicketToolError as exc:
