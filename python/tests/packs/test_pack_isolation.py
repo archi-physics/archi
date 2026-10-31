@@ -215,17 +215,19 @@ def _install_and_publish(tmp_path: Path, resolution, name: str, overrides: dict 
         git(["commit", "-q", "-m", "px deployment config"], deployments)
 
         ingest_args = ["ingest", "--deployment", "px", "--json"]
+        publish_args = ["run", "--once", "--deployment", "px", "--apply", "--json"]
         if rendered.composition.automations:
             # An automation pack enables okg's runtime, and an ingest then enqueues on DBOS, whose schema
             # does not exist until the runtime is bootstrapped (upstream ask O12): what `archi init` does.
+            # No worker runs in this test, so the ingest and the publish both run in-process.
             boot = run_okg(["runtime", "bootstrap", "--deployment", "px"], cwd=instance, env=env)
             assert boot.returncode == 0, _report(boot)
             ingest_args.append("--inline")
+            publish_args.append("--inline")
         ingest = run_okg(ingest_args, cwd=instance, env=env)
         (tmp_path / "ingest.json").write_text(ingest.stdout)
         assert ingest.returncode == 0, _report(ingest)
-        publish = run_okg(["run", "--once", "--deployment", "px", "--apply", "--json"],
-                          cwd=instance, env=env)
+        publish = run_okg(publish_args, cwd=instance, env=env)
         assert publish.returncode == 0, _report(publish)
 
         status = run_okg(["status", "--deployment", "px", "--json"], cwd=instance, env=env)
