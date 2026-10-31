@@ -1,7 +1,7 @@
 name: ticket-triage
 kind: automation
 version: 0.1.0
-description: Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change that runs only after a person approves it (L2).
+description: Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change or a posted reply that runs only after a person approves it (L2).
 # ADR 0002 section 7.4, PACT r3-auto-ticket-triage. It reads the tickets the instance's ticket packs already
 # publish (tickets for Redmine and generic JIRA, jira, servicenow), whichever of them the instance selected: `narrow_to_selected`
 # keeps those, and an instance with none of them is refused at render. A new or updated open ticket in the

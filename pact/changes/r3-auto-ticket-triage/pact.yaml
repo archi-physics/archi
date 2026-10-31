@@ -35,6 +35,32 @@ requirements:
 
     - acc.r3-auto-ticket-triage.fixture: fixture queue yields cited drafts and gated status
     proposals. [evidence: executed_test]'
+- id: req.r3-auto-ticket-triage.reply
+  statement: 'With proposer.drafter set, the suggested reply is written by a model (gpt-6-luna) from the
+    records the run read, citing them by node id; a reply citing anything else, or a failed call, is not
+    used and the draft says why; each call is charged to the pack budget. At L2, with post_replies set, the
+    reply is proposed as post_reply and posted on the ticket only after a person approves, by a live tool
+    with the same checks as the others (approval, the configured endpoint, the ticket link) that posts it
+    once. Board d704 (G2); mail intake and the resolution email stay with the v2 bots until 3.1.
+
+
+    Acceptance:
+
+    - acc.r3-auto-ticket-triage.reply-fixture: with a fake model and fake ticket systems, the reply is
+    cited, an unusable reply leaves the template, and an approved post_reply posts once. [evidence:
+    executed_test]'
+- id: req.r3-auto-ticket-triage.switch
+  statement: 'SubMIT can switch to ticket-triage at the 3.0 cutover with no trial and switch back by
+    configuration alone: archi ops promote --no-trial names the decision (an operator still approves),
+    and mode: shadow in ops.yaml stops every write from the next run on, including a run already waiting
+    for its approval. Board d717.
+
+
+    Acceptance:
+
+    - acc.r3-auto-ticket-triage.rollback: offline, a run waiting for its approval when ops.yaml is set
+    back to shadow sends nothing; promote --no-trial opens the change with the decision recorded.
+    [evidence: executed_test]'
 # req.r3-auto-ticket-triage.shadow (a four-week SubMIT shadow and its report) was removed on board d717
 # (2026-10-31): there is no trial. The comp-ops shadow left 3.0 earlier (board d380 Q6).
 tasks:
@@ -46,6 +72,22 @@ tasks:
     Test plan:
 
     - fixture run [evidence: executed_test]'
+- id: task.r3-auto-ticket-triage.reply
+  requirement: req.r3-auto-ticket-triage.reply
+  verification: 'Model-written reply and post_reply.
+
+
+    Test plan:
+
+    - python/tests/ops/test_ticket_drafter.py [evidence: executed_test]'
+- id: task.r3-auto-ticket-triage.switch
+  requirement: req.r3-auto-ticket-triage.switch
+  verification: 'promote --no-trial and the rollback.
+
+
+    Test plan:
+
+    - python/tests/ops/test_promotion.py, test_ticket_triage_loop.py, test_workflow.py [evidence: executed_test]'
 evidence:
 - kind: executed_test
   requirement: req.r3-auto-ticket-triage.automation

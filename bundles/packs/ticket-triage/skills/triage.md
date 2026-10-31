@@ -37,10 +37,17 @@ node id under **Sources**.
 |---|---|---|
 | L0 | the triage draft | recorded only |
 | L1 (default) | the triage draft: category, likely component, related tickets, precedents, documentation, and a suggested reply | recorded on the proposal for a person to send; nothing is sent |
-| L2 | `assign_ticket` if the ticket is unassigned and most related tickets went to the same person (ServiceNow: group); else `set_ticket_status` to `triaged_status` for a ticket in one of `triage_from`; else the draft. A change a person already rejected for this ticket is not proposed again | an escalation waits for a person; only an approval runs the live tool, which notes the approval on the ticket (naming related tickets by key). A rejected or timed-out proposal never runs |
+| L2 | `post_reply` when `systems.<system>.post_replies` is set and the model wrote the reply (see below); else `assign_ticket` if the ticket is unassigned and most related tickets went to the same person (ServiceNow: group); else `set_ticket_status` to `triaged_status` for a ticket in one of `triage_from`; else the draft. A change a person already rejected for this ticket is not proposed again | an escalation waits for a person; only an approval runs the live tool, which notes the approval on the ticket (naming related tickets by key). A rejected or timed-out proposal never runs |
 
 Every automation starts in **shadow**: it proposes and records, opens no escalation and changes nothing,
 until an operator promotes it (`archi ops promote ticket-triage`, then an approved PACT change).
+With no shadow trial, `archi ops promote ticket-triage --no-trial "<decision>"` names the decision that waived
+it; an operator still approves the change.
+
+## Going back to shadow
+
+Set `mode: shadow` for `ticket-triage` in `ops.yaml`. From the next run on nothing is sent, and a run already
+waiting for an approval sends nothing either: the step that acts reads `ops.yaml` again. No restart is needed.
 
 ## Reading what it did
 
@@ -74,3 +81,23 @@ both the proposer and the live tool refuse unless that link is under the system'
 when `url` is a local proxy: `site` is the root of the ticket links the real server publishes). A ticket key
 found on two servers of one system (two JIRA servers with the same project key) is drafted, never changed.
 An endpoint URL may not carry a user name or password.
+
+## A model-written reply
+
+With `proposer.drafter` set, the suggested reply is written by a model from the records the run read, citing
+them as `[node id]`. A reply that cites anything else, or a model that fails, is not used: the template reply
+stays and the summary says why. Each call is charged to the pack budget, so `price` is required.
+
+```yaml
+    proposer:
+      kind: ticket-triage
+      drafter:
+        model: gpt-6-luna
+        price: {input_per_million: 0.10, output_per_million: 0.50, cached_input_per_million: 0.01}
+      systems:
+        redmine: {url: https://redmine.example.org, token_env: REDMINE_API_KEY, post_replies: true}
+```
+
+The model's key is read from `OPENAI_API_KEY` (`api_key_env` names another variable). With `post_replies`, the
+L2 proposal is `post_reply`: after a person approves, the reply is posted on the ticket (a Redmine note, a JIRA
+comment, a ServiceNow comment) with a line naming the approval. A posted note cannot be withdrawn by archi.
