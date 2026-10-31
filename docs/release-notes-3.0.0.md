@@ -36,7 +36,11 @@ and its `v2.x` tags.
   status`, `pending`, `approve`, `reject`, `promote`, `halt`, `resume`. The
   first automation, `instance-health`, watches the instance itself. No bundle
   includes it: select it when you create the instance, with
-  `archi init <name> --bundle <bundle> --with instance-health`.
+  `archi init <name> --bundle <bundle> --with instance-health`. `ticket-triage`
+  drafts cited triage notes for new Redmine, JIRA and ServiceNow tickets and, at
+  L2, proposes an assignment or status change that runs only after a person
+  approves it (`--with ticket-triage` on `cluster-manager` or `cms-comp-ops`).
+  Its SubMIT shadow report is published with this release.
 - **Bring your own agent.** `archi connect` writes the MCP configuration for
   Claude Code, codex, openclaw, Open WebUI and generic MCP over HTTP.
 - **Rewritten documentation**, with pages for every bundle, pack and command
@@ -44,8 +48,9 @@ and its `v2.x` tags.
 
 ## What is not in 3.0.0
 
-- The `ticket-triage` automation and its shadow report: planned after 3.0.
-  The v2 queue bots keep serving on a tagged `v2.x` until then.
+- Mail intake and resolution email for ticket queues. 3.0 ships `ticket-triage`
+  (cited drafts, and approved assignment or status changes); turning incoming
+  email into tickets and emailing the resolution stay with the v2 bots until 3.1.
 - Instances rebuilt from the bundles: the live comp-ops instance and SubMIT.
 - The context-eval acceptance run on a live instance, and a smoke-set pass on
   a local model (the sets pass on GPT-6 Luna).

@@ -127,8 +127,9 @@ a crash) are in
 
 ## What ships
 
-The reference automation in the design is `ticket-triage`. It is not in this
-branch yet. The pack that ships is [`instance-health`](library/packs/instance-health.md):
+Two automation packs ship. [`ticket-triage`](library/packs/ticket-triage.md), the reference
+automation in the design, triages new and updated Redmine, JIRA and ServiceNow tickets: a cited
+draft at L1, an approved assignment or status change at L2. [`instance-health`](library/packs/instance-health.md) is
 an automation that watches the instance itself (doctor results, source
 freshness, failed ingests, automation error rates) and keeps one issue per
 problem in the instance repository. It starts at L1 and runs in shadow
