@@ -22,7 +22,7 @@ before". Where each stands when 3.0.0 is prepared:
 |---|---|---|
 | 1. Every live v2 deployment has a named owner (R1). | **Answered** 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1. | Step 1 (done). |
 | 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. | Step 4. |
-| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** The v2 queue bots (Redmine, mailbox) move to 3.0's `ticket-triage` automation (board d701, which reverses d405), so 3.0.0 waits on it, on the terms of its own PACT (`r3-auto-ticket-triage`, including whether its four-week SubMIT shadow report comes first); and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
+| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** The v2 queue bots (Redmine, mailbox) move to 3.0's `ticket-triage` automation (board d701, which reverses d405), so 3.0.0 waits on it, including its SubMIT shadow (trial) report (d701; the trial length is board d705); and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
 | 4. The last v2 release is tagged and documented. | The newest tag is `v2.5.0`. `main` has had 52 commits since (check: step 0). | Step 3. |
 
 State today of the repository settings this runbook changes (read with `gh`
@@ -117,9 +117,9 @@ inventory. It lists the known limits in the changelog, which are the canonical
 list, and the v2 features in [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). In short:
 
 - the v2 queue bots move to 3.0's `ticket-triage` automation (board d701,
-  reversing d405); 3.0.0 waits on it, on the terms of `r3-auto-ticket-triage`
-  (including its shadow report), so this is a loss only if Jason ships
-  without it;
+  reversing d405); 3.0.0 waits on it and on its SubMIT shadow (trial) report
+  (the trial length is board d705), so this is a loss only if Jason ships
+  without them;
 - the live comp-ops instance and SubMIT have not been rebuilt from their
   bundles;
 - the smoke sets pass on GPT-6 Luna, not on a local model, and the

@@ -21,8 +21,8 @@ requirements:
   statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
     the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
     evidenced. The v2 queue bots (Redmine, mailbox) move to 3.0''s ticket-triage automation
-    (board d701, reversing d405), so the cutover waits on it, on the terms PACT
-    r3-auto-ticket-triage sets (including its shadow report).
+    (board d701, reversing d405), so the cutover waits on it and on its SubMIT shadow (trial) report
+    (d701; the trial length is board d705).
 
 
     Acceptance:
