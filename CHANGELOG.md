@@ -94,8 +94,8 @@ name is `archi`.
   cited triage draft (category, likely component, related tickets, precedents,
   documentation) that is never sent (L1). At L2 it proposes an assignment or a
   status change, which a live tool makes only after a person approves, and only
-  on the server the ticket was read from. SubMIT switches to it from its v2 queue
-  bots at the 3.0 cutover, with no trial run first (board d717). (#746,
+  on the server the ticket was read from. SubMIT switches to it from its v2 Redmine
+  bot at the 3.0 cutover, with no trial run first (board d717). (#746,
   `r3-auto-ticket-triage`)
 
 **Evals: a checked claim that a bundle answers, and how well it retrieves** (M5, M2)
@@ -161,10 +161,13 @@ Open requirements (each is a PACT requirement still unproven at this tag):
 
 Also not in 3.0.0:
 
-- **Mail intake and resolution email (SubMIT queue bots).** 3.0 ships the
-  `ticket-triage` automation (see Added), but turning incoming email into
-  Redmine tickets and emailing the resolution stay with the v2 bots until 3.1
-  (board d704). (`r3-auto-ticket-triage`.)
+- **`ticket-triage`: no shadow trial; SubMIT resolution emails pause.** It
+  is back in 3.0 (board d701) and replaces SubMIT's v2 Redmine bot at the
+  cutover, with no shadow trial first (board d717). The v2 service that
+  posted the bot's answers also sent the resolution email, and it stops at
+  the cutover, so SubMIT users get no resolution emails from the cutover
+  until 3.1 (board d719). Mail intake stays on v2 until 3.1 (board d704).
+  (`r3-auto-ticket-triage`, `r3-release`.)
 
 - **Smoke sets on a local model.** The smoke-set requirement is met on GPT-6
   Luna, which the maintainers accepted for this release (board d366): the sets
