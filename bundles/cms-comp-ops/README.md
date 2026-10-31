@@ -25,7 +25,7 @@ not list it yet.
 ```bash
 archi init myops --bundle cms-comp-ops
 archi init myops --bundle cms-comp-ops --with monit-live,jira   # optional packs
-archi init myops --bundle cms-comp-ops --with git-code --git-code-repo-url URL   # a repository, with its file text
+archi init myops --bundle cms-comp-ops --with git-code --answer git_code_repo_url=URL   # a repository, with its file text
 ```
 
 What an install gets for repositories:
@@ -34,9 +34,11 @@ What an install gets for repositories:
 - With `git-code`: the repository's files and history, and, as its
   companion, `code-text`: the text of every text file, so a question about a
   deployment's YAML or a script's flags can be answered from the graph.
-- With `git-code` and `--without code-text`: files and history only, as
-  before this bundle named the companion.
-- On an installed instance, `archi add git-code` brings `code-text` too.
+- With `git-code` and `--without code-text`: files and history only.
+- On an installed instance, `archi add git-code --answer git_code_repo_url=URL`
+  brings `code-text` too; add `--without code-text` to leave it out.
+
+`archi init` and `archi add` print a note for each companion they add.
 
 The bundle fixes no install answers. `gitlab_url` (cms-catalogs) defaults to
 `https://gitlab.cern.ch`, and `releases_map_url` (cmssw-releases) has its own

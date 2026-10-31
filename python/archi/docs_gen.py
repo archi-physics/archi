@@ -121,8 +121,10 @@ def pack_page(pack: Pack, catalog: Catalog) -> str:
     out += ["## In which bundles", ""]
     link = lambda names: ", ".join(f"[`{n}`](../bundles/{n}.md)" for n in names) or "none"  # noqa: E731
     out += [f"- Default in: {link(default)}", f"- Optional in: {link(optional)}"]
+    from archi.bundles.manifest import merged_companions
+
     for b in sorted(catalog.bundles.values(), key=lambda b: b.name):
-        for trigger, companions in sorted(b.companions.items()):
+        for trigger, companions in sorted(merged_companions(b.name, catalog.bundles).items()):
             if pack.name in companions:
                 out += [f"- Comes with {_pack_link(trigger, catalog.packs)} in: {link([b.name])}"]
     out += [""]
@@ -268,7 +270,9 @@ def bundle_page(bundle: Bundle, catalog: Catalog) -> str:
     out += ["## Packs", ""]
     out += [f"- Default: {_list_inline(bundle.default_packs, catalog.packs)}"]
     out += [f"- Optional: {_list_inline(bundle.optional_packs, catalog.packs)}"]
-    for trigger, companions in sorted(bundle.companions.items()):
+    from archi.bundles.manifest import merged_companions
+
+    for trigger, companions in sorted(merged_companions(bundle.name, catalog.bundles).items()):
         out += [f"- With {_list_inline((trigger,), catalog.packs)}, also: "
                 f"{_list_inline(companions, catalog.packs)} (opt out with `--without`)"]
     out += [""]

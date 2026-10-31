@@ -200,15 +200,9 @@ def resolve(
         for companion in companions.get(trigger, ()):
             if companion in without_packs or companion in selected:
                 continue
+            # An unknown companion stops here as unknown_pack, naming its
+            # trigger; bundle validation reports it earlier.
             why = f"companion of {trigger!r} in the bundle"
-            if companion not in catalog.packs:
-                raise CompositionError(
-                    "unknown_companion",
-                    f"pack {trigger!r} names companion {companion!r}, which is not in the "
-                    f"catalog; known packs: {sorted(catalog.packs)}",
-                    pack=companion,
-                    trigger=trigger,
-                )
             for name in _closure(catalog, [companion], why):
                 if name not in selected:
                     selected.append(name)
@@ -216,6 +210,12 @@ def resolve(
 
     for name in without_packs:
         if name in offered and name not in selected:
+            triggers = sorted(t for t, cs in companions.items() if name in cs)
+            if not any(t in selected for t in triggers):
+                companion_notes.append(
+                    f"--without {name}: recorded; it would come with {', '.join(triggers)}, "
+                    "which is not selected"
+                )
             continue  # opting out of a companion
         if name not in selected:
             raise CompositionError(

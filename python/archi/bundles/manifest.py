@@ -253,7 +253,8 @@ class Bundle:
 
     @property
     def companions(self) -> dict[str, tuple[str, ...]]:
-        """Pack -> packs that come on whenever it is selected (ADR 0002 section 3.3)."""
+        """Pack -> packs that come on whenever it is selected (ADR 0002 section 3.3).
+        This bundle's own; `merged_companions` adds those it inherits."""
         return {k: tuple(v) for k, v in self.manifest["packs"].get("companions", {}).items()}
 
     @property
@@ -592,6 +593,17 @@ def extends_closure(
                 out.append(item)
     out.append(name)
     return out
+
+
+def merged_companions(name: str, bundles: Mapping[str, "Bundle"]) -> dict[str, tuple[str, ...]]:
+    """The companions bundle `name` resolves with: its own and those of every
+    bundle it extends, parents first (the rule `resolve` applies)."""
+    out: dict[str, list[str]] = {}
+    for item in extends_closure(name, bundles):
+        for trigger, companions in bundles[item].companions.items():
+            merged = out.setdefault(trigger, [])
+            merged.extend(c for c in companions if c not in merged)
+    return {k: tuple(v) for k, v in out.items()}
 
 
 def validate_bundle(

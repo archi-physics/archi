@@ -25,6 +25,10 @@ affected_code:
 - python/archi/bundles/manifest.py
 - python/archi/bundles/resolve.py
 - python/archi/bundles/cli.py
+- python/archi/bundles/lock.py
+- python/archi/cli/init.py
+- docs/docs/operating/commands.md
+- docs/docs/reference/cli.md
 - python/archi/docs_gen.py
 - bundles/cms-comp-ops/bundle.yaml
 - bundles/cms-comp-ops/README.md
@@ -42,11 +46,14 @@ requirements:
     pack names, merged over `extends` parents first. `resolve` adds, for each selected pack in
     resolution order whose name is not given to `--without`, its companions not given to
     `--without`, each preceded by the packs it requires; an added companion can trigger its own.
-    Each addition is reported in the resolution notes ("<companion> comes with <pack> (opt out
-    with --without <companion>)"). `--without` naming a declared companion is never refused as
-    not selected. A companion or trigger the catalog does not hold is a validation problem naming
-    the bundle key; at resolve time a missing companion stops with `unknown_companion`, naming
-    both packs. A bundle with no companions resolves exactly as before. ADR 0002 section 3.3, the
+    Each addition is a resolution note ("<companion> comes with <pack> (opt out with --without
+    <companion>)") that `archi init` and `archi add` print. `--without` naming a declared
+    companion is never refused as not selected; when its trigger is not selected, a note says the
+    opt-out is recorded. `archi add` takes `--without` and records it in the lock''s selection. A
+    companion or trigger the catalog does not hold is a validation problem naming the bundle key,
+    and `archi init` prints it when the bundle is dropped; a bundle that skipped validation stops at
+    resolve with `unknown_pack`, naming the trigger. A bundle with no companions resolves exactly as
+    before. Companions merge over `extends` and across several bundles as a union. ADR 0002 section 3.3, the
     pack-format reference, the generated library pages and `archi bundles list` show companions.
 
 
@@ -60,7 +67,9 @@ requirements:
     is still refused. [evidence: executed_test]
 
     - acc.r3-bundle-companions.missing: an unknown companion is a validation problem naming
-    `packs.companions.<pack>` and the missing pack. [evidence: executed_test]
+    `packs.companions.<pack>` and the missing pack, `archi init` (render_profile) repeats it, and
+    a hand-built catalog that skipped validation stops at resolve naming the trigger.
+    [evidence: executed_test]
 
     - acc.r3-bundle-companions.unchanged: the fixture bundles resolve to the plain formula''s
     packs with and without `--with`/`--without`, and every shipped bundle but cms-comp-ops names
@@ -70,8 +79,9 @@ requirements:
     [code-text]}`. A bare install selects neither; `--with git-code` selects git-code then
     code-text, and the render carries their sources and code-text''s extractors.yaml; `--with
     git-code --without code-text` selects git-code only; `archi add git-code` on an installed
-    instance adds both packs'' sources and extractors.yaml and records only git-code as the
-    selection, and respects an opt-out recorded at init. The bundle README says what an install
+    instance adds both packs'' sources and extractors.yaml, prints the companion note and records
+    only git-code as the selection; it respects an opt-out recorded at init, and `--without
+    code-text` on the add leaves code-text out and records the opt-out. The bundle README says what an install
     gets with and without git-code.
 
 
@@ -81,8 +91,9 @@ requirements:
     with git-code without code-text select the packs above. [evidence: executed_test]
 
     - acc.r3-bundle-companions.add: `archi add git-code` on an installed instance whose bundle
-    names the companion adds code-text''s source and extractors.yaml, and does not when the
-    instance opted out at init. [evidence: executed_test]
+    names the companion adds code-text''s source and extractors.yaml and prints the note; it does
+    not when the instance opted out at init or when the add says `--without code-text`.
+    [evidence: executed_test]
 
     - acc.r3-bundle-companions.install: against a fresh Postgres with okg''s extensions, cms-comp-ops
     with every optional pack (git-code included, so code-text comes with it) installs with okg,

@@ -99,17 +99,46 @@ def test_an_unknown_companion_is_a_clear_validation_error(companions):
     assert any("packs.companions.alpha: unknown companion pack 'nope'" in m for m in messages), messages
 
 
-def test_an_unknown_companion_stops_resolution(companions):
-    """A catalog assembled without validation (a third-party root missing the
-    pack) still stops at resolve, naming both packs."""
+def test_an_unknown_companion_stops_resolution_naming_its_trigger(companions):
+    """A bundle that skipped validation (built by hand here) still stops at
+    resolve, with the unknown pack and the trigger it is a companion of."""
+    from archi.bundles.manifest import Bundle
+
+    catalog = load_catalog(companions)
+    catalog.bundles["broken"] = Bundle(companions / "broken", {
+        "name": "broken", "version": "0.1.0", "description": "x", "okg": ">=0.2.0,<0.3",
+        "packs": {"default": ["alpha"], "companions": {"alpha": ["nope"]}},
+    })
+    err = _conflict(lambda: resolve(catalog, ["broken"]), "unknown_pack")
+    assert "'nope'" in str(err) and "companion of 'alpha'" in str(err)
+
+
+def test_init_names_the_validation_problem_of_a_dropped_bundle(companions, tmp_path):
+    """Discovery drops a bundle whose companion is unknown; archi init then
+    says which problem dropped it, not only that the bundle is missing."""
     from archi.bundles import discovery
+    from archi.cli.init import InitError, render_profile
 
     write_bundle(companions, "broken", packs={"default": ["alpha"], "companions": {"alpha": ["nope"]}})
     catalog = discovery.from_roots([companions / "packs"], [companions])
-    if "broken" not in catalog.bundles:
-        pytest.skip("this catalog drops a bundle that fails validation; the validation test covers it")
-    err = _conflict(lambda: resolve(catalog, ["broken"]), "unknown_companion")
-    assert "'alpha'" in str(err) and "'nope'" in str(err)
+    assert "broken" not in catalog.bundles
+    with pytest.raises(InitError) as excinfo:
+        render_profile(catalog, tmp_path / "inst", "inst", ["broken"], [], [], echo=lambda *_: None)
+    assert "unknown companion pack 'nope'" in str(excinfo.value)
+
+
+def test_an_opt_out_recorded_before_its_trigger_is_reported(companions):
+    r = resolve(load_catalog(companions), ["comp"], without_packs=["gamma"])
+    assert "--without gamma: recorded; it would come with beta, which is not selected" in r.notes
+
+
+def test_companions_inherited_through_extends_are_listed(companions):
+    from archi.bundles.manifest import merged_companions
+
+    write_bundle(companions, "child", extends=["comp"], packs={"default": [], "companions": {"beta": ["delta"]}})
+    catalog = load_catalog(companions)
+    assert catalog.bundles["child"].companions == {"beta": ("delta",)}
+    assert merged_companions("child", catalog.bundles) == {"beta": ("gamma", "delta"), "gamma": ("delta",)}
 
 
 @pytest.mark.parametrize("bundle", ["base-bundle", "child-bundle"])
@@ -206,11 +235,14 @@ def test_archi_add_git_code_brings_code_text(tmp_path):
     instance = tmp_path / "instance"
     render_and_lock(catalog, instance, ["ops-like"])
     deployment = _scaffold(instance, "ops-like", BASE_ANSWERS)
-    add(instance, catalog, "git-code", {"git_code_repo_url": "https://example.org/x.git"},
-        deployment_dir=deployment, run_okg=False, echo=lambda *_: None)
+    said = []
+    result = add(instance, catalog, "git-code", {"git_code_repo_url": "https://example.org/x.git"},
+                 deployment_dir=deployment, run_okg=False, echo=said.append)
     registry = yaml.safe_load((deployment / "source_registry.yaml").read_text())["sources"]
     assert {"git-code.repo", "git-code.git_history", "code-text.code_text"} <= set(registry)
     assert (deployment / "extractors.yaml").is_file()
+    assert result.added_packs == ["git-code", "code-text"]
+    assert "note: code-text comes with git-code (opt out with --without code-text)" in said
     lock = read_lock(instance)
     assert lock["selection"]["with"] == ["git-code"]
     assert {"git-code", "code-text"} <= set(lock["packs"])
@@ -236,3 +268,29 @@ def test_archi_add_git_code_respects_an_earlier_opt_out(tmp_path):
     registry = yaml.safe_load((deployment / "source_registry.yaml").read_text())["sources"]
     assert "git-code.repo" in registry and "code-text.code_text" not in registry
     assert "code-text" not in read_lock(instance)["packs"]
+
+
+def test_archi_add_git_code_without_code_text(tmp_path):
+    """`archi add git-code --without code-text` leaves the companion out and
+    records the opt-out in the lock."""
+    import yaml
+    from bundles.bundle_support import build_cern_team_catalog
+    from bundles.test_lock import BASE_ANSWERS, _scaffold
+
+    from archi.bundles import discovery
+    from archi.bundles.lock import add, read_lock, render_and_lock
+
+    root = build_cern_team_catalog(tmp_path / "catalog")
+    write_bundle(root, "ops-like", extends=["cern-team"],
+                 packs={"default": [], "optional": ["git-code"], "companions": {"git-code": ["code-text"]}})
+    catalog = discovery.from_roots([root / "packs"], [root])
+    instance = tmp_path / "instance"
+    render_and_lock(catalog, instance, ["ops-like"])
+    deployment = _scaffold(instance, "ops-like", BASE_ANSWERS)
+    result = add(instance, catalog, "git-code", {"git_code_repo_url": "https://example.org/x.git"},
+                 deployment_dir=deployment, run_okg=False, echo=lambda *_: None,
+                 without_extra=["code-text"])
+    registry = yaml.safe_load((deployment / "source_registry.yaml").read_text())["sources"]
+    assert "git-code.repo" in registry and "code-text.code_text" not in registry
+    assert result.added_packs == ["git-code"]
+    assert read_lock(instance)["selection"]["without"] == ["code-text"]
