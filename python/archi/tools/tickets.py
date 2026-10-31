@@ -34,6 +34,11 @@ writes nothing unless it lies under the endpoint (`site`, else `url`): two serve
 the same key (two JIRA servers both with a project OPS), and the key alone cannot say which one a person
 approved a change to.
 
+The payload's `endpoint` must also be one the instance itself configures: equal, key for key, to
+`automations.<name>.proposer.systems.<system>` of a ticket-triage automation in `<instance_dir>/ops.yaml`
+(`instance_dir` comes from the mediator step's context). A payload cannot point the tool, or a credential
+variable, at a server the instance did not name; without an instance directory nothing is sent.
+
     redmine     X-Redmine-API-Key from token_env. Status by name (GET /issue_statuses.json); assignee by
                 name among the project's members (GET /projects/<id>/memberships.json).
     jira        Bearer token_env (a personal access token) or basic user_env/password_env. Status by a
@@ -174,6 +179,37 @@ def _check_site(data: Mapping[str, Any]) -> None:
     if not under(data["ticket_url"], root):
         raise ToolError(f"the ticket link {data['ticket_url']} is not under {root}: this endpoint is another "
                         "server than the one the ticket was read from; nothing was sent")
+
+
+ENDPOINT_KEYS = ("url", "site", "token_env", "user_env", "password_env")
+
+
+def configured_endpoints(instance_dir: Any, system: str) -> list[dict[str, str]]:
+    """The endpoints the instance's ticket-triage automations configure for `system` (ops.yaml)."""
+    from pathlib import Path
+
+    from archi.ops.runtime_config import read_settings
+
+    found = []
+    for settings in read_settings(Path(instance_dir)).values():
+        proposer = settings.proposer or {}
+        if proposer.get("kind") != "ticket-triage":
+            continue
+        config = (proposer.get("systems") or {}).get(system) or {}
+        if config.get("url"):
+            found.append({k: str(config[k]) for k in ENDPOINT_KEYS if config.get(k)})
+    return found
+
+
+def _check_configured(data: Mapping[str, Any], context: Optional[Mapping[str, Any]]) -> None:
+    instance_dir = (context or {}).get("instance_dir")
+    if not instance_dir:
+        raise ToolError("no instance directory in the context, so the endpoint cannot be checked against the "
+                        "instance's configuration; nothing was sent")
+    endpoint = {k: str(v) for k, v in data["endpoint"].items() if k in ENDPOINT_KEYS and v}
+    if endpoint not in configured_endpoints(instance_dir, data["system"]):
+        raise ToolError(f"the endpoint {endpoint.get('url')} is not the one ops.yaml configures for "
+                        f"{data['system']} (proposer.systems.{data['system']}); nothing was sent")
 
 
 def _safe(text: Any, limit: int = 200) -> str:
@@ -363,6 +399,7 @@ def _act(action_class: str, payload: Any, context: Optional[Mapping[str, Any]], 
          ) -> dict[str, Any]:
     data = _checked(payload, action_class)
     approval = require_approval(context, verify, payload=data, action_class=action_class)
+    _check_configured(data, context)
     client = CLIENTS[data["system"]](data["endpoint"], os.environ if env is None else env, session)
     key, table, field, target = data["ticket"], data.get("table"), field_of(data), target_of(data)
     label = f"{data['system']} {key}"

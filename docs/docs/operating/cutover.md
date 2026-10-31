@@ -22,7 +22,7 @@ before". Where each stands when 3.0.0 is prepared:
 |---|---|---|
 | 1. Every live v2 deployment has a named owner (R1). | **Answered** 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1. | Step 1 (done). |
 | 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. | Step 4. |
-| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** `ticket-triage` and its four-week SubMIT shadow report come after 3.0 (board d405), so the v2 queue bots stay on `v2.x` until then; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
+| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** `ticket-triage` ships in 3.0 (board d701), but mail intake and the resolution email stay with the v2 bots until 3.1 (board d704), so those bots stay on `v2.x` until then; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
 | 4. The last v2 release is tagged and documented. | The newest tag is `v2.5.0`. `main` has had 52 commits since (check: step 0). | Step 3. |
 
 State today of the repository settings this runbook changes (read with `gh`
@@ -37,7 +37,8 @@ on 2026-10-26, so re-check at the time):
   pypi.org for this page. Check it in step 6.)
 
 This page was last brought up to date on 2026-10-27, after #849 to #860
-merged. `ticket-triage` (#746) is after 3.0 (board d405). If anything else
+merged. `ticket-triage` (#746) ships in 3.0 (board d701); mail intake and the
+resolution email stay with the v2 bots until 3.1 (board d704). If anything else
 lands before the freeze in step 3, update the "not in 3.0.0" lists in the
 changelog, the release notes and the [v2 guide](../migration-from-v2.md) first.
 
@@ -101,8 +102,9 @@ writing. 3.0.0 does not have parity. Write the acceptance and keep it with the
 inventory. It lists the known limits in the changelog, which are the canonical
 list, and the v2 features in [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). In short:
 
-- `ticket-triage` and its four-week SubMIT shadow come after 3.0 (board
-  d405), so the v2 queue bots stay on a tagged `v2.x`;
+- mail intake and the resolution email stay with the v2 bots until 3.1
+  (board d704), so those bots stay on a tagged `v2.x`; `ticket-triage` itself
+  ships in 3.0 (board d701);
 - the live comp-ops instance and SubMIT have not been rebuilt from their
   bundles;
 - the smoke sets pass on GPT-6 Luna, not on a local model, and the

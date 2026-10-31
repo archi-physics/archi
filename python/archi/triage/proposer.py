@@ -62,13 +62,12 @@ from collections import Counter
 from typing import Any, Mapping, Optional
 from urllib.parse import urlsplit
 
+from archi.enrichment.anonymizer import redact_email_addresses
 from archi.ops.proposers import Proposed, ProposeRequest, ProposerError
-from archi.tools.tickets import LOOPBACK, under
+from archi.tools.tickets import ENDPOINT_KEYS, LOOPBACK, under
 from archi.triage.tickets import ASSIGN_FIELDS
 
 DEFAULT_TRIAGE_FROM = ("new", "open", "to do", "backlog")
-ENDPOINT_KEYS = ("url", "site", "token_env", "user_env", "password_env")
-
 
 class _Cites:
     """Numbered citations: `[n]` in the text, `[n] node id` under Sources."""
@@ -143,7 +142,7 @@ class TriageProposer:
         lines.append(f"- Likely component: {component} ({basis(comp_n, comp_of, comp_ids)})" if component
                      else "- Likely component: unknown")
         if agreed:
-            lines.append(f"- Usually handled by: {assignee} ({as_n} of {as_of} related tickets {cite.many(as_ids)})")
+            lines.append(f"- Usually handled by: {redact_email_addresses(assignee)} ({as_n} of {as_of} related tickets {cite.many(as_ids)})")
         lines.append("- Related tickets:" if related else "- Related tickets: none found")
         for r in related:
             end = f"; resolution: {r['resolution']}" if r["resolution"] else ""
@@ -228,15 +227,16 @@ class TriageProposer:
         skipped = ""
         if assignee and not current:
             before = was_rejected("assign_ticket", "value", assignee)
+            shown = redact_email_addresses(assignee)  # the payload keeps the value; text people read does not
             if before is None:
-                note = (f"Assigned by the ticket-triage automation: {len(by)} related tickets went to {assignee} "
+                note = (f"Assigned by the ticket-triage automation: {len(by)} related tickets went to {shown} "
                         f"({', '.join(by)}).")
                 return {**draft,
-                        "summary": f"{draft['summary']}; proposes: set {field} of {system} {key} to {assignee}",
+                        "summary": f"{draft['summary']}; proposes: set {field} of {system} {key} to {shown}",
                         "action_class": "assign_ticket",
                         "payload": {**base, "field": field, "value": assignee, "expected": current, "note": note},
                         "rollback": f"Set the {field} of {system} {key} back to unassigned."}
-            skipped = f"assigning it to {assignee} was {before} before; "
+            skipped = f"assigning it to {shown} was {before} before; "
         target = str(config.get("triaged_status") or "")
         from_statuses = {s.lower() for s in (config.get("triage_from") or DEFAULT_TRIAGE_FROM)}
         if target and ticket["status"] != target and ticket["status"].lower() in from_statuses:

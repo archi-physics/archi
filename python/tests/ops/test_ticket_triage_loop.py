@@ -45,6 +45,11 @@ def instance(tmp_path_factory):
     catalog = discovery.from_roots([REPO / "bundles" / "packs"], [REPO / "bundles"])
     assert catalog.problems == []
     render_and_lock(catalog, root / "inst", ["cluster-manager"], with_packs=["servicenow", "jira", NAME])
+    # the live tools send only to an endpoint the instance configures (ops.yaml proposer.systems)
+    ops = root / "inst" / "ops.yaml"
+    data = (yaml.safe_load(ops.read_text()) if ops.is_file() else None) or {}
+    data.setdefault("automations", {}).setdefault(NAME, {})["proposer"] = {"kind": "ticket-triage", **CONFIG}
+    ops.write_text(yaml.safe_dump(data))
     return root / "inst"
 
 
@@ -120,8 +125,9 @@ class ToolMediator:
     """The mediator step as the worker runs it: run_mediation's guard, then the real live tool, whose own
     approval check reads the same escalation row."""
 
-    def __init__(self, auto, clock, esc_io, system, run_id):
+    def __init__(self, auto, clock, esc_io, system, run_id, instance_dir):
         self.auto, self.clock, self.io, self.system, self.run_id = auto, clock, esc_io, system, run_id
+        self.instance_dir = str(instance_dir)
         self.calls = []
 
     def execute(self, *, action_class, payload, proposal_id, idempotency_key, generation, escalation=None, level="L2"):
@@ -140,7 +146,7 @@ class ToolMediator:
             self.io, mediator_entry=lambda: self.auto.action_classes[action_class].mediator, action_class=action_class,
             payload=payload, proposal_id=proposal_id, idempotency_key=idempotency_key, esc=esc,
             workflow_id=self.run_id, dsn="postgresql://fixture", halt=lambda io: None, now=self.clock.now,
-            resolve=tool, refused=lambda verdict, reason: None, at_l1=level == "L1")
+            resolve=tool, refused=lambda verdict, reason: None, instance_dir=self.instance_dir, at_l1=level == "L1")
         if "refused" in out:
             raise MediationRefused(*out["refused"])
         return MediatorResult(out["status"], out["result"])
@@ -168,7 +174,7 @@ class World:
         run_id = make_run_id(NAME, signal_id, 1)
         clock, esc_io, recorder = Clock(at(0)), EscalationIO(), Recorder()
         person = Person(clock, esc_io, run_id, verdict)
-        mediator = ToolMediator(auto, clock, esc_io, self.system, run_id)
+        mediator = ToolMediator(auto, clock, esc_io, self.system, run_id, instance)
         deps = Deps(gate=Gate(GateResult(None, PASS.checks)), reader=GraphReader(self.graph), proposer=TriageProposer(CONFIG), decider=person,
                     mediator=mediator, outcome=Outcome(), recorder=recorder, halt=Halt(*halt), clock=clock,
                     budget=Budget())

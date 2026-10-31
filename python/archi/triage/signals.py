@@ -36,7 +36,7 @@ new update, so the ticket is triaged once more; that run finds nothing left to p
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable, Optional
 
 from archi.bundles.automation import trigger_systems
@@ -44,16 +44,26 @@ from archi.triage.tickets import (CLOSED_STATUSES, SYSTEMS, Ticket, closed_statu
                                   subtypes_for, tickets_of)
 
 log = logging.getLogger(__name__)
+#: a ticket whose `updated` is further ahead of this host's clock is left out (and logged) until the clock
+#: reaches it, so one bad time cannot move a source's cursor past every real update
+FUTURE_SLACK = timedelta(hours=1)
 
 
 def new_or_updated(tickets: Iterable[Ticket], since: Optional[datetime], queues: Iterable[str] = (),
-                   seen: Iterable[str] = ()) -> tuple[list[Ticket], Optional[datetime], list[str]]:
+                   seen: Iterable[str] = (), now: Optional[datetime] = None) -> tuple[list[Ticket], Optional[datetime], list[str]]:
     """(the tickets of ONE source to triage, oldest update first; the source's new cursor; the tickets seen at
     that cursor time). A ticket updated after the cursor is new; one updated at the cursor time itself is new
     unless it is in `seen`, the tickets already read at that time (so two tickets updated in the same second
-    are both triaged, across two reads). With no cursor (`since` None) nothing is triaged and the cursor
+    are both triaged, across two reads). A ticket updated more than FUTURE_SLACK ahead of `now` is left out.
+    With no cursor (`since` None) nothing is triaged and the cursor
     becomes the newest update seen."""
-    tickets = [t for t in tickets if t.updated_at is not None]
+    limit = (now or datetime.now(timezone.utc)) + FUTURE_SLACK
+    dated = [t for t in tickets if t.updated_at is not None]
+    tickets = [t for t in dated if t.updated_at <= limit]
+    for t in dated:
+        if t.updated_at > limit:
+            log.warning("ticket %s: updated %s is ahead of this host's clock; left out until then", t.entity,
+                        t.updated_at.isoformat())
     newest = max((t.updated_at for t in tickets), default=None)
     mark = max((m for m in (since, newest) if m is not None), default=None)
     at_mark = sorted({t.entity for t in tickets if t.updated_at == mark} | (set(seen) if mark == since else set()))

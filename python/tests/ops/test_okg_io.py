@@ -214,3 +214,40 @@ def test_two_concurrent_ensure_tables_never_interleave_their_ddl(monkeypatch):
     [t.start() for t in threads]
     [t.join() for t in threads]
     assert [k for k, _ in log] == ["start", "end", "start", "end"]
+
+
+class Workflows:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def list_workflows(self, workflow_ids, load_input=False):
+        return [{"workflow_id": w, "status": "CANCELLED"} for w in workflow_ids]
+
+
+class RequeueConn(Conn):
+    """Started signals for the first SELECT; then the status each UPDATE ... RETURNING gives back."""
+
+    def __init__(self, started, after):
+        super().__init__(None)
+        self.started, self.after = started, list(after)
+
+    def fetchall(self):
+        return self.started
+
+    def fetchone(self):
+        return (self.after.pop(0),)
+
+
+def test_a_cancelled_ticket_signal_with_a_newer_one_is_superseded_not_requeued(monkeypatch):
+    """Second review: version 1's run was cancelled after version 2's signal had started. Requeueing version 1
+    would triage the ticket again, so the UPDATE supersedes a ticket signal that has a newer one, and only a
+    signal that went back to `new` is reported as requeued."""
+    io = OpsIO("postgresql://x", "dep", okg="okg")
+    conn = RequeueConn([("ticket-triage", "redmine-4820-v1", 1), ("ticket-triage", "redmine-4821-v1", 1)],
+                       ["superseded", "new"])
+    monkeypatch.setattr(io, "connect", lambda: conn)
+    monkeypatch.setattr(io, "_client", lambda: Workflows(None))
+    assert io.requeue_cancelled_signals() == [("ticket-triage", "redmine-4821-v1", 2)]
+    updates = [sql for sql, _ in conn.sql if sql.startswith("UPDATE")]
+    assert len(updates) == 2 and all("s.source = 'ticket'" in u and "n.created_at > s.created_at" in u
+                                     and "THEN 'superseded' ELSE 'new'" in u for u in updates)

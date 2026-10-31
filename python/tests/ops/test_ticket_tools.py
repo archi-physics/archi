@@ -5,6 +5,7 @@ holds the value or changed since the proposal, writes with a note naming the esc
 import copy
 
 import pytest
+import yaml
 
 from archi.tools import tickets
 from archi.tools._live import ActRefused, Approval, ToolError
@@ -14,6 +15,23 @@ ENV = {"RM_TOKEN": TOKEN, "JIRA_TOKEN": TOKEN, "SN_TOKEN": TOKEN}
 CONTEXT = {"idempotency_key": "ticket-triage~redmine-4820-x~1", "proposal_id": "prop-ticket-triage~redmine-4820-x~1",
            "workflow_id": "ticket-triage~redmine-4820-x~1", "dsn": "postgresql://fixture"}
 APPROVAL = Approval("esc-abc", CONTEXT["proposal_id"], "operator-x")
+PROXY = {"url": "http://127.0.0.1:8099", "site": "https://redmine.example.org", "token_env": "RM_TOKEN"}
+
+
+@pytest.fixture(autouse=True, scope="module")
+def instance_dir(tmp_path_factory):
+    """The instance the mediator step names in its context: its ops.yaml configures the endpoints the tests
+    use (a second automation holds the loopback proxy)."""
+    root = tmp_path_factory.mktemp("ticket-tools")
+    systems = {name: endpoint(name) for name in ("redmine", "jira", "servicenow")}
+    (root / "ops.yaml").write_text(yaml.safe_dump({"automations": {
+        "ticket-triage": {"proposer": {"kind": "ticket-triage", "systems": systems}},
+        "ticket-triage-proxy": {"proposer": {"kind": "ticket-triage", "systems": {"redmine": PROXY}}},
+        "other": {"proposer": {"kind": "stub", "systems": {"redmine": {"url": "https://evil.example", "token_env": "RM_TOKEN"}}}},
+    }}))
+    CONTEXT["instance_dir"] = str(root)
+    yield root
+    CONTEXT.pop("instance_dir", None)
 
 
 def system():
@@ -128,7 +146,7 @@ def test_the_tool_checks_the_approval_against_this_class_and_payload():
     ({"ticket": "OPS-15"}, "is not a redmine ticket key"),
     ({"table": "incident"}, "needs its table"),
     ({"field": "assignment_group"}, "assignment_group is a ServiceNow field"),
-    ({"endpoint": {"url": "https://redmine.example.org", "token_env": "MISSING_TOKEN"}}, "MISSING_TOKEN"),
+    ({"endpoint": {"url": "https://redmine.example.org", "token_env": "MISSING_TOKEN"}}, "not the one ops.yaml configures"),
     ({"endpoint": {"url": "https://user:secret@redmine.example.org", "token_env": "RM_TOKEN"}}, "does not match"),
     ({"ticket_url": "https://redmine.other.org/issues/4820"}, "is not under https://redmine.example.org"),
     ({"ticket_url": "http://redmine.example.org/issues/4820"}, "is not under"),
@@ -144,8 +162,7 @@ def test_bad_payloads_are_refused_before_any_request(change, fragment):
 
 def test_plain_http_is_accepted_only_for_a_loopback_host():
     s = system()
-    payload = {**assign("redmine", "4820", "Grace Hopper"), "endpoint": {"url": "http://127.0.0.1:8099", "site": "https://redmine.example.org",
-                                                                     "token_env": "RM_TOKEN"}}
+    payload = {**assign("redmine", "4820", "Grace Hopper"), "endpoint": PROXY}
     assert run(tickets.assign_ticket, payload, s)["status"] == "succeeded"
 
 
@@ -264,3 +281,43 @@ def test_a_site_other_than_the_url_is_refused_unless_the_url_is_a_loopback_proxy
 ])
 def test_under_compares_scheme_host_port_and_path(ticket_url, root, ok):
     assert tickets.under(ticket_url, root) is ok
+
+
+# --- second review: the endpoint must be one the instance configures ------------------------------------------
+
+
+def test_an_endpoint_the_instance_does_not_configure_is_refused_even_when_approved():
+    """A payload that names another server (and a ticket link under it) and a real credential variable sends
+    nothing: only a ticket-triage automation's proposer.systems in ops.yaml can name a server. A stub
+    automation's systems do not count."""
+    s = system()
+    payload = {**assign("redmine", "4820", "Grace Hopper"), "ticket_url": "https://evil.example/issues/4820",
+               "endpoint": {"url": "https://evil.example", "token_env": "RM_TOKEN"}}
+    with pytest.raises(ToolError, match="not the one ops.yaml configures for redmine"):
+        run(tickets.assign_ticket, payload, s)
+    assert s.requests == []
+
+
+def test_another_credential_variable_than_the_configured_one_is_refused():
+    s = system()
+    payload = {**assign("redmine", "4820", "Grace Hopper"),
+               "endpoint": {"url": "https://redmine.example.org", "token_env": "JIRA_TOKEN"}}
+    with pytest.raises(ToolError, match="not the one ops.yaml configures"):
+        run(tickets.assign_ticket, payload, s)
+    assert s.requests == []
+
+
+def test_without_an_instance_directory_nothing_is_sent():
+    s = system()
+    context = {k: v for k, v in CONTEXT.items() if k != "instance_dir"}
+    with pytest.raises(ToolError, match="no instance directory"):
+        tickets.assign_ticket(payload=assign("redmine", "4820", "Grace Hopper"), context=context,
+                              session=s.session(), env=ENV, verify=approved)
+    assert s.requests == []
+
+
+def test_a_configured_credential_variable_that_is_not_set_is_refused():
+    s = system()
+    with pytest.raises(ToolError, match="RM_TOKEN"):
+        run(tickets.assign_ticket, assign("redmine", "4820", "Grace Hopper"), s, env={})
+    assert s.requests == []

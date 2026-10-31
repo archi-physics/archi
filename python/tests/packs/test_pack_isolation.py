@@ -223,8 +223,9 @@ def _install_and_publish(tmp_path: Path, resolution, name: str, overrides: dict 
         publish_args = ["run", "--once", "--deployment", "px", "--apply", "--json"]
         if rendered.composition.automations:
             # An automation pack enables okg's runtime, and an ingest then enqueues on DBOS, whose schema
-            # does not exist until the runtime is bootstrapped (upstream ask O12): what `archi init` does.
-            # No worker runs in this test, so the ingest and the publish both run in-process.
+            # does not exist until the runtime is bootstrapped (upstream ask O12). This is `archi init`'s
+            # fallback after a provision that stops there (archi.cli.init.provision): bootstrap, then ingest
+            # and publish in-process, since no worker runs yet. The lab checks the worker path after init.
             boot = run_okg(["runtime", "bootstrap", "--deployment", "px"], cwd=instance, env=env)
             assert boot.returncode == 0, _report(boot)
             ingest_args.append("--inline")

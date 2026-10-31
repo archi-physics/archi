@@ -39,7 +39,7 @@ def test_provision_bootstraps_the_runtime_then_ingests_in_process_and_publishes_
     assert result.returncode == 0
     assert okg.calls == [("provision", "--deployment", "dep"), ("runtime", "bootstrap", "--deployment", "dep"),
                          ("ingest", "--deployment", "dep", "--inline"),
-                         ("run", "--once", "--deployment", "dep", "--apply")]
+                         ("run", "--once", "--deployment", "dep", "--apply", "--inline")]
     assert any("bootstrapping the runtime" in line for line in said)
 
 

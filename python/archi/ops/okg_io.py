@@ -387,11 +387,18 @@ class OpsIO:
         for wf in self._client().list_workflows(workflow_ids=list(ids), load_input=False):
             if str(_val(wf, "status")).upper() == "CANCELLED":
                 automation, signal_id, attempt = ids[_val(wf, "workflow_id")]
+                # A ticket signal with a newer signal for the same ticket is superseded, not requeued: the
+                # newer one may already have run, and the old version must not triage the ticket again.
                 with self.connect() as conn:
-                    conn.execute("UPDATE archi_ops.signals SET status = 'new', attempt = %s "
-                                 "WHERE automation = %s AND signal_id = %s AND attempt = %s",
-                                 (attempt + 1, automation, signal_id, attempt))
-                requeued.append((automation, signal_id, attempt + 1))
+                    row = conn.execute(
+                        "UPDATE archi_ops.signals s SET attempt = %s, status = CASE WHEN s.source = 'ticket' "
+                        "AND EXISTS (SELECT 1 FROM archi_ops.signals n WHERE n.automation = s.automation "
+                        "AND n.entity = s.entity AND n.signal_id <> s.signal_id AND n.created_at > s.created_at) "
+                        "THEN 'superseded' ELSE 'new' END "
+                        "WHERE s.automation = %s AND s.signal_id = %s AND s.attempt = %s RETURNING s.status",
+                        (attempt + 1, automation, signal_id, attempt)).fetchone()
+                if row and row[0] == "new":
+                    requeued.append((automation, signal_id, attempt + 1))
         return requeued
 
     # --- mediator attempts ---------------------------------------------------

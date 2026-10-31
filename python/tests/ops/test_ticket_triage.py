@@ -606,3 +606,31 @@ def test_compared_fields_are_not_redacted_only_shown_text_is():
     row = _new("redmine", "4840", "Ask bob@example.org", "2026-10-26T09:00:00Z", assignee="ada@example.org")
     t = Ticket.from_row(row)
     assert t.assignee == "ada@example.org" and "@" not in t.subject
+
+
+def test_a_ticket_time_far_ahead_of_the_clock_does_not_move_the_cursor():
+    """Second review: one row with a far-future `updated` set the source's cursor to that time, and every real
+    update after it read as older and was skipped. It is now left out until the clock reaches it."""
+    now = parse_time("2026-10-26T12:00:00Z")
+    tickets = [Ticket.from_row(_new("redmine", "4820", "real", "2026-10-26T11:00:00Z")),
+               Ticket.from_row(_new("redmine", "4821", "bad clock", "2036-01-01T00:00:00Z"))]
+    fresh, mark, _ = new_or_updated(tickets, parse_time("2026-10-26T10:00:00Z"), now=now)
+    assert [t.key for t in fresh] == ["4820"] and mark == parse_time("2026-10-26T11:00:00Z")
+    later = parse_time("2036-01-01T00:30:00Z")
+    fresh, mark, _ = new_or_updated(tickets, mark, now=later)
+    assert [t.key for t in fresh] == ["4821"]
+
+
+def test_an_email_shaped_assignee_is_proposed_as_is_but_never_written_into_text():
+    """Second review: the value the tool sets stays raw, but the draft, the summary and the note posted on the
+    ticket show no address (the module promise in archi.triage.tickets)."""
+    g = graph_with_arrivals()
+    d = read_ticket_context(g, "redmine:4820", g.generation, {"doc_subtypes": ["servicenow_kb_article"]})
+    context = json.loads(json.dumps(d["context"]).replace("Grace Hopper", "grace@example.org"))
+    config = {"systems": {"redmine": {"url": "https://redmine.example.org", "token_env": "REDMINE_API_KEY"}}}
+    req = lambda level: ProposeRequest(NAME, {"id": "s", "entity": "redmine:4820"}, context, g.generation, level)  # noqa: E731
+    draft = TriageProposer(None).propose(req(1)).proposal
+    assert "Usually handled by:" in draft["payload"]["body"] and "grace@example.org" not in draft["payload"]["body"]
+    p = TriageProposer(config).propose(req(2)).proposal
+    assert p["action_class"] == "assign_ticket" and p["payload"]["value"] == "grace@example.org"
+    assert "grace@example.org" not in p["payload"]["note"] and "grace@example.org" not in p["summary"]

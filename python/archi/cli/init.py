@@ -323,7 +323,8 @@ def provision(okg: Okg, name: str, *, runtime: bool, echo: Callable[[str], None]
     needs the DBOS schema (it does not exist yet: relation dbos.workflow_status) and a running worker
     (there is none during `archi init`); upstream ask O12. Every stage before ingest has finished, so:
     `okg runtime bootstrap`, then the stages that remain, with the ingest run in-process (`--inline`):
-    `okg ingest --inline`, `okg run --once --apply` (the publish). Any other failure is raised as it is.
+    `okg ingest --inline`, `okg run --once --apply --inline` (the publish: no worker runs yet to claim a
+    queued one). Any other failure is raised as it is.
     """
     result = okg.run("provision", "--deployment", name, ok_codes=range(256) if runtime else (0, 8))
     if runtime and result.returncode not in (0, 8):
@@ -334,7 +335,7 @@ def provision(okg: Okg, name: str, *, runtime: bool, echo: Callable[[str], None]
              "runtime, then ingesting in-process and publishing")
         okg.run("runtime", "bootstrap", "--deployment", name)
         okg.run("ingest", "--deployment", name, "--inline")
-        result = okg.run("run", "--once", "--deployment", name, "--apply", ok_codes=(0, 8))
+        result = okg.run("run", "--once", "--deployment", name, "--apply", "--inline", ok_codes=(0, 8))
     elif runtime:
         # provision got through (okg 0.2.0 does not stop on the missing schema the way `okg install` does);
         # the worker still needs the bootstrap, and it is idempotent.
