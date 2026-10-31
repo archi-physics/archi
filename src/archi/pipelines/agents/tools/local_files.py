@@ -163,9 +163,35 @@ def _format_files_for_llm(hits: List[Tuple[str, Path, Optional[Dict[str, object]
     return "\n\n".join(lines)
 
 
+# Output bounds for grep results. Without them one match inside a huge single-line
+# file (minified JSON, test data) returns megabytes and overflows the model context.
+MAX_GREP_LINE_CHARS = 1000
+MAX_GREP_OUTPUT_CHARS = 40000
+
+
+def _clip_line(text: object) -> str:
+    text = str(text)
+    if len(text) <= MAX_GREP_LINE_CHARS:
+        return text
+    return text[:MAX_GREP_LINE_CHARS] + f" ... [line truncated, {len(text)} chars]"
+
+
 def _format_grep_hits(hits: List[Dict[str, object]]) -> str:
     if not hits:
         return "No local files matched that search query."
+    return _bound_output(_format_grep_hits_unbounded(hits))
+
+
+def _bound_output(text: str) -> str:
+    if len(text) <= MAX_GREP_OUTPUT_CHARS:
+        return text
+    return (
+        text[:MAX_GREP_OUTPUT_CHARS]
+        + f"\n... [output truncated at {MAX_GREP_OUTPUT_CHARS} of {len(text)} chars; narrow the query]"
+    )
+
+
+def _format_grep_hits_unbounded(hits: List[Dict[str, object]]) -> str:
     lines: List[str] = []
     for idx, item in enumerate(hits, start=1):
         resource_hash = item.get("hash")
@@ -181,18 +207,18 @@ def _format_grep_hits(hits: List[Dict[str, object]]) -> str:
         if matches:
             for match in matches:
                 line_no = match.get("line", "?")
-                text = (match.get("text") or "").strip()
+                text = _clip_line((match.get("text") or "").strip())
                 lines.append(f"L{line_no}: {text}")
                 before_lines = match.get("before") if isinstance(match.get("before"), list) else []
                 after_lines = match.get("after") if isinstance(match.get("after"), list) else []
                 for ctx in before_lines:
-                    lines.append(f"B: {ctx}")
+                    lines.append(f"B: {_clip_line(ctx)}")
                 for ctx in after_lines:
-                    lines.append(f"A: {ctx}")
+                    lines.append(f"A: {_clip_line(ctx)}")
         else:
             snippet = item.get("snippet") or ""
             if snippet:
-                lines.append(f"Snippet: {snippet.strip()}")
+                lines.append(f"Snippet: {_clip_line(snippet.strip())}")
     return "\n".join(lines)
 
 
