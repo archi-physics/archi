@@ -131,5 +131,41 @@ tasks:
     - python/tests/test_bundle_cms_comp_ops.py [evidence: pytest]
 
     - python/tests/packs/test_pack_isolation.py [evidence: pytest]'
-evidence: []
+evidence:
+- kind: executed_test
+  requirement: req.r3-bundle-companions.rule
+  status: fail
+  command: "cd python && python -m pytest tests -q --junitxml=full_suite.junit.xml -> 3952 passed, 29 skipped, 1 failed (includes tests/bundles/test_companions.py, all passed)"
+  artifact: pact/changes/r3-bundle-companions/evidence/full_suite.junit.xml
+  sha256: 1d02a1a304c0da5ea8dd7bf9f2cab824e4d3793820a7c775fdfe156940f2b382
+  head: f7b97bf75056955d6f63a5b1bab74e821aa7750d
+  at: "2026-10-31T15:37:17+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The one failure is tests/enrichment/test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear, a wall-clock check, with other lanes' suites running on the host (load average 7-8). Recorded as fail because the artifact holds a failure; the anonymizer is untouched by this change, and the rerun row shows it passing alone. At 348ab4a4 (this change before its review fixes) the same suite ran with 0 failures (3948 passed)."
+- kind: executed_test
+  requirement: req.r3-bundle-companions.rule
+  status: pass
+  command: "cd python && python -m pytest tests/enrichment/test_anonymizer.py -q --junitxml=anonymizer_rerun.junit.xml -> 441 passed"
+  artifact: pact/changes/r3-bundle-companions/evidence/anonymizer_rerun.junit.xml
+  sha256: 4635f9650fb77bf9b195af7e9c7d42ba3707df6cb8d20cf73f90bbc1318c85fc
+  head: f7b97bf75056955d6f63a5b1bab74e821aa7750d
+  at: "2026-10-31T15:46:00+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The full suite's only failure, rerun alone at the same head: it passes."
+- kind: executed_test
+  requirement: req.r3-bundle-companions.comp-ops
+  status: pass
+  command: "same full-suite run: tests/bundles/test_companions.py (shipped cms-comp-ops cases and archi add cases) and tests/test_bundle_cms_comp_ops.py, all passed"
+  artifact: pact/changes/r3-bundle-companions/evidence/full_suite.junit.xml
+  sha256: 1d02a1a304c0da5ea8dd7bf9f2cab824e4d3793820a7c775fdfe156940f2b382
+  head: f7b97bf75056955d6f63a5b1bab74e821aa7750d
+  at: "2026-10-31T15:37:17+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. Every testcase of these two files passed; the suite's one failure is the anonymizer wall-clock check (rows above)."
+- kind: executed_test
+  requirement: req.r3-bundle-companions.comp-ops
+  status: pass
+  command: "cd python && python -m pytest tests/packs/test_pack_isolation.py::test_cms_comp_ops_installs_from_packs_and_publishes tests/packs/test_pack_isolation.py::test_cern_team_installs_from_packs_and_publishes -> 2 passed"
+  artifact: pact/changes/r3-bundle-companions/evidence/pack_isolation.junit.xml
+  sha256: 0fdf39e01d1f5e8e467a5044d0fd13f23b4bb4278f617292ba84a2d03c1104e5
+  head: f7b97bf75056955d6f63a5b1bab74e821aa7750d
+  at: "2026-10-31T15:42:56+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. ARCHI_PACK_ISOLATION_DSN set to a throwaway akmon-postgres v0.2.0 container. cms-comp-ops with every optional pack now selects git-code, so code-text comes with it as a companion; the install, ingest and publish pass with zero lint blockers, and the planted-secret check (code-text selected) passes."
 decisions: []
