@@ -114,4 +114,28 @@ evidence:
     cancel-workflow. Known gap met on the way: archi add of an automation pack left the runtime off and did not commit
     automations/instance-health.yaml (both done in a separate commit). The cms-compops half of this task is not covered
     by this row.'
+- kind: executed_test
+  requirement: req.r3-ops-self-monitoring.health
+  status: pass
+  command: 'archi add instance-health --no-okg; runtime enabled with archi.ops.workflow, ops.yaml (instance-health:
+    mode shadow, proposer instance-health, tracker local), archi.yaml automations.instance-health.level L1, committed;
+    okg catalog ownership claim and load --apply; okg runtime bootstrap; archi ops tables; okg run --once --apply
+    --inline; okg runtime worker for 4500 s (one bounded run, a systemd user unit) on a dev host, okg 0.2.0 wheel'
+  head: 6dd8f7a22735b9f40958b04ac12684e2e0fd7bd8
+  at: '2026-10-31T15:41:44+00:00'
+  note: 'task.r3-ops-self-monitoring.rollout, cms-compops half (#719): instance-health is enabled in shadow mode on the
+    cms-compops instance, with local issue files only; the configuration is committed in the instance repository
+    (archi revision 6dd8f7a2, the same as the SubMIT half). One bounded worker ran 14:26:41 to 15:41:44Z and stopped on its timeout. The runtime
+    scanner started instance-health from the pack''s schedule twice: the 14:07Z tick (caught up at 14:28Z, done
+    14:34Z) and the 15:07Z tick (15:07 to 15:12Z). Each ended SUCCESS with status observed, reason shadow, level L1,
+    mode shadow, nothing mediated, and wrote an ops incident, proposal and decision record (read back with okg
+    inspect); the decision reads "shadow: recorded only; a live run at L1 would draft for a person to send". No issue
+    file exists in the instance repository and the repository is clean, as shadow mode requires. Both proposals
+    (draft_issue) name the same 10 real problems: archi doctor okg-doctor failing (okg deployment apply incomplete or
+    stale), services failing and webui not up (the chat database and web UI are not running; this instance runs graph
+    and MCP only), and seven sources with no completed run in okg''s watermarks within their freshness limit
+    (cms-catalogs conddb_global_tags, dbs_datasets, gocdb_downtimes, siteconf, wmstats_workflows; cmssst site status;
+    jira). Both skipped eval trends because no eval report exists in the instance''s data root, and said so. None of
+    the 10 is fixed here. No model call, no spend. With the SubMIT half (row above), both instances of the rollout task
+    have run.'
 decisions: []
