@@ -9,16 +9,28 @@ affected_code:
 - README.md
 - .github/workflows/
 requirements:
-- id: req.r3-release.cutover
-  statement: 'Every live v2 deployment is listed with an owner and is migrated or pinned to
-    a tagged v2.x; the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover
-    clause is evidenced. The ticket-triage automation and its four-week shadow report (ADR 0002
-    §7.4) come after 3.0 (board d405), so the v2 queue bots stay on a tagged v2.x until then.
+- id: req.r3-release.inventory
+  statement: 'Every live v2 deployment is listed with its services, the v2 version it runs, an
+    owner and a decision (move to 3.0, or pin to a tagged v2.x).
 
 
     Acceptance:
 
-    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]
+    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]'
+- id: req.r3-release.cutover
+  statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
+    the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
+    evidenced. At the cutover, 3.0''s ticket-triage automation replaces the
+    SubMIT v2 Redmine bot, with no shadow trial first (board d717); the v2 Redmine service stops
+    at the cutover, so resolution emails pause until 3.1 (board d719); mail intake stays with v2
+    until 3.1 (board d704), so SubMIT''s v2 mail intake keeps running on its untagged v2
+    deployment until then, an exception named in the written acceptance.
+
+
+    Acceptance:
+
+    - acc.r3-release.migrated: each deployment migrated or pinned, signed off by its owner. [evidence:
+    manual]
 
     - acc.r3-release.main: default branch is the v3 line; v2 branch exists. [evidence: manual]'
 - id: req.r3-release.tag
@@ -32,7 +44,7 @@ requirements:
     [evidence: executed_test]'
 tasks:
 - id: task.r3-release.r1
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   verification: 'Inventory live v2 deployments and owners.
 
 
@@ -46,7 +58,9 @@ tasks:
 
     Test plan:
 
-    - repo settings [evidence: manual]'
+    - repo settings [evidence: manual]
+
+    - each deployment migrated or pinned, owner sign-off [evidence: manual]'
 - id: task.r3-release.tag
   requirement: req.r3-release.tag
   verification: 'Tag, publish, announce.
@@ -57,7 +71,7 @@ tasks:
     - clean-venv install [evidence: executed_test]'
 evidence:
 - kind: manual
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   status: pass
   command: read-only ps, podman ps and ss on two SubMIT hosts; gh api forks and environments
     of archi-physics/archi; v2 configs on main; confirmed by Jason on board d384
@@ -69,10 +83,45 @@ evidence:
     named) and a second chat on SubMIT (owner Maria D''Alfonso, per her fork). Jason confirmed FASRC, a
     CMS comp-ops bot at CERN, WisDQM, CRAB and course deployments do not run 2.x. Not yet done: the
     v2 version of each, read in its owner''s environment, and the migration itself (condition 2);
-    acc.r3-release.main is not evidenced.'
+    acc.r3-release.main is not evidenced. Superseded for versions, the row 1 owner and the
+    decision by the 2026-10-30 row below.'
+- kind: manual
+  requirement: req.r3-release.inventory
+  status: pass
+  command: >-
+    read-only file hashes of each deployment's code compared with the v2 tags (2026-10-29); owner
+    and decision from Jason (2026-10-30, board d701); recorded in docs/docs/operating/cutover.md step 1
+    and on #758
+  head: 124030ada00692de4cde675d0acbc2bc7e9c5535
+  at: '2026-10-31T00:04:51+00:00'
+  note: >-
+    Refreshes acc.r3-release.r1. Two live v2 deployments, both moving to 3.0. SubMIT A2rchi (chatbot,
+    data manager, Redmine and mailbox bots): about v2.3.x with local patches, hand-built, not at a tag;
+    owner named by Jason on 2026-10-30, Jason is confirming with them; the bots move to 3.0 with
+    ticket-triage (d701). Second chat on SubMIT (chatbot, data manager): v2.5.0 code, not checked out at
+    a tag; owner Maria D''Alfonso (per her fork). Versions are to be confirmed with the owners; Jason
+    contacts them. The migrations themselves (acc.r3-release.migrated) and the branch swap
+    (acc.r3-release.main) are not evidenced.
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
   at: '2026-10-27'
   note: 'Board d405, Jason (2026-10-27 17:19Z): "Drop ticket-triage from 3.0: amend both requirements, ship it later". The cutover requirement no longer requires the
     ticket-triage shadow report with the release; ticket-triage ships after 3.0.'
+- digest: sha256:5b1bdf38012b7a795e7679af99e6a429476edbc5a384580477c03c0517bde8e0
+  reviewer: Jason Mohoney
+  at: '2026-10-31'
+  note: 'Jason Mohoney (board d717, 2026-10-31T16:40:28Z: "Ship it and switch SubMIT to it at the
+    3.0 cutover, unchecked"). Supersedes d405 above and the d701 trial: ticket-triage ships in 3.0
+    and replaces the SubMIT v2 Redmine bot at the cutover with no shadow trial or report first;
+    mail intake stays with v2 until 3.1 (board d704). Runbook step 9a has the switch and its
+    rollback.'
+- digest: sha256:9cecae28f92dc331629a1f1a82e17a143f9dfb557c33946f1f81d80ff5e6876c
+  reviewer: Jason Mohoney
+  at: '2026-10-31'
+  note: 'Jason Mohoney (board d719, 2026-10-31T18:14:17Z: "Stop v2''s Redmine service at cutover;
+    resolution emails pause until 3.1"). In v2 the redmine service both posts answers and sends the
+    resolution email (src/bin/service_redmine.py on v2 main; SubMIT runs a patched v2.3.x), so
+    stopping it at the cutover ends both; the v2 mailbox service (mail intake) keeps running until
+    3.1 (d704). SubMIT users get no resolution emails from the cutover until 3.1; Jason tells the
+    owner and the users before the cutover. Runbook steps 2 and 9a.'

@@ -153,10 +153,13 @@ Open requirements (each is a PACT requirement still unproven at this tag):
 
 Also not in 3.0.0:
 
-- **`ticket-triage`: after 3.0.** The maintainers moved it out of 3.0 (board
-  d405, 2026-10-27). The pack is built and parked (#746) with review findings
-  to fix; its four-week SubMIT shadow follows when it ships. The v2 queue bots
-  keep serving on a tagged `v2.x` until then. (`r3-auto-ticket-triage`.)
+- **`ticket-triage`: no shadow trial; SubMIT resolution emails pause.** It
+  is back in 3.0 (board d701) and replaces SubMIT's v2 Redmine bot at the
+  cutover, with no shadow trial first (board d717). The v2 service that
+  posted the bot's answers also sent the resolution email, and it stops at
+  the cutover, so SubMIT users get no resolution emails from the cutover
+  until 3.1 (board d719). Mail intake stays on v2 until 3.1 (board d704).
+  (`r3-auto-ticket-triage`, `r3-release`.)
 
 - **Smoke sets on a local model.** The smoke-set requirement is met on GPT-6
   Luna, which the maintainers accepted for this release (board d366): the sets

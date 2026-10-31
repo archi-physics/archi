@@ -31,10 +31,14 @@ stays on this site under [v2 (legacy)](v2/index.md).
 Check this list before you plan a move. Each item is a v2 feature that 3.0.0
 does not have.
 
-- **Queue bots in live mode.** The reference automation, `ticket-triage`,
-  comes after 3.0. When it ships it runs in shadow first. Promotion to live is
-  a later goal. The v2 bots (Redmine, JIRA ticket responder, Mattermost) keep
-  serving until then, on a tagged `v2.x`.
+- **Resolution emails and mail intake.** At SubMIT, `ticket-triage` replaces
+  the v2 Redmine bot at the cutover, with no shadow trial first (board d717).
+  The v2 service that posted the bot's answers also sent the resolution email,
+  and it stops at the cutover, so **SubMIT users get no resolution emails from
+  the cutover until 3.1** (board d719). The repository owner tells the SubMIT
+  A2rchi owner and the SubMIT users before the cutover. Mail intake (emails
+  turned into tickets) stays on v2 until 3.1 (board d704). The other v2 bots
+  (JIRA ticket responder, Mattermost) keep serving on a tagged `v2.x`.
 - **The Ragas benchmark.** `archi evaluate` scored answers with an LLM judge.
   `archi eval` replaces it with deterministic checks (cited records and required
   strings) and a retrieval score; there is no LLM-judged score.

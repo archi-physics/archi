@@ -36,7 +36,7 @@ milestones:
   - title: "3.0 · M4 Operations layer"
     description: "The loop (signal, context, proposal, decision, action, outcome) runs at L0-L2 (no L3 in 3.0) with context gates, shadow scoring and halt."
   - title: "3.0 · M5 Bundles & automations"
-    description: "Four bundles green with evals; ticket-triage in shadow at SubMIT and comp-ops with a four-week report."
+    description: "Four bundles green with evals; ticket-triage ships and replaces SubMIT's v2 Redmine bot at the cutover, no shadow trial (board d717)."
   - title: "3.0 · M6 Bring your own agent"
     description: "Any MCP client works; external packs and MCP servers plug in."
   - title: "3.0 · M7 Docs & release"

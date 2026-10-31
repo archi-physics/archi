@@ -48,8 +48,13 @@ and its `v2.x` tags.
 
 ## What is not in 3.0.0
 
-- The `ticket-triage` automation and its shadow report: planned after 3.0.
-  The v2 queue bots keep serving on a tagged `v2.x` until then.
+- A shadow trial of `ticket-triage`. It ships in 3.0 and replaces SubMIT's v2
+  Redmine bot at the cutover with no trial first (board d717).
+- **Resolution emails at SubMIT.** SubMIT users get no resolution emails from
+  the cutover until 3.1 (board d719): in v2 the same service sends them and
+  posts the bot's answers, and it stops when `ticket-triage` takes over.
+  The repository owner tells the SubMIT A2rchi owner and the SubMIT users
+  before the cutover. Mail intake stays on v2 until 3.1 (board d704).
 - Instances rebuilt from the bundles: the live comp-ops instance and SubMIT.
 - The context-eval acceptance run on a live instance, and a smoke-set pass on
   a local model (the sets pass on GPT-6 Luna).
