@@ -31,6 +31,9 @@ export ARCHI_INSTANCE="$INST" OKG_DSN="$DSN" ARCHI_OPS_DEPLOYMENT="$D" OKG_DEPLO
 export PYTHONDONTWRITEBYTECODE=1 TT_STATE="$RUN/tickets-state.json"
 export OKG_ROLE_SECRETS_FILE="$INST/.secrets/role-secrets.json"
 export TT_REDMINE_TOKEN=fixture-token   # what the fake ticket system accepts; the worker inherits it
+# the reply drafter runs against a local fake model (fake_model.py): every draft is model-written, at no cost
+MODEL_PORT=$((PORT + 1))
+export LAB_DRAFTER_URL="http://127.0.0.1:$MODEL_PORT/v1" OPENAI_API_KEY=fake-model-key FAKE_MODEL_LOG="$RUN/model-calls.jsonl"
 T="$V/python $REPO/python/tests/ops/scratch_ticket_triage_tools.py"
 OPS="$V/archi ops --instance $INST --dsn $DSN --deployment $D"
 PIDS="$RUN/pids"
@@ -80,6 +83,8 @@ echo "== 1. inputs: the shipped packs and cluster-manager, the fixture queue, th
 $T inputs
 ( exec nohup "$V/python" "$REPO/python/tests/ops/ticket_fakes.py" serve "$TT_STATE" "$PORT" >> "$RUN/tickets.log" 2>&1 ) &
 echo $! > "$RUN/tickets.pid"; cat "$RUN/tickets.pid" >> "$PIDS"
+( exec nohup "$V/python" "$REPO/python/tests/ops/fake_model.py" serve "$MODEL_PORT" >> "$RUN/model.log" 2>&1 ) &
+echo $! > "$RUN/model.pid"; cat "$RUN/model.pid" >> "$PIDS"
 
 echo "== 2. archi init cluster-manager --with servicenow,jira,ticket-triage (the container start and docsite's download are skipped)"
 $T init-instance 2>&1 | tee "$RUN/install-flow.log" | grep -v "^\s*$" | tail -12
@@ -209,7 +214,7 @@ node ops_action "act-$W2" > "$RUN/rb-act-2.jsonl"
 check "L2: the action succeeded through the live tool" \
   "rows[0]['attrs']['status'] == 'succeeded' and rows[0]['attrs']['mediator'] == 'archi.tools.tickets:assign_ticket'" < "$RUN/rb-act-2.jsonl"
 node ops_proposal "prop-$W1" > "$RUN/rb-prop-1.jsonl"
-check "L1: the live draft is on the proposal" "rows[0]['attrs']['mode'] == 'live' and 'Suggested reply:' in rows[0]['attrs']['draft']" < "$RUN/rb-prop-1.jsonl"
+check "L1: the live draft is on the proposal, its reply written by the (fake) model" "rows[0]['attrs']['mode'] == 'live' and 'Suggested reply (written by fake-luna' in rows[0]['attrs']['draft']" < "$RUN/rb-prop-1.jsonl"
 node ops_decision "dec-$W3" > "$RUN/rb-dec-3.jsonl"; check "reject recorded" "rows[0]['attrs']['verdict'] == 'rejected'" < "$RUN/rb-dec-3.jsonl"
 node ops_decision "dec-$W4" > "$RUN/rb-dec-4.jsonl"; check "timeout recorded" "rows[0]['attrs']['verdict'] == 'timed_out'" < "$RUN/rb-dec-4.jsonl"
 "$V/python" -c "
@@ -231,6 +236,21 @@ print(json.dumps({'path': worker['path'], 'workflow': worker['workflow_status'],
                   'new': worker['generation_id'] != final['generation_id']}))" | tee "$RUN/worker-path.json" \
   | check "the queued publish ran on the worker and published a new generation" \
   "d['path'] == 'dbos' and d['workflow'] == 'SUCCESS' and d['status'] == 'published' and d['new']"
+
+echo "== 12c. L2 post_reply: the model's reply waits for a person, shown as it will be posted; approved, it is posted once"
+configure --level L2 --timeout 600 --post-replies
+W8=$(arrive redmine 4828 "Scratch filesystem full on node081")
+ESC8=$($T pending "$W8" --timeout 360); echo "escalation $ESC8"
+$T escalation "$W8" | tee "$RUN/esc-8.json" | check "the escalation asks to post the reply and shows it as it will be posted, with no node ids" \
+  "'Action: post_reply' in d['reason'] and 'Reply as it will be posted:' in d['reason'] and '> Thank you for the report' in d['reason'] and '(see redmine' in d['reason'] and 'tracker_ticket:' not in d['reason'].split('Reply as it will be posted:')[1]"
+echo "{\"n\": $(writes redmine 4828)}" | check "nothing reached the ticket before the approval" "d['n'] == 0"
+$OPS approve "$ESC8" --as operator-x --note "lab approve reply"
+$T wait "$W8" | tee "$RUN/l2-reply.out" | check "the approved post_reply run executed" \
+  "d['status'] == 'SUCCESS' and d['output']['status'] == 'executed' and d['output']['mediated']"
+$T ticket redmine 4828 | tee "$RUN/ticket-4828.json" | check "one note: the reply, with references and the approval trailer" \
+  "len(d['notes']) == 1 and d['notes'][0].startswith('Thank you for the report') and '(see redmine' in d['notes'][0] and '[tracker_ticket' not in d['notes'][0] and 'in escalation $ESC8 (proposal' in d['notes'][0]"
+configure --level L1
+"$V/python" -c "print(sum(1 for _ in open('$RUN/model-calls.jsonl')))" | check "the drafter called the (fake) model for the runs" "d >= 5"
 
 echo "== 13. no traceback through archi code in the worker log"
 "$V/python" -c "
