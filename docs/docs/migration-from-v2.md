@@ -32,8 +32,9 @@ Check this list before you plan a move. Each item is a v2 feature that 3.0.0
 does not have.
 
 - **Queue bots in live mode.** The reference automation, `ticket-triage`,
-  ships in 3.0 and starts in shadow. It drafts cited triage notes and, after a
-  person approves, changes a ticket's assignee or status. It does not turn email
+  ships in 3.0, and SubMIT switches to it from its v2 queue bots at the 3.0
+  cutover, with no trial run first (board d717). It drafts cited triage notes and,
+  after a person approves, changes a ticket's assignee or status. It does not turn email
   into tickets or email the resolution: those v2 bot jobs move in 3.1.
 - **The Ragas benchmark.** `archi evaluate` scored answers with an LLM judge.
   `archi eval` replaces it with deterministic checks (cited records and required

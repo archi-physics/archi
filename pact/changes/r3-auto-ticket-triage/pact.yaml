@@ -4,9 +4,11 @@ title: 'Reference automation: ticket triage (SubMIT, comp-ops)'
 tier: 2
 why: 'Ticket triage is the automation 3.0 focuses on. Ticket queues are the oldest Archi automation
   (v2''s Redmine, JIRA and Mattermost bots, ADR 0001 W8), and the clearest test of the loop:
-  drafts need context and precedent, and status changes need approval. 3.0 ships it in shadow
-  with a measured report; promotion to live, and with it retiring the v2 bots, is the 3.1
-  goal. ADR 0002 §7.4, D10, D13.'
+  drafts need context and precedent, and status changes need approval. 3.0 ships it with no
+  trial: at the 3.0 cutover it replaces SubMIT''s v2 queue bots, unchecked by a shadow run
+  (board d717, Jason: "Ship it and switch SubMIT to it at the 3.0 cutover, unchecked"; the
+  four-week shadow and its report are dropped). Mail intake and the resolution email stay with
+  the v2 bots until 3.1 (board d704). ADR 0002 §7.4, D10, D13.'
 affected_code:
 - bundles/packs/ticket-triage/
 - bundles/cluster-manager/
@@ -33,20 +35,8 @@ requirements:
 
     - acc.r3-auto-ticket-triage.fixture: fixture queue yields cited drafts and gated status
     proposals. [evidence: executed_test]'
-# No evidence yet for req.r3-auto-ticket-triage.shadow: the four-week shadow needs the live SubMIT queue
-# (#747) running the shipped pack; the fixture proof above cannot stand in for it.
-- id: req.r3-auto-ticket-triage.shadow
-  statement: 'It runs in shadow at SubMIT (cluster-manager) for at least four weeks before
-    the release, and a report gives agreement with operators, time-to-first-response and
-    false-proposal rate. The comp-ops queue shadow is not part of 3.0 (decision 2026-10-27,
-    board d380 Q6); the pack stays optional in cms-comp-ops. No promotion to live is required
-    for 3.0; the v2 queue bots keep serving until it happens.
-
-
-    Acceptance:
-
-    - acc.r3-auto-ticket-triage.report: four-week SubMIT shadow report, published with the
-    release. [evidence: manual]'
+# req.r3-auto-ticket-triage.shadow (a four-week SubMIT shadow and its report) was removed on board d717
+# (2026-10-31): there is no trial. The comp-ops shadow left 3.0 earlier (board d380 Q6).
 tasks:
 - id: task.r3-auto-ticket-triage.build
   requirement: req.r3-auto-ticket-triage.automation
@@ -56,14 +46,6 @@ tasks:
     Test plan:
 
     - fixture run [evidence: executed_test]'
-- id: task.r3-auto-ticket-triage.shadow-submit
-  requirement: req.r3-auto-ticket-triage.shadow
-  verification: 'Run in shadow at SubMIT; publish the report.
-
-
-    Test plan:
-
-    - shadow report [evidence: manual]'
 evidence:
 - kind: executed_test
   requirement: req.r3-auto-ticket-triage.automation
@@ -84,8 +66,7 @@ evidence:
     D13. After archi init, a queued ingest and a queued publish run on the worker and publish a new
     generation. Lab: 39 checks, all pass, at 6b7f6c63 (before the
     merge of archi_v3 55931da9 and a test-only fix). Full suite at this head: 3954 passed, 2 skipped, 0
-    failed. The four-week shadow (req.r3-auto-ticket-triage.shadow) is not evidenced here; what 3.0 does
-    about it waits on board d717.'
+    failed. There is no shadow trial (board d717).'
 decisions:
 - digest: sha256:23a06d79883640702efbc7f44c6605c0ce988a0851b6fc15f437a8426823a2bf
   reviewer: Jason Mohoney

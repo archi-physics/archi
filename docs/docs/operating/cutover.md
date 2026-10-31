@@ -22,7 +22,7 @@ before". Where each stands when 3.0.0 is prepared:
 |---|---|---|
 | 1. Every live v2 deployment has a named owner (R1). | **Answered** 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1. | Step 1 (done). |
 | 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. | Step 4. |
-| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** `ticket-triage` ships in 3.0 (board d701), but mail intake and the resolution email stay with the v2 bots until 3.1 (board d704), so those bots stay on `v2.x` until then; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
+| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** `ticket-triage` ships in 3.0 (board d701) and replaces SubMIT's v2 queue bots at the cutover with no trial (board d717), but mail intake and the resolution email stay with the v2 bots until 3.1 (board d704), so those bots stay on `v2.x` until then; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
 | 4. The last v2 release is tagged and documented. | The newest tag is `v2.5.0`. `main` has had 52 commits since (check: step 0). | Step 3. |
 
 State today of the repository settings this runbook changes (read with `gh`
@@ -104,7 +104,8 @@ list, and the v2 features in [what has no equivalent yet](../migration-from-v2.m
 
 - mail intake and the resolution email stay with the v2 bots until 3.1
   (board d704), so those bots stay on a tagged `v2.x`; `ticket-triage` itself
-  ships in 3.0 (board d701);
+  ships in 3.0 (board d701) and SubMIT switches to it at the cutover, with no
+  trial run first (board d717);
 - the live comp-ops instance and SubMIT have not been rebuilt from their
   bundles;
 - the smoke sets pass on GPT-6 Luna, not on a local model, and the

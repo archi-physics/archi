@@ -94,8 +94,9 @@ name is `archi`.
   cited triage draft (category, likely component, related tickets, precedents,
   documentation) that is never sent (L1). At L2 it proposes an assignment or a
   status change, which a live tool makes only after a person approves, and only
-  on the server the ticket was read from. It starts in shadow. Its SubMIT shadow
-  report is published with the release. (#746, `r3-auto-ticket-triage`)
+  on the server the ticket was read from. SubMIT switches to it from its v2 queue
+  bots at the 3.0 cutover, with no trial run first (board d717). (#746,
+  `r3-auto-ticket-triage`)
 
 **Evals: a checked claim that a bundle answers, and how well it retrieves** (M5, M2)
 
