@@ -301,6 +301,26 @@ evidence:
     instead of raising (test_workflow.py). Malformed gate keys are refused. This row is about the gate
     only: it says nothing of req.r3-context-quality.context-eval, whose comp-ops acceptance has not run.
     Full suite at this head: 3611 passed, 28 skipped.'
+- kind: executed_test
+  requirement: req.r3-context-quality.context-eval
+  status: pass
+  command: archi eval --context --questions <CompOps-42 gold v3, private> --agents agent-bash,agent-graph
+    --corpus <raw corpus> --model gpt-6-luna --model-api auto --reasoning-effort medium --tries 3 --cap
+    <dollars>, on the comp-ops instance before and after the code-text source was added; answers graded
+    against CompOps-42 answer key v1 by an LLM judge (gpt-6-luna, high, two passes) and a blind reviewer
+  artifact: pact/changes/r3-context-quality/evidence/compops42-agent-arms.md
+  sha256: e6ecc0ccc02bbf2d88fb4f6fbae5f6e993e5a503545cccaa7266e614af969c96
+  head: 2441c4a870226b9f943577ae13afd2cd7ca0f482
+  at: '2026-10-31T06:09:47+00:00'
+  note: 'acc.r3-context-quality.raw-arm and acc.r3-context-quality.run. The runs used archi_v3 2426842c;
+    this head adds only PACT files over it. After the instance gained file text (code-text on its 18
+    repositories, every text file, 303 files left out by two secret scans), agent-graph reached 0.729
+    gold-evidence recall against agent-bash 0.725, and answer correctness 0.702 against 0.571 (judge)
+    and 0.783 against 0.657 (blind reviewer), with 10.0 against 14.3 model calls and $0.0059 against
+    $0.0098 per try; 95 scored and 99 graded tries per arm. Before it, agent-graph had 0.259 recall
+    because git files were metadata only. Both runs also produced the model-free graph and baseline
+    search arms (diagnostic). Misses after the fix have the same causes in both arms. Question set, gold
+    ids, answer key and answers are private to the instance; the artifact holds method and numbers.'
 decisions:
 - digest: sha256:2b644e2b8e11d4be069b07ce5d888e78f5eb461414d8853dfc7aa1f1516834a2
   reviewer: Jason Mohoney
