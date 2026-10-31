@@ -61,14 +61,16 @@ requirements:
     executed_test] Preconditions (board d406): the comp-ops instance has the jira pack and
     git-code enabled, multi-repo git-code if the gold cites several repositories (it does; #726,
     the comp-ops rebuild); and the drafted gold_sources mapping for CompOps-42 has had one
-    independent review before the run.
+    independent review before the run (Jason, 2026-10-29: an independent agent reviewer in place
+    of the person who built answer key v1; a fresh verifier then checked the corrected mapping).
 
     - acc.r3-context-quality.raw-arm: on the comp-ops instance, an agent with the instance''s MCP
-    graph tools (agent-graph) does at least as well as an agent with bash over the files the graph
-    was built from (agent-bash), on the same model, prompt, caps and scorer, with a spend ledger
-    and a cap. Compared per arm: gold-evidence recall; answer correctness against CompOps-42
-    answer key v1, graded by an LLM judge and by a blind independent reviewer; dollars and model
-    calls per try; and the cause of each missed gold record. [evidence: executed_test]
+    graph tools (agent-graph) compared with an agent with bash over the files the graph was built
+    from (agent-bash), on the same model, caps and scorer and one prompt but for the paragraph on
+    where knowledge lives, with a spend ledger and a cap. Compared per arm: gold-evidence recall;
+    answer correctness against CompOps-42 answer key v1, graded by an LLM judge and by a blind
+    second grader; dollars and model calls per try; and the cause of each missed gold record.
+    [evidence: executed_test]
 
     - acc.r3-context-quality.raw-arm-safety: fixture tests show the sandbox has no network, cannot
     write to the corpus and holds no credential; the arm refuses to start without a cap, a corpus
@@ -110,8 +112,9 @@ tasks:
     - comp-ops run [evidence: executed_test]
 
 
-    Fixture results so far (NOT the acceptance; the comp-ops run has not happened: it waits on access
-    and on the private operator set, boards d379 and d380, so the requirement stays unproven): at
+    Fixture results as of 2026-10-27, kept as history (NOT the acceptance; the comp-ops run had not
+    happened then: it waited on access and on the private operator set, boards d379 and d380; it has
+    run since, see the comp-ops runs note below): at
     6e94ae5c on submit75 (okg 0.2.0), python -m pytest python/tests/evaluation python/tests/ops/test_context_gate.py
     python/tests/ops/test_health_signals.py python/tests/ops/test_workflow.py -q: 264 passed; python -m
     pytest python/tests -q: 3611 passed, 28 skipped (2026-10-27T12:17:38+00:00). They prove, on a fake
@@ -137,7 +140,10 @@ tasks:
     not the agent or the scorer: git-code ingests repository files as metadata only, and most of
     CompOps-42''s gold is the text of git files. With the code-text source on every repository, reading
     every text file (not only code), the second run gave agent-graph 0.729 and agent-bash 0.725 recall,
-    and answer correctness 0.702 against 0.571 (judge) and 0.783 against 0.657 (blind reviewer).'
+    and answer correctness 0.702 against 0.571 (LLM judge) and 0.783 against 0.657 (blind second
+    grader). The answers were graded after each run, by a lane script around
+    archi.evaluation.raw_arm.Judge (the reports ran with the judge off); one run of three tries per
+    question, no significance test.'
 - id: task.r3-context-quality.raw-corpus
   requirement: req.r3-context-quality.context-eval
   verification: 'archi eval --raw-corpus: the instance''s enabled sources whose connector cache an
@@ -178,7 +184,8 @@ tasks:
     averages; no temperature or seed to a remote endpoint.
 
     Fixture results, not acceptance evidence (no row, so req.context-eval stays unproven until the
-    comp-ops run, which has since run: see task.r3-context-quality.context-eval; orchestrator decision on #698): at 84752d6d on submit75 (okg 0.2.0, bubblewrap 0.6.3,
+    comp-ops run, which has since run: see task.r3-context-quality.context-eval; orchestrator
+    decision on #698): at 84752d6d on the test host (okg 0.2.0, bubblewrap 0.6.3,
     ARCHI_REQUIRE_BWRAP=1, so no sandbox test could skip), test_raw_sandbox.py, test_raw_arm.py,
     test_raw_corpus.py and test_draft_gold_sources.py gave 128 passed, none skipped; python/tests/evaluation
     and python/tests/snapshot 673 passed. They show no network inside the sandbox, a read-only /corpus,
@@ -306,21 +313,25 @@ evidence:
   status: pass
   command: archi eval --context --questions <CompOps-42 gold v3, private> --agents agent-bash,agent-graph
     --corpus <raw corpus> --model gpt-6-luna --model-api auto --reasoning-effort medium --tries 3 --cap
-    <dollars>, on the comp-ops instance before and after the code-text source was added; answers graded
-    against CompOps-42 answer key v1 by an LLM judge (gpt-6-luna, high, two passes) and a blind reviewer
+    <dollars>, on the comp-ops instance before and after the code-text source was added (judge off in the
+    runs); the answers were then graded against CompOps-42 answer key v1 by a lane script around
+    archi.evaluation.raw_arm.Judge (gpt-6-luna, reasoning high, two passes) and by a blind second grader
   artifact: pact/changes/r3-context-quality/evidence/compops42-agent-arms.md
   sha256: e6ecc0ccc02bbf2d88fb4f6fbae5f6e993e5a503545cccaa7266e614af969c96
   head: 2441c4a870226b9f943577ae13afd2cd7ca0f482
   at: '2026-10-31T06:09:47+00:00'
-  note: 'acc.r3-context-quality.raw-arm and acc.r3-context-quality.run. The runs used archi_v3 2426842c;
-    this head adds only PACT files over it. After the instance gained file text (code-text on its 18
-    repositories, every text file, 303 files left out by two secret scans), agent-graph reached 0.729
-    gold-evidence recall against agent-bash 0.725, and answer correctness 0.702 against 0.571 (judge)
-    and 0.783 against 0.657 (blind reviewer), with 10.0 against 14.3 model calls and $0.0059 against
-    $0.0098 per try; 95 scored and 99 graded tries per arm. Before it, agent-graph had 0.259 recall
-    because git files were metadata only. Both runs also produced the model-free graph and baseline
-    search arms (diagnostic). Misses after the fix have the same causes in both arms. Question set, gold
-    ids, answer key and answers are private to the instance; the artifact holds method and numbers.'
+  note: 'acc.r3-context-quality.raw-arm and acc.r3-context-quality.run. `at` is when the after-fix run
+    ended; grading followed. The runs used archi_v3 2426842c (from the run logs; the reports carry no
+    archi revision); this head adds only PACT files over it. After the instance gained file text
+    (code-text on its 18 repositories, every text file, 303 files left out by two secret scans),
+    agent-graph had 0.729 gold-evidence recall and agent-bash 0.725, and answer correctness 0.702 and
+    0.571 (LLM judge, the same model as the agents) and 0.783 and 0.657 (blind second grader: three
+    Claude subagents, each grading a shuffled third with no arm or tool calls, one grade per answer),
+    with 10.0 and 14.3 model calls and $0.0059 and $0.0098 per try; one run of three tries per question,
+    no significance test. Before it, agent-graph had 0.259 recall because git files were metadata only.
+    Both runs also produced the model-free graph and baseline search arms (diagnostic, recall@10 in the
+    artifact). Misses after the fix have the same causes in both arms. Question set, gold ids, answer key
+    and answers are private to the instance; the artifact holds method and numbers.'
 decisions:
 - digest: sha256:2b644e2b8e11d4be069b07ce5d888e78f5eb461414d8853dfc7aa1f1516834a2
   reviewer: Jason Mohoney
