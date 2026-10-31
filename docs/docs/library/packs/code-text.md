@@ -16,6 +16,7 @@ The text of every text file in git-code's repository (code, Markdown, YAML, scri
 
 - Default in: none
 - Optional in: [`cern-team`](../bundles/cern-team.md)
+- Comes with [`git-code`](../packs/git-code.md) in: [`cms-comp-ops`](../bundles/cms-comp-ops.md)
 
 Add it to an instance with `archi add code-text`.
 

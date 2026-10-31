@@ -65,7 +65,9 @@ archi, re-run `archi init` for it rather than `archi up`.
 ## Adding sources
 
 `archi add <pack> --answer ID=VALUE` adds a pack to a running instance and
-publishes again. See [Adding a source](../adding-a-source.md).
+publishes again. See [Adding a source](../adding-a-source.md). If the bundle
+names companions for that pack (cms-comp-ops: `git-code` brings `code-text`),
+they come too and a note says so; `--without <companion>` leaves one out.
 
 ## A local model
 
