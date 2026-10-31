@@ -68,29 +68,24 @@ evidence:
 - kind: executed_test
   requirement: req.r3-auto-ticket-triage.automation
   status: pass
-  command: python -m pytest python/tests/ops/test_ticket_triage.py python/tests/ops/test_ticket_tools.py
-    python/tests/ops/test_ticket_triage_loop.py -q; python/tests/ops/scratch_ticket_triage_run.sh (submit76,
-    akmon-postgres v0.2.0, okg 0.2.0 worker, a clean checkout of the head); python -m pytest python/tests -q
-    (submit75, okg 0.2.0)
-  head: d9d9ccbe3e8424bb47c3150f1ef37e540d33e99f
-  at: '2026-10-27T12:43:23+00:00'
-  note: 'acc.r3-auto-ticket-triage.fixture: on a real okg 0.2.0 worker (cluster-manager with servicenow, jira and
-    ticket-triage, fixture caches, a fake Redmine/JIRA/ServiceNow API on a loopback port) the scanner reads the
-    published queue, and the first read only sets a cursor per system (no backlog). Three arriving tickets
-    (Redmine, JIRA from the jira pack, JIRA from the tickets pack''s generic reader) each become one signal
-    and a shadow run whose proposal is a draft citing the ticket and its related tickets by node id; the
-    incident carries the ticket key. Promoted (archi ops promote, a PACT approval), L1 drafts and sends
-    nothing. L2 proposes assigning an unassigned ticket to Grace Hopper (2 related tickets agree); approved,
-    the live tool archi.tools.tickets:assign_ticket re-checks the approval, assigns once and notes the
-    escalation id and approver on the ticket. Rejected, timed out (and a late approval refused) and halted
-    runs never reach the ticket system; L3 is refused at run start citing D13. Records published and read
-    back; no traceback through archi code. Lab: 37 checks, all pass. In process (test_ticket_triage_loop.py)
-    the same loop with the real tool and its own approval check: shadow, L1, L2 approve/reject/timeout, halt
-    after approval, a tampered payload refused by the tool, L3 refused. Unit and loop tests 266 passed with the
-    bundle, docs and plan tests. Full suite at this tree: 3598 passed, 28 skipped; a rerun had one failure,
-    the load-sensitive anonymizer timing test. The runs used 38ef50a1, whose python, bundles and docs equal
-    this head (the rebuilt history only added the decisions row digest). The live four-week shadows are
-    req.r3-auto-ticket-triage.shadow and are not evidenced here.'
+  command: python -m pytest python/tests -q (okg 0.2.0, ARCHI_PACK_ISOLATION_DSN set, so the pack-isolation
+    install tests run); python/tests/ops/scratch_ticket_triage_run.sh (akmon-postgres v0.2.0, okg 0.2.0 worker,
+    a clean checkout)
+  head: abb32022ebc482aa8de5a6d8b3527f80fe76622d
+  at: '2026-10-31T16:46:29+00:00'
+  note: 'acc.r3-auto-ticket-triage.fixture, after the #746 fixes and two more adversarial reviews: on a real
+    okg 0.2.0 worker (archi init cluster-manager --with servicenow,jira,ticket-triage, fixture caches, a fake
+    Redmine/JIRA/ServiceNow API on a loopback port) the scanner sets a cursor per source on its first read
+    (no backlog); three arriving tickets each become one signal and a shadow run whose draft cites the ticket
+    and its related tickets by node id. Promoted, L1 drafts and sends nothing. L2 proposes an assignment;
+    approved, the live tool re-checks the approval, writes only to the endpoint ops.yaml configures and only
+    for a ticket whose link lies under it, assigns once and notes the escalation on the ticket. Rejected,
+    timed-out (a late approval refused) and halted runs never reach the ticket system; L3 is refused citing
+    D13. After archi init, a queued ingest and a queued publish run on the worker and publish a new
+    generation. Lab: 39 checks, all pass, at 6b7f6c63 (before the
+    merge of archi_v3 55931da9 and a test-only fix). Full suite at this head: 3954 passed, 2 skipped, 0
+    failed. The four-week shadow (req.r3-auto-ticket-triage.shadow) is not evidenced here; what 3.0 does
+    about it waits on board d717.'
 decisions:
 - digest: sha256:23a06d79883640702efbc7f44c6605c0ce988a0851b6fc15f437a8426823a2bf
   reviewer: Jason Mohoney
