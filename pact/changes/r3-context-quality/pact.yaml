@@ -53,17 +53,22 @@ requirements:
     The comp-ops operator top-50 is the first set.
 
 
-    Acceptance:
+    Acceptance (Jason, 2026-10-30: the agent arms are the acceptance; the model-free search arms
+    are diagnostic only):
 
-    - acc.r3-context-quality.run: context eval on the comp-ops instance produces a report
-    with the baseline arm. [evidence: executed_test] Preconditions (board d406): the comp-ops
-    instance has the jira pack and git-code enabled, multi-repo git-code if the gold cites
-    several repositories (it does; #726, the comp-ops rebuild); and the drafted gold_sources
-    mapping for CompOps-42 has had one review by the person who built answer key v1.
+    - acc.r3-context-quality.run: context eval on the comp-ops instance produces a report with
+    the model-free graph and baseline search arms, kept as a diagnostic of retrieval. [evidence:
+    executed_test] Preconditions (board d406): the comp-ops instance has the jira pack and
+    git-code enabled, multi-repo git-code if the gold cites several repositories (it does; #726,
+    the comp-ops rebuild); and the drafted gold_sources mapping for CompOps-42 has had one
+    independent review before the run.
 
-    - acc.r3-context-quality.raw-arm: a bash agent over the files the graph was built from,
-    scored on gold-evidence recall next to a graph-tool agent on the same model, caps and scorer,
-    with a spend ledger and a cap. [evidence: executed_test]
+    - acc.r3-context-quality.raw-arm: on the comp-ops instance, an agent with the instance''s MCP
+    graph tools (agent-graph) does at least as well as an agent with bash over the files the graph
+    was built from (agent-bash), on the same model, prompt, caps and scorer, with a spend ledger
+    and a cap. Compared per arm: gold-evidence recall; answer correctness against CompOps-42
+    answer key v1, graded by an LLM judge and by a blind independent reviewer; dollars and model
+    calls per try; and the cause of each missed gold record. [evidence: executed_test]
 
     - acc.r3-context-quality.raw-arm-safety: fixture tests show the sandbox has no network, cannot
     write to the corpus and holds no credential; the arm refuses to start without a cap, a corpus
@@ -120,7 +125,19 @@ tasks:
 
     Jason, board d398 (2026-10-27): keep the wording and build the raw-document arm before 3.0, as
     an agent with bash over the files the graph was built from. Tasks raw-corpus, raw-arm-harness
-    and raw-arm-scoring build it.'
+    and raw-arm-scoring build it.
+
+
+    Jason, 2026-10-30 ("Yes, change it"): the acceptance is agent-graph against agent-bash, as
+    acc.r3-context-quality.raw-arm now reads; the model-free arms stay as a diagnostic.
+
+
+    Comp-ops runs (2026-10-30/31; evidence/compops42-agent-arms.md): the first run showed
+    agent-graph at 0.259 gold-evidence recall against agent-bash at 0.747. Its cause was the instance,
+    not the agent or the scorer: git-code ingests repository files as metadata only, and most of
+    CompOps-42''s gold is the text of git files. With the code-text source on every repository, reading
+    every text file (not only code), the second run gave agent-graph 0.729 and agent-bash 0.725 recall,
+    and answer correctness 0.702 against 0.571 (judge) and 0.783 against 0.657 (blind reviewer).'
 - id: task.r3-context-quality.raw-corpus
   requirement: req.r3-context-quality.context-eval
   verification: 'archi eval --raw-corpus: the instance''s enabled sources whose connector cache an
@@ -161,7 +178,7 @@ tasks:
     averages; no temperature or seed to a remote endpoint.
 
     Fixture results, not acceptance evidence (no row, so req.context-eval stays unproven until the
-    comp-ops run; orchestrator decision on #698): at 84752d6d on submit75 (okg 0.2.0, bubblewrap 0.6.3,
+    comp-ops run, which has since run: see task.r3-context-quality.context-eval; orchestrator decision on #698): at 84752d6d on submit75 (okg 0.2.0, bubblewrap 0.6.3,
     ARCHI_REQUIRE_BWRAP=1, so no sandbox test could skip), test_raw_sandbox.py, test_raw_arm.py,
     test_raw_corpus.py and test_draft_gold_sources.py gave 128 passed, none skipped; python/tests/evaluation
     and python/tests/snapshot 673 passed. They show no network inside the sandbox, a read-only /corpus,
