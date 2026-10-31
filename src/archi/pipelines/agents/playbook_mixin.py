@@ -61,7 +61,12 @@ class SupportsPlaybooks:
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._playbook_service = self._init_playbook_service()
+        playbooks_requested = bool(
+            set(self._playbook_tool_definitions()).intersection(self.selected_tool_names)
+        )
+        self._playbook_service = (
+            self._init_playbook_service() if playbooks_requested else None
+        )
 
     def _init_playbook_service(self):
         try:
@@ -83,15 +88,18 @@ class SupportsPlaybooks:
         # so this mixin stays usable above a bare base agent (base stays untouched).
         _base = getattr(super(), "_tool_definitions", None)
         defs = _base() if callable(_base) else {}
-        defs.update({
+        defs.update(self._playbook_tool_definitions())
+        return defs
+
+    def _playbook_tool_definitions(self) -> Dict[str, Dict[str, Any]]:
+        return {
             "save_playbook": {"builder": self._build_save_playbook_tool,
                 "description": "Save a new playbook to the user's personal playbook library."},
             "update_playbook": {"builder": self._build_update_playbook_tool,
                 "description": "Modify an existing saved playbook — rename, change its description, or change its body (append or overwrite). Use save_playbook only for brand-new playbooks."},
             "delete_playbook": {"builder": self._build_delete_playbook_tool,
                 "description": "Permanently delete a saved playbook by name (only after the user confirms)."},
-        })
-        return defs
+        }
 
     def _build_save_playbook_tool(self) -> Callable:
         return create_save_playbook_tool(getattr(self, "_playbook_service", None), get_playbook_owner)
