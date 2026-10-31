@@ -107,3 +107,35 @@ def test_base_agent_passes_its_runtime_config_to_mcp_initializer(monkeypatch):
 
     assert agent._build_mcp_tools() is None
     assert observed["config"] is config
+
+
+def test_initialize_mcp_client_applies_allowed_tools(monkeypatch):
+    observed = {}
+    names = ["inspect", "search", "expand", "filter", "map", "aggregate", "query"]
+    all_tools = [SimpleNamespace(name=n, description=n, handle_tool_error=False) for n in names]
+
+    class FakeClient:
+        def __init__(self, connections):
+            observed["connections"] = connections
+
+        async def get_tools(self, server_name):
+            return list(all_tools)
+
+    config = {
+        "mcp_servers": {
+            "graph_server": {
+                "transport": "streamable_http",
+                "url": "http://172.17.0.1:8767/mcp",
+                "headers": {"Authorization": "Bearer test"},
+                "allowed_tools": names[:6],
+            }
+        }
+    }
+    monkeypatch.setattr(mcp, "MultiServerMCPClient", FakeClient)
+
+    _, tools, _ = asyncio.run(mcp.initialize_mcp_client(config))
+
+    assert [t.name for t in tools] == names[:6]
+    # archi-only field is not passed to the MCP client; transport fields are
+    assert "allowed_tools" not in observed["connections"]["graph_server"]
+    assert observed["connections"]["graph_server"]["headers"] == {"Authorization": "Bearer test"}
