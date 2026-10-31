@@ -188,9 +188,9 @@ def test_the_first_read_sets_the_cursor_and_triages_nothing():
     g = Graph(queue_rows())
     assert scan_queue(g, NAME, ["redmine", "jira", "servicenow"]) == []
     assert g.signals == {}
-    rm = g.cursors[(NAME, "tracker_ticket@https://redmine.example.org")]
+    rm = g.cursors[(NAME, "redmine:tracker_ticket@https://redmine.example.org/issues/")]
     assert rm["updated"] == parse_time("2026-10-10T14:00:00Z") and rm["seen"] == ["redmine:4811"]
-    assert g.cursors[(NAME, "jira_issue@https://jira.example.org")]["generation"] == "gen-1"
+    assert g.cursors[(NAME, "jira:jira_issue@https://jira.example.org/browse/")]["generation"] == "gen-1"
     assert g.cursors[(NAME, "jira/*")]["generation"] == "gen-1"
 
 
@@ -229,8 +229,8 @@ def test_only_the_selected_packs_subtypes_are_read():
     g = Graph(queue_rows())
     g.missing_subtypes = {"jira_issue"}  # the instance has no jira pack: okg would refuse the subtype
     scan_queue(g, NAME, ["redmine", "jira"], packs={"tickets"})
-    assert g.cursors[(NAME, "tracker_ticket@https://jira.example.org")]["updated"] == parse_time("2026-09-11T08:00:00Z")
-    assert not any(k[1].startswith("jira_issue") for k in g.cursors)  # SUP-2, the newest generic JIRA; no jira pack
+    assert g.cursors[(NAME, "jira:tracker_ticket@https://jira.example.org/browse/")]["updated"] == parse_time("2026-09-11T08:00:00Z")
+    assert not any("jira_issue" in k[1] for k in g.cursors)  # SUP-2, the newest generic JIRA; no jira pack
 
 
 def test_the_instance_queues_narrow_the_signals():
@@ -454,8 +454,8 @@ def test_a_key_on_two_servers_is_never_changed():
     tickets, and an approved change could land on the wrong one."""
     g = jira_pair("OPS-30")
     d = read_ticket_context(g, "jira:OPS-30", g.generation, JIRA_L2)
-    assert d["context"]["sites"] == ["https://jira.example.org", OTHER]
-    assert d["context"]["ticket"]["site"] == "https://jira.example.org"  # the copy on the server it writes to
+    assert d["context"]["sites"] == ["https://jira.example.org/browse/", f"{OTHER}/browse/"]
+    assert d["context"]["ticket"]["root"] == "https://jira.example.org/browse/"  # the copy on the server it writes to
     p = TriageProposer(JIRA_L2).propose(ProposeRequest(NAME, {"id": "s"}, d["context"], g.generation, 2)).proposal
     assert p["action_class"] == "draft_reply" and "is on more than one jira server" in p["summary"]
 
@@ -475,7 +475,7 @@ def test_a_site_names_the_link_root_when_the_api_is_a_proxy():
     assert p["payload"]["endpoint"] == {"url": "http://127.0.0.1:8099", "site": OTHER, "token_env": "JIRA_TOKEN"}
 
 
-def rejected_change(entity, action_class, payload, rid="4820"):
+def rejected_change(entity, action_class, payload, rid="4820", verdict="rejected"):
     return [{"node_id": f"ops_incident:inc-{rid}", "subtype": "ops_incident",
              "attrs": {"record_id": f"inc-{rid}", "entity": entity, "title": "earlier triage", "status": "open",
                        "detected_at": "2026-10-26T08:00:00Z", "automation": NAME}},
@@ -483,7 +483,7 @@ def rejected_change(entity, action_class, payload, rid="4820"):
              "attrs": {"record_id": f"prop-{rid}", "incident_id": f"inc-{rid}", "action_class": action_class,
                        "payload": json.dumps(payload, sort_keys=True), "summary": "x", "evidence_ids": ["x"]}},
             {"node_id": f"ops_decision:dec-{rid}", "subtype": "ops_decision",
-             "attrs": {"record_id": f"dec-{rid}", "proposal_id": f"prop-{rid}", "verdict": "rejected",
+             "attrs": {"record_id": f"dec-{rid}", "proposal_id": f"prop-{rid}", "verdict": verdict,
                        "actor_kind": "person"}}]
 
 
@@ -499,8 +499,8 @@ def test_a_change_a_person_rejected_is_not_proposed_again_on_the_next_comment():
     g.publish(rejected_change("redmine:4820", "set_ticket_status", {"status": "In Progress"}, rid="4820b"))
     p = propose("redmine:4820", 2, config, g)[0].proposal
     assert p["action_class"] == "draft_reply"
-    assert "rejected assigning it to Grace Hopper before (ops_proposal:prop-4820)" in p["summary"]
-    assert "rejected moving it to In Progress before (ops_proposal:prop-4820b)" in p["summary"]
+    assert "assigning it to Grace Hopper was rejected (ops_proposal:prop-4820) before" in p["summary"]
+    assert "moving it to In Progress was rejected (ops_proposal:prop-4820b) before" in p["summary"]
 
 
 def test_a_rejection_on_another_ticket_does_not_count():
@@ -530,3 +530,79 @@ def test_ticket_text_has_email_addresses_removed():
     row["attrs"]["description"] = "Contact grace@example.org"
     t = Ticket.from_row(row)
     assert "@" not in t.subject and "@" not in t.description
+
+
+# --- second review (x4): what the first round of fixes got wrong -----------------------------------
+
+
+def test_one_tracker_source_holding_two_systems_keeps_a_cursor_per_system():
+    """A tickets source with no links holds Redmine and JIRA tickets under one subtype and site: the system is
+    in the cursor key, so one system's newer times never move the other's cursor."""
+    def bare(item):
+        row = to_row("redmine", item)
+        row["attrs"]["url"] = ""
+        return row
+
+    g = Graph([bare(i) for i in load_cache("redmine")])
+    scan_queue(g, NAME, ["redmine", "jira"])
+    assert {k[1] for k in g.cursors} >= {"redmine:tracker_ticket@-", "jira:tracker_ticket@-"}
+    # a Redmine ticket far newer, and a JIRA one between JIRA's cursor (2026-09-11) and it
+    g.publish([bare(arrival("redmine", "4830", "new redmine", "x", NOW)),
+               bare(arrival("redmine", "SUP-9", "new jira", "x", "2026-10-01T08:00:00Z", tracker="jira"))])
+    added = scan_queue(g, NAME, ["redmine", "jira"])
+    assert sorted(added) == [f"{NAME}/jira-SUP-9-20261001T080000Z", f"{NAME}/redmine-4830-20261026T090000Z"]
+
+
+def test_cursors_do_not_move_when_adding_a_signal_fails():
+    g = Graph(queue_rows())
+    scan_queue(g, NAME, ["redmine"])
+    before = dict(g.cursors)
+    g.publish([_new("redmine", "4820", "Scratch full on node051", NOW)])
+    real = g.add_signal
+
+    def broken(*a, **k):
+        raise RuntimeError("database gone")
+
+    g.add_signal = broken
+    with pytest.raises(RuntimeError):
+        scan_queue(g, NAME, ["redmine"])
+    assert g.cursors == before
+    g.add_signal = real
+    assert scan_queue(g, NAME, ["redmine"]) == [f"{NAME}/redmine-4820-20261026T090000Z"]
+
+
+def test_a_copy_with_no_link_makes_the_key_ambiguous():
+    g = jira_pair("OPS-31")
+    for row in g.rows.values():
+        if row["node_id"] == "tracker_ticket:jira:OPS-31":
+            row["attrs"]["url"] = ""
+    d = read_ticket_context(g, "jira:OPS-31", g.generation, JIRA_L2)
+    p = TriageProposer(JIRA_L2).propose(ProposeRequest(NAME, {"id": "s"}, d["context"], g.generation, 2)).proposal
+    assert p["action_class"] == "draft_reply" and "(no link)" in p["summary"]
+
+
+def test_two_servers_on_one_host_are_told_apart_by_path():
+    g = jira_pair("OPS-32", other_site="https://jira.example.org/second")
+    d = read_ticket_context(g, "jira:OPS-32", g.generation, JIRA_L2)
+    assert len(d["context"]["sites"]) == 2
+
+
+def test_a_site_other_than_the_url_is_allowed_only_behind_a_loopback_proxy():
+    g = jira_pair("SUP-33", both=False)
+    config = {"systems": {"jira": {"url": "https://jira.example.org", "site": OTHER, "token_env": "JIRA_TOKEN"}}}
+    p = propose("jira:SUP-33", 2, config, g)[0].proposal
+    assert p["action_class"] == "draft_reply" and "site differs from its url" in p["summary"]
+
+
+def test_a_change_that_timed_out_is_not_proposed_again():
+    g = graph_with_arrivals()
+    g.publish(rejected_change("redmine:4820", "assign_ticket", {"value": "Grace Hopper"}, verdict="timed_out"))
+    config = {"systems": {"redmine": {"url": "https://redmine.example.org", "token_env": "REDMINE_API_KEY"}}}
+    p = propose("redmine:4820", 2, config, g)[0].proposal
+    assert p["action_class"] == "draft_reply" and "was let time out (ops_proposal:prop-4820)" in p["summary"]
+
+
+def test_compared_fields_are_not_redacted_only_shown_text_is():
+    row = _new("redmine", "4840", "Ask bob@example.org", "2026-10-26T09:00:00Z", assignee="ada@example.org")
+    t = Ticket.from_row(row)
+    assert t.assignee == "ada@example.org" and "@" not in t.subject

@@ -345,6 +345,19 @@ def test_a_ticket_automation_has_at_most_a_few_runs_in_flight():
     assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=lambda m: None) == ["t~s9~1"]
 
 
+def test_an_older_waiting_signal_of_a_ticket_is_superseded_not_run():
+    """A requeued attempt of an old version waits beside the newer signal: only the newest runs."""
+    class SupersedeIO(ScanIO):
+        def supersede_signals(self, automation, entity, keep):
+            gone = [s["id"] for s in self.signals[automation] if s["entity"] == entity and s["id"] != keep]
+            self.marked += [(automation, g, "superseded") for g in gone]
+            return gone
+
+    io = SupersedeIO({"t": [tsig("old", "redmine:1"), tsig("new", "redmine:1")]})
+    assert wf.scan_once(ticket_rt("t"), io, lambda *a: None, say=lambda m: None) == ["t~new~1"]
+    assert ("t", "old", "superseded") in io.marked
+
+
 def test_an_unreadable_automation_file_keeps_one_run_at_a_time():
     def broken(name):
         raise OSError("gone")

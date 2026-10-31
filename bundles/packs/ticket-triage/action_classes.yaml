@@ -47,7 +47,7 @@ action_classes:
         status: {type: string, minLength: 1, maxLength: 100, pattern: "^[^\\x00-\\x1f\\x7f]+$"}
         expected_status: {type: string, maxLength: 100}
     mediator: archi.tools.tickets:set_ticket_status
-    reversible: true
+    reversible: false  # the status can be set back, but the note on the ticket stays
     blast_radius: One ticket's status and one note on it, in the ticket system the payload names; the rollback moves it back.
     max_level: L2
   assign_ticket:
@@ -76,6 +76,6 @@ action_classes:
         value: {type: string, minLength: 1, maxLength: 200, pattern: "^[^\\x00-\\x1f\\x7f]+$"}
         expected: {type: string, maxLength: 200}
     mediator: archi.tools.tickets:assign_ticket
-    reversible: true
+    reversible: false  # the assignee can be set back, but the note on the ticket stays
     blast_radius: One ticket's assignee or assignment group and one note on it; the rollback sets it back.
     max_level: L2

@@ -8,10 +8,15 @@ the operational record (`ops_proposal`), whatever it proposes.
 
 ## What starts a run
 
-A ticket whose `updated` time is newer than the last one the automation saw, once a published generation
-holds it. Closed tickets are skipped. `queues:` in `ops.yaml` limits it to some projects (ServiceNow:
-assignment groups). The tickets already in the queue on the day the automation is installed are not
-triaged.
+A ticket whose `updated` time is newer than the last one the automation saw from that ticket's source (a
+source is one ticket subtype on one server; each keeps its own place), once a published generation holds
+it. Closed tickets are skipped. `queues:` in `ops.yaml` limits it to some projects (ServiceNow: assignment
+groups). The tickets already in the queue on the day the automation is installed, or the day a new source
+appears, are not triaged.
+
+One ticket has at most one run at a time and one signal waiting: a newer update replaces the waiting one.
+A run waiting for a person to approve a change to one ticket does not hold up the other tickets (at most
+five runs at once).
 
 ## What a run reads, at its pinned generation only
 
@@ -32,7 +37,7 @@ node id under **Sources**.
 |---|---|---|
 | L0 | the triage draft | recorded only |
 | L1 (default) | the triage draft: category, likely component, related tickets, precedents, documentation, and a suggested reply | recorded on the proposal for a person to send; nothing is sent |
-| L2 | `assign_ticket` if the ticket is unassigned and most related tickets went to the same person (ServiceNow: group); else `set_ticket_status` to `triaged_status` for a ticket in one of `triage_from`; else the draft | an escalation waits for a person; only an approval runs the live tool, which notes the approval on the ticket. A rejected or timed-out proposal never runs |
+| L2 | `assign_ticket` if the ticket is unassigned and most related tickets went to the same person (ServiceNow: group); else `set_ticket_status` to `triaged_status` for a ticket in one of `triage_from`; else the draft. A change a person already rejected for this ticket is not proposed again | an escalation waits for a person; only an approval runs the live tool, which notes the approval on the ticket (naming related tickets by key). A rejected or timed-out proposal never runs |
 
 Every automation starts in **shadow**: it proposes and records, opens no escalation and changes nothing,
 until an operator promotes it (`archi ops promote ticket-triage`, then an approved PACT change).
@@ -63,3 +68,9 @@ automations:
 
 The worker's environment holds the variables; archi never writes their values anywhere. Without a
 system's `url` the run drafts and its summary says why.
+
+A change goes only to the server the ticket was read from. The proposal carries the ticket's link, and
+both the proposer and the live tool refuse unless that link is under the system's `url` (or under `site`,
+when `url` is a local proxy: `site` is the root of the ticket links the real server publishes). A ticket key
+found on two servers of one system (two JIRA servers with the same project key) is drafted, never changed.
+An endpoint URL may not carry a user name or password.

@@ -23,8 +23,8 @@ that.
     assign_ticket(payload={system, ticket, ticket_url, [table], field, value, expected, note, endpoint}, ...)
 
 `endpoint` is `{url, [site], token_env | user_env + password_env}`: the API base URL, the root of the
-ticket links that server publishes when it differs from the API URL (a local proxy in front of the real
-server), and the names of the environment variables that hold the credential (the values are read here,
+ticket links the server publishes (`site`, allowed to differ from `url` only when `url` is a loopback proxy in
+front of that server), and the names of the environment variables that hold the credential (the values are read here,
 never put in a payload, a log, an error or a result). The URL must be https; plain http is accepted only
 for a loopback host (a local proxy or a test server), where the credential does not leave the machine. A
 URL may not carry a user name or password. Redirects are not followed.
@@ -148,20 +148,29 @@ def _base_url(url: str) -> str:
 
 
 def _root(url: str) -> tuple[str, str, str]:
-    """(scheme, host[:port], path without a trailing slash), scheme and host in lower case."""
+    """(scheme, host:port, path without a trailing slash), scheme and host in lower case, the port explicit."""
     parts = urlsplit(url)
-    return parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/")
+    scheme = parts.scheme.lower()
+    port = parts.port or {"https": 443, "http": 80}.get(scheme)
+    return scheme, f"{(parts.hostname or '').lower()}:{port}", parts.path.rstrip("/")
 
 
 def under(ticket_url: str, root: str) -> bool:
     """True when `ticket_url` is a link under `root` (same scheme and host, path below root's path)."""
     t_scheme, t_host, t_path = _root(ticket_url)
     r_scheme, r_host, r_path = _root(root)
-    return bool(t_host) and (t_scheme, t_host) == (r_scheme, r_host) and t_path.startswith(r_path + "/")
+    if ".." in t_path.split("/"):
+        return False
+    return bool(urlsplit(ticket_url).hostname) and (t_scheme, t_host) == (r_scheme, r_host) and t_path.startswith(r_path + "/")
 
 
 def _check_site(data: Mapping[str, Any]) -> None:
-    root = data["endpoint"].get("site") or data["endpoint"]["url"]
+    endpoint = data["endpoint"]
+    if endpoint.get("site") and urlsplit(endpoint["url"]).hostname not in LOOPBACK and \
+            _root(endpoint["site"]) != _root(endpoint["url"]):
+        raise ToolError("endpoint site differs from its url; a site is only for a local proxy (a loopback url) in "
+                        "front of the server that publishes the ticket links")
+    root = endpoint.get("site") or endpoint["url"]
     if not under(data["ticket_url"], root):
         raise ToolError(f"the ticket link {data['ticket_url']} is not under {root}: this endpoint is another "
                         "server than the one the ticket was read from; nothing was sent")
@@ -173,13 +182,19 @@ def _safe(text: Any, limit: int = 200) -> str:
 
 
 def _display(value: Any) -> str:
-    """A field ServiceNow or JIRA returns as a string or as an object with a display name."""
+    """A field ServiceNow or JIRA returns as a string or as an object with a display name. Not redacted: it is
+    compared (an email-shaped login blanked would read as unassigned); results are redacted instead (_out)."""
     if isinstance(value, Mapping):
         for key in ("display_value", "displayName", "name", "value"):
             if value.get(key):
-                return redact_email_addresses(str(value[key])).strip()
+                return str(value[key])
         return ""
-    return "" if value is None else redact_email_addresses(str(value)).strip()
+    return "" if value is None else str(value)
+
+
+def _out(status: str, text: str) -> dict[str, Any]:
+    """outcome() with email addresses removed from the result text (it is recorded and shown)."""
+    return outcome(status, redact_email_addresses(text))
 
 
 def _holds(current: Mapping[str, Any], field: str, value: Any) -> bool:
@@ -274,8 +289,10 @@ class Jira(_Client):
         change stands, so this raises NoteFailed, never TicketToolError or WriteUnknown."""
         try:
             self.call("POST", f"/rest/api/2/issue/{quote(key)}/comment", json={"body": note}, write=True)
-        except (TicketToolError, WriteUnknown) as exc:
-            raise NoteFailed(str(exc)) from None
+        except TicketToolError as exc:
+            raise NoteFailed(f"{exc}; add it by hand") from None
+        except WriteUnknown as exc:
+            raise NoteFailed(f"{exc}; it may have been posted, check the ticket before adding it") from None
 
     def set_status(self, key, table, current, status, note):
         moves = (self.call("GET", f"/rest/api/2/issue/{quote(key)}/transitions") or {}).get("transitions") or []
@@ -352,11 +369,11 @@ def _act(action_class: str, payload: Any, context: Optional[Mapping[str, Any]], 
     try:
         current = client.read(key, table)
     except TicketToolError as exc:
-        return outcome("failed", f"could not read {label} ({exc}); nothing changed")
+        return _out("failed", f"could not read {label} ({exc}); nothing changed")
     if _holds(current, field, target):
-        return outcome("succeeded", f"{label}: {field} is already {target}; nothing changed")
+        return _out("succeeded", f"{label}: {field} is already {target}; nothing changed")
     if not _holds(current, field, expected_of(data)):
-        return outcome("failed", f"{label}: {field} is {current.get(field)!r}, not {expected_of(data)!r} as when it "
+        return _out("failed", f"{label}: {field} is {current.get(field)!r}, not {expected_of(data)!r} as when it "
                                  "was proposed; the proposal is stale, nothing changed")
     note = (f"{data['note']}\n\nApproved by {approval.decided_by} in escalation {approval.escalation_id} "
             f"(proposal {approval.proposal_id}); applied by the archi ticket-triage automation.")
@@ -364,19 +381,19 @@ def _act(action_class: str, payload: Any, context: Optional[Mapping[str, Any]], 
     try:
         write(client, data, current, note)
     except NoteFailed as exc:
-        missing_note = f"; the note naming the approval could not be posted ({exc}), add it by hand"
+        missing_note = f"; the note naming the approval could not be posted ({exc})"
     except WriteUnknown as exc:
-        return outcome("unknown", f"{label}: the write got no answer ({exc}); it may have applied, check the ticket")
+        return _out("unknown", f"{label}: the write got no answer ({exc}); it may have applied, check the ticket")
     except TicketToolError as exc:
-        return outcome("failed", f"{label}: {exc}")
+        return _out("failed", f"{label}: {exc}")
     try:
         after = client.read(key, table)
     except TicketToolError as exc:
-        return outcome("unknown", f"{label}: written, but the check read failed ({exc}); check the ticket{missing_note}")
+        return _out("unknown", f"{label}: written, but the check read failed ({exc}); check the ticket{missing_note}")
     if not _holds(after, field, target):
-        return outcome("failed", f"{label}: written, but {field} reads {after.get(field)!r}, not {target!r}{missing_note}")
+        return _out("failed", f"{label}: written, but {field} reads {after.get(field)!r}, not {target!r}{missing_note}")
     noted = missing_note or f"; noted on the ticket with escalation {approval.escalation_id}"
-    return outcome("succeeded", f"{label}: {field} {current.get(field) or '(empty)'!s} -> {target}{noted}")
+    return _out("succeeded", f"{label}: {field} {current.get(field) or '(empty)'!s} -> {target}{noted}")
 
 
 def set_ticket_status(*, payload: Mapping[str, Any], context: Mapping[str, Any], session: Any = None,

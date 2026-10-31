@@ -47,7 +47,7 @@ ops.yaml:
           systems:
             redmine:
               url: https://redmine.example.org
-              # site: https://redmine.example.org   # ticket links root, when the API URL is a proxy
+              # site: https://redmine.example.org   # ticket links root, only when url is a loopback proxy
               token_env: REDMINE_API_KEY
               triaged_status: In Progress
               triage_from: [New]
@@ -60,9 +60,10 @@ from __future__ import annotations
 
 from collections import Counter
 from typing import Any, Mapping, Optional
+from urllib.parse import urlsplit
 
 from archi.ops.proposers import Proposed, ProposeRequest, ProposerError
-from archi.tools.tickets import under
+from archi.tools.tickets import LOOPBACK, under
 from archi.triage.tickets import ASSIGN_FIELDS
 
 DEFAULT_TRIAGE_FROM = ("new", "open", "to do", "backlog")
@@ -198,9 +199,13 @@ class TriageProposer:
 
         if endpoint is None:
             return no_action(f"proposer.systems.{system}.url is not set")
-        sites = [s for s in ctx.get("sites") or () if s]
-        if len(set(sites)) > 1:
-            return no_action(f"the key {key} is on more than one {system} server ({', '.join(sorted(set(sites)))})")
+        sites = set(ctx.get("sites") or ())
+        if len(sites) > 1:  # "" is a copy with no link: it could be any server
+            shown = ", ".join(sorted(s or "(no link)" for s in sites))
+            return no_action(f"the key {key} is on more than one {system} server ({shown})")
+        if endpoint.get("site") and urlsplit(endpoint["url"]).hostname not in LOOPBACK and \
+                endpoint["site"].rstrip("/") != endpoint["url"].rstrip("/"):
+            return no_action(f"proposer.systems.{system}.site differs from its url; a site is only for a loopback proxy")
         root = endpoint.get("site") or endpoint["url"]
         if not ticket.get("url") or not under(ticket["url"], root):
             return no_action(f"the ticket's link ({ticket.get('url') or 'none'}) is not under {root}, the server "
@@ -214,7 +219,8 @@ class TriageProposer:
             for r in rejected:
                 if r["action_class"] == action_class and str((r["payload"] or {}).get(field) or "").casefold() == \
                         value.casefold():
-                    return r["proposal"]
+                    how = "let time out" if r.get("verdict") == "timed_out" else "rejected"
+                    return f"{how} ({r['proposal']})"
             return None
 
         field = ASSIGN_FIELDS[system]
@@ -230,13 +236,13 @@ class TriageProposer:
                         "action_class": "assign_ticket",
                         "payload": {**base, "field": field, "value": assignee, "expected": current, "note": note},
                         "rollback": f"Set the {field} of {system} {key} back to unassigned."}
-            skipped = f"a person rejected assigning it to {assignee} before ({before}); "
+            skipped = f"assigning it to {assignee} was {before} before; "
         target = str(config.get("triaged_status") or "")
         from_statuses = {s.lower() for s in (config.get("triage_from") or DEFAULT_TRIAGE_FROM)}
         if target and ticket["status"] != target and ticket["status"].lower() in from_statuses:
             before = was_rejected("set_ticket_status", "status", target)
             if before is not None:
-                return no_action(f"{skipped}a person rejected moving it to {target} before ({before})")
+                return no_action(f"{skipped}moving it to {target} was {before} before")
             note = (f"Triaged by the ticket-triage automation: category {draft['payload']['category'] or 'unknown'}, "
                     f"likely component {draft['payload']['component'] or 'unknown'}.")
             return {**draft,

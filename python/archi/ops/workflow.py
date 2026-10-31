@@ -757,6 +757,7 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
                     say(f"archi_ops_scan: {name} has {runs_of[name]} runs in progress (the most at once); "
                         "its next signal waits")
                 continue
+            waiting = _newest_per_ticket(io, name, waiting, say)
             held = [s for s in waiting if s["entity"] in busy]
             waiting = [s for s in waiting if s["entity"] not in busy]
             if held and not waiting:
@@ -778,8 +779,23 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
     return started
 
 
-#: the most runs a ticket_queue automation has in flight at once (each waits on its own ticket)
+#: the most runs a ticket_queue automation has in flight at once (each waits on its own ticket). Known limit: this
+#: many L2 escalations left unanswered hold up every other ticket until one is decided or times out.
 TICKET_RUNS_IN_FLIGHT = 5
+
+
+def _newest_per_ticket(io: Any, name: str, waiting: list[dict], say: Callable[[str], None]) -> list[dict]:
+    """The newest waiting signal of each ticket; the older ones (a requeued attempt, say) are superseded."""
+    newest: dict[str, dict] = {}
+    for s in waiting:  # oldest first, so the last one of an entity wins
+        newest[s["entity"]] = s
+    supersede = getattr(io, "supersede_signals", None)
+    if supersede is not None and len(newest) < len(waiting):
+        for entity, keep in newest.items():
+            gone = supersede(name, entity, keep["id"])
+            if gone:
+                say(f"archi_ops_scan: {name}: {keep['id']} supersedes {', '.join(gone)}")
+    return [s for s in waiting if newest[s["entity"]] is s]
 
 
 def _per_ticket(rt: RuntimeConfig, name: str) -> bool:

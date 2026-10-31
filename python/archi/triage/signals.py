@@ -14,7 +14,8 @@ pack's `tracker_ticket` rows with system `jira`, or both. The same JIRA issue in
 
 What "new or updated" means. Each automation keeps a cursor per source (`archi_ops.ticket_cursors`): a
 source is a subtype at one site (`jira_issue@https://jira.example.org`, archi.triage.tickets.Ticket.source),
-and its cursor is the newest `updated` time seen from it. Sources publish on their own schedules, so one
+and its cursor is the newest `updated` time seen from it (cursors move only after the read's signals are
+added, so a failure part way loses nothing). Sources publish on their own schedules, so one
 cursor per system would skip, for good, the tickets of a source that publishes late with older times. A
 system is read again only when a newer generation is published (a `<system>/*` row records the generation
 read). A ticket becomes a signal when its `updated` is at or after its source's cursor and was
@@ -107,12 +108,13 @@ def scan_queue(io: Any, automation: str, systems: Iterable[str], *, queues: Iter
         for t in tickets:
             by_source.setdefault(t.source, []).append(t)
         fresh: list[Ticket] = []
+        moves: list[tuple] = []  # cursor writes, made only once every signal of this read exists
         for source, group in sorted(by_source.items()):
             cursor = io.ticket_cursor(automation, source)
             found, mark, at_mark = new_or_updated(group, cursor["updated"] if cursor else None, queues,
                                                   (cursor or {}).get("seen") or ())
             fresh += found
-            io.set_ticket_cursor(automation, source, mark, generation, at_mark)
+            moves.append((source, mark, at_mark))
             if cursor is None:
                 say(f"archi_ops_scan: {automation}: first read of {source} ({len(group)} tickets); "
                     "triage starts with the next new or updated ticket")
@@ -130,6 +132,9 @@ def scan_queue(io: Any, automation: str, systems: Iterable[str], *, queues: Iter
             if superseded:
                 say(f"archi_ops_scan: {automation}: {sid} supersedes {', '.join(superseded)}")
             added.append(f"{automation}/{sid}")
+        # after the signals: a failure above leaves the cursors where they were, so the next scan reads again
+        for source, mark, at_mark in moves:
+            io.set_ticket_cursor(automation, source, mark, generation, at_mark)
         io.set_ticket_cursor(automation, _system_marker(system), None, generation, [])
     return added
 

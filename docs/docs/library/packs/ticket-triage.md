@@ -65,6 +65,6 @@ The instance sets the level in `archi.yaml`. A bundle can lower the upper bound 
 
 | Id | Mediator | Reversible | Highest level | Blast radius |
 |---|---|---|---|---|
-| `assign_ticket` | `archi.tools.tickets:assign_ticket` | yes | `L2` | One ticket's assignee or assignment group and one note on it; the rollback sets it back. |
+| `assign_ticket` | `archi.tools.tickets:assign_ticket` | no | `L2` | One ticket's assignee or assignment group and one note on it; the rollback sets it back. |
 | `draft_reply` | `draft_reply` | yes | `L1` | Nothing outside the ops record; the draft is on the proposal and nobody is sent anything. |
-| `set_ticket_status` | `archi.tools.tickets:set_ticket_status` | yes | `L2` | One ticket's status and one note on it, in the ticket system the payload names; the rollback moves it back. |
+| `set_ticket_status` | `archi.tools.tickets:set_ticket_status` | no | `L2` | One ticket's status and one note on it, in the ticket system the payload names; the rollback moves it back. |

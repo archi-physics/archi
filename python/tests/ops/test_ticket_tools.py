@@ -232,3 +232,35 @@ def test_server_error_text_has_email_addresses_removed():
     out = tickets.assign_ticket(payload=assign("jira", "OPS-15", "Grace Hopper"), context=CONTEXT, session=session,
                                 env=ENV, verify=approved)
     assert "admin@example.org" not in str(out)
+
+
+# --- second review (x4) ---------------------------------------------------------------------------
+
+
+def test_an_email_shaped_assignee_is_compared_as_read_so_a_stale_proposal_still_changes_nothing():
+    """Redaction blanked an email-shaped login to "" and the tool took an assigned ticket for unassigned."""
+    s = system()
+    s.ticket("redmine", "4820")["assignee"] = "ada@example.org"
+    out = run(tickets.assign_ticket, assign("redmine", "4820", "Grace Hopper"), s)
+    assert out["status"] == "failed" and "stale" in out["result"] and s.writes() == []
+    assert "ada@example.org" not in out["result"]  # the recorded result is still redacted
+
+
+def test_a_site_other_than_the_url_is_refused_unless_the_url_is_a_loopback_proxy():
+    s = system()
+    payload = {**assign("jira", "OPS-15", "Grace Hopper"), "ticket_url": "https://jira.b.org/browse/OPS-15",
+               "endpoint": {"url": "https://jira.example.org", "site": "https://jira.b.org", "token_env": "JIRA_TOKEN"}}
+    with pytest.raises(ToolError, match="site differs from its url"):
+        run(tickets.assign_ticket, payload, s)
+    assert s.requests == []
+
+
+@pytest.mark.parametrize("ticket_url, root, ok", [
+    ("https://jira.example.org:443/browse/OPS-1", "https://jira.example.org", True),
+    ("https://JIRA.example.org/browse/OPS-1", "https://jira.example.org/", True),
+    ("https://jira.example.org/jira2/browse/OPS-1", "https://jira.example.org/jira1", False),
+    ("https://jira.example.org/jira1/../jira2/browse/OPS-1", "https://jira.example.org/jira1", False),
+    ("https://jira.example.org:8443/browse/OPS-1", "https://jira.example.org", False),
+])
+def test_under_compares_scheme_host_port_and_path(ticket_url, root, ok):
+    assert tickets.under(ticket_url, root) is ok

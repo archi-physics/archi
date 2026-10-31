@@ -17,11 +17,13 @@ The queue is the project (ServiceNow: the assignment group).
 A ticket's entity, the `entity` of its signal and of the incident a run records, is `<system>:<key>`
 (`jira:OPS-12`, `redmine:4812`, `servicenow:INC0010001`). The key alone does not say which server holds the
 ticket: two JIRA servers can both have a project OPS. Each ticket therefore also carries its link (`url`, as its
-reader published it), and `site` is that link's scheme and host. An L2 change goes only to the server the link
-names (archi.triage.proposer, archi.tools.tickets), and a key found on two servers is never changed.
+reader published it), `site` is that link's scheme and host, and `root` is the link without its last part
+(`https://jira.example.org/browse/`), which tells two servers on one host apart. An L2 change goes only to the
+server the link names (archi.triage.proposer, archi.tools.tickets), and a key found on two servers is never changed.
 
-Text read from a ticket has email addresses removed here too (the readers already remove them; this is the
-second guard, so no address reaches a proposal, a run's stored step output or a ticket note).
+A ticket's subject, description and resolution have email addresses removed here too (the readers already
+remove them; this is the second guard, so no address reaches a proposal, a run's stored step output or a
+ticket note). Fields that are compared (key, status, assignee, group, link) are left as read.
 """
 from __future__ import annotations
 
@@ -130,6 +132,15 @@ def site_of(url: str) -> str:
     return f"{parts.scheme.lower()}://{parts.netloc.lower()}" if parts.scheme and parts.netloc else ""
 
 
+def root_of(url: str) -> str:
+    """A link without its last part: `https://jira.example.org/browse/` for `.../browse/OPS-12`; scheme and host in
+    lower case; empty when the link has no scheme or host."""
+    parts = urlsplit(str(url or ""))
+    if not parts.scheme or not parts.netloc:
+        return ""
+    return f"{parts.scheme.lower()}://{parts.netloc.lower()}{parts.path.rsplit('/', 1)[0]}/"
+
+
 def system_of(row: Mapping[str, Any]) -> str:
     """The ticket system of a row (see the module docstring). Raises TicketError for a row no tool can write to."""
     reading = READINGS.get(str(row.get("subtype") or ""))
@@ -157,7 +168,12 @@ def _text(value: Any) -> str:
         return ""
     if isinstance(value, (list, tuple)):
         return ", ".join(_text(v) for v in value if v not in (None, ""))
-    return redact_email_addresses(str(value)).strip()
+    return str(value).strip()
+
+
+def _shown(value: Any) -> str:
+    """_text with email addresses removed: for text that is shown or stored, never compared."""
+    return redact_email_addresses(_text(value)).strip()
 
 
 def _list(value: Any) -> tuple[str, ...]:
@@ -202,9 +218,15 @@ class Ticket:
 
     @property
     def source(self) -> str:
-        """Where the ticket was read from: its subtype and site (`jira_issue@https://jira.example.org`). Each
-        source keeps its own cursor (archi.triage.signals), since two sources publish on their own schedules."""
-        return f"{self.subtype}@{self.site or '-'}"
+        """Where the ticket was read from: system, subtype and link root
+        (`jira:jira_issue@https://jira.example.org/browse/`). Each source keeps its own cursor (archi.triage.signals),
+        since sources publish on their own schedules; the system is in it because one tracker_ticket source can
+        hold two systems."""
+        return f"{self.system}:{self.subtype}@{self.root or '-'}"
+
+    @property
+    def root(self) -> str:
+        return root_of(self.url)
 
     @property
     def table(self) -> Optional[str]:
@@ -228,16 +250,16 @@ class Ticket:
         closed = any(_text(a.get(attr)) for attr in spec.closed_attrs) or status.lower() in closed_statuses
         return cls(
             system=system, subtype=spec.subtype, node_id=str(row.get("node_id") or ""), key=key,
-            subject=_text(a.get(spec.subject)), description=_text(a.get("description")), status=status,
+            subject=_shown(a.get(spec.subject)), description=_shown(a.get("description")), status=status,
             assignee=_text(a.get("assignee")), group=_text(a.get("assignment_group")),
             queue=_text(a.get(spec.queue)), category=_text(a.get(spec.category)),
             components=_list(a.get(spec.component)), updated=_text(a.get("updated")), closed=closed,
-            resolution=_text(a.get(spec.resolution)) if spec.resolution else "", url=_text(a.get("url")),
+            resolution=_shown(a.get(spec.resolution)) if spec.resolution else "", url=_text(a.get("url")),
         )
 
     def as_dict(self) -> dict[str, Any]:
         return {**asdict(self), "components": list(self.components), "entity": self.entity, "table": self.table,
-                "site": self.site}
+                "site": self.site, "root": self.root}
 
     def as_context(self) -> dict[str, Any]:
         """as_dict without the description: what a run's read step returns, and DBOS stores that output, so the

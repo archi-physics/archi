@@ -99,7 +99,7 @@ publish first
 "$V/okg" runtime trigger-schedule --deployment $D archi_ops_scan > /dev/null 2>&1
 for i in $(seq 1 24); do [ "$($T cursors | "$V/python" -c 'import json,sys; print(sum(k.endswith("/*") for k in json.load(sys.stdin)))')" = 3 ] && break; sleep 5; done
 $T cursors | tee "$RUN/cursors-0.json" | check "each system read, and a cursor per source (subtype at a site), from the published generation" \
-  "sorted(k for k in d if k.endswith('/*')) == ['jira/*', 'redmine/*', 'servicenow/*'] and any(k.startswith('tracker_ticket@') for k in d) and all(v['generation'] and v['updated'] for k, v in d.items() if not k.endswith('/*'))"
+  "sorted(k for k in d if k.endswith('/*')) == ['jira/*', 'redmine/*', 'servicenow/*'] and any(':tracker_ticket@' in k for k in d) and all(v['generation'] and v['updated'] for k, v in d.items() if not k.endswith('/*'))"
 $T signals | check "no signal for the tickets already in the queue" "d == []"
 
 echo "== 4. SHADOW (the default): three tickets arrive (Redmine, JIRA from the jira pack, JIRA from the tickets pack); each becomes one signal and a run that records a cited draft"
