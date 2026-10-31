@@ -50,7 +50,8 @@ requirements:
   statement: 'bundles/cluster-manager depends on no CERN pack, defaults to docsite, tickets
     and ops-record, offers servicenow, slurm, htcondor, git-code and node-health, and SubMIT is
     rebuilt from it. The ticket-triage automation pack is optional in it and ships in 3.0 (board d701,
-    reversing d405); mail intake and resolution email stay with the v2 bots until 3.1 (board d704).
+    reversing d405); at SubMIT it replaces the v2 Redmine bot at the 3.0 cutover with no trial (board d717).
+    Mail intake stays with v2 until 3.1 (board d704), and resolution emails pause until 3.1 (board d719).
 
 
     Acceptance:

@@ -5,10 +5,11 @@ tier: 2
 why: 'Ticket triage is the automation 3.0 focuses on. Ticket queues are the oldest Archi automation
   (v2''s Redmine, JIRA and Mattermost bots, ADR 0001 W8), and the clearest test of the loop:
   drafts need context and precedent, and status changes need approval. 3.0 ships it with no
-  trial: at the 3.0 cutover it replaces SubMIT''s v2 queue bots, unchecked by a shadow run
+  trial: at the 3.0 cutover it replaces SubMIT''s v2 Redmine bot, unchecked by a shadow run
   (board d717, Jason: "Ship it and switch SubMIT to it at the 3.0 cutover, unchecked"; the
-  four-week shadow and its report are dropped). Mail intake and the resolution email stay with
-  the v2 bots until 3.1 (board d704). ADR 0002 §7.4, D10, D13.'
+  four-week shadow and its report are dropped). Mail intake stays with v2 until 3.1 (board d704);
+  the v2 redmine service stops at the cutover, so resolution emails pause until 3.1 (board d719).
+  ADR 0002 §7.4, D10, D13.'
 affected_code:
 - bundles/packs/ticket-triage/
 - bundles/cluster-manager/

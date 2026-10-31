@@ -44,7 +44,7 @@ and its `v2.x` tags.
   drafts cited triage notes for new Redmine, JIRA and ServiceNow tickets and, at
   L2, proposes an assignment or status change that runs only after a person
   approves it (`--with ticket-triage` on `cluster-manager` or `cms-comp-ops`).
-  SubMIT switches from its v2 queue bots to `ticket-triage` at the 3.0 cutover,
+  SubMIT switches from its v2 Redmine bot to `ticket-triage` at the 3.0 cutover,
   with no trial run first (board d717).
 - **Bring your own agent.** `archi connect` writes the MCP configuration for
   Claude Code, codex, openclaw, Open WebUI and generic MCP over HTTP.
@@ -53,9 +53,13 @@ and its `v2.x` tags.
 
 ## What is not in 3.0.0
 
-- Mail intake and resolution email for ticket queues. 3.0 ships `ticket-triage`
-  (cited drafts, and approved assignment or status changes); turning incoming
-  email into tickets and emailing the resolution stay with the v2 bots until 3.1.
+- A shadow trial of `ticket-triage`. It ships in 3.0 and replaces SubMIT's v2
+  Redmine bot at the cutover with no trial first (board d717).
+- **Resolution emails at SubMIT.** SubMIT users get no resolution emails from
+  the cutover until 3.1 (board d719): in v2 the same service sends them and
+  posts the bot's answers, and it stops when `ticket-triage` takes over.
+  The repository owner tells the SubMIT A2rchi owner and the SubMIT users
+  before the cutover. Mail intake stays on v2 until 3.1 (board d704).
 - Instances rebuilt from the bundles: the live comp-ops instance and SubMIT.
 - The context-eval acceptance run on a live instance, and a smoke-set pass on
   a local model (the sets pass on GPT-6 Luna).
