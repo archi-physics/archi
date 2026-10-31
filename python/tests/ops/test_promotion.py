@@ -59,7 +59,7 @@ class FakeOkg:
 def run(repo, report=GOOD, fail=None, **kw):
     okg = FakeOkg(repo, fail)
     result = promote(repo, "triage", report=report, readiness=promotion_readiness(report, **THRESHOLDS),
-                     thresholds=THRESHOLDS, principal="mohoney", now=NOW, run=okg, okg="okg",
+                     thresholds=THRESHOLDS, principal="jdoe", now=NOW, run=okg, okg="okg",
                      dsn="postgresql://x", deployment="dep", **kw)
     return result, okg
 
@@ -88,7 +88,7 @@ def test_a_passing_report_opens_the_change_and_stops_without_approving(repo):
          f"pact/changes/{change}/promotion.json"])
     record = json.loads((change_dir / "promotion.json").read_text())
     assert record == {"automation": "triage", "change": change, "requested_at": "2026-10-25T14:30:05Z",
-                      "requested_by": "mohoney"}
+                      "requested_by": "jdoe"}
     assert git(repo, "status", "--porcelain").strip() == ""
     assert "okg pact decide" in result["next"] and "shadow" in result["next"]
 
@@ -109,7 +109,7 @@ def test_a_failing_report_is_refused_and_nothing_is_written(repo):
     okg = FakeOkg(repo)
     with pytest.raises(PromotionRefused, match="not ready to promote: only 3 scored incidents; need 30"):
         promote(repo, "triage", report=BAD, readiness=promotion_readiness(BAD, **THRESHOLDS), thresholds=THRESHOLDS,
-                principal="mohoney", now=NOW, run=okg, okg="okg")
+                principal="jdoe", now=NOW, run=okg, okg="okg")
     assert okg.calls == [] and git(repo, "rev-parse", "HEAD") == before
     assert yaml.safe_load((repo / "ops.yaml").read_text())["automations"]["triage"]["mode"] == "shadow"
     assert not (repo / "pact").exists()

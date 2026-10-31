@@ -48,7 +48,7 @@ requirements:
 
     Acceptance:
 
-    - acc.r3-bundle-evals.run: an eval run on a scratch instance on submit76 with a local
+    - acc.r3-bundle-evals.run: an eval run on a scratch instance on a dev host with a local
     model produces report.md and report.json. [evidence: executed_test]'
 - id: req.r3-bundle-evals.ci
   statement: 'Each shipped bundle with a smoke set (cern-team, cms-physics and cluster-manager;
@@ -87,7 +87,7 @@ tasks:
 
     - python/tests/evaluation/test_smoke_checks.py [evidence: pytest]
 
-    - archi eval on submit76 [evidence: manual]'
+    - archi eval on a dev host [evidence: manual]'
 - id: task.r3-bundle-evals.ci
   requirement: req.r3-bundle-evals.ci
   verification: 'The nightly step runs the cern-team set with a small CPU model.
@@ -100,12 +100,12 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-evals.harness
   status: pass
-  command: pytest python/tests/evaluation python/tests/test_bundle_cern_team.py (submit76, network off);
-    archi eval on submit76 lab instances
+  command: pytest python/tests/evaluation python/tests/test_bundle_cern_team.py (a dev host, network off);
+    archi eval on a dev-host lab instances
   head: 5105bfdd58e5271c4993f1ac28ffb8bbc01c80d3
   at: '2026-10-26T21:26:07+00:00'
   note: 'task.r3-bundle-evals.harness and acc.r3-bundle-evals.run: 82 passed at this head; full suite
-    3441 passed, 39 skipped on submit75 at this head. archi eval runs on submit76 wrote report.md and
+    3441 passed, 39 skipped on a dev host at this head. archi eval runs on another dev host wrote report.md and
     report.json for both bundles: qwen2.5:7b-instruct on a local GPU (35d42f25; cern-team 3/10,
     cms-physics 3/10) and GPT-6 Luna through a lab-only wrapper (ed895186 and this head; cern-team
     7/10 then 8/10, cms-physics 10/10 twice). Reports and the Luna ledger stay on the lab host.'
@@ -123,7 +123,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-bundle-evals.ci
   status: pass
-  command: archi eval smoke sets (cern-team, cms-physics) on submit76 lab instances with GPT-6 Luna
+  command: archi eval smoke sets (cern-team, cms-physics) on a dev-host lab instances with GPT-6 Luna
     (reasoning medium, OpenAI Responses API, lab-only ledgered wrapper around archi.evaluation)
   head: 5105bfdd58e5271c4993f1ac28ffb8bbc01c80d3
   at: '2026-10-26T21:26:05+00:00'
@@ -134,7 +134,7 @@ evidence:
     change was hyphen-insensitive must_contain): cern-team 8/10, cms-physics 10/10. The two cern-team
     misses in both runs ran out of the 8-step limit on the 64K-character Indico record. Cost $0.0332
     over 187 calls (run 1 and run 2 together), every call ledgered; ledger and reports archived
-    in /ceph/submit/data/group/mit/okg-artifacts/archi-r3-bundle-evals-20261026/ (ledger-a3-luna.jsonl,
+    in <artifact archive>/archi-r3-bundle-evals-20261026/ (ledger-a3-luna.jsonl,
     sha256 prefix 300b9338b0240579), served
     model gpt-6-luna, 21:18:44Z to 21:26:05Z. Reports (report.json sha256 prefixes): cern-luna
     8f3ba56ef8e67d94, phys-luna c1f23abf11c01ff0, cern-luna2 13193106afd05675, phys-luna2
@@ -145,11 +145,11 @@ evidence:
   requirement: req.r3-bundle-evals.ci
   status: pass
   command: archi eval smoke set bundles/cluster-manager/eval/smoke.yaml on the cluster-manager fixture lab
-    (python/tests/evaluation/bundle_lab.py --bundle cluster-manager) on submit76 with GPT-6 Luna (reasoning
+    (python/tests/evaluation/bundle_lab.py --bundle cluster-manager) on a dev host with GPT-6 Luna (reasoning
     medium, OpenAI Responses API, the lab-only ledgered wrapper), two runs; python -m pytest
     python/tests/evaluation python/tests/test_bundle_cluster_manager.py python/tests/test_bundle_cern_team.py
     python/tests/test_docs_generated.py python/tests/ops/test_health_signals.py and python -m pytest
-    python/tests on submit75
+    python/tests on a dev host
   head: 02b937f197e7817dfbd556797ce3a2a5eb2cd658
   at: '2026-10-27T04:11:44+00:00'
   note: 'acc.r3-bundle-evals.sets for cluster-manager, under the GPT-6 Luna acceptance of board d366. The set
@@ -161,7 +161,7 @@ evidence:
     action record). Four earlier runs during development (6/10 twice, then 9/10 twice) found two question
     bugs and a harness gap, all fixed here; their calls are in the ledger. All runs of this set: 267 calls,
     $0.0345, every call ledgered; final reports and ledger in
-    /ceph/submit/data/group/mit/okg-artifacts/archi-r3-bundle-evals-20261026/ (cluster-final1 report.json
+    <artifact archive>/archi-r3-bundle-evals-20261026/ (cluster-final1 report.json
     sha256 prefix 0721d88b8fe17af9, cluster-final2 abe8d8f322d4a7c8, ledger e783a7d858cdaece). pytest at
     this head: 183 targeted passed; full suite 3490 passed, 27 skipped, 1 failed: an anonymizer 1.0 s
     timing test that also fails on archi_v3 a7575a81 on the same loaded host. cms-comp-ops has no set
@@ -171,7 +171,7 @@ decisions:
   reviewer: Jason Mohoney
   at: '2026-10-26'
   note: 'Board d332, Jason: "A, build the $0 smoke harness now" (archi-only; a fixed question
-    list per bundle; a local model on submit76; pass/fail on cited sources; a run in the
+    list per bundle; a local model on a dev host; pass/fail on cited sources; a run in the
     nightly). This row records the design choice, not a review of the code. The #619 framework
     REPLACES this harness; the CI gate across all four bundles is deferred to it, except the
     nightly run. Nightly: the step runs `archi eval --bundle cern-team` with a small CPU model

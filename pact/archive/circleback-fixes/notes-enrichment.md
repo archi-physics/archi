@@ -9,7 +9,7 @@ v2 anonymizer defaults or the okg-deployments port source and needs
 coordination there too.
 
 Verification for every entry:
-`/work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/enrichment/ -q`
+`<okg-venv>/bin/python -m pytest python/tests/enrichment/ -q`
 (36 passed). A second independent adversarial review confirmed findings
 1-6 hold and produced the deltas recorded in "Second-review deltas"
 below.

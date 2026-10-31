@@ -76,7 +76,7 @@ evidence:
 - kind: executed_test
   requirement: req.twiki-page-index.writes
   status: pass
-  command: PYTHONPATH=. /work/submit/pmlugato/cms-kb-venv/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
   head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
   at: '2026-10-01T20:50:41+00:00'
   note: >-
@@ -85,7 +85,7 @@ evidence:
 - kind: executed_test
   requirement: req.twiki-page-index.off-by-default
   status: pass
-  command: PYTHONPATH=. /work/submit/pmlugato/cms-kb-venv/bin/python -m pytest -q tests
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests
   head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
   at: '2026-10-01T20:50:41+00:00'
   note: >-
@@ -97,7 +97,7 @@ evidence:
 - kind: executed_test
   requirement: req.twiki-page-index.respects-the-filter
   status: pass
-  command: PYTHONPATH=. /work/submit/pmlugato/cms-kb-venv/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
   head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
   at: '2026-10-01T20:50:41+00:00'
   note: >-
@@ -107,7 +107,7 @@ evidence:
 - kind: executed_test
   requirement: req.twiki-page-index.no-partial-file
   status: pass
-  command: PYTHONPATH=. /work/submit/pmlugato/cms-kb-venv/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
   head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
   at: '2026-10-01T20:50:41+00:00'
   note: >-

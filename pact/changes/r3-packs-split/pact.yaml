@@ -84,7 +84,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-packs-split.isolation
   status: pass
-  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:5491/packtest python
+  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:<port>/packtest python
     -m pytest python/tests/packs/test_pack_isolation.py -v
   head: 3c41a98aa3de9887f04621d85bf4328feb38efe1
   at: '2026-10-25T15:16:48+00:00'
@@ -104,7 +104,7 @@ evidence:
 - kind: executed_test
   requirement: req.r3-packs-split.packs
   status: pass
-  command: python -m pytest python/tests/packs/test_packs.py -q (submit76, okg 0.2.0 wheel, Python
+  command: python -m pytest python/tests/packs/test_packs.py -q (a dev host, okg 0.2.0 wheel, Python
     3.12)
   head: 1fdc5e8771ff0504a46c534e71b2b000322e69c6
   at: '2026-10-25T15:49:37+00:00'
@@ -120,8 +120,8 @@ evidence:
 - kind: executed_test
   requirement: req.r3-packs-split.isolation
   status: pass
-  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:5491/packtest python
-    -m pytest python/tests/packs/test_pack_isolation.py -v (submit76)
+  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:<port>/packtest python
+    -m pytest python/tests/packs/test_pack_isolation.py -v (a dev host)
   head: 1fdc5e8771ff0504a46c534e71b2b000322e69c6
   at: '2026-10-25T15:49:37+00:00'
   note: 'acc.r3-packs-split.matrix, re-run at the PR head: 16 passed in 12m33s, against

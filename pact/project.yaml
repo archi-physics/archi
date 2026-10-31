@@ -9,7 +9,7 @@
 #
 # Author NEW changes with the v5 CLI, not `okg pact new`, or you will get a v4
 # manifest in a v5 corpus:
-#   /work/submit/lavezzo/okg-venv/bin/python -m pact.cli --root <repo> new <id>
+#   <okg-venv>/bin/python -m pact.cli --root <repo> new <id>
 #
 # The `review_policy` and `decide/merge gate` wording below describes the v4
 # lifecycle. v5 replaces that whole flow with one `check` gate plus a
@@ -41,7 +41,7 @@ graph_projection:
   deployment: archi-pact
   stale_policy: >-
     The archi-pact ledger deployment is interim host-local infrastructure
-    (submit82, rootless podman, port 5456; resolved via OKG_DEPLOYMENTS_DIR
+    (a dev host, rootless podman; resolved via OKG_DEPLOYMENTS_DIR
     and .okg/local.env). Treat stale or missing projection as context only;
     live files and tests are implementation truth. Replace with a durable
     team-reachable Postgres before other reviewers run decide/merge gates.

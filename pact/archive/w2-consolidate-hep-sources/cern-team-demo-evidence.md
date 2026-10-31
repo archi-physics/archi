@@ -1,14 +1,14 @@
 # cern-team bundle install demo — run evidence (assembly milestone)
 
-**When/where:** 2026-08-21, submit82. okg dev editable checkout at
-`/home/submit/lavezzo/archi/archi_v3/okg` (venv
-`/work/submit/lavezzo/okg-venv`); archi wheel `3.0.0a1` rebuilt from
+**When/where:** 2026-08-21, a dev host. okg dev editable checkout at
+`<okg checkout>` (venv
+`<okg-venv>`); archi wheel `3.0.0a1` rebuilt from
 branch `w2-twiki` (HEAD `35e5a621`) and reinstalled into the venv.
-Postgres: rootless podman `okg-w1-pg` on 127.0.0.1:5455, **new**
+Postgres: rootless podman `okg-w1-pg` on 127.0.0.1:<port>, **new**
 database `okg_cern_team` (the w1-scratch deployment and its
 `okg_w1_scratch` database were not touched). Deployments root
-`/work/submit/lavezzo/okg-scratch`; instance dir
-`/work/submit/lavezzo/okg-scratch/cern-team-demo`.
+`<scratch>`; instance dir
+`<scratch>/cern-team-demo`.
 
 **What ran:** the complete runbook in `docs/cern-team-demo.md` —
 `okg install --profile cern-team` (bundle at `bundles/cern-team/`,

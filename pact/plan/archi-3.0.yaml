@@ -141,6 +141,13 @@ pacts:
       task.r3-bundle-cern-team.rebuild: "Rebuild cern-team on packs with a credential-free default"
       task.r3-bundle-cern-team.migrate: "Migration note for existing cern-team instances"
 
+  r3-code-text-all-files:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-code-text-all-files.pack: "code-text reads every text file"
+      task.r3-code-text-all-files.screen: "code-text leaves out files holding a literal secret"
+
   r3-bundle-cms-comp-ops:
     milestone: "3.0 · M5 Bundles & automations"
     labels: ["bundle:cms-comp-ops"]

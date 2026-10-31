@@ -2,12 +2,12 @@
 
 # Pack: code-text
 
-The text of git-code's repository files, as one chunk per function or class.
+The text of every text file in git-code's repository (code, Markdown, YAML, scripts, configuration), with Python cut into one chunk per function or class and files holding a literal secret left out.
 
 | Field | Value |
 |---|---|
 | Kind | `context` |
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Needs a credential to publish | no |
 | Okg modules it needs | `document_starter`, `person`, `extraction`, `git_graph` |
 | Packs it needs | [`git-code`](../packs/git-code.md) |

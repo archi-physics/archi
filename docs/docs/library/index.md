@@ -24,7 +24,7 @@ Each page below is generated from the manifest in the repository, so it cannot d
 | [`cmssst`](packs/cmssst.md) | context | CMS Site Support Team site status, from the cache the cmssst downloader writes. |
 | [`cmssw-releases`](packs/cmssw-releases.md) | context | The CMSSW release catalog, from the public cms-bot releases.map. |
 | [`code-symbols`](packs/code-symbols.md) | context | Functions, classes, imports and calls in git-code's repository. |
-| [`code-text`](packs/code-text.md) | context | The text of git-code's repository files, as one chunk per function or class. |
+| [`code-text`](packs/code-text.md) | context | The text of every text file in git-code's repository (code, Markdown, YAML, scripts, configuration), with Python cut into one chunk per function or class and files holding a literal secret left out. |
 | [`core-playbooks`](packs/core-playbooks.md) | tool | The generic archi playbooks for retrieving, citing and synthesising graph evidence. |
 | [`docsite`](packs/docsite.md) | context | Documentation sites, read from the records cache the static-docs downloader writes. |
 | [`dqm`](packs/dqm.md) | context | CMS DQM data-quality certifications, with the runs and datasets they cover. |

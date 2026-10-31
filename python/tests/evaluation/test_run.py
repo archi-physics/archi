@@ -421,3 +421,176 @@ def test_no_lookup_once_the_check_is_already_met():
     report = run(incident_smoke(), FakeModel(filters(), answers("ops_incident:inc-1, see tracker_ticket:redmine:4690")),
                  tools)
     assert report.questions[0].status == PASS and report.questions[0].lookups == []
+
+
+# --- dated reports (#854): every default run is kept, the newest `keep` stay -----------------------
+
+
+def fixture_report(started_at, passed=1, total=2):
+    from archi.evaluation.runner import QuestionResult, Report
+
+    return Report(bundle="demo", model="fake:1b", model_url="http://127.0.0.1:11434/v1",
+                  mcp_url="http://127.0.0.1:18080/mcp", pass_threshold=1, smoke_file="bundles/demo/eval/smoke.yaml",
+                  started_at=started_at,
+                  questions=[QuestionResult(f"q{i}", f"question {i}?", PASS if i < passed else FAIL)
+                             for i in range(total)])
+
+
+def test_two_default_runs_leave_two_dated_reports_and_latest_names_the_newest(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    root = tmp_path / "eval" / "demo"
+    md1, js1, gone1 = publish_report(fixture_report("2026-10-30T10:00:00Z"), root)
+    md2, js2, gone2 = publish_report(fixture_report("2026-10-31T10:00:00Z", passed=2), root)
+    assert gone1 == gone2 == []
+    assert js1 == root / "20261030T100000Z" / "report.json" and js2 == root / "20261031T100000Z" / "report.json"
+    assert md1.is_file() and js1.is_file() and md2.is_file() and js2.is_file()
+    assert json.loads(js1.read_text())["passed"] == 1 and json.loads(js2.read_text())["passed"] == 2
+    latest = json.loads((root / "latest.json").read_text())
+    assert latest == {"schema": "archi-eval-latest/1", "run": "20261031T100000Z",
+                      "report": "20261031T100000Z/report.json", "started_at": "2026-10-31T10:00:00Z",
+                      "status": "pass"}
+    assert sorted(p.name for p in root.iterdir()) == ["20261030T100000Z", "20261031T100000Z", "latest.json"]
+
+
+def test_two_runs_in_the_same_second_both_stay(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    publish_report(fixture_report("2026-10-30T10:00:00Z"), tmp_path)
+    _, js, _ = publish_report(fixture_report("2026-10-30T10:00:00Z"), tmp_path)
+    assert js.parent.name == "20261030T100000Z-2"
+    assert json.loads((tmp_path / "latest.json").read_text())["run"] == "20261030T100000Z-2"
+
+
+def test_only_the_newest_keep_runs_stay_and_nothing_else_is_deleted(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    (tmp_path / "report.json").write_text("{}")  # an older archi wrote straight into the bundle folder
+    (tmp_path / "2026-10-01").mkdir()  # a folder a person made with --out
+    (tmp_path / "2026-10-01" / "report.json").write_text("{}")
+    deleted = []
+    for day in range(1, 6):
+        deleted += publish_report(fixture_report(f"2026-10-{day:02d}T10:00:00Z"), tmp_path, keep=3)[2]
+    assert [p.name for p in deleted] == ["20261001T100000Z", "20261002T100000Z"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "2026-10-01", "20261003T100000Z", "20261004T100000Z", "20261005T100000Z", "latest.json", "report.json"]
+
+
+def test_keep_zero_keeps_every_run(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    for day in range(1, 5):
+        publish_report(fixture_report(f"2026-10-{day:02d}T10:00:00Z"), tmp_path, keep=0)
+    assert len([p for p in tmp_path.iterdir() if p.is_dir()]) == 4
+
+
+def test_a_run_leaves_no_hidden_temporary_directory(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    publish_report(fixture_report("2026-10-30T10:00:00Z"), tmp_path)
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".")]
+
+
+def test_a_negative_keep_or_a_bad_start_time_is_refused(tmp_path):
+    from archi.evaluation.runner import publish_report
+
+    with pytest.raises(ValueError):
+        publish_report(fixture_report("2026-10-30T10:00:00Z"), tmp_path, keep=-1)
+    with pytest.raises(ValueError):
+        publish_report(fixture_report("2026-10-30T10:00:00+02:00"), tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_default_output_is_dated_and_an_explicit_out_keeps_its_meaning(tmp_path):
+    from pathlib import Path
+
+    from archi.cli.evaluate import report_target
+
+    root = Path("/data/eval")
+    assert report_target(None, root, "demo", 1) == (root / "demo", True)
+    assert report_target(None, root, "demo", 2) == (root / "demo", True)
+    assert report_target(tmp_path, root, "demo", 1) == (tmp_path, False)
+    assert report_target(tmp_path, root, "demo", 2) == (tmp_path / "demo", False)
+
+
+def test_keep_is_on_the_parser_and_its_default_lives_in_one_number():
+    import argparse
+
+    from archi.cli import evaluate
+    from archi.evaluation import runner
+
+    parser = argparse.ArgumentParser()
+    evaluate.add_parser(parser.add_subparsers(), lambda p: None)
+    assert parser.parse_args(["eval", "--bundle", "x"]).keep is None  # resolved to DEFAULT_KEEP at run time
+    assert parser.parse_args(["eval", "--keep", "0"]).keep == 0
+    assert evaluate.DEFAULT_KEEP == runner.DEFAULT_KEEP == 20
+
+
+def test_two_default_command_runs_leave_two_reports_that_instance_health_compares(tmp_path, monkeypatch):
+    """#854 done-when: two `archi eval` runs with no --out leave two reports, and instance-health compares
+    them. Drives the command's own `_run_one` (the model and MCP are replaced by a canned run)."""
+    import argparse
+    from types import SimpleNamespace
+
+    from archi.cli import evaluate
+    from archi.evaluation import runner as runner_mod
+    from archi.health import signals
+
+    starts = iter(["2026-10-30T10:00:00Z", "2026-10-31T10:00:00Z"])
+
+    async def canned_run(smoke, model, tools, **kwargs):
+        return fixture_report(next(starts), passed=2)
+
+    monkeypatch.setattr(runner_mod, "run_smoke", canned_run)
+    args = argparse.Namespace(model_url="http://127.0.0.1:11434/v1", no_think=False, max_steps=8, keep=20)
+    smoke = SimpleNamespace(bundle="demo", questions=["q0", "q1"])
+    eval_root = tmp_path / "eval"
+    for _ in range(2):
+        out, dated = evaluate.report_target(None, eval_root, "demo", 1)
+        assert evaluate._run_one(smoke, "fake:1b", args, "http://127.0.0.1:1/mcp", "t", out, dated=dated) == 0
+    runs = sorted(p.name for p in (eval_root / "demo").iterdir() if p.is_dir())
+    assert runs == ["20261030T100000Z", "20261031T100000Z"]
+    problems, notes = signals.eval_problems(eval_root)
+    assert problems == [] and "eval-trend" not in [n["signal"] for n in notes]
+    assert [r.path for r in signals.read_eval_runs(eval_root)] == [
+        "demo/20261030T100000Z/report.json", "demo/20261031T100000Z/report.json"]
+
+
+def test_with_out_the_report_is_replaced_in_place(tmp_path, monkeypatch):
+    import argparse
+    from types import SimpleNamespace
+
+    from archi.cli import evaluate
+    from archi.evaluation import runner as runner_mod
+
+    starts = iter(["2026-10-30T10:00:00Z", "2026-10-31T10:00:00Z"])
+
+    async def canned_run(smoke, model, tools, **kwargs):
+        return fixture_report(next(starts))
+
+    monkeypatch.setattr(runner_mod, "run_smoke", canned_run)
+    args = argparse.Namespace(model_url="http://127.0.0.1:11434/v1", no_think=False, max_steps=8, keep=20)
+    smoke = SimpleNamespace(bundle="demo", questions=["q0", "q1"])
+    for _ in range(2):
+        out, dated = evaluate.report_target(tmp_path / "mine", tmp_path / "eval", "demo", 1)
+        evaluate._run_one(smoke, "fake:1b", args, "http://127.0.0.1:1/mcp", "t", out, dated=dated)
+    assert sorted(p.name for p in (tmp_path / "mine").iterdir()) == ["report.json", "report.md"]
+    assert json.loads((tmp_path / "mine" / "report.json").read_text())["started_at"] == "2026-10-31T10:00:00Z"
+    assert not (tmp_path / "eval").exists()
+
+
+def test_a_report_pruned_while_instance_health_reads_is_skipped_not_an_error(tmp_path, monkeypatch):
+    from archi.evaluation.runner import publish_report
+    from archi.health import signals
+
+    publish_report(fixture_report("2026-10-30T10:00:00Z"), tmp_path / "demo")
+    _, gone, _ = publish_report(fixture_report("2026-10-31T10:00:00Z"), tmp_path / "demo")
+    real_rglob = type(tmp_path).rglob
+
+    def rglob_then_prune(self, pattern):
+        found = list(real_rglob(self, pattern))
+        gone.unlink()  # `archi eval --keep` removed this run after the walk listed it
+        return iter(found)
+
+    monkeypatch.setattr(type(tmp_path), "rglob", rglob_then_prune)
+    assert [r.path for r in signals.read_eval_runs(tmp_path)] == ["demo/20261030T100000Z/report.json"]

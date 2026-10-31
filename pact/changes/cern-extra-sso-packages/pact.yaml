@@ -32,7 +32,7 @@ evidence:
 - kind: executed_test
   requirement: req.cern-extra-sso-packages.declared
   status: pass
-  command: 'submit76: pytest python/tests/test_install_extras.py -> 2 passed; uv pip install
+  command: 'a dev host: pytest python/tests/test_install_extras.py -> 2 passed; uv pip install
     --dry-run python[cern] resolves cern-sso-python and requests-kerberos'
   artifact: pact/changes/cern-extra-sso-packages/evidence/test_install_extras.junit.xml
   sha256: db80aa4bb5259adc21375813a5ce629e79197b8883e5bc52ed66aa458270d552
@@ -41,7 +41,7 @@ evidence:
 - kind: executed_test
   requirement: req.cern-extra-sso-packages.declared
   status: pass
-  command: 'submit76: cd python && PYTHONPATH=. pytest tests/test_install_extras.py -q ->
+  command: 'a dev host: cd python && PYTHONPATH=. pytest tests/test_install_extras.py -q ->
     2 passed; uv pip install --dry-run .[cern] resolves requests-kerberos'
   artifact: pact/changes/cern-extra-sso-packages/evidence/test_install_extras.junit.xml
   sha256: b5a89630162d4967837d836b1c32770e736f20b87e609c88229cbcf55f26a13a

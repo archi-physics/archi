@@ -71,8 +71,8 @@ tasks:
     limit-arithmetic cases with fake data.
 
 
-    Proof: the full archi suite passes on submit75; the patched reader, run read-only on the
-    real Aug 31 snapshot on submit76, reports ok, complete scope, 43,744 topics and the two names.
+    Proof: the full archi suite passes on a dev host; the patched reader, run read-only on the
+    real Aug 31 snapshot on a dev host, reports ok, complete scope, 43,744 topics and the two names.
 
 
     Test plan:
@@ -94,13 +94,13 @@ evidence:
   command: cd python && python -m pytest tests -q
   head: 0a16d12cd0d24baf2b7795e99e4e70f6fad6b1a5
   at: '2026-09-29T07:25:00+00:00'
-  note: 'Full suite on submit75 at this commit: 1577 passed, 2 failed. The 2 failures are the
+  note: 'Full suite on a dev host at this commit: 1577 passed, 2 failed. The 2 failures are the
     timing tests test_redact_email_addresses_git_scan_is_linear and ..._quoted_local_part_is_linear
     in tests/enrichment/test_anonymizer.py (untouched code); they fail the same way on main b4fc6a55
     on the same host (load average about 45). New and rewritten reader tests use fake data: 2 empty
     among 45 topics claim scope and are named; 10 empty claim scope; 11 empty refuse (tree and
     seeded) with preflight giving the same reason; only-empty stays cache_missing; limit arithmetic
-    max(10, n // 1000). Real-data check, read-only on submit76, Aug 31 twiki-eos stage: main gives
+    max(10, n // 1000). Real-data check, read-only on a dev host, Aug 31 twiki-eos stage: main gives
     endpoint_failed, no complete scope; this change gives health ok, completed_scope true, 43,744
     topics, preflight ok with 43,744, and names twiki-cms/ExperienceFromFirstCollisions.txt and
     twiki-cms/TWikiTopQuarkTtXAnalyses.txt (limit 43 among 43,746 topic files). The probe ran at

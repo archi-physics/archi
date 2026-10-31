@@ -124,7 +124,7 @@ tasks:
 
 
     Proof: the new tests fail on main and pass here, the full archi suite and python/tests/snapshot
-    pass, and a run over the cms-kb TWiki snapshot on submit75 shows the counts before and
+    pass, and a run over the cms-kb TWiki snapshot on a dev host shows the counts before and
     after.
 
 
@@ -155,8 +155,8 @@ evidence:
 - kind: manual
   requirement: req.email-rule-gaps.main
   status: pass
-  command: taskset -c 32-63 nice -n 19 python measure14.py /ceph/submit/data/user/p/pmlugato/cms-kb/twiki
-    (submit75, /work/submit/mohoney/lane-a/tmp/arch14; anonymizer.py from e63fc466a1 as before
+  command: taskset -c 32-63 nice -n 19 python measure14.py <twiki mirror>
+    (a dev host, <scratch>/arch14; anonymizer.py from e63fc466a1 as before
     and from 2df8197 as after; Python 3.12.13)
   head: 2df81977f346
   at: '2026-09-29T00:45:40+00:00'

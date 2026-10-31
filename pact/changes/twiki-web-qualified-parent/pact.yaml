@@ -9,7 +9,7 @@ why: 'Issue #15. The physics filter''s parent-topic closure (stage 3 in archi.so
   asserted it in a test, deferring the fix to a change with a diffed page count.
 
 
-  Measured read-only on the Aug 31 twiki-eos stage on submit76 (43,744 topics, 51 web names):
+  Measured read-only on the Aug 31 twiki-eos stage on a dev host (43,744 topics, 51 web names):
   119 topics have a <Web>. parent and 152 a URL parent; the change follows 119 + 142 = 261
   of them. With the physics filter on, the kept count goes from 15,655 to 15,757 (+102, none
   lost); seeds are unchanged at 6,627 and the closure grows from 13,194 to 13,307.
@@ -68,7 +68,7 @@ evidence:
   note: '1556 passed at this commit. The 5 new test cases use fake data; all fail on main
     46551d1e (2 by assertion: the direct chain and the connector snapshot chain; 3 left-alone
     controls because main''s compute_keep_set takes no web names) and pass here. Real-data
-    check, read-only on submit76, Aug 31 twiki-eos stage: 43,744 topics, 51 web names, 5,896
+    check, read-only on a dev host, Aug 31 twiki-eos stage: 43,744 topics, 51 web names, 5,896
     dotted parents, 119 qualified by a snapshot web; physics filter kept 15,655 before and
     15,738 after (+83, 0 lost), seeds 6,627 both, closure 13,194 -> 13,287.'
 - kind: executed_test
@@ -80,7 +80,7 @@ evidence:
   note: '1563 passed at this commit. 7 new view-URL cases use fake data: the 3 known-web URL
     cases and the extended connector snapshot test fail at the previous head e73b66b7 and
     pass here; the 4 stay-out cases (another web raw and rewritten, oops, query string) pass
-    on both as controls. Real-data check, read-only on submit76, Aug 31 twiki-eos stage: 43,744
+    on both as controls. Real-data check, read-only on a dev host, Aug 31 twiki-eos stage: 43,744
     topics, 51 web names; 152 URL parents, 142 now followed (the other 10 point at other webs,
     an oops page, a query, a trailing slash or a non-TWiki path); 261 parents followed in
     all; physics filter kept 15,655 on main and 15,757 here (+102, 0 lost), seeds 6,627 both,

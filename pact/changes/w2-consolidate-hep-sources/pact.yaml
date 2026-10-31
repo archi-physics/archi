@@ -147,7 +147,7 @@ evidence:
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
     -q
   artifact: python/tests/test_packaging.py
   sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76
@@ -157,7 +157,7 @@ evidence:
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
     -q
   artifact: python/tests/test_packaging.py
   sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76
@@ -167,21 +167,21 @@ evidence:
 - kind: executed_test
   requirement: req.w2.auth
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth/ -q
+  command: <okg-venv>/bin/python -m pytest python/tests/auth/ -q
   at: '2026-08-12T00:38:27.308914+00:00'
   note: 46/46 auth tests incl. review-fix regressions; no-operator-paths lint green in packaging
     suite
 - kind: executed_test
   requirement: req.w2.auth
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth/ -q
+  command: <okg-venv>/bin/python -m pytest python/tests/auth/ -q
   at: '2026-08-12T00:38:50.633941+00:00'
   note: 45/45 auth tests incl. two review-fix regressions (corrects prior entry's 46/46 typo);
     no-operator-paths lint green in packaging suite
 - kind: executed_test
   requirement: req.w2.sources
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources/ -q
+  command: <okg-venv>/bin/python -m pytest python/tests/sources/ -q
   at: '2026-08-12T12:43:26.967431+00:00'
   note: '57 source tests pass (jira 30, docs 27) incl. 10 review-fix regressions; scratch-instance
     ingest cycle proven (see parity-ingest-demonstration.md): lint zero findings, publish
@@ -217,7 +217,7 @@ evidence:
 - kind: executed_test
   requirement: req.w2.compops-unbroken
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_compops_lint_recheck.py
     -q
   artifact: python/tests/test_compops_lint_recheck.py
   sha256: fc7fafa0a8a8133e3cbdc95de5dbe4d4624756ff85a83dd24c11d9b56d63440b
@@ -244,7 +244,7 @@ evidence:
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
     -q
   artifact: python/tests/test_packaging.py
   sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76
@@ -255,28 +255,28 @@ evidence:
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth -q
+  command: <okg-venv>/bin/python -m pytest python/tests/auth -q
   at: '2026-08-24T21:41:57.398833+00:00'
   note: '46 passed (2026-08-24 re-run): archi.auth preflight/cache/cookies, including the
     lint assertion that no hardcoded operator paths or credential literals exist in python/archi.'
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources -q
+  command: <okg-venv>/bin/python -m pytest python/tests/sources -q
   at: '2026-08-24T21:41:58.766018+00:00'
   note: '202 passed (2026-08-24 re-run): per-connector fixture-driven unit tests for all 12
     families offline, including the circle-back scope-claim regressions.'
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/enrichment -q
+  command: <okg-venv>/bin/python -m pytest python/tests/enrichment -q
   at: '2026-08-24T21:42:00.011344+00:00'
   note: '36 passed (2026-08-24 re-run): enrichers plus packaged defaults loaded from the installed
     wheel and shape-validated, including the anonymizer leak corpus.'
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_compops_lint_recheck.py
     -q
   artifact: python/tests/test_compops_lint_recheck.py
   sha256: fc7fafa0a8a8133e3cbdc95de5dbe4d4624756ff85a83dd24c11d9b56d63440b
@@ -286,7 +286,7 @@ evidence:
 - kind: executed_test
   requirement: req.w2.packaging
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_packaging.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
     -q
   artifact: python/tests/test_packaging.py
   sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76
@@ -296,27 +296,27 @@ evidence:
 - kind: executed_test
   requirement: req.w2.auth
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/auth -q
+  command: <okg-venv>/bin/python -m pytest python/tests/auth -q
   at: '2026-08-24T21:44:44.343107+00:00'
   note: '46 passed, re-run 2026-08-24 after PR #617; supersedes the revoked 2026-08-12 entries.'
 - kind: executed_test
   requirement: req.w2.sources
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/sources -q
+  command: <okg-venv>/bin/python -m pytest python/tests/sources -q
   at: '2026-08-24T21:44:46.194911+00:00'
   note: '202 passed, re-run 2026-08-24 after PR #617 (includes the new scope-claim regressions);
     supersedes the revoked 2026-08-12 evidence.'
 - kind: executed_test
   requirement: req.w2.enrichment
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/enrichment -q
+  command: <okg-venv>/bin/python -m pytest python/tests/enrichment -q
   at: '2026-08-24T21:44:48.103541+00:00'
   note: '36 passed, re-run 2026-08-24 after PR #617 (includes the anonymizer leak corpus);
     supersedes the revoked 2026-08-21 entry.'
 - kind: executed_test
   requirement: req.w2.compops-unbroken
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest python/tests/test_compops_lint_recheck.py
+  command: <okg-venv>/bin/python -m pytest python/tests/test_compops_lint_recheck.py
     -q
   artifact: python/tests/test_compops_lint_recheck.py
   sha256: fc7fafa0a8a8133e3cbdc95de5dbe4d4624756ff85a83dd24c11d9b56d63440b

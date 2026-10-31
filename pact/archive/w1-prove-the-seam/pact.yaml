@@ -4,7 +4,7 @@ title: 'W1: prove the pip-installed package seam'
 tier: 1
 why: 'ADR 0001 (W1) rests the whole v3 architecture on one unexercised mechanism: a pip-installed
   archi package serving sources and schemas to an out-of-tree OKG deployment. This change
-  records the constructive proof, executed 2026-08-11 on submit82 against okg dev@21c5b8c3e:
+  records the constructive proof, executed 2026-08-11 on a dev host against okg dev@21c5b8c3e:
   an archi wheel (one source, one schema, zero dependencies) was registered in a scratch deployment
   via `module: archi.sources.cmssw`, fetched the public cms-bot releases.map, ingested, published
   a generation, and both MCP `search` and `query` returned the facts generation-pinned with
@@ -44,7 +44,7 @@ evidence:
 - kind: executed_test
   requirement: req.w1-prove-the-seam
   status: pass
-  command: /work/submit/lavezzo/okg-venv/bin/python -m pytest pact/changes/w1-prove-the-seam/spike/test_seam_source.py
+  command: <okg-venv>/bin/python -m pytest pact/changes/w1-prove-the-seam/spike/test_seam_source.py
     -q
   at: '2026-08-11T20:50:00.796963+00:00'
   note: 4/4 adapter-contract tests pass (parse grouping/order, limit, NodeFact emission, probe

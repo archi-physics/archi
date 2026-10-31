@@ -1,16 +1,19 @@
 # cern-team quickstart
 
-> **Reference material.** The setup path is now `archi init` / `archi up` /
-> `archi doctor`: see the [quickstart](docs/quickstart.md). Every trap below is in
-> the [footgun ledger](docs/operating/footguns.md), as absorbed by archi or
-> filed with AKMON. Read on for what happens underneath, or for a source the
-> golden path does not cover yet.
+> **Superseded. Do not install from this page.** To install archi today,
+> follow [the quickstart](docs/quickstart.md) (`archi init` / `archi up` /
+> `archi doctor`); the nightly test checks that path. This page is kept as
+> reference: it shows the manual okg steps underneath, for a source the
+> golden path does not cover yet, and every trap in it is in the
+> [footgun ledger](docs/operating/footguns.md), as absorbed by archi or filed
+> with AKMON. Its commands are not tested and may no longer match the
+> current CLI.
 
 From nothing to a knowledge graph you can query, holding an Indico event and
 a GitHub repository (its files, history, function bodies and symbols), with a
 chat frontend in front of it.
 
-Follow it top to bottom. The commands are real and runnable as written.
+It was written to be followed top to bottom, before `archi init` existed.
 Two things are yours to choose and are marked where they appear: the
 repository you want indexed, and a password for the chat database.
 
@@ -344,17 +347,26 @@ should return `symbol:click:...` nodes next to the `file:click:...` ones.
 
 Symbols give a function's name, signature, docstring and line numbers, but
 not its body, so "what does this function do when the name is empty" cannot
-be answered from them. The code-text pack stores the code itself: each code
-file becomes a `doc:<repo>:<path>` document linked to its `file:` node, cut
-into one chunk per Python function or class with its line range. Select it
+be answered from them. The code-text pack stores the text itself: each text
+file (code, Markdown, YAML, JSON, shell scripts, configuration, files with
+no extension) becomes a `doc:<repo>:<path>` document linked to its `file:`
+node. Python is cut into one chunk per function or class with its line
+range; every other file into plain text windows. Binary files are skipped,
+and so is any file that holds a literal secret (private keys, tokens, URLs
+with a password, secret keys with a literal value): the source checks every
+file on every run and logs the paths it left out. The check matches
+patterns; review a repository before you index it. It covers code-text's
+documents only: git-code's history stores per-file diffs, so a secret that
+was committed and later removed can still be read in that diff. Select it
 when you render (`--with code-text`) or add it with `archi add code-text`.
 It installs `extractors.yaml` (its parsers and chunk sizes) in the deployment
 directory; leave the `--code-text-extractors-dir` answer at its default,
 which okg expands to the deployment directory each time it reads the
 registry.
 
-Measured on the earlier layout, on a 99-file repository with 77 Python files,
-this source added 77 documents and 613 chunks.
+Measured on the earlier layout, which read code files only, on a 99-file
+repository with 77 Python files, this source added 77 documents and 613
+chunks.
 
 Check it: search for a word that appears only inside a function body; the
 hit is a `document_chunk` whose `symbol` names the function and whose

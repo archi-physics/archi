@@ -171,9 +171,9 @@ def automation_error_problems(
 def eval_reports_dir(instance_dir: Path | str, configured: Optional[str] = None) -> Path:
     """Where the instance's eval reports are.
 
-    `archi eval` writes `report.json` to `<data root>/eval/<bundle>/` by default (`--out` moves it), so the
-    default is `<data root>/eval/`, the data root read from the instance's `archi.yaml`. `configured` (the
-    `eval.reports_dir` setting) replaces it; a relative path is taken from the instance directory.
+    `archi eval` writes each run to `<data root>/eval/<bundle>/<UTC stamp>/report.json` by default (`--out`
+    moves it), so the default is `<data root>/eval/`, the data root read from the instance's `archi.yaml`.
+    `configured` (the `eval.reports_dir` setting) replaces it; a relative path is taken from the instance directory.
     """
     if configured:
         path = Path(configured).expanduser()
@@ -220,6 +220,19 @@ class EvalRun:
                    if a and b)
 
 
+def _eval_report_paths(directory: Path) -> list[Path]:
+    """Every `report.json` under `directory`, sorted. `archi eval` prunes old dated runs (`--keep`), so a
+    run directory can vanish while the walk is in it; the walk is retried rather than failing the signal."""
+    if not directory.is_dir():
+        return []
+    for _ in range(3):
+        try:
+            return sorted(directory.rglob(EVAL_REPORT))
+        except FileNotFoundError:
+            continue
+    return sorted(directory.rglob(EVAL_REPORT))
+
+
 def read_eval_runs(directory: Path) -> list[EvalRun]:
     """Every `report.json` under `directory` (any depth) that `archi eval` wrote, oldest first.
 
@@ -231,13 +244,15 @@ def read_eval_runs(directory: Path) -> list[EvalRun]:
     broken one cannot break it) and any path with a part that starts with `.` (a run still being written).
     """
     runs: dict[tuple[str, str, str], EvalRun] = {}
-    for path in sorted(directory.rglob(EVAL_REPORT)) if directory.is_dir() else []:
+    for path in _eval_report_paths(directory):
         parts = path.relative_to(directory).parts
         if parts[0] == CONTEXT_EVAL_PART or any(p.startswith(".") for p in parts):
             continue
         rel = path.relative_to(directory).as_posix()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue  # pruned by `archi eval --keep` after the walk listed it: removed on purpose
         except (OSError, ValueError) as exc:
             raise ValueError(f"{rel} under {directory}: not readable JSON ({type(exc).__name__}: {exc})") from exc
         schema = data.get("schema") if isinstance(data, dict) else None
@@ -360,8 +375,8 @@ def eval_problems(directory: Path | str, *, bundles: Optional[Callable[[], Itera
         else:
             notes.append({"signal": "eval-trend", "reason": (
                 f"bundle {bundle}: no earlier run of model {latest.model} on the same question set, with every "
-                "question executed, to compare with; only the threshold was judged (archi eval overwrites its "
-                f"report; keep runs apart with `--out <dir>/{bundle}/<date>` under {directory})")})
+                "question executed, to compare with; only the threshold was judged (`archi eval` keeps "
+                f"each default run under {directory}/{bundle}/; a run written with `--out` replaces its report)")})
         dropped = drop is not None and drop[1] > min_drop
         if not (below or dropped):
             continue

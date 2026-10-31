@@ -6,7 +6,7 @@ heading.
 
 Asks O1–O6 are the six ADR 0002 §9 item 7 names. O7–O14 were found while
 building the loop on okg v0.2.0. Each says whether it was **proven** by
-running code on a scratch instance (submit76, okg 0.2.0, 2026-10-25) or
+running code on a scratch instance (a dev host, okg 0.2.0, 2026-10-25) or
 **read** from okg's source only. Each names the archi code that goes away
 when it lands (ADR 0002 D7).
 

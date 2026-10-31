@@ -3,7 +3,7 @@
 Run with an okg-bearing interpreter (okg is a host dependency, not an
 archi dependency):
 
-    /work/submit/lavezzo/okg-venv/bin/python -m pytest \
+    <okg-venv>/bin/python -m pytest \
         pact/changes/w1-prove-the-seam/spike/test_seam_source.py -v
 
 Deliberately not under tests/ — the v2 CI environment does not carry

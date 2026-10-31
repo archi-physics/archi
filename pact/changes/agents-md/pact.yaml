@@ -100,7 +100,7 @@ evidence:
 - kind: executed_test
   requirement: req.agents-md.ci-runs-on-main
   status: pass
-  command: /work/submit/pmlugato/cms-kb-venv/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
+  command: <cms-kb-venv>/bin/python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
   head: adbe3cfba19292fb7e0affedfb34937e1cfd10bd
   at: '2026-10-01T21:11:19+00:00'
   note: >-
@@ -110,7 +110,7 @@ evidence:
 - kind: executed_test
   requirement: req.agents-md.records-what-was-wrong
   status: pass
-  command: cd python && PYTHONPATH=. /work/submit/pmlugato/cms-kb-venv/bin/python -m pytest tests -q
+  command: cd python && PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest tests -q
   head: adbe3cfba19292fb7e0affedfb34937e1cfd10bd
   at: '2026-10-01T21:11:19+00:00'
   note: >-

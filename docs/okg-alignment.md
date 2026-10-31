@@ -20,6 +20,18 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**The code-text pack subclasses okg's DocCorpusSource (2026-10-31).**
+`archi.sources.code_text.SecretScreenedDocCorpusSource` is okg's
+`DocCorpusSource` with `_walk_files` overridden: it reads each selected file
+and leaves out any file whose text holds a literal secret, so the change probe
+and the run (both list files through that method) skip it. It is the first
+connector-side private import since the SDK move, and it relies on a private
+method. Two okg asks would remove it: a content-screen hook on
+DocCorpusSource, and letting `search(view="windows")` trust positions from a
+registry entry that names a DocCorpusSource subclass (today it compares
+module and class exactly). Tested against the v0.2.0 release (no pin change).
+PACT `r3-code-text-all-files`.
+
 **The cms-analyses pack adds one private okg import (2026-10-26).**
 `archi.enrichment.physics_cross_links.PhysicsCrossLinker` subclasses okg's
 `DeclarativeLinker` (already imported by `GlobalTagReleaseLinker`) and calls
@@ -110,8 +122,9 @@ releases source off on 2026-10-01 for this reason. Now:
 The scope-completing modes live in one archi module, `archi.sources._run_modes`,
 which a test holds equal to okg's `COMPLETED_SCOPE_RUN_MODES` and to the
 `reference_catalog` profile's accepted modes. Connectors may not import
-`okg.substrate` (`okg lint deployments`, DEPLOYMENT-001), so the set is copied,
-not imported. AKMON v0.2.0 now exports the set from `okg.deployment`,
+`okg.substrate` (`okg lint deployments`, DEPLOYMENT-001; the one recorded
+exception is the code-text source, below), so the set is copied, not
+imported. AKMON v0.2.0 now exports the set from `okg.deployment`,
 so the readers can import it from there; that switch is a follow-up, not done
 here. The cursor uses the public `okg.deployment.Checkpoint`, added to the
 import block below.
@@ -180,7 +193,7 @@ archi suite **339 passed**, `test_alignment_page.py` included, so all ten guarde
 `okg.substrate.*` symbols still resolve across 663 commits. No source change needed.
 
 **CI was testing a different okg than this page claimed.** Until 2026-09-10 the
-workflow installed `lucalavezzo/okg@f5ec3b58d` — a *fork*, whose `dev` silently
+workflow installed okg at `f5ec3b58d` from a personal *fork*, whose `dev` silently
 stopped tracking upstream on 2026-08-25. So while this page recorded two pin bumps
 and a passing suite, CI re-checked a three-week-old okg; every "passed against `dev`"
 claim here was true of local runs only. Nothing failed, which is why nobody noticed.
@@ -348,8 +361,8 @@ single-defined. **The cern-team bundle + end-to-end install demo are DONE and ga
 (PACT w6-cern-team-bundle)** — `okg install --profile cern-team` on a fresh DB: lint
 zero blocker/warning, four connectors ingest OK (live cmssw releases.map fetch, 314
 nodes), generation `gen:20260821T155948019759Z:56ad3d3dafec` published with
-cross-connector reference edges, idempotent re-run. **The reproducible runbook is
-`docs/cern-team-demo.md` — this is the external-distribution release-claim artifact**; run results
+cross-connector reference edges, idempotent re-run. **The reproducible runbook was
+`docs/cern-team-demo.md` (now marked superseded) — the external-distribution release-claim artifact at the time**; run results
 + 7-item friction log in `pact/changes/w2-consolidate-hep-sources/`. For the install contract: two
 manual steps remain outside the profile contract (wheel schema-slice copy incl. a
 pruned operations bridge; role passwords post-migrate) — both flagged in the runbook.
@@ -415,12 +428,14 @@ dereference (your "materialized payload" wording already covers this).
 ## The exact substrate surface Archi consumes today
 
 **The connector half is done (2026-09-10).** Everything Archi's connectors need now
-comes from the public `okg.deployment` SDK, so OKG's boundary lint has nothing left
-to find on that side. What remains below is enricher-only, and is blocked on the
-enricher read surface, which OKG deferred at our own recommendation.
+comes from the public `okg.deployment` SDK, with one exception since 2026-10-31: the
+code-text source subclasses okg's `DocCorpusSource` (see Current state). The rest of
+what remains below is enricher-only, and is blocked on the enricher read surface,
+which OKG deferred at our own recommendation.
 
 **Python imports (all of them).** The first entry is the public SDK; everything
-below it is still private substrate, and all of it is enricher-side.
+below it is still private substrate, all of it enricher-side except
+`DocCorpusSource`, which the code-text source subclasses.
 
 ```
 okg.deployment:
@@ -447,7 +462,28 @@ okg.substrate.publisher.enricher_loader: derive_write_envelope
 okg.substrate.alias.protocol:     AliasMatch
 okg.substrate.deployment_bootstrap.profile_init:
     build_plan, discover_profile, planned_writes, source_default_entries
+okg.substrate.library.sources.doc_corpus: DocCorpusSource
 ```
+
+**The one connector-side exception: code-text's secret screen (2026-10-31).**
+`archi.sources.code_text.SecretScreenedDocCorpusSource` subclasses
+`okg.substrate.library.sources.doc_corpus.DocCorpusSource` and overrides its
+private `_walk_files`, so that every file is screened for literal secrets on
+every run before its text can enter the graph.
+- **Lint finding.** `okg lint deployments` reports one DEPLOYMENT-001 finding
+  for this module on any deployment that installs the code-text pack. The
+  finding is known and accepted. Runtime does not enforce the lint: install,
+  ingest and publish pass (pack-isolation tests).
+- **Why not the SDK.** `okg.deployment` offers no way to filter a doc-corpus
+  source's files by content. The alternatives were worse: a static exclude
+  list regenerated by archi admits a secret committed after the last
+  regeneration, and shipping without a screen puts unscreened secrets in the
+  graph (decision d716, 2026-10-31).
+- **Removal path.** okg adds a public content-screen hook to DocCorpusSource
+  (a per-file predicate in the SDK). The pack then names okg's own class with
+  archi's predicate, and this import and the lint finding go away. That also
+  restores `search(view="windows")` positions, which okg trusts only for
+  registry entries naming its own class.
 
 **The ops runtime (2026-10-25).** `python/archi/ops/workflow.py` is the one module that
 imports `okg.deployment`: the workflow, scheduled and step decorators, `request_escalation`
@@ -531,10 +567,10 @@ worth copying.** (Previously reported here as an external-schemas blocker.) Copy
 `bridge_subtype_unknown`, because its narrowings lack
 `optional_when_subtypes_missing` and therefore require every referenced subtype
 to be in the composed module set. First failure, verbatim from the executed
-runbook (`docs/cern-team-demo.md:106-110`): narrowing
+runbook (`docs/cern-team-demo.md`, step 2): narrowing
 `documentation_page_references_dataset`, child subtype `dataset`. Both
 consumers hit it independently and both had to hand-prune: the cern-team demo
-(friction 2, `docs/cern-team-demo.md:269-275`) and the comp-ops instance, whose
+(friction 2 in `docs/cern-team-demo.md`) and the comp-ops instance, whose
 committed copy "prunes the five narrowings owned by the ticket/service/code
 modules" (`cms-compops docs/bring-up.md:63-67`). **The fix already has
 precedent in our own tree** — `schemas/bridges/sources.yaml` flags exactly this
