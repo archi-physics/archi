@@ -14,6 +14,7 @@ on CERN.
 | `htcondor` | no | An HTCondor pool snapshot, plus live `condor_status`/`condor_q` tools. | none in archi |
 | `git-code` | no | A repository's files and history (site configs, scripts). | none for a public repository |
 | `node-health` | no | Per-node health checks from your own health exporter. | none |
+| `ticket-triage` | no | The ticket-triage automation: a cited triage draft for each new or updated Redmine or JIRA ticket of the tickets pack (and, when selected, ServiceNow); at L2 a status or assignment change that runs only after a person approves it. Starts in shadow at L1. | none at L1; at L2 the tracker's API credential, named in `ops.yaml` |
 
 ## Install
 
@@ -59,8 +60,6 @@ Nothing in this bundle changes an HTCondor pool.
 
 ## Not in this bundle yet
 
-- `ticket-triage`, the automation pack, belongs to PACT `r3-auto-ticket-triage`. The bundle lists it
-  once that pack exists.
 - The bundle has no eval set, so it has no install smoke of its own yet.
 - The SubMIT instance rebuild (`task.r3-bundle-cluster-manager.instance`) needs SubMIT access and has
   not been run.

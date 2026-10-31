@@ -385,7 +385,9 @@ action_classes:
 Choices worth knowing:
 
 - **Trigger.** `schedule` needs `cron` (five fields). `ticket_queue` needs
-  `system` (`redmine`, `jira` or `servicenow`) and `queue`. `signal` needs
+  `system` (`redmine`, `jira` or `servicenow`, or a list of them) and `queue`
+  (`"*"`: every ticket the instance ingests; `queues:` in `ops.yaml` narrows
+  it). `signal` needs
   `source` (a rendered source id) and `condition` (text). A cron that can fire
   more often than `budget.runs_per_hour` is refused. The check reads the
   minute and hour fields (numbers, ranges, lists, `*` and steps) and counts the
@@ -396,6 +398,12 @@ Choices worth knowing:
   (`archi.ops.context_gate.GateSpec`). The gate must name at least one check,
   because a gate that checks nothing cannot make the automation depend on
   measured context (D12).
+- **Optional inputs.** `narrow_to_selected: true` is for an automation that
+  can read several optional packs. The renderer keeps only the gate sources,
+  and the `ticket_queue` systems, whose pack the instance selected; it writes
+  what it left out under `not_selected`, and refuses an instance that selected
+  none of them. Without it every gate source must be installed, or the gate
+  fails on every run.
 - **Mediator.** `archi.tools.x:fn` must appear in `live_tools` of this pack or
   of a pack in `requires.packs`. Required packs are found through the catalog,
   so they may come from any pack root: a third-party automation can require a
@@ -638,3 +646,41 @@ an escalation. A draft pull request for a mechanical fix is not built yet.
 `ops.yaml` can also set `ignore_checks: [services]`, `include_warnings`, `error_rate: {window_hours,
 min_decisions, max_rate}` and `eval: {min_drop, reports_dir, max_age_days}` under `proposer`. `archi eval` keeps each default
 run in its own `<data root>/eval/<bundle>/<UTC stamp>/` (`--keep`, default 20), so a trend needs no extra flag.
+
+## Ticket triage
+
+The `ticket-triage` pack (ADR 0002 section 7.4, PACT `r3-auto-ticket-triage`) triages new and updated
+tickets from the ticket packs the instance selected: `tickets` (Redmine, and any JIRA through its generic reader), `jira` and `servicenow`. It is
+optional in `cluster-manager` and `cms-comp-ops`, starts in shadow at L1, and makes no model call.
+
+```bash
+archi init mycluster --bundle cluster-manager --with ticket-triage
+```
+
+```yaml
+# ops.yaml
+automations:
+  ticket-triage:
+    mode: shadow
+    queues: [Cluster Ops]          # optional: projects (ServiceNow: assignment groups) to triage
+    proposer: {kind: ticket-triage}
+```
+
+**Signals.** The scanner reads each system's tickets at the latest published generation and adds a signal
+for every open ticket updated since the last one it saw (`archi_ops.ticket_cursors`). The first read only
+sets that starting point, so installing the pack does not triage the existing queue.
+
+**A run** reads, at its pinned generation, the ticket, related tickets (okg's search over the same system),
+documentation (`proposer.doc_subtypes`) and ops-record precedents on those tickets, and proposes
+(`archi.triage.proposer`):
+
+| Level | Action class | Runs as |
+|---|---|---|
+| L0, L1 | `draft_reply`: category, likely component, related tickets, precedents, documentation and a suggested reply, each claim cited `[n]` to a node id | the step `draft_reply`; recorded on the proposal, never sent |
+| L2 | `assign_ticket` (an unassigned ticket whose related tickets mostly went to one person or group) or `set_ticket_status` (to `triaged_status`, from one of `triage_from`) | the live tools `archi.tools.tickets:assign_ticket` and `:set_ticket_status`, after a person approves the escalation |
+
+An L2 tool checks the approval again, refuses a stale proposal (the field changed since), writes the field
+with a note on the ticket that names the approver and the escalation, and reads it back. The API and the
+names of its credential variables are set per system under `proposer.systems` (see the pack's
+`skills/triage.md`); the tool sends only to the endpoint configured there, and only for a ticket whose link
+lies under it.

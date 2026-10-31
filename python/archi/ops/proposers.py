@@ -14,6 +14,7 @@ maps each kind to the `module:function` that builds it (`build(config, runtime) 
 
     stub             fixed answers from `proposer.fixture`
     instance-health  the algorithmic health monitor (archi.health.proposer); no model call
+    ticket-triage    the algorithmic ticket triage (archi.triage.proposer); no model call
 """
 from __future__ import annotations
 
@@ -53,6 +54,7 @@ class ProposerError(RuntimeError):
 PROPOSER_KINDS = {
     "stub": "archi.ops.proposers:build_stub",
     "instance-health": "archi.health.proposer:build",
+    "ticket-triage": "archi.triage.proposer:build",
 }
 
 

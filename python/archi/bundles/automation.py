@@ -18,6 +18,15 @@ The manifest shape:
       budget: {cost_per_run: 0.5, cost_per_day: 10, runs_per_hour: 20}
       default_level: L1
       max_level: L2
+
+A `ticket_queue` trigger names one system or a list of them, and a queue; `queue: "*"` means every ticket
+the instance's ticket sources ingest (an instance narrows it with `queues:` in ops.yaml).
+
+`narrow_to_selected: true` is for an automation that can read several optional packs (ticket-triage reads
+Redmine, JIRA or ServiceNow, whichever the instance has). The composer then keeps only the gate sources,
+and the trigger systems, whose pack the instance selected, and refuses an instance that selected none of
+them (`archi.bundles.compose._automation`). Without it, every gate source must be installed, or the gate
+fails on every run.
 """
 from __future__ import annotations
 
@@ -42,6 +51,9 @@ ID = re.compile(r"^[a-z][a-z0-9_]*$")
 TOOL_ENTRY = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$")
 CRON_FIELD = re.compile(r"^[0-9A-Za-z*/,\-?]+$")
 SYSTEMS = ("redmine", "jira", "servicenow")
+#: The shipped packs that publish each ticket system's tickets (JIRA: the jira pack, or the tickets pack's
+#: generic JIRA reader). `narrow_to_selected` keeps a trigger system when one of its packs is selected.
+SYSTEM_PACKS = {"redmine": ("tickets",), "jira": ("jira", "tickets"), "servicenow": ("servicenow",)}
 TRIGGER_KEYS = {
     "schedule": ("cron",),
     "ticket_queue": ("system", "queue"),
@@ -134,9 +146,22 @@ def _trigger_messages(trigger: Mapping[str, Any], budget: Mapping[str, Any]) -> 
                         f"automation.trigger.cron: {trigger['cron']!r} can fire {fires} times an hour, "
                         f"over budget.runs_per_hour {limit}"
                     )
-    if kind == "ticket_queue" and trigger.get("system") not in (None, *SYSTEMS):
-        out.append(f"automation.trigger.system: {trigger['system']!r} is not one of {SYSTEMS}")
+    if kind == "ticket_queue" and "system" in trigger:
+        systems = trigger_systems(trigger)
+        for system in systems:
+            if system not in SYSTEMS:
+                out.append(f"automation.trigger.system: {system!r} is not one of {SYSTEMS}")
+        if len(set(systems)) != len(systems):
+            out.append("automation.trigger.system: a system is listed more than once")
     return out
+
+
+def trigger_systems(trigger: Mapping[str, Any]) -> list[str]:
+    """The ticket systems a `ticket_queue` trigger names: one (`system: jira`) or a list."""
+    value = trigger.get("system")
+    if value is None:
+        return []
+    return [value] if isinstance(value, str) else list(value)
 
 
 def _required_tools(
@@ -310,6 +335,9 @@ def automation_problems(
                         f"{auto['default_level']}")
 
     messages.extend(_trigger_messages(auto["trigger"], auto["budget"]))
+    gate_sources = auto["context_gate"].get("sources") if isinstance(auto["context_gate"], Mapping) else None
+    if auto.get("narrow_to_selected") and not gate_sources:
+        messages.append("automation.narrow_to_selected: the context gate names no source to narrow")
 
     try:
         gate = GateSpec.from_mapping(auto["context_gate"])

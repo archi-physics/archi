@@ -6,8 +6,10 @@ renderer writes that line before `okg install` whenever an automation pack is
 selected; editing it afterwards makes publish refuse until `okg catalog load
 --apply`).
 
-    archi_ops_scan   a short @deployment_scheduled scanner: reads new signals
-                     and starts one run per signal with DBOS.start_workflow.
+    archi_ops_scan   a short @deployment_scheduled scanner: adds the signals of
+                     schedule triggers (a cron time) and of ticket_queue
+                     triggers (a new or updated ticket, archi.triage.signals),
+                     then starts one run per signal with DBOS.start_workflow.
                      Never on the okg-<deployment> queue (an admission submit
                      from a run queued there deadlocks behind it). The workflow
                      id is make_run_id(automation, signal id, attempt).
@@ -109,6 +111,8 @@ from archi.ops.runtime_config import RUN_WORKFLOW, SCANNER, RuntimeConfig, load_
 from archi.ops.schedule import latest_fire, tick_id
 from archi.ops.steps import local_step
 from archi.ops.stubs import marker_outcome, resolve_mediator
+from archi.triage.context import read_ticket_context
+from archi.triage.signals import add_ticket_signals, packs_of
 
 log = logging.getLogger(__name__)
 DECISION_SCHEMA_REF = "schema:literal:" + urllib.parse.quote(json.dumps(DECISION_SCHEMA))
@@ -257,6 +261,15 @@ def _read_step(entity: str, generation: str) -> dict:
                                     "status": (r.get("attrs") or {}).get("status")} for r in rows]},
         "node_ids": sorted(r["node_id"] for r in rows),
     }
+
+
+@deployment_step(name="archi_ops_ticket_read")
+def _ticket_read_step(automation: str, entity: str, generation: str) -> dict:
+    """A ticket_queue automation's read (archi.triage.context): the ticket, related tickets, documentation and
+    precedents, at the pinned generation only. The proposer block of ops.yaml sets how much it reads."""
+    rt = _runtime()
+    return read_ticket_context(_io(rt), entity, generation, rt.settings[automation].proposer,
+                               packs=packs_of(rt.automation(automation)))
 
 
 @deployment_step(name="archi_ops_propose")
@@ -477,16 +490,22 @@ class _Gate:
 
 
 class _Reader:
-    def __init__(self):
+    def __init__(self, automation: str = "", trigger: Optional[Mapping[str, Any]] = None):
         #: the full rows the pinned read returned, by node id, so the recorder can carry
         #: a cited precedent with the proposal (okg admits an edge only with both ends in the payload)
         self.rows: dict[str, dict] = {}
+        self.automation = automation
+        #: a ticket_queue automation reads the ticket and what is around it; any other reads precedents
+        self.tickets = (trigger or {}).get("type") == "ticket_queue"
 
     def pin(self) -> str:
         return _pin_step()
 
     def read(self, signal: Signal, generation: str) -> ReadResult:
-        d = _read_step(signal.entity, generation)
+        if self.tickets:
+            d = _ticket_read_step(self.automation, signal.entity, generation)
+        else:
+            d = _read_step(signal.entity, generation)
         self.rows = {r["node_id"]: r for r in d["rows"]}
         return ReadResult(d["context"], frozenset(d["node_ids"]))
 
@@ -645,7 +664,7 @@ class _Outcome:
 
 
 def real_deps(rt: RuntimeConfig, automation: str) -> Deps:
-    reader = _Reader()
+    reader = _Reader(automation, rt.automation(automation).trigger)
     return Deps(gate=_Gate(automation), reader=reader, proposer=_Proposer(automation),
                 decider=_Decider(rt), mediator=_Mediator(automation), outcome=_Outcome(automation),
                 recorder=_Recorder(reader), halt=_Halt(), clock=_Clock(), budget=_Budget(),
@@ -660,8 +679,12 @@ def archi_ops_run(automation: str, signal: dict) -> dict:
     """One run of one automation for one signal. The workflow id is the run id."""
     rt = _runtime()
     config = rt.automation(automation)
-    sig = Signal(id=signal["id"], entity=signal["entity"], title=signal["title"],
-                 source=signal.get("source") or "signal", summary=signal.get("summary"))
+    source = signal.get("source") or "signal"
+    # a ticket signal's entity is <system>:<key>; the incident names the ticket, so a later ticket resolution
+    # can become its outcome (archi.ops.record, `ticket_keys`)
+    keys = (signal["entity"].partition(":")[2],) if source == "ticket" and ":" in signal["entity"] else ()
+    sig = Signal(id=signal["id"], entity=signal["entity"], title=signal["title"], source=source,
+                 summary=signal.get("summary"), ticket_keys=keys)
     with _io(rt).connect() as conn, _bind(conn, rt.deployment):
         result = run_once(config, sig, real_deps(rt, automation), run_id=DBOS.workflow_id)
     return {**asdict(result), "records": list(result.records)}
@@ -704,11 +727,14 @@ def add_schedule_ticks(rt: Any, io: Any, now: datetime, say: Callable[[str], Non
 
 def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None] = start_run,
               say: Callable[[str], None] = log.info, now: Optional[datetime] = None) -> list[str]:
-    """Start at most one run per automation, and only when that automation has none in flight.
+    """Start at most one run per automation per scan.
 
-    One at a time keeps an L2 automation's budget and escalations simple: a run waiting hours for a
-    person holds the next signal in the table (status `new`) until it finishes. Nothing starts while
-    the scanner schedule is paused (a manual trigger of a paused schedule still runs this function).
+    Most automations run one at a time: that keeps an L2 automation's budget and escalations simple, and a
+    run waiting hours for a person holds the next signal in the table (status `new`) until it finishes. A
+    `ticket_queue` automation runs one at a time per ticket instead: a run waiting for a person to approve a
+    change to one ticket holds back only that ticket's next signal, and other tickets are still triaged, up to
+    TICKET_RUNS_IN_FLIGHT runs at once. Nothing starts while the scanner schedule is paused (a manual
+    trigger of a paused schedule still runs this function).
     """
     started: list[str] = []
     io.ensure_tables()  # idempotent: the worker does not depend on init or halt having made them
@@ -716,12 +742,30 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
         say("archi_ops_scan: halted (schedule paused); starting nothing")
         return started
     add_schedule_ticks(rt, io, now or datetime.now(timezone.utc), say)
-    in_flight = {run.automation for run in io.runs()}
+    add_ticket_signals(rt, io, say)
+    in_flight: dict[str, set[str]] = {}
+    runs_of: dict[str, int] = {}
+    for run in io.runs():
+        in_flight.setdefault(run.automation, set()).add(getattr(run, "entity", ""))
+        runs_of[run.automation] = runs_of.get(run.automation, 0) + 1
     for name in sorted(rt.settings):
-        if name in in_flight:
+        waiting = io.new_signals(name)
+        if _per_ticket(rt, name):
+            busy = in_flight.get(name, set())
+            if runs_of.get(name, 0) >= TICKET_RUNS_IN_FLIGHT:
+                if waiting:
+                    say(f"archi_ops_scan: {name} has {runs_of[name]} runs in progress (the most at once); "
+                        "its next signal waits")
+                continue
+            waiting = _newest_per_ticket(io, name, waiting, say)
+            held = [s for s in waiting if s["entity"] in busy]
+            waiting = [s for s in waiting if s["entity"] not in busy]
+            if held and not waiting:
+                say(f"archi_ops_scan: {name}: {len(held)} signal(s) wait for a run in progress on the same ticket")
+        elif name in in_flight:
             say(f"archi_ops_scan: {name} has a run in progress; its next signal waits")
             continue
-        for s in io.new_signals(name)[:1]:
+        for s in waiting[:1]:
             try:
                 run_id = make_run_id(name, s["id"], s["attempt"])
             except ValueError as exc:
@@ -733,6 +777,36 @@ def scan_once(rt: RuntimeConfig, io: Any, start: Callable[[str, str, dict], None
             started.append(run_id)
             say(f"archi_ops_scan: started {run_id}")
     return started
+
+
+#: the most runs a ticket_queue automation has in flight at once (each waits on its own ticket). Known limit: this
+#: many L2 escalations left unanswered hold up every other ticket until one is decided or times out.
+TICKET_RUNS_IN_FLIGHT = 5
+
+
+def _newest_per_ticket(io: Any, name: str, waiting: list[dict], say: Callable[[str], None]) -> list[dict]:
+    """The newest waiting signal of each ticket; the older ones (a requeued attempt, say) are superseded."""
+    newest: dict[str, dict] = {}
+    for s in waiting:  # oldest first, so the last one of an entity wins
+        newest[s["entity"]] = s
+    supersede = getattr(io, "supersede_signals", None)
+    if supersede is not None and len(newest) < len(waiting):
+        for entity, keep in newest.items():
+            gone = supersede(name, entity, keep["id"])
+            if gone:
+                say(f"archi_ops_scan: {name}: {keep['id']} supersedes {', '.join(gone)}")
+    return [s for s in waiting if newest[s["entity"]] is s]
+
+
+def _per_ticket(rt: RuntimeConfig, name: str) -> bool:
+    """Whether `name` runs one at a time per ticket (a `ticket_queue` trigger) rather than one at a time."""
+    load = getattr(rt, "automation", None)
+    if load is None:
+        return False
+    try:
+        return (load(name).trigger or {}).get("type") == "ticket_queue"
+    except Exception:  # an unreadable automation file: keep the safe default, one at a time
+        return False
 
 
 @deployment_scheduled(SCANNER, default_cron="*/1 * * * *", automatic_backfill=False, guard_body=False)

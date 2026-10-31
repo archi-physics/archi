@@ -21,12 +21,14 @@ test below always runs.
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import yaml
 
 from archi.bundles.render import render
 from archi.bundles.resolve import resolve
+from archi.cli.init import declare_runtime_database
 from packs.pack_support import (
     BUNDLES_DIR,
     FIXTURE_ENV,
@@ -211,14 +213,27 @@ def _install_and_publish(tmp_path: Path, resolution, name: str, overrides: dict 
         # configuration that is not committed yet (quickstart step 3).
         deployment = deployments / "px"
         assert (deployment / "source_registry.yaml").is_file(), _report(install)
+        # With an automation pack the runtime is enabled, and okg's lint then wants the database named;
+        # `archi init` does this right after the install.
+        declare_runtime_database(deployment, urlsplit(DSN).path.lstrip("/"))
         git(["add", "-A"], deployments)
         git(["commit", "-q", "-m", "px deployment config"], deployments)
 
-        ingest = run_okg(["ingest", "--deployment", "px", "--json"], cwd=instance, env=env)
+        ingest_args = ["ingest", "--deployment", "px", "--json"]
+        publish_args = ["run", "--once", "--deployment", "px", "--apply", "--json"]
+        if rendered.composition.automations:
+            # An automation pack enables okg's runtime, and an ingest then enqueues on DBOS, whose schema
+            # does not exist until the runtime is bootstrapped (upstream ask O12). This is `archi init`'s
+            # fallback after a provision that stops there (archi.cli.init.provision): bootstrap, then ingest
+            # and publish in-process, since no worker runs yet. The lab checks the worker path after init.
+            boot = run_okg(["runtime", "bootstrap", "--deployment", "px"], cwd=instance, env=env)
+            assert boot.returncode == 0, _report(boot)
+            ingest_args.append("--inline")
+            publish_args.append("--inline")
+        ingest = run_okg(ingest_args, cwd=instance, env=env)
         (tmp_path / "ingest.json").write_text(ingest.stdout)
         assert ingest.returncode == 0, _report(ingest)
-        publish = run_okg(["run", "--once", "--deployment", "px", "--apply", "--json"],
-                          cwd=instance, env=env)
+        publish = run_okg(publish_args, cwd=instance, env=env)
         assert publish.returncode == 0, _report(publish)
 
         status = run_okg(["status", "--deployment", "px", "--json"], cwd=instance, env=env)

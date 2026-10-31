@@ -6,11 +6,12 @@ description: A cluster manager's knowledge instance - documentation, tickets, op
 # need no credential.
 # ServiceNow needs its own account; Slurm and HTCondor read an exported snapshot and ship
 # live tools that run only on an instance that wires them (every action needs an approved
-# L2 escalation). ticket-triage, the automation pack, is PACT r3-auto-ticket-triage; it
-# joins this bundle when that pack exists.
+# L2 escalation). ticket-triage, the automation pack (PACT r3-auto-ticket-triage), triages
+# the tickets pack's Redmine and JIRA tickets and, when selected, the ServiceNow ones; it
+# starts in shadow at L1.
 packs:
   default: [docsite, tickets, ops-record]
-  optional: [servicenow, slurm, htcondor, git-code, node-health]
+  optional: [servicenow, slurm, htcondor, git-code, node-health, ticket-triage]
 # docsite caches two data-management documentation sites by default; a cluster manager
 # starts from the schedulers' own documentation instead.
 answers:

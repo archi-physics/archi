@@ -16,9 +16,7 @@ and the generic playbooks, and adds the CMS computing catalogs on top.
 | `jira` | optional | JIRA issues and their participants |
 | `git-code` | optional | One Git repository's tracked files and history. Selecting it also brings `code-text` (below). |
 | `code-text` | with `git-code` | The text of every text file in that repository (code, Markdown, YAML, shell scripts, configuration), searchable and readable; files holding a literal secret are left out. Comes on whenever `git-code` is selected; opt out with `--without code-text`. |
-
-The ticket-triage automation pack is not in this release, so the bundle does
-not list it yet.
+| `ticket-triage` | optional | The ticket-triage automation over the JIRA queue: a cited triage draft per new or updated issue (L1), or a status or assignment change after a person approves it (L2). Needs `jira`. |
 
 ## Install
 

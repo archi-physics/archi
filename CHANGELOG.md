@@ -89,6 +89,14 @@ name is `archi`.
   the person who handled the case. (#810, #833)
 - `instance-health`, the first automation. It watches the instance itself and
   keeps one issue per problem, with no duplicates. It starts at L1 and may go to L2. (#839)
+- `ticket-triage`, the reference automation, an optional pack of `cluster-manager`
+  and `cms-comp-ops`. A new or updated Redmine, JIRA or ServiceNow ticket gets a
+  cited triage draft (category, likely component, related tickets, precedents,
+  documentation) that is never sent (L1). At L2 it proposes an assignment or a
+  status change, which a live tool makes only after a person approves, and only
+  on the server the ticket was read from. SubMIT switches to it from its v2 Redmine
+  bot at the 3.0 cutover, with no trial run first (board d717). (#746,
+  `r3-auto-ticket-triage`)
 
 **Evals: a checked claim that a bundle answers, and how well it retrieves** (M5, M2)
 

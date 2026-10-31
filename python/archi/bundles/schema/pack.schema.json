@@ -159,14 +159,19 @@
       "required": ["trigger", "context_gate", "playbook", "action_classes", "proposal_schema", "budget", "default_level", "max_level"],
       "properties": {
         "trigger": {
-          "description": "What starts a run: type schedule (cron), ticket_queue (system, queue) or signal (source, condition). The keys each type needs are checked by `archi bundles validate`.",
+          "description": "What starts a run: type schedule (cron), ticket_queue (system, queue) or signal (source, condition). A ticket_queue names one system or a list of them; queue \"*\" means every ticket the instance's ticket sources ingest. The keys each type needs are checked by `archi bundles validate`.",
           "type": "object",
           "additionalProperties": false,
           "required": ["type"],
           "properties": {
             "type": {"enum": ["schedule", "ticket_queue", "signal"]},
             "cron": {"type": "string", "minLength": 1},
-            "system": {"type": "string", "minLength": 1},
+            "system": {
+              "oneOf": [
+                {"type": "string", "minLength": 1},
+                {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+              ]
+            },
             "queue": {"type": "string", "minLength": 1},
             "source": {"type": "string", "minLength": 1},
             "condition": {"type": "string", "minLength": 1}
@@ -200,6 +205,10 @@
             "cost_per_day": {"type": "number"},
             "runs_per_hour": {"type": "integer"}
           }
+        },
+        "narrow_to_selected": {
+          "description": "For an automation that can read several optional packs: keep only the context-gate sources and ticket_queue systems whose pack the instance selected, and refuse an instance that selected none of them. Without it every gate source must be installed.",
+          "type": "boolean"
         },
         "evidence": {
           "description": "Opt-in for a monitor whose evidence is the state of the instance, not graph nodes: `own_signals` lets a proposal cite the incident its own run wrote, allows a context gate that asks only `published: true` (the monitor must run while sources are stale), and allows workflow steps that run at L1 (`draft_issue`). Refused unless default_level is L0 or L1. Every other automation must cite a node of the pinned read and gate on freshness, invariants or a context-eval score (ADR 0002 D12).",

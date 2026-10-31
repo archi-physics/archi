@@ -322,7 +322,7 @@ def test_the_ops_yaml_block_builds_the_proposer_and_an_unknown_kind_or_key_is_re
         build_proposer({"kind": "gpt"}, rt)
     with pytest.raises(Exception, match="unknown keys"):
         build({"kind": "instance-health", "token": "x"}, rt)
-    assert set(PROPOSER_KINDS) == {"stub", "instance-health"}
+    assert set(PROPOSER_KINDS) == {"stub", "instance-health", "ticket-triage"}
 
 
 # --- end to end without okg: the loop, the real step, a real repository --------------------------------------------

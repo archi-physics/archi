@@ -4,12 +4,26 @@ title: 'Reference automation: ticket triage (SubMIT, comp-ops)'
 tier: 2
 why: 'Ticket triage is the automation 3.0 focuses on. Ticket queues are the oldest Archi automation
   (v2''s Redmine, JIRA and Mattermost bots, ADR 0001 W8), and the clearest test of the loop:
-  drafts need context and precedent, and status changes need approval. 3.0 ships it in shadow
-  with a measured report; promotion to live, and with it retiring the v2 bots, is the 3.1
-  goal. ADR 0002 §7.4, D10, D13.'
+  drafts need context and precedent, and status changes need approval. 3.0 ships it with no
+  trial: at the 3.0 cutover it replaces SubMIT''s v2 Redmine bot, unchecked by a shadow run
+  (board d717, Jason: "Ship it and switch SubMIT to it at the 3.0 cutover, unchecked"; the
+  four-week shadow and its report are dropped). Mail intake stays with v2 until 3.1 (board d704);
+  the v2 redmine service stops at the cutover, so resolution emails pause until 3.1 (board d719).
+  ADR 0002 §7.4, D10, D13.'
 affected_code:
 - bundles/packs/ticket-triage/
+- bundles/cluster-manager/
+- bundles/cms-comp-ops/
+- python/archi/triage/
+- python/archi/tools/tickets.py
+- python/archi/ops/
+- python/archi/bundles/
 - python/archi/sources/
+- python/tests/ops/
+- python/tests/packs/test_pack_isolation.py
+- python/tests/test_bundle_cluster_manager.py
+- python/tests/test_bundle_cms_comp_ops.py
+- docs/docs/
 requirements:
 - id: req.r3-auto-ticket-triage.automation
   statement: 'The ticket-triage pack triggers on new or updated tickets (Redmine, JIRA, ServiceNow),
@@ -22,17 +36,8 @@ requirements:
 
     - acc.r3-auto-ticket-triage.fixture: fixture queue yields cited drafts and gated status
     proposals. [evidence: executed_test]'
-- id: req.r3-auto-ticket-triage.shadow
-  statement: 'It runs in shadow at SubMIT (cluster-manager) and on the comp-ops queue for
-    at least four weeks before the release, and a report per instance gives agreement with
-    operators, time-to-first-response and false-proposal rate. No promotion to live is required
-    for 3.0; the v2 queue bots keep serving until it happens.
-
-
-    Acceptance:
-
-    - acc.r3-auto-ticket-triage.report: four-week shadow report per instance, published with
-    the release. [evidence: manual]'
+# req.r3-auto-ticket-triage.shadow (a four-week SubMIT shadow and its report) was removed on board d717
+# (2026-10-31): there is no trial. The comp-ops shadow left 3.0 earlier (board d380 Q6).
 tasks:
 - id: task.r3-auto-ticket-triage.build
   requirement: req.r3-auto-ticket-triage.automation
@@ -42,21 +47,32 @@ tasks:
     Test plan:
 
     - fixture run [evidence: executed_test]'
-- id: task.r3-auto-ticket-triage.shadow-submit
-  requirement: req.r3-auto-ticket-triage.shadow
-  verification: 'Run in shadow at SubMIT; publish the report.
-
-
-    Test plan:
-
-    - shadow report [evidence: manual]'
-- id: task.r3-auto-ticket-triage.shadow-compops
-  requirement: req.r3-auto-ticket-triage.shadow
-  verification: 'Run in shadow on the comp-ops queue; publish the report.
-
-
-    Test plan:
-
-    - shadow report [evidence: manual]'
-evidence: []
-decisions: []
+evidence:
+- kind: executed_test
+  requirement: req.r3-auto-ticket-triage.automation
+  status: pass
+  command: python -m pytest python/tests -q (okg 0.2.0, ARCHI_PACK_ISOLATION_DSN set, so the pack-isolation
+    install tests run); python/tests/ops/scratch_ticket_triage_run.sh (akmon-postgres v0.2.0, okg 0.2.0 worker,
+    a clean checkout)
+  head: abb32022ebc482aa8de5a6d8b3527f80fe76622d
+  at: '2026-10-31T16:46:29+00:00'
+  note: 'acc.r3-auto-ticket-triage.fixture, after the #746 fixes and two more adversarial reviews: on a real
+    okg 0.2.0 worker (archi init cluster-manager --with servicenow,jira,ticket-triage, fixture caches, a fake
+    Redmine/JIRA/ServiceNow API on a loopback port) the scanner sets a cursor per source on its first read
+    (no backlog); three arriving tickets each become one signal and a shadow run whose draft cites the ticket
+    and its related tickets by node id. Promoted, L1 drafts and sends nothing. L2 proposes an assignment;
+    approved, the live tool re-checks the approval, writes only to the endpoint ops.yaml configures and only
+    for a ticket whose link lies under it, assigns once and notes the escalation on the ticket. Rejected,
+    timed-out (a late approval refused) and halted runs never reach the ticket system; L3 is refused citing
+    D13. After archi init, a queued ingest and a queued publish run on the worker and publish a new
+    generation. Lab: 39 checks, all pass, at 6b7f6c63 (before the
+    merge of archi_v3 55931da9 and a test-only fix). Full suite at this head: 3954 passed, 2 skipped, 0
+    failed. There is no shadow trial (board d717).'
+decisions:
+- digest: sha256:23a06d79883640702efbc7f44c6605c0ce988a0851b6fc15f437a8426823a2bf
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Board d380 Q6, Jason: "Record it; drop #748 from 3.0". The four-week ticket-triage
+    shadow on the comp-ops queue is out of 3.0 and #748 left the milestone; task
+    task.r3-auto-ticket-triage.shadow-compops is removed from this change. The SubMIT shadow
+    (#747) stays in 3.0. The pack stays an optional pack of cms-comp-ops.'

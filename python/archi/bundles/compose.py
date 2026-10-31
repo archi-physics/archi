@@ -148,7 +148,46 @@ def _automation(pack: Pack, resolution: Resolution, action_classes: Mapping[str,
     block["action_class_definitions"] = {
         aid: copy.deepcopy(action_classes[aid]) for aid in block["action_classes"]
     }
+    if block.pop("narrow_to_selected", False):
+        _narrow_to_selected(pack, block, set(resolution.pack_names))
     return block
+
+
+def _narrow_to_selected(pack: Pack, block: dict[str, Any], selected: set[str]) -> None:
+    """`narrow_to_selected: true` (archi.bundles.automation): keep the gate sources and the ticket_queue
+    systems whose pack the instance selected; refuse an instance that selected none of them. What was
+    left out is written beside them (`not_selected`), so the rendered file says what the gate skips."""
+    from archi.bundles.automation import SYSTEM_PACKS, trigger_systems
+
+    gate = block["context_gate"]
+    sources = list(gate.get("sources") or ())
+    kept = [s for s in sources if s.split(".", 1)[0] in selected]
+    if not kept:
+        raise CompositionError(
+            "automation_inputs_not_selected",
+            f"automation {pack.name!r} reads at least one of the sources {sources}; select one of the packs "
+            f"{sorted({s.split('.', 1)[0] for s in sources})} with it",
+            pack=pack.name,
+        )
+    gate["sources"] = kept
+    not_selected: dict[str, list[str]] = {}
+    if len(kept) < len(sources):
+        not_selected["sources"] = [s for s in sources if s not in kept]
+    trigger = block["trigger"]
+    if trigger.get("type") == "ticket_queue" and not isinstance(trigger.get("system"), str):
+        systems = trigger_systems(trigger)
+        trigger["system"] = [s for s in systems if set(SYSTEM_PACKS.get(s, ())) & selected]
+        if not trigger["system"]:
+            raise CompositionError(
+                "automation_inputs_not_selected",
+                f"automation {pack.name!r} triggers on tickets from {systems}; select one of the packs "
+                f"{sorted({p for s in systems for p in SYSTEM_PACKS[s]})} with it",
+                pack=pack.name,
+            )
+        if len(trigger["system"]) < len(systems):
+            not_selected["systems"] = [s for s in systems if s not in trigger["system"]]
+    if not_selected:
+        block["not_selected"] = not_selected
 
 
 def render_template(pack: Pack, source: str, text: str) -> str:

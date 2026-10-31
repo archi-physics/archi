@@ -40,7 +40,12 @@ and its `v2.x` tags.
   status`, `pending`, `approve`, `reject`, `promote`, `halt`, `resume`. The
   first automation, `instance-health`, watches the instance itself. No bundle
   includes it: select it when you create the instance, with
-  `archi init <name> --bundle <bundle> --with instance-health`.
+  `archi init <name> --bundle <bundle> --with instance-health`. `ticket-triage`
+  drafts cited triage notes for new Redmine, JIRA and ServiceNow tickets and, at
+  L2, proposes an assignment or status change that runs only after a person
+  approves it (`--with ticket-triage` on `cluster-manager` or `cms-comp-ops`).
+  SubMIT switches from its v2 Redmine bot to `ticket-triage` at the 3.0 cutover,
+  with no trial run first (board d717).
 - **Bring your own agent.** `archi connect` writes the MCP configuration for
   Claude Code, codex, openclaw, Open WebUI and generic MCP over HTTP.
 - **Rewritten documentation**, with pages for every bundle, pack and command

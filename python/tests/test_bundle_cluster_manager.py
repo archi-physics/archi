@@ -101,7 +101,7 @@ def _closure(catalog, names):
 def test_the_packs_are_the_adr_selection():
     packs = _bundle()["packs"]
     assert packs["default"] == ["docsite", "tickets", "ops-record"]
-    assert sorted(packs["optional"]) == sorted(["servicenow", "slurm", "htcondor", "git-code", "node-health"])
+    assert sorted(packs["optional"]) == sorted(["servicenow", "slurm", "htcondor", "git-code", "node-health", "ticket-triage"])
 
 
 def test_the_bundle_depends_on_no_cern_pack(catalog):
@@ -310,7 +310,13 @@ def test_okg_accepts_the_rendered_profile_and_lints_clean(catalog, tmp_path, wit
         raw_answers=answers,
     )
     _write_scaffold(plan)
-    assert _blockers(plan.deployment_dir, instance) == set()
+    # An automation pack turns okg's runtime on (archi.bundles.compose), and okg 0.2.0's lint then wants
+    # `postgres.database`. okg's installer writes `postgres: {dsn: ...}` itself, replacing any `postgres:`
+    # block a profile's defaults carry, so no profile can declare it. That one finding is okg's, and is
+    # expected for a profile with an automation; every other blocker still fails the test.
+    automation = {("/postgres/database", "deployment.runtime.database_undeclared")}
+    expected = automation if rendered.composition.automations else set()
+    assert _blockers(plan.deployment_dir, instance) == expected
 
 
 def test_a_bare_render_selects_the_default_packs_only(catalog, tmp_path):

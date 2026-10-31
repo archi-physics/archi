@@ -13,7 +13,7 @@ A cluster manager's knowledge instance - documentation, tickets, operational mem
 ## Packs
 
 - Default: [`docsite`](../packs/docsite.md), [`tickets`](../packs/tickets.md), [`ops-record`](../packs/ops-record.md)
-- Optional: [`servicenow`](../packs/servicenow.md), [`slurm`](../packs/slurm.md), [`htcondor`](../packs/htcondor.md), [`git-code`](../packs/git-code.md), [`node-health`](../packs/node-health.md)
+- Optional: [`servicenow`](../packs/servicenow.md), [`slurm`](../packs/slurm.md), [`htcondor`](../packs/htcondor.md), [`git-code`](../packs/git-code.md), [`node-health`](../packs/node-health.md), [`ticket-triage`](../packs/ticket-triage.md)
 
 Default packs install with the bundle. Add an optional pack with `--with <pack>` at init, or `archi add <pack>` later.
 

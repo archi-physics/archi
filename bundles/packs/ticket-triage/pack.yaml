@@ -1,0 +1,55 @@
+name: ticket-triage
+kind: automation
+version: 0.1.0
+description: Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change that runs only after a person approves it (L2).
+# ADR 0002 section 7.4, PACT r3-auto-ticket-triage. It reads the tickets the instance's ticket packs already
+# publish (tickets for Redmine and generic JIRA, jira, servicenow), whichever of them the instance selected: `narrow_to_selected`
+# keeps those, and an instance with none of them is refused at render. A new or updated open ticket in the
+# published graph is a signal (archi.triage.signals); the run reads the ticket, related tickets, documentation
+# and ops-record precedents at its pinned generation and proposes (archi.triage.proposer, no model call).
+# Every automation starts in shadow. L1 (the default) drafts; nothing is sent. L2 proposes a status or
+# assignment change, which the live tools below make only after a person approves the escalation, and they
+# note the approval on the ticket. L3 does not exist (ADR 0002 D13).
+requires:
+  packs: [ops-record]
+live_tools:
+  - archi.tools.tickets:set_ticket_status
+  - archi.tools.tickets:assign_ticket
+# Each reads the ticket first and changes nothing when the field already holds the value.
+idempotent_tools:
+  - archi.tools.tickets:set_ticket_status
+  - archi.tools.tickets:assign_ticket
+playbooks: skills/
+action_classes: action_classes.yaml
+# L1 needs no credential. An instance that raises the automation to L2 names the ticket system's
+# credential variables in ops.yaml (proposer.systems.<system>); the pack names none.
+needs_credentials: false
+automation:
+  trigger:
+    type: ticket_queue
+    system: [redmine, jira, servicenow]
+    queue: "*"            # every ticket the instance ingests; ops.yaml `queues` narrows it
+  context_gate:
+    # each source held to its own pack's max_staleness (24h for all three)
+    sources: [tickets.tickets, jira.jira, servicenow.servicenow]
+  narrow_to_selected: true
+  playbook: triage.md
+  action_classes: [draft_reply, set_ticket_status, assign_ticket]
+  proposal_schema:
+    type: object
+    required: [summary, evidence_ids, action_class, payload, confidence, rollback]
+    additionalProperties: false
+    properties:
+      summary: {type: string, minLength: 1}
+      evidence_ids: {type: array, minItems: 1, items: {type: string}}
+      action_class: {type: string}
+      payload: {type: object}
+      confidence: {type: number, minimum: 0, maximum: 1}
+      rollback: {type: string}
+  # The proposer makes no model call (cost 0); the caps leave room for a model-backed one.
+  budget:
+    cost_per_run: 0.05
+    cost_per_day: 5
+    runs_per_hour: 30
+  default_level: L1
+  max_level: L2

@@ -16,7 +16,7 @@ from archi.bundles.resolve import resolve
 ROOT = Path(__file__).resolve().parents[2]
 BUNDLE = ROOT / "bundles" / "cms-comp-ops"
 
-OPTIONAL = ["monit-live", "dqm", "hypernews", "jira", "git-code"]
+OPTIONAL = ["monit-live", "dqm", "hypernews", "jira", "git-code", "ticket-triage"]
 PLAYBOOKS = {
     "rucio_command": "rucio_command",
     "rucio_dataset_hosting": "rucio_dataset_hosting",

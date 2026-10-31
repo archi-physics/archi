@@ -110,6 +110,8 @@ class RunInfo:
     workflow_id: str
     automation: str
     status: str
+    #: the entity of the signal the run was started for (empty when not known)
+    entity: str = ""
 
 
 @dataclass(frozen=True)

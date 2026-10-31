@@ -1,0 +1,81 @@
+# Ticket-triage action classes (ADR 0002 section 7.2). draft_reply is a workflow step with no
+# implementation: the loop records the draft on the proposal and nothing is sent, so it stops at L1.
+# set_ticket_status and assign_ticket change a ticket in an external system: each is carried out by a
+# live tool of this pack and may run at L2 at most, after a person approves the escalation; the tool
+# checks the approval again before it writes (archi.tools._live.require_approval). Their payload
+# schemas are the ones the tools validate against (archi.tools.tickets.PAYLOAD_SCHEMAS); a test holds
+# them equal.
+action_classes:
+  draft_reply:
+    description: Draft a cited triage note and reply for a person to review and send. Never sends it.
+    payload_schema:
+      type: object
+      required: [system, ticket, body]
+      additionalProperties: false
+      properties:
+        system: {enum: [redmine, jira, servicenow]}
+        ticket: {type: string, minLength: 1}
+        body: {type: string, minLength: 1}
+        category: {type: string}
+        component: {type: string}
+    mediator: draft_reply
+    reversible: true
+    blast_radius: Nothing outside the ops record; the draft is on the proposal and nobody is sent anything.
+    max_level: L1
+  set_ticket_status:
+    description: Move one ticket to another status, with a note on the ticket naming the approval.
+    payload_schema:
+      type: object
+      required: [system, ticket, ticket_url, status, expected_status, note, endpoint]
+      additionalProperties: false
+      properties:
+        system: {enum: [redmine, jira, servicenow]}
+        ticket: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+        ticket_url: {type: string, maxLength: 2000, pattern: "^https?://[^\\s@]+$"}
+        table: {enum: [incident, sc_request]}
+        note: {type: string, minLength: 1, maxLength: 4000}
+        endpoint:
+          type: object
+          required: [url]
+          additionalProperties: false
+          properties:
+            url: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            site: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            user_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            password_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+        status: {type: string, minLength: 1, maxLength: 100, pattern: "^[^\\x00-\\x1f\\x7f]+$"}
+        expected_status: {type: string, maxLength: 100}
+    mediator: archi.tools.tickets:set_ticket_status
+    reversible: false  # the status can be set back, but the note on the ticket stays
+    blast_radius: One ticket's status and one note on it, in the ticket system the payload names; the rollback moves it back.
+    max_level: L2
+  assign_ticket:
+    description: Set one ticket's assignee (ServiceNow - its assignment group), with a note on the ticket naming the approval.
+    payload_schema:
+      type: object
+      required: [system, ticket, ticket_url, field, value, expected, note, endpoint]
+      additionalProperties: false
+      properties:
+        system: {enum: [redmine, jira, servicenow]}
+        ticket: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+        ticket_url: {type: string, maxLength: 2000, pattern: "^https?://[^\\s@]+$"}
+        table: {enum: [incident, sc_request]}
+        note: {type: string, minLength: 1, maxLength: 4000}
+        endpoint:
+          type: object
+          required: [url]
+          additionalProperties: false
+          properties:
+            url: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            site: {type: string, pattern: "^https?://[^\\s/?#@]+(/[^\\s?#]*)?$"}
+            token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            user_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            password_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+        field: {enum: [assignee, assignment_group]}
+        value: {type: string, minLength: 1, maxLength: 200, pattern: "^[^\\x00-\\x1f\\x7f]+$"}
+        expected: {type: string, maxLength: 200}
+    mediator: archi.tools.tickets:assign_ticket
+    reversible: false  # the assignee can be set back, but the note on the ticket stays
+    blast_radius: One ticket's assignee or assignment group and one note on it; the rollback sets it back.
+    max_level: L2

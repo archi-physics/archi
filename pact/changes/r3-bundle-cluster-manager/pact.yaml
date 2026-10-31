@@ -49,7 +49,9 @@ requirements:
 - id: req.r3-bundle-cluster-manager.bundle
   statement: 'bundles/cluster-manager depends on no CERN pack, defaults to docsite, tickets
     and ops-record, offers servicenow, slurm, htcondor, git-code and node-health, and SubMIT is
-    rebuilt from it. The ticket-triage automation pack ships after 3.0 (board d405).
+    rebuilt from it. The ticket-triage automation pack is optional in it and ships in 3.0 (board d701,
+    reversing d405); at SubMIT it replaces the v2 Redmine bot at the 3.0 cutover with no trial (board d717).
+    Mail intake stays with v2 until 3.1 (board d704), and resolution emails pause until 3.1 (board d719).
 
 
     Acceptance:
@@ -209,6 +211,14 @@ evidence:
     while the pack reads <data root>/docsite/; archi up fails when graph-db and MCP are already running; init dies
     when the home quota is full because okg caches under the home directory.'
 decisions:
+- digest: sha256:04c465a276724e565445ac7b643e144acab372e87610a3f851aa6d71f2f6c2da
+  reviewer: Jason Mohoney
+  at: '2026-10-30'
+  note: 'Board d701, Jason (2026-10-30 23:12Z): "Bring ticket-triage back into 3.0 (fix blocker, shadow run);
+    release waits on it." It reverses d405 for this bundle: the requirement again says ticket-triage ships in 3.0,
+    as an optional pack. Board d704, Jason: "G2: add a Luna reply drafter (answer citing the graph; posting it is
+    an approved L2 action). Mail intake and resolution email stay v2 until 3.1". The evidence notes above are
+    left as written: they record what was true when they ran.'
 - digest: sha256:d4376f5386610ca8fde5023cf45f0f1aa3b7e30632d0609cb25c1141851626d6
   reviewer: Jason Mohoney
   at: '2026-10-27'

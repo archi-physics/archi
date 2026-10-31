@@ -27,7 +27,7 @@ with the upstream ask (docs/ops-runtime-akmon-asks.md) that removes it:
 | `okg doctor --check sources` JSON (`sources[].coverage.watermark`) | `doctor_sources` | none: documented CLI output, but its shape is not versioned |
 
 The tables archi creates itself are in the `archi_ops` schema of the deployment
-database: `signals`, `halts`, `mediations`, `demotions`.
+database: `signals`, `halts`, `mediations`, `demotions`, `ticket_cursors`.
 """
 from __future__ import annotations
 
@@ -77,6 +77,18 @@ CREATE TABLE IF NOT EXISTS archi_ops.demotions (
     reason     text NOT NULL,
     PRIMARY KEY (automation, run_id)
 );
+-- how far a ticket_queue automation has read each ticket source (a subtype at one site): the newest
+-- `updated` time seen and the generation it was read from; `<system>/*` rows hold only the generation
+-- (archi.triage.signals)
+CREATE TABLE IF NOT EXISTS archi_ops.ticket_cursors (
+    automation text NOT NULL,
+    source     text NOT NULL,
+    updated    timestamptz,
+    seen       text[] NOT NULL DEFAULT '{}',  -- the tickets (entities) already read at time `updated`
+    generation text NOT NULL,
+    read_at    timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (automation, source)
+);
 -- schedules `archi ops halt` paused, so `resume` leaves alone any an operator paused earlier
 CREATE TABLE IF NOT EXISTS archi_ops.halts (
     schedule  text PRIMARY KEY,
@@ -113,9 +125,9 @@ class OpsIO:
 
         return DBOSClient(database_url=self.dsn, system_database_url=self.dsn, application_database_url=self.dsn)
 
-    def _okg(self, *args: str) -> subprocess.CompletedProcess:
+    def _okg(self, *args: str, stdin: Optional[str] = None) -> subprocess.CompletedProcess:
         cmd = [self.okg or _okg(), *args, "--dsn", self.dsn]
-        return subprocess.run(cmd, capture_output=True, text=True)
+        return subprocess.run(cmd, capture_output=True, text=True, input=stdin)
 
     # --- the graph -----------------------------------------------------------
 
@@ -139,6 +151,40 @@ class OpsIO:
         if result.returncode != 0:
             raise RecordError(f"okg filter --type {subtype} failed: {(result.stderr or result.stdout)[-2000:]}")
         return [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
+
+    def read_by_attr(self, subtype: str, generation: str, attr: str, value: str) -> list[dict]:
+        """Nodes of `subtype` at `generation` whose attribute equals `value`, compared as text (a JSON
+        condition, so a key such as `4812` is not read as a number)."""
+        where = json.dumps({"type": subtype, f"attrs.{attr}": str(value)})
+        result = self._okg("filter", "--deployment", self.deployment, "--type", subtype, "--generation-id",
+                           str(generation), "--where", where, "--all", "--jsonl")
+        if result.returncode != 0:
+            raise RecordError(f"okg filter --type {subtype} {attr}={value!r} failed: "
+                              f"{(result.stderr or result.stdout)[-2000:]}")
+        return [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
+
+    def read_ids(self, node_ids: Sequence[str], generation: str) -> list[dict]:
+        """The nodes with these ids at `generation`, in no particular order."""
+        if not node_ids:
+            return []
+        result = self._okg("filter", "--deployment", self.deployment, "--stdin", "--generation-id", str(generation),
+                           "--all", "--jsonl", stdin="\n".join(node_ids) + "\n")
+        if result.returncode != 0:
+            raise RecordError(f"okg filter --stdin failed: {(result.stderr or result.stdout)[-2000:]}")
+        return [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
+
+    def search_ids(self, query: str, generation: str, subtype: str, limit: int) -> list[str]:
+        """Node ids of `subtype` ranked by okg's lexical search for `query` at `generation`, best first."""
+        result = self._okg("search", "--deployment", self.deployment, f"--query={query}", "--generation-id",
+                           str(generation), "--subtype", subtype, "--limit", str(limit), "--json")
+        try:
+            reply = json.loads(result.stdout)
+        except ValueError:
+            reply = None
+        if result.returncode != 0 or not isinstance(reply, Mapping):
+            raise RecordError(f"okg search --subtype {subtype} failed: {(result.stderr or result.stdout)[-2000:]}")
+        return [str(row["node_id"]) for row in reply.get("results") or () if isinstance(row, Mapping)
+                and row.get("node_id")]
 
     def doctor_sources(self) -> list[dict]:
         """okg's per-source rows (`okg doctor --check sources`), with watermarks."""
@@ -223,7 +269,8 @@ class OpsIO:
         for wf in self._client().list_workflows(name=RUN_WORKFLOW, status=statuses, load_input=True):
             wid, status = _val(wf, "workflow_id"), str(_val(wf, "status"))
             args = (_val(wf, "input") or {}).get("args") or []
-            out.append(RunInfo(wid, args[0] if args else wid, status))
+            signal = args[1] if len(args) > 1 and isinstance(args[1], Mapping) else {}
+            out.append(RunInfo(wid, args[0] if args else wid, status, str(signal.get("entity") or "")))
         return out
 
     def run_input(self, workflow_id: str) -> Mapping[str, Any]:
@@ -291,13 +338,29 @@ class OpsIO:
             conn.execute("DELETE FROM archi_ops.halts WHERE schedule = %s", (schedule,))
 
     def add_signal(self, automation: str, signal_id: str, entity: str, title: str, *, summary: Optional[str] = None,
-                   source: str = "table") -> None:
-        """Add a signal; one that exists already (same automation and id) is left as it is."""
+                   source: str = "table") -> bool:
+        """Add a signal; one that exists already (same automation and id) is left as it is. True when added."""
         with self.connect() as conn:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO archi_ops.signals (automation, signal_id, entity, title, summary, source) "
                 "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                 (automation, signal_id, entity, title, summary, source))
+            return bool(cur.rowcount)
+
+    def signal_ids_for(self, automation: str, entity: str) -> list[str]:
+        """The ids of every signal an automation has for `entity`, whatever their status."""
+        with self.connect() as conn:
+            rows = conn.execute("SELECT signal_id FROM archi_ops.signals WHERE automation = %s AND entity = %s",
+                                (automation, entity)).fetchall()
+        return [r[0] for r in rows]
+
+    def supersede_signals(self, automation: str, entity: str, keep: str) -> list[str]:
+        """Mark `entity`'s signals still waiting to run (status `new`), other than `keep`, `superseded`."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "UPDATE archi_ops.signals SET status = 'superseded' WHERE automation = %s AND entity = %s "
+                "AND status = 'new' AND signal_id <> %s RETURNING signal_id", (automation, entity, keep)).fetchall()
+        return sorted(r[0] for r in rows)
 
     def new_signals(self, automation: str) -> list[dict]:
         with self.connect() as conn:
@@ -324,11 +387,18 @@ class OpsIO:
         for wf in self._client().list_workflows(workflow_ids=list(ids), load_input=False):
             if str(_val(wf, "status")).upper() == "CANCELLED":
                 automation, signal_id, attempt = ids[_val(wf, "workflow_id")]
+                # A ticket signal with a newer signal for the same ticket is superseded, not requeued: the
+                # newer one may already have run, and the old version must not triage the ticket again.
                 with self.connect() as conn:
-                    conn.execute("UPDATE archi_ops.signals SET status = 'new', attempt = %s "
-                                 "WHERE automation = %s AND signal_id = %s AND attempt = %s",
-                                 (attempt + 1, automation, signal_id, attempt))
-                requeued.append((automation, signal_id, attempt + 1))
+                    row = conn.execute(
+                        "UPDATE archi_ops.signals s SET attempt = %s, status = CASE WHEN s.source = 'ticket' "
+                        "AND EXISTS (SELECT 1 FROM archi_ops.signals n WHERE n.automation = s.automation "
+                        "AND n.entity = s.entity AND n.signal_id <> s.signal_id AND n.created_at > s.created_at) "
+                        "THEN 'superseded' ELSE 'new' END "
+                        "WHERE s.automation = %s AND s.signal_id = %s AND s.attempt = %s RETURNING s.status",
+                        (attempt + 1, automation, signal_id, attempt)).fetchone()
+                if row and row[0] == "new":
+                    requeued.append((automation, signal_id, attempt + 1))
         return requeued
 
     # --- mediator attempts ---------------------------------------------------
@@ -422,6 +492,22 @@ class OpsIO:
         if row is None:
             return {"approved": False, "at": None, "reason": f"PACT change {change} has no approve verdict in the ledger"}
         return {"approved": True, "at": row[0].isoformat(), "reason": ""}
+
+    def ticket_cursor(self, automation: str, source: str) -> Optional[dict]:
+        """`{updated, generation, seen}` for a ticket_queue automation's reading of one source, or None (never read)."""
+        with self.connect() as conn:
+            row = conn.execute("SELECT updated, generation, seen FROM archi_ops.ticket_cursors WHERE automation = %s "
+                               "AND source = %s", (automation, source)).fetchone()
+        return {"updated": row[0], "generation": row[1], "seen": list(row[2] or ())} if row else None
+
+    def set_ticket_cursor(self, automation: str, source: str, updated: Optional[datetime], generation: str,
+                          seen: Sequence[str] = ()) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO archi_ops.ticket_cursors (automation, source, updated, generation, seen) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (automation, source) DO UPDATE SET updated = EXCLUDED.updated, "
+                "generation = EXCLUDED.generation, seen = EXCLUDED.seen, read_at = now()",
+                (automation, source, updated, generation, list(seen)))
 
     def mark_signal(self, automation: str, signal_id: str, status: str) -> None:
         with self.connect() as conn:

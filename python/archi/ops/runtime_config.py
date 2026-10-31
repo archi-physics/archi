@@ -19,6 +19,8 @@ database and imports no okg:
           proposer: {kind: stub, fixture: {...}}   # see archi.ops.proposers.StubProposer
           outcome: {kind: marker}                  # the outcome check (stub for now)
           test_gate_seconds: 0    # TEST ONLY: wait this long for a release message just before the mediator step
+          queues: [Cluster Ops]   # ticket_queue triggers: only tickets in these queues (project, or ServiceNow
+                                  # assignment group); unset means every ticket the instance ingests
 
 Environment: ARCHI_INSTANCE (the instance directory), OKG_DSN (the graph
 database), ARCHI_OPS_DEPLOYMENT (the okg deployment name; default: the
@@ -59,6 +61,8 @@ class AutomationSettings:
     test_gate_seconds: float = 0.0
     proposer: Mapping[str, Any] = field(default_factory=dict)
     outcome: Mapping[str, Any] = field(default_factory=dict)
+    #: a ticket_queue trigger's queues (project, or ServiceNow assignment group); empty means all
+    queues: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -107,9 +111,12 @@ def read_settings(instance_dir: Path) -> dict[str, AutomationSettings]:
     for name, body in (data.get("automations") or {}).items():
         body = body or {}
         unknown = sorted(set(body) - {"mode", "timeout_seconds", "estimate_cost", "proposer", "outcome",
-                                  "promotion", "test_gate_seconds"})
+                                  "promotion", "test_gate_seconds", "queues"})
         if unknown:
             raise RuntimeConfigError(f"{path}: automations.{name}: unknown keys {unknown}")
+        queues = body.get("queues") or []
+        if not isinstance(queues, list) or not all(isinstance(q, str) and q for q in queues):
+            raise RuntimeConfigError(f"{path}: automations.{name}.queues must be a list of queue names")
         out[name] = AutomationSettings(
             name=name,
             mode=body.get("mode", "shadow"),
@@ -119,6 +126,7 @@ def read_settings(instance_dir: Path) -> dict[str, AutomationSettings]:
             test_gate_seconds=float(body.get("test_gate_seconds", 0.0)),
             proposer=dict(body.get("proposer") or {}),
             outcome=dict(body.get("outcome") or {}),
+            queues=tuple(queues),
         )
     return out
 
