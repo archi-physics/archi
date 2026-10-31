@@ -60,6 +60,8 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def _listing(catalog: discovery.Catalog) -> dict:
+    from archi.bundles.manifest import merged_companions
+
     return {
         "bundles": [
             {
@@ -69,6 +71,7 @@ def _listing(catalog: discovery.Catalog) -> dict:
                 "extends": list(b.extends),
                 "default": list(b.default_packs),
                 "optional": list(b.optional_packs),
+                "companions": {k: list(v) for k, v in merged_companions(b.name, catalog.bundles).items()},
                 "okg": b.okg,
                 "provider": catalog.providers[f"bundle:{name}"],
                 "dir": str(b.dir),
@@ -103,7 +106,9 @@ def cmd_list(args: argparse.Namespace) -> int:
     print("bundles:")
     for b in listing["bundles"]:
         print(f"  {b['name']} {b['version']}  default: {', '.join(b['default'])}"
-              f"  optional: {', '.join(b['optional']) or '-'}  [{b['provider']}]")
+              f"  optional: {', '.join(b['optional']) or '-'}"
+              + "".join(f"  with {k}: {', '.join(v)}" for k, v in b["companions"].items())
+              + f"  [{b['provider']}]")
     print("packs:")
     for p in listing["packs"]:
         creds = "needs credentials" if p["needs_credentials"] else "no credentials needed"
@@ -192,11 +197,13 @@ def cmd_add(args: argparse.Namespace) -> int:
         result = add(
             args.instance, _catalog(args), args.pack, answers,
             deployment_dir=args.deployment, run_okg=not args.no_okg,
+            without_extra=args.without,
         )
     except (LockError, CompositionError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    print(f"added pack {result.pack!r}: sources {', '.join(result.added_sources) or 'none'}")
+    print(f"added pack {result.pack!r} (with {', '.join(result.added_packs)}): "
+          f"sources {', '.join(result.added_sources) or 'none'}")
     return 0
 
 
@@ -277,6 +284,8 @@ def build_parser(load_ops: bool = True) -> argparse.ArgumentParser:
                      help="okg deployment directory (default: the one archi.lock records)")
     add.add_argument("--answer", action="append", default=[], metavar="ID=VALUE",
                      help="answer one of the new pack's questions, by rendered id (repeatable)")
+    add.add_argument("--without", action="append", default=[], metavar="PACK",
+                     help="leave out a companion pack the new pack would bring (repeatable)")
     add.add_argument("--no-okg", action="store_true",
                      help="edit and commit the deployment, but run no okg command")
     roots(add)

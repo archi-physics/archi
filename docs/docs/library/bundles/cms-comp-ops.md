@@ -13,7 +13,8 @@ A CMS computing operations knowledge instance - sites, storage, datasets and wor
 ## Packs
 
 - Default: [`cms-catalogs`](../packs/cms-catalogs.md), [`cmssst`](../packs/cmssst.md), [`cmssw-releases`](../packs/cmssw-releases.md), [`ops-record`](../packs/ops-record.md)
-- Optional: [`monit-live`](../packs/monit-live.md), [`dqm`](../packs/dqm.md), [`hypernews`](../packs/hypernews.md), [`jira`](../packs/jira.md), [`ticket-triage`](../packs/ticket-triage.md)
+- Optional: [`monit-live`](../packs/monit-live.md), [`dqm`](../packs/dqm.md), [`hypernews`](../packs/hypernews.md), [`jira`](../packs/jira.md), [`git-code`](../packs/git-code.md), [`ticket-triage`](../packs/ticket-triage.md)
+- With [`git-code`](../packs/git-code.md), also: [`code-text`](../packs/code-text.md) (opt out with `--without`)
 
 Default packs install with the bundle. Add an optional pack with `--with <pack>` at init, or `archi add <pack>` later.
 The bundle also installs the default packs of the bundles it extends.

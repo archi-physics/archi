@@ -74,6 +74,7 @@ Add a pack to an installed instance and publish again.
 | `--instance INSTANCE` | instance directory | `.` |
 | `--deployment DEPLOYMENT` | okg deployment directory (default: the one archi.lock records) |  |
 | `--answer ID=VALUE` | answer one of the new pack's questions, by rendered id (repeatable) |  |
+| `--without PACK` | leave out a companion pack the new pack would bring (repeatable) |  |
 | `--no-okg` | edit and commit the deployment, but run no okg command |  |
 | `--pack-root PACK_ROOT` | extra directory of &lt;name&gt;/pack.yaml entries (repeatable) |  |
 | `--bundle-root BUNDLE_ROOT` | extra directory of &lt;name&gt;/bundle.yaml entries (repeatable) |  |

@@ -325,6 +325,8 @@ class AddResult:
     pack: str
     added_sources: list[str]
     commands: list[list[str]]
+    #: Every pack this add installed: the pack, what it requires, its companions.
+    added_packs: list[str] = field(default_factory=list)
 
 
 def _merge_into_deployment(plan, deployment_dir: Path, new_sources: list[str],
@@ -457,8 +459,11 @@ def add(
     deployment_dir: Optional[Path] = None,
     run_okg: bool = True,
     echo=print,
+    without_extra: Iterable[str] = (),
 ) -> AddResult:
-    """Add `pack` (and whatever it requires) to an installed instance."""
+    """Add `pack` (and whatever it requires, and its bundle companions) to an
+    installed instance. `without` leaves out companions `pack` would bring; it
+    is recorded in the lock's selection like init's --without."""
     instance_dir = Path(instance_dir)
     lock = read_lock(instance_dir)
     deployment_dir = Path(deployment_dir or lock.get("deployment") or "")
@@ -487,11 +492,16 @@ def add(
     visit(pack)
     with_packs = [p for p in sel["with"] if p not in needed] + needed
     without = [p for p in sel["without"] if p != pack]
+    without += [p for p in without_extra if p not in without]
     resolution, rendered, new_lock = render_and_lock(
         catalog, instance_dir, sel["bundles"], with_packs, without,
         name=lock["profile"]["name"], deployment=deployment_dir,
     )
     added_packs = [p for p in resolution.pack_names if p not in lock["packs"]]
+    for note in resolution.notes:
+        if "comes with" in note or note.startswith("--without"):
+            echo(f"note: {note}")
+    echo(f"adding packs: {', '.join(added_packs)}")
     new_sources = [
         sid for sid, owner in new_lock["composed"]["sources"].items() if owner in added_packs
     ]
@@ -515,7 +525,9 @@ def add(
     echo(f"added to {deployment_dir}: {', '.join(changed)}")
 
     commands: list[list[str]] = []
-    commit = _git_commit(deployment_dir, f"archi add {pack}", instance_dir)
+    extra = [p for p in added_packs if p != pack]
+    message = f"archi add {pack}" + (f" (with {', '.join(extra)})" if extra else "")
+    commit = _git_commit(deployment_dir, message, instance_dir)
     if commit:
         commands.append(commit)
         echo("committed the deployment change")
@@ -539,4 +551,4 @@ def add(
                     f"`okg {' '.join(cmd[1:])}` failed ({result.returncode}):\n"
                     + (result.stderr or result.stdout)[-3000:]
                 )
-    return AddResult(pack, new_sources, commands)
+    return AddResult(pack, new_sources, commands, added_packs)

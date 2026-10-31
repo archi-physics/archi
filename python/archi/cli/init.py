@@ -188,6 +188,7 @@ def render_profile(
     bundles: Sequence[str],
     with_packs: Sequence[str],
     without_packs: Sequence[str],
+    echo=print,
 ) -> tuple[str, Path]:
     """Render the profile into the instance; returns (profile name, profile dir).
 
@@ -207,19 +208,25 @@ def render_profile(
         return legacy[0], out
     missing = [b for b in bundles if b not in catalog.bundles]
     if missing:
+        # A bundle that fails validation is dropped from the catalog; say why.
+        why = [str(p) for p in catalog.problems if any(f"/{b}/" in str(p) for b in missing)]
         raise InitError(
             f"no bundle named {', '.join(missing)}; `archi bundles list` shows what is installed"
+            + ("".join(f"\n  {w}" for w in why))
         )
     from archi.bundles.lock import render_and_lock
     from archi.bundles.resolve import CompositionError
 
     try:
-        _, rendered, _ = render_and_lock(
+        resolution, rendered, _ = render_and_lock(
             catalog, instance_dir, bundles, with_packs, without_packs,
             deployment=instance_dir / DEPLOYMENTS_DIR / name,
         )
     except CompositionError as exc:
         raise InitError(f"({exc.code}) {exc}") from exc
+    for note in resolution.notes:
+        if "comes with" in note or note.startswith("--without"):
+            echo(f"note: {note}")
     return rendered.name, rendered.profile_dir
 
 
@@ -425,7 +432,7 @@ def init(
     commit_all(instance_dir, "archi init: baseline")
 
     profile, profile_dir = render_profile(
-        catalog, instance_dir, name, bundles, with_packs, without_packs
+        catalog, instance_dir, name, bundles, with_packs, without_packs, echo=echo
     )
     resolved = absolute_answers(profile_questions(profile_dir), dict(answers or {}), root, cwd)
     graph, mcp, webui = free_ports(3)
