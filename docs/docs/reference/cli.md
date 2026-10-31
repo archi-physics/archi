@@ -248,7 +248,7 @@ Ask for an automation to go live: opens a PACT change for an operator to approve
 | `--min-coverage MIN_COVERAGE` |  | `0.5` |
 | `--min-agreement MIN_AGREEMENT` |  | `0.8` |
 | `--max-false-rate MAX_FALSE_RATE` |  | `0.1` |
-| `--no-trial DECISION` | go live with no shadow trial, on this decision (for example a board item); the change records it and an operator still approves it |  |
+| `--no-trial` | go live with no shadow results, on the decision --note names (required); the change records that there is no shadow evidence, and an operator still approves it |  |
 
 ### `archi ops resume`
 
