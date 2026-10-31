@@ -1,7 +1,7 @@
 pact_version: 5
 id: ws-code-text-docs
 title: 'Code-text docs: paste route for an existing deployment'
-tier: 1
+tier: 2
 why: 'Adding the code_text source to a deployment that was already installed means
   pasting the example entry by hand. A staging run showed two traps the docs did not
   name. The example''s `predecessor_source` placeholder is not filled in, and the bare

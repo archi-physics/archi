@@ -1,7 +1,7 @@
 pact_version: 5
 id: akmon-v020-public-okg
 title: CI and the quickstart use the public AKMON v0.2.0 release instead of private okg
-tier: 1
+tier: 2
 why: 'okg is now public as AKMON (github.com/mitdbg/akmon, release v0.2.0, commit e2c618010b,
   cut from okg 54e6cf44ee). CI authenticated to private mitdbg/okg with the read-only deploy
   key OKG_DEPLOY_KEY, so fork pull requests could not run the tests and reported "skipped".

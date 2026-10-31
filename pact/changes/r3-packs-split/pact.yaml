@@ -68,42 +68,6 @@ evidence:
 - kind: executed_test
   requirement: req.r3-packs-split.packs
   status: pass
-  command: python -m pytest python/tests/packs/test_packs.py -q
-  head: 3c41a98aa3de9887f04621d85bf4328feb38efe1
-  at: '2026-10-25T15:16:48+00:00'
-  note: 'acc.r3-packs-split.validate: 65 passed. All 14 packs the requirement names exist
-    under bundles/packs/ (plus core-playbooks); archi bundles validate passes on each pack
-    directory and on everything archi ships (17 manifests). Each context pack owns exactly one
-    error-severity invariant, <pack>_coverage, requiring only subtypes its own templates emit;
-    declares every credential its templates read; and says in pack.yaml why needs_credentials
-    is what it is. A pack that says false gets no credential in the isolation run (all credential
-    variables are stripped from its environment). Templates carry the strict admission shape,
-    signature and scope summary agree, no template sets the reserved params.source_name, and
-    predecessors are ownership ids. Full suite: 2148 passed, 15 skipped, 1 failed (a timing
-    test in test_anonymizer.py that also fails on unmodified archi_v3 on this machine).'
-- kind: executed_test
-  requirement: req.r3-packs-split.isolation
-  status: pass
-  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:<port>/packtest python
-    -m pytest python/tests/packs/test_pack_isolation.py -v
-  head: 3c41a98aa3de9887f04621d85bf4328feb38efe1
-  at: '2026-10-25T15:16:48+00:00'
-  note: 'acc.r3-packs-split.matrix: 16 passed in 9m23s against okg''s own image (ghcr.io/mitdbg/akmon-postgres:v0.2.0,
-    its own container and port), okg 0.2.0. For each of the 14 packs, alone on the base with
-    the packs it requires and fixture inputs (caches, a local git repo, a local HTTP server
-    for the live sources), on a freshly re-created database: archi render, okg install, commit,
-    okg ingest, okg run --once --apply; latest_published_status is published, okg deployment
-    lint reports zero blockers, and the pack''s invariants are installed. okg blocks a publish
-    on a failing error invariant (observed: cms_catalogs_coverage blocked the publish before
-    the CRIC fixture named every linked site). cern-team with all six optional packs publishes
-    the same way. Schema paths: every pack links the same python/archi/schemas/ files, so
-    each path is byte-identical across packs or owned once (ops-record''s slice), checked by
-    test_packs.py::test_each_schema_path_is_owned_once_or_identical. Also run for real: the
-    rewritten quickstart step 3 (public Indico event, pallets/click with git-code, code-text,
-    code-symbols) published 19,057 records and 42,972 links with one ingest, lint zero blockers.'
-- kind: executed_test
-  requirement: req.r3-packs-split.packs
-  status: pass
   command: python -m pytest python/tests/packs/test_packs.py -q (a dev host, okg 0.2.0 wheel, Python
     3.12)
   head: 1fdc5e8771ff0504a46c534e71b2b000322e69c6
