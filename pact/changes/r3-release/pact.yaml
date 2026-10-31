@@ -79,6 +79,23 @@ evidence:
     CMS comp-ops bot at CERN, WisDQM, CRAB and course deployments do not run 2.x. Not yet done: the
     v2 version of each, read in its owner''s environment, and the migration itself (condition 2);
     acc.r3-release.main is not evidenced.'
+- kind: manual
+  requirement: req.r3-release.inventory
+  status: pass
+  command: >-
+    read-only file hashes of each deployment's code compared with the v2 tags (2026-10-29); owner
+    and decision from Jason (2026-10-30, board d701); recorded in docs/docs/operating/cutover.md step 1
+    and on #758
+  head: 124030ada00692de4cde675d0acbc2bc7e9c5535
+  at: '2026-10-31T00:04:51+00:00'
+  note: >-
+    Refreshes acc.r3-release.r1. Two live v2 deployments, both moving to 3.0. SubMIT A2rchi (chatbot,
+    data manager, Redmine and mailbox bots): about v2.3.x with local patches, hand-built, not at a tag;
+    owner named by Jason on 2026-10-30, Jason is confirming with them; the bots move to 3.0 with
+    ticket-triage (d701). Second chat on SubMIT (chatbot, data manager): v2.5.0 code, not checked out at
+    a tag; owner Maria D''Alfonso (per her fork). Versions are to be confirmed with the owners; Jason
+    contacts them. The migrations themselves (acc.r3-release.migrated) and the branch swap
+    (acc.r3-release.main) are not evidenced.
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
