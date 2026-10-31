@@ -317,8 +317,8 @@ evidence:
     runs); the answers were then graded against CompOps-42 answer key v1 by a lane script around
     archi.evaluation.raw_arm.Judge (gpt-6-luna, reasoning high, two passes) and by a blind second grader
   artifact: pact/changes/r3-context-quality/evidence/compops42-agent-arms.md
-  sha256: e6ecc0ccc02bbf2d88fb4f6fbae5f6e993e5a503545cccaa7266e614af969c96
-  head: 2441c4a870226b9f943577ae13afd2cd7ca0f482
+  sha256: a473402e5a346830c3c904598093eec8a306232302b60dd31317d2f65be348e2
+  head: a28f44a6a2b8d3a430ccac9ca0480486cfc27f9a
   at: '2026-10-31T06:09:47+00:00'
   note: 'acc.r3-context-quality.raw-arm and acc.r3-context-quality.run. `at` is when the after-fix run
     ended; grading followed. The runs used archi_v3 2426842c (from the run logs; the reports carry no
