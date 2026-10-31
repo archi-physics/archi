@@ -22,29 +22,41 @@ before". Where each stands when 3.0.0 is prepared:
 |---|---|---|
 | 1. Every live v2 deployment has a named owner (R1). | **Answered** 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1. | Step 1 (done). |
 | 2. Each of those deployments is migrated or stays on a tagged `v2.x`. | Not started. | Step 4. |
-| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** `ticket-triage` and its four-week SubMIT shadow report come after 3.0 (board d405), so the v2 queue bots stay on `v2.x` until then; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
+| 3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing. | **Not met.** The v2 queue bots (Redmine, mailbox) move to 3.0's `ticket-triage` automation (board d701, which reverses d405), so 3.0.0 waits on it; and the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). | Step 2 (the written acceptance), `JASON`. |
 | 4. The last v2 release is tagged and documented. | The newest tag is `v2.5.0`. `main` has had 52 commits since (check: step 0). | Step 3. |
 
 State today of the repository settings this runbook changes (read with `gh`
-on 2026-10-26, so re-check at the time):
+on 2026-10-26 and again on 2026-10-30, so re-check at the time):
 
 - the default branch is `main`, and it is protected: one approving review,
-  no force pushes, no deletions, admins not enforced;
+  no force pushes, no deletions, admins not enforced, no required checks,
+  no required signatures, no rulesets;
 - `archi_v3` is not protected;
 - there is no `v2` branch;
-- the repository has no GitHub environment named `pypi`;
+- the repository's environments are `copilot` and `github-pages`; none is
+  named `pypi`;
 - `archi-kb` has no pending publisher on PyPI. (Nobody has looked at
   pypi.org for this page. Check it in step 6.)
+- 30 pull requests are open against `main` (2026-10-30). The rename in step 7
+  moves them to `v2`, which is where v2 fixes belong; say so in the tracking
+  issue so their authors are not surprised;
+- the repository allows squash merges. Step 5 and every `archi_v3` merge
+  must use `--merge` (PACT reads the approval trailers a squash drops);
+  turning squash off is the owner's choice;
+- the scheduled nightly (`nightly-e2e.yml`) has never run on its schedule:
+  GitHub runs scheduled workflows only from the default branch, and v2's
+  `main` has no such file. It starts after step 7.
 
 This page was last brought up to date on 2026-10-27, after #849 to #860
-merged. `ticket-triage` (#746) is after 3.0 (board d405). If anything else
+merged. `ticket-triage` (#746) is back in 3.0 (board d701, reversing d405). If anything else
 lands before the freeze in step 3, update the "not in 3.0.0" lists in the
 changelog, the release notes and the [v2 guide](../migration-from-v2.md) first.
 
 ## Step 0. Look at the starting point
 
-Any maintainer. Read-only. (Record the branch tips later, in step 7: step 5
-moves `archi_v3`, so a tip written down now would be stale.)
+Any maintainer. Read-only, except the last command, which opens the
+tracking issue. (Record the branch tips later, in step 7: step 5 moves
+`archi_v3`, so a tip written down now would be stale.)
 
 ```bash
 git clone https://github.com/archi-physics/archi.git archi-cutover && cd archi-cutover
@@ -78,7 +90,7 @@ SubMIT. A deployment nobody claims is a deployment nobody can move.
 **Rollback:** nothing to undo.
 
 **Recorded inventory** (2026-10-27, confirmed by Jason on board d384; also on
-issue #758). This list was found read-only, from process and port listings on
+issue #758; versions and the row 1 owner added 2026-10-30). This list was found read-only, from process and port listings on
 two SubMIT hosts, the repository's forks and GitHub environments, and the
 v2 configs on `main`. Jason confirmed that FASRC, a CMS comp-ops bot at CERN,
 WisDQM, CRAB and MIT course deployments do not run 2.x, and that no other hosts
@@ -86,13 +98,15 @@ do.
 
 | Deployment | Host | Services | v2 version | Owner | Decision |
 |---|---|---|---|---|---|
-| SubMIT A2rchi | a SubMIT host; linked from SubMIT's public A2rchi page | chatbot, data manager, Redmine bot, mailbox bot (a SubMIT service account) | not read (run `archi list-deployments` as the service account) | SubMIT team | move to 3.0 |
-| Second chat on SubMIT | a second SubMIT host | chatbot, data manager (her own account) | not read | Maria D'Alfonso (per her fork) | move to 3.0 |
+| SubMIT A2rchi | a SubMIT host; linked from SubMIT's public A2rchi page | chatbot, data manager, Redmine bot, mailbox bot (a SubMIT service account) | about v2.3.x with local patches, hand-built; not a tag | owner named by Jason on 2026-10-30; Jason is confirming with them | move to 3.0, bots included (d701) |
+| Second chat on SubMIT | a second SubMIT host | chatbot, data manager (her own account) | v2.5.0 code; not checked out at a tag | Maria D'Alfonso (per her fork) | move to 3.0 |
 
-Jason named no person for the SubMIT row. The v2 version of each is still to
-be read, in its owner's environment, when the switch-over plan for it is made.
-Neither owner has been contacted yet: that waits for the plan and a separate
-go from Jason.
+The versions were read on 2026-10-29 by comparing file hashes of the deployed
+code with the v2 tags. Neither deployment is checked out at a tag, so route B
+in step 4 changes the running code, and `git describe --tags` passes only after
+the owner checks out the tag. Confirm both versions with the owners. Jason
+contacts the owners; nobody else does, and not before the switch-over plan
+for each deployment exists.
 
 ## Step 2. Accept the losses in writing
 
@@ -101,8 +115,9 @@ writing. 3.0.0 does not have parity. Write the acceptance and keep it with the
 inventory. It lists the known limits in the changelog, which are the canonical
 list, and the v2 features in [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). In short:
 
-- `ticket-triage` and its four-week SubMIT shadow come after 3.0 (board
-  d405), so the v2 queue bots stay on a tagged `v2.x`;
+- the v2 queue bots move to 3.0's `ticket-triage` automation (board d701,
+  reversing d405); 3.0.0 waits on it, so this is a loss only if Jason
+  ships without it;
 - the live comp-ops instance and SubMIT have not been rebuilt from their
   bundles;
 - the smoke sets pass on GPT-6 Luna, not on a local model, and the
@@ -152,6 +167,25 @@ before step 4, because the owners pin the tag it creates.
        --title "v2.6.0 (last v2 release)" \
        --notes "The last v2 release. From the cutover this line lives on the v2 branch. See docs/docs/migration-from-v2.md."
    ```
+
+   **Why not the v2 release workflow.** Earlier v2 releases were made with
+   `test-and-build-tag.yml` (Actions, run by hand). That workflow builds and
+   pushes versioned base images to Docker Hub, runs a smoke deployment, then
+   pushes bot commits (Dockerfile base-image tags, a version bump) to `main`
+   and tags the result. Here that would move `main` after the freeze, so the
+   tag would not be `$FREEZE_TIP`, and it needs Docker Hub credentials and a
+   long runner job. The hand tag above makes no images: v2's Dockerfiles on
+   `main` use `a2rchi-python-base:latest` and `a2rchi-pytorch-base:latest`,
+   so a v2.6.0 rebuild pulls whatever `:latest` is at the time. After step 7
+   nothing republishes `:latest` (v2's `publish-base-images.yml` triggers on
+   pushes to `main`, which is then the 3.0 line, and 3.0 has no such
+   workflow), so in practice `:latest` stays at the last v2 build. If an owner
+   needs a byte-for-byte pin, run the workflow instead, by hand, before
+   step 7: `gh workflow run test-and-build-tag.yml --repo archi-physics/archi
+   --ref main -f ref=main -f tag_name=v2.6.0`. It pushes its commits to `ref`,
+   so `ref` must be a branch; then take the commit it tags as the new
+   `FREEZE_TIP`. After step 7 the `ref` default (`main`) names the 3.0 line:
+   for any later v2 release pass `--ref v2 -f ref=v2`.
 
 **Check:** `gh release view v2.6.0 --repo archi-physics/archi` shows it, and
 `git rev-parse 'v2.6.0^{commit}'` equals `$FREEZE_TIP`.
@@ -246,21 +280,25 @@ publisher is how `release.yml` publishes without a token.
 
 3. **Install the wheel before the irreversible upload.** Build it exactly as
    `release.yml` does, install it into a clean virtual environment, and smoke
-   test it. Outside the repository, in a scratch directory:
+   test it. Outside the repository, in a scratch directory. archi needs
+   Python 3.12 or newer; on a host whose `python3` is older (3.9 on some
+   lab hosts) the wheel still builds but the install fails on an okg
+   dependency, so name the interpreter:
 
    ```bash
+   PY=python3.12; "$PY" --version         # 3.12 or newer
    W=$(mktemp -d)
    git clone --branch archi_v3 https://github.com/archi-physics/archi.git "$W/src"
-   (cd "$W/src/python" && python3 -m venv "$W/build-venv" && "$W/build-venv/bin/pip" install build \
+   (cd "$W/src/python" && "$PY" -m venv "$W/build-venv" && "$W/build-venv/bin/pip" install build \
        && "$W/build-venv/bin/python" -m build --wheel --outdir "$W/dist")
    ls "$W/dist"                          # archi_kb-3.0.0-py3-none-any.whl
-   python3 -m venv "$W/venv"
+   "$PY" -m venv "$W/venv"
    "$W/venv/bin/pip" install \
        "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" \
        "$W"/dist/archi_kb-3.0.0-py3-none-any.whl
    "$W/venv/bin/python" -c "import archi; print(archi.__version__)"   # 3.0.0
    "$W/venv/bin/archi" bundles validate                              # exits 0
-   "$W/venv/bin/archi" bundles list | head
+   "$W/venv/bin/archi" bundles list                                  # 4 bundles, then the packs
    rm -rf "$W"
    ```
 
@@ -426,7 +464,17 @@ A maintainer, in a pull request on the new `main`. These edits are in
   ```
 
 The workflows on the `v2` branch name `main`. They do not run on `v2` until
-a v2 pull request changes them. Do that when the first v2 fix needs CI.
+a v2 pull request changes them. Do that when the first v2 fix needs CI. Two
+of them trigger on pushes to `main`: `publish-base-images.yml` (rebuilds the
+v2 base images) and `trigger-gitlab.yml` (starts the GitLab pipeline). After
+the swap a push to `v2` starts neither, and the 3.0 `main` has neither file.
+`test-and-build-tag.yml` defaults to `ref: main`; for a v2 release pass
+`--ref v2 -f ref=v2` (step 3).
+
+The nightly's schedule starts working now: GitHub runs scheduled workflows
+from the default branch only, and until the swap that was v2's `main`, which
+has no `nightly-e2e.yml`. Check its first scheduled run the next day with
+`gh run list --workflow nightly-e2e.yml --repo archi-physics/archi --event schedule --limit 1`.
 
 **Check:** the next push to `main` runs `ci`; the site at
 <https://archi-physics.github.io/archi/> shows the 3.0 pages.
@@ -469,15 +517,20 @@ gh release create v3.0.0 --repo archi-physics/archi --verify-tag \
 ```
 
 **Check (this is the `r3-release` acceptance):** in an empty directory and a
-new environment. The last line cleans up the environment.
+new environment, with Python 3.12 or newer (see step 6). It needs podman or
+Docker, as `archi up` does. `archi doctor` checks the running services, so it
+runs after `archi up`, as the nightly test does; right after `archi init` it
+exits 1 (`services`, `mcp-answers`, `webui-up`). The data root goes under
+`$V` too, so the last line removes everything the check made.
 
 ```bash
-V=$(mktemp -d)
-python3 -m venv "$V/venv"
+PY=python3.12; V=$(mktemp -d)
+"$PY" -m venv "$V/venv"
 "$V/venv/bin/pip" install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
 "$V/venv/bin/python" -c "import archi; print(archi.__version__)"     # 3.0.0
-"$V/venv/bin/archi" init cutover-check --dir "$V/instance"
-"$V/venv/bin/archi" doctor --instance "$V/instance"
+"$V/venv/bin/archi" init cutover-check --dir "$V/instance" --data-root "$V/data"
+"$V/venv/bin/archi" up --instance "$V/instance"       # the first start loads an embedding model: minutes
+"$V/venv/bin/archi" doctor --instance "$V/instance"; echo "doctor exit $?"
 "$V/venv/bin/archi" down --purge --yes --instance "$V/instance"
 rm -rf "$V"
 ```

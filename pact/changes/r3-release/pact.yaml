@@ -9,16 +9,25 @@ affected_code:
 - README.md
 - .github/workflows/
 requirements:
-- id: req.r3-release.cutover
-  statement: 'Every live v2 deployment is listed with an owner and is migrated or pinned to
-    a tagged v2.x; the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover
-    clause is evidenced. The ticket-triage automation and its four-week shadow report (ADR 0002
-    §7.4) come after 3.0 (board d405), so the v2 queue bots stay on a tagged v2.x until then.
+- id: req.r3-release.inventory
+  statement: 'Every live v2 deployment is listed with its services, the v2 version it runs, an
+    owner and a decision (move to 3.0, or pin to a tagged v2.x).
 
 
     Acceptance:
 
-    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]
+    - acc.r3-release.r1: deployment inventory attached. [evidence: manual]'
+- id: req.r3-release.cutover
+  statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
+    the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
+    evidenced. The v2 queue bots (Redmine, mailbox) move to 3.0''s ticket-triage automation
+    (board d701, reversing d405), so the cutover waits on it.
+
+
+    Acceptance:
+
+    - acc.r3-release.migrated: each deployment migrated or pinned, signed off by its owner. [evidence:
+    manual]
 
     - acc.r3-release.main: default branch is the v3 line; v2 branch exists. [evidence: manual]'
 - id: req.r3-release.tag
@@ -32,7 +41,7 @@ requirements:
     [evidence: executed_test]'
 tasks:
 - id: task.r3-release.r1
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   verification: 'Inventory live v2 deployments and owners.
 
 
@@ -57,7 +66,7 @@ tasks:
     - clean-venv install [evidence: executed_test]'
 evidence:
 - kind: manual
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   status: pass
   command: read-only ps, podman ps and ss on two SubMIT hosts; gh api forks and environments
     of archi-physics/archi; v2 configs on main; confirmed by Jason on board d384
