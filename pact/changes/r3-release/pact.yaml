@@ -20,9 +20,10 @@ requirements:
 - id: req.r3-release.cutover
   statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
     the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
-    evidenced. The v2 queue bots (Redmine, mailbox) move to 3.0''s ticket-triage automation
-    (board d701, reversing d405), so the cutover waits on it and on its SubMIT shadow (trial) report
-    (d701; the trial length is board d705).
+    evidenced. At the cutover, 3.0''s ticket-triage automation replaces the
+    SubMIT v2 queue bots, with no shadow trial first (board d717); the v2 Redmine service stops
+    at the cutover, so resolution emails pause until 3.1 (board d719); mail intake stays with v2
+    until 3.1 (board d704).
 
 
     Acceptance:
@@ -106,3 +107,20 @@ decisions:
   at: '2026-10-27'
   note: 'Board d405, Jason (2026-10-27 17:19Z): "Drop ticket-triage from 3.0: amend both requirements, ship it later". The cutover requirement no longer requires the
     ticket-triage shadow report with the release; ticket-triage ships after 3.0.'
+- digest: sha256:5b1bdf38012b7a795e7679af99e6a429476edbc5a384580477c03c0517bde8e0
+  reviewer: Jason Mohoney
+  at: '2026-10-31'
+  note: 'Jason Mohoney (board d717, 2026-10-31T16:40:28Z: "Ship it and switch SubMIT to it at the
+    3.0 cutover, unchecked"). Supersedes d405 above and the d701 trial: ticket-triage ships in 3.0
+    and replaces the SubMIT v2 queue bots at the cutover with no shadow trial or report first;
+    mail intake stays with v2 until 3.1 (board d704). Runbook step 9a has the switch and its
+    rollback.'
+- digest: sha256:71bad7dc5243168fe8284a5fc759cbc2df1b55fd33fcb752fcb4384c9dee7b16
+  reviewer: Jason Mohoney
+  at: '2026-10-31'
+  note: 'Jason Mohoney (board d719, 2026-10-31T18:14:17Z: "Stop v2''s Redmine service at cutover;
+    resolution emails pause until 3.1"). In v2 the redmine service both posts answers and sends the
+    resolution email (src/bin/service_redmine.py on v2 main; SubMIT runs a patched v2.3.x), so
+    stopping it at the cutover ends both; the v2 mailbox service (mail intake) keeps running until
+    3.1 (d704). SubMIT users get no resolution emails from the cutover until 3.1; Jason tells the
+    owner and the users before the cutover. Runbook steps 2 and 9a.'
