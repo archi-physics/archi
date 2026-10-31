@@ -1,6 +1,6 @@
 """Pack resolution (ADR 0002 section 3.3).
 
-    packs = closure(requires, ∪ default(extends*(A, B, ...))) ∪ with − without
+    packs = companions(closure(requires, ∪ default(extends*(A, B, ...))) ∪ with) − without
 
 `resolve` computes that set in a fixed order, the *resolution order*, which
 later decides the order of prompt fragments:
@@ -10,7 +10,13 @@ later decides the order of prompt fragments:
 2. Their default packs, in bundle order then listed order, each preceded by
    the packs it requires (depth first). This is the requires closure.
 3. `--with` packs, in the order given, appended if not already selected.
-4. `--without` packs removed.
+4. Companions (amended 2026-10-31): for each selected pack, in order, the
+   packs the bundles name as its companions, each preceded by the packs it
+   requires, unless the companion or its trigger is given to `--without`.
+   A companion added this way can trigger its own companions.
+5. `--without` packs removed. Removing a companion the bundles declare is
+   the opt-out, so it is not refused as "not selected", even before its
+   trigger is selected.
 
 The formula closes `requires` over the defaults only. A `--with` pack whose
 requirements are not selected, or a `--without` that removes a pack another
@@ -92,7 +98,7 @@ def _require(catalog: Catalog, name: str, why: str) -> Pack:
     return pack
 
 
-def _closure(catalog: Catalog, roots: Iterable[str]) -> list[str]:
+def _closure(catalog: Catalog, roots: Iterable[str], why: str = "a bundle default") -> list[str]:
     out: list[str] = []
 
     def visit(name: str, stack: tuple[str, ...], why: str) -> None:
@@ -108,7 +114,17 @@ def _closure(catalog: Catalog, roots: Iterable[str]) -> list[str]:
         out.append(name)
 
     for root in roots:
-        visit(root, (), "a bundle default")
+        visit(root, (), why)
+    return out
+
+
+def _companions(catalog: Catalog, order: Iterable[str]) -> dict[str, list[str]]:
+    """Trigger pack -> companions, merged over the bundles in resolution order."""
+    out: dict[str, list[str]] = {}
+    for name in order:
+        for trigger, companions in catalog.bundles[name].companions.items():
+            merged = out.setdefault(trigger, [])
+            merged.extend(c for c in companions if c not in merged)
     return out
 
 
@@ -168,7 +184,39 @@ def resolve(
         _require(catalog, name, "--with")
         if name not in selected:
             selected.append(name)
+
+    companions = _companions(catalog, order)
+    # Any companion the bundles declare may be given to --without, selected
+    # or not: the opt-out can be recorded before its trigger is added
+    # (`archi add <trigger>` keeps the instance's --without list).
+    offered: set[str] = {c for cs in companions.values() for c in cs}
+    companion_notes: list[str] = []
+    i = 0
+    while i < len(selected):  # grows while it is walked: companions can trigger
+        trigger = selected[i]
+        i += 1
+        if trigger in without_packs:
+            continue
+        for companion in companions.get(trigger, ()):
+            if companion in without_packs or companion in selected:
+                continue
+            why = f"companion of {trigger!r} in the bundle"
+            if companion not in catalog.packs:
+                raise CompositionError(
+                    "unknown_companion",
+                    f"pack {trigger!r} names companion {companion!r}, which is not in the "
+                    f"catalog; known packs: {sorted(catalog.packs)}",
+                    pack=companion,
+                    trigger=trigger,
+                )
+            for name in _closure(catalog, [companion], why):
+                if name not in selected:
+                    selected.append(name)
+            companion_notes.append(f"{companion} comes with {trigger} (opt out with --without {companion})")
+
     for name in without_packs:
+        if name in offered and name not in selected:
+            continue  # opting out of a companion
         if name not in selected:
             raise CompositionError(
                 "without_not_selected",
@@ -215,5 +263,5 @@ def resolve(
         okg_range=okg_range,
         chat=chat,
         answers={k: v for b in bundle_objs for k, v in b.answers.items()},
-        notes=tuple(notes),
+        notes=tuple(notes) + tuple(companion_notes),
     )

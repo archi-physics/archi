@@ -1,0 +1,124 @@
+pact_version: 5
+id: r3-bundle-companions
+title: 'Bundles can name companion packs; cms-comp-ops brings code-text whenever git-code is selected'
+tier: 2
+why: 'Decision d716 (Jason, 2026-10-31): the text of every repository file should be in a comp-ops
+  graph by default wherever git-code is used. code-text requires git-code, so listing code-text as
+  a cms-comp-ops default would also force git-code, whose repository URL has no default, and every
+  comp-ops install would fail without `--git-code-repo-url`. The coordinator ruled that out as an
+  unapproved regression. The bundle format had only unconditional default and optional lists, and
+  a pack''s `requires` points the other way.
+
+
+  This change amends ADR 0002 section 3.3 (the composition formula) with companion packs: a
+  bundle may name `packs.companions: {<pack>: [<companion>, ...]}`, and whenever `<pack>` is
+  selected (by default or with `--with`), each companion is added with the packs it requires,
+  unless the companion or its trigger is given to `--without`. The formula becomes
+  `packs = companions(closure(requires, ∪ default(extends*(A, B, ...))) ∪ with) − without`.
+  `--without` may name any companion the bundles declare, selected or not, so an opt-out can be
+  recorded before its trigger is added. cms-comp-ops names `git-code: [code-text]` and lists
+  git-code as optional. An install without git-code is unchanged; with git-code it gets code-text
+  (the pack change is r3-code-text-all-files, which this one follows); `--without code-text` opts
+  out. `archi add git-code` re-renders through the same resolver, so it brings code-text too.'
+affected_code:
+- python/archi/bundles/schema/bundle.schema.json
+- python/archi/bundles/manifest.py
+- python/archi/bundles/resolve.py
+- python/archi/bundles/cli.py
+- python/archi/docs_gen.py
+- bundles/cms-comp-ops/bundle.yaml
+- bundles/cms-comp-ops/README.md
+- python/tests/bundles/test_companions.py
+- python/tests/test_bundle_cms_comp_ops.py
+- docs/adr/0002-archi-3.0-release.md
+- docs/docs/reference/pack-format.md
+- docs/docs/library/bundles/cms-comp-ops.md
+- docs/docs/library/packs/code-text.md
+- docs/docs/library/packs/git-code.md
+- pact/plan/archi-3.0.yaml
+requirements:
+- id: req.r3-bundle-companions.rule
+  statement: 'bundle.yaml accepts `packs.companions`, a map from a pack name to a non-empty list of
+    pack names, merged over `extends` parents first. `resolve` adds, for each selected pack in
+    resolution order whose name is not given to `--without`, its companions not given to
+    `--without`, each preceded by the packs it requires; an added companion can trigger its own.
+    Each addition is reported in the resolution notes ("<companion> comes with <pack> (opt out
+    with --without <companion>)"). `--without` naming a declared companion is never refused as
+    not selected. A companion or trigger the catalog does not hold is a validation problem naming
+    the bundle key; at resolve time a missing companion stops with `unknown_companion`, naming
+    both packs. A bundle with no companions resolves exactly as before. ADR 0002 section 3.3, the
+    pack-format reference, the generated library pages and `archi bundles list` show companions.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-companions.resolve: on fixture bundles, no trigger selected gives no
+    companion; `--with` the trigger brings the companion and its own companion; a default
+    trigger brings its companion; `--without` the companion opts out, before or after the trigger
+    is selected; removing the trigger removes its companions; a companion brings the packs it
+    requires; companions merge over extends; `--without` an unselected pack that is no companion
+    is still refused. [evidence: executed_test]
+
+    - acc.r3-bundle-companions.missing: an unknown companion is a validation problem naming
+    `packs.companions.<pack>` and the missing pack. [evidence: executed_test]
+
+    - acc.r3-bundle-companions.unchanged: the fixture bundles resolve to the plain formula''s
+    packs with and without `--with`/`--without`, and every shipped bundle but cms-comp-ops names
+    no companion and reports none, bare and with every optional pack. [evidence: executed_test]'
+- id: req.r3-bundle-companions.comp-ops
+  statement: 'cms-comp-ops lists git-code as optional and names `companions: {git-code:
+    [code-text]}`. A bare install selects neither; `--with git-code` selects git-code then
+    code-text, and the render carries their sources and code-text''s extractors.yaml; `--with
+    git-code --without code-text` selects git-code only; `archi add git-code` on an installed
+    instance adds both packs'' sources and extractors.yaml and records only git-code as the
+    selection, and respects an opt-out recorded at init. The bundle README says what an install
+    gets with and without git-code.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-companions.init: resolving and rendering cms-comp-ops bare, with git-code, and
+    with git-code without code-text select the packs above. [evidence: executed_test]
+
+    - acc.r3-bundle-companions.add: `archi add git-code` on an installed instance whose bundle
+    names the companion adds code-text''s source and extractors.yaml, and does not when the
+    instance opted out at init. [evidence: executed_test]
+
+    - acc.r3-bundle-companions.install: against a fresh Postgres with okg''s extensions, cms-comp-ops
+    with every optional pack (git-code included, so code-text comes with it) installs with okg,
+    ingests its fixture inputs and publishes. [evidence: executed_test]'
+tasks:
+- id: task.r3-bundle-companions.rule
+  requirement: req.r3-bundle-companions.rule
+  verification: 'Add `packs.companions` to the schema, the Bundle manifest, validation and
+    resolve; amend ADR 0002 section 3.3 and the pack-format reference; show companions in the
+    generated pages and `archi bundles list`.
+
+
+    Proof: the companion tests pass on fixture bundles; the full python/tests suite passes; the
+    generated docs check passes.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_companions.py [evidence: pytest]'
+- id: task.r3-bundle-companions.comp-ops
+  requirement: req.r3-bundle-companions.comp-ops
+  verification: 'Name the companion in cms-comp-ops, list git-code as optional, and update its
+    README and tests.
+
+
+    Proof: the cms-comp-ops tests and the companion tests on the shipped bundle and through
+    `archi add` pass; the pack-isolation install of cms-comp-ops with every optional pack publishes
+    against a fresh Postgres.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_companions.py [evidence: pytest]
+
+    - python/tests/test_bundle_cms_comp_ops.py [evidence: pytest]
+
+    - python/tests/packs/test_pack_isolation.py [evidence: pytest]'
+evidence: []
+decisions: []

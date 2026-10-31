@@ -14,6 +14,8 @@ and the generic playbooks, and adds the CMS computing catalogs on top.
 | `dqm` | optional | DQM data-quality certifications and the runs they cover |
 | `hypernews` | optional | HyperNews forum threads |
 | `jira` | optional | JIRA issues and their participants |
+| `git-code` | optional | One Git repository's tracked files and history. Selecting it also brings `code-text` (below). |
+| `code-text` | with `git-code` | The text of every text file in that repository (code, Markdown, YAML, shell scripts, configuration), searchable and readable; files holding a literal secret are left out. Comes on whenever `git-code` is selected; opt out with `--without code-text`. |
 
 The ticket-triage automation pack is not in this release, so the bundle does
 not list it yet.
@@ -23,7 +25,18 @@ not list it yet.
 ```bash
 archi init myops --bundle cms-comp-ops
 archi init myops --bundle cms-comp-ops --with monit-live,jira   # optional packs
+archi init myops --bundle cms-comp-ops --with git-code --git-code-repo-url URL   # a repository, with its file text
 ```
+
+What an install gets for repositories:
+
+- Without `git-code` (the default): no repository content.
+- With `git-code`: the repository's files and history, and, as its
+  companion, `code-text`: the text of every text file, so a question about a
+  deployment's YAML or a script's flags can be answered from the graph.
+- With `git-code` and `--without code-text`: files and history only, as
+  before this bundle named the companion.
+- On an installed instance, `archi add git-code` brings `code-text` too.
 
 The bundle fixes no install answers. `gitlab_url` (cms-catalogs) defaults to
 `https://gitlab.cern.ch`, and `releases_map_url` (cmssw-releases) has its own
@@ -40,6 +53,7 @@ manifest or answer file.
 | `cmssst` | none; the cmssst downloader fills its cache from public data |
 | `cmssw-releases` | none |
 | `ops-record` | none; records arrive through okg admission |
+| `git-code`, `code-text` | none for a public repository; a private one is cloned with the operator's own git credentials. code-text's source checks every file on every run and leaves out any file holding a literal secret; the run log names the files it left out. It covers the files' text only: git-code's history keeps per-file diffs, which okg redacts by its own patterns. |
 | `monit-live` | `MONIT_GRAFANA_TOKEN` (snapshots and live tools). Requires `cms-catalogs`. |
 | `dqm` | none by name; the certification files are behind CERN SSO and the cache is placed by hand |
 | `hypernews` | `HYPERNEWS_COOKIE_FILE`, a CERN SSO cookie jar |

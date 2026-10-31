@@ -69,6 +69,7 @@ def _listing(catalog: discovery.Catalog) -> dict:
                 "extends": list(b.extends),
                 "default": list(b.default_packs),
                 "optional": list(b.optional_packs),
+                "companions": {k: list(v) for k, v in b.companions.items()},
                 "okg": b.okg,
                 "provider": catalog.providers[f"bundle:{name}"],
                 "dir": str(b.dir),
@@ -103,7 +104,9 @@ def cmd_list(args: argparse.Namespace) -> int:
     print("bundles:")
     for b in listing["bundles"]:
         print(f"  {b['name']} {b['version']}  default: {', '.join(b['default'])}"
-              f"  optional: {', '.join(b['optional']) or '-'}  [{b['provider']}]")
+              f"  optional: {', '.join(b['optional']) or '-'}"
+              + "".join(f"  with {k}: {', '.join(v)}" for k, v in b["companions"].items())
+              + f"  [{b['provider']}]")
     print("packs:")
     for p in listing["packs"]:
         creds = "needs credentials" if p["needs_credentials"] else "no credentials needed"

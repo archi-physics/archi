@@ -120,7 +120,12 @@ def pack_page(pack: Pack, catalog: Catalog) -> str:
     default, optional = _bundles_selecting(catalog, pack.name)
     out += ["## In which bundles", ""]
     link = lambda names: ", ".join(f"[`{n}`](../bundles/{n}.md)" for n in names) or "none"  # noqa: E731
-    out += [f"- Default in: {link(default)}", f"- Optional in: {link(optional)}", ""]
+    out += [f"- Default in: {link(default)}", f"- Optional in: {link(optional)}"]
+    for b in sorted(catalog.bundles.values(), key=lambda b: b.name):
+        for trigger, companions in sorted(b.companions.items()):
+            if pack.name in companions:
+                out += [f"- Comes with {_pack_link(trigger, catalog.packs)} in: {link([b.name])}"]
+    out += [""]
     out += [f"Add it to an instance with `archi add {pack.name}`.", ""]
 
     sources = pack.sources()
@@ -262,7 +267,11 @@ def bundle_page(bundle: Bundle, catalog: Catalog) -> str:
     )
     out += ["## Packs", ""]
     out += [f"- Default: {_list_inline(bundle.default_packs, catalog.packs)}"]
-    out += [f"- Optional: {_list_inline(bundle.optional_packs, catalog.packs)}", ""]
+    out += [f"- Optional: {_list_inline(bundle.optional_packs, catalog.packs)}"]
+    for trigger, companions in sorted(bundle.companions.items()):
+        out += [f"- With {_list_inline((trigger,), catalog.packs)}, also: "
+                f"{_list_inline(companions, catalog.packs)} (opt out with `--without`)"]
+    out += [""]
     out += ["Default packs install with the bundle. Add an optional pack with `--with <pack>` at init, or `archi add <pack>` later."]
     if bundle.extends:
         out += ["The bundle also installs the default packs of the bundles it extends."]
