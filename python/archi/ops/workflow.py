@@ -423,7 +423,7 @@ def _mediate_step(automation: str, action_class: str, payload: dict, proposal_id
         _io(rt), mediator_entry=lambda: rt.automation(automation).action_classes[action_class].mediator,
         action_class=action_class, payload=payload, proposal_id=proposal_id, idempotency_key=idempotency_key,
         esc=esc, workflow_id=DBOS.workflow_id, dsn=rt.dsn, instance_dir=str(rt.instance_dir),
-        at_l1=level == "L1", mode_now=lambda: _runtime().settings[automation].mode))
+        at_l1=level == "L1", mode_now=lambda: _runtime().settings[automation].mode)
 
 
 @deployment_step(name="archi_ops_decision")
