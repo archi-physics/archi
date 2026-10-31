@@ -70,10 +70,29 @@ def _adapter_class(entry):
     return getattr(module, entry["class"])
 
 
+def _substrate_native(cls):
+    """The okg source class `cls` extends directly, when it is one.
+
+    A reader written on the public SDK returns ``ConnectorRun`` and needs a
+    ``ConnectorAdapter``. A subclass of a substrate source (code-text's
+    ``SecretScreenedDocCorpusSource`` extends okg's ``DocCorpusSource``)
+    already returns the substrate's own result, so the runner drives it as it
+    drives the parent; the pack-isolation install test proves that.
+    """
+    from okg.substrate.library.sources.doc_corpus import DocCorpusSource
+
+    from archi.sources.code_text import SecretScreenedDocCorpusSource
+
+    # An allowlist, not any subclass: each entry overrides only how files are
+    # listed and keeps DocCorpusSource's run(), which the install test runs.
+    native = {SecretScreenedDocCorpusSource: DocCorpusSource}
+    return native.get(cls)
+
+
 @pytest.mark.parametrize(("filename", "name", "entry"), ENTRIES, ids=ENTRY_IDS)
 def test_every_bundle_source_names_a_runnable_adapter(filename, name, entry):
     cls = _adapter_class(entry)
-    assert issubclass(cls, ConnectorAdapter), (
+    assert issubclass(cls, ConnectorAdapter) or _substrate_native(cls), (
         f"{filename}: {name} names {entry['class']}, which the substrate runner "
         "cannot drive; register the reader's ConnectorAdapter instead"
     )
@@ -129,7 +148,7 @@ def test_adapter_authority_is_a_literal_that_matches_its_reader(filename, name, 
     """
     cls = _adapter_class(entry)
     source_path = Path(importlib.import_module(entry["module"]).__file__)
-    reader = inspect.getattr_static(cls, "reader_class")
+    reader = _substrate_native(cls) or inspect.getattr_static(cls, "reader_class")
     for attr in ("profile", "change_probe_kind"):
         literal = _class_level_constant(source_path, entry["class"], attr)
         assert literal == getattr(reader, attr), (

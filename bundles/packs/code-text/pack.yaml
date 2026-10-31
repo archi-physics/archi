@@ -1,7 +1,7 @@
 name: code-text
 kind: context
-version: 0.1.0
-description: The text of git-code's repository files, as one chunk per function or class.
+version: 0.2.0
+description: The text of every text file in git-code's repository (code, Markdown, YAML, scripts, configuration), with Python cut into one chunk per function or class and files holding a literal secret left out.
 requires:
   modules: [document_starter, person, extraction, git_graph]
   packs: [git-code]

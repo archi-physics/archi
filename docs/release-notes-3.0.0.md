@@ -22,6 +22,10 @@ and its `v2.x` tags.
   tickets, operational memory, and optionally ServiceNow, Slurm, HTCondor and
   node health, for any site). Add a source later with `archi add <pack>`.
   Write your own pack in a separate pip package.
+- **Repository text.** The `code-text` pack stores the text of every text file
+  in a Git repository (code, Markdown, YAML, shell scripts, configuration),
+  next to git-code's file and history records, and leaves out any file that
+  holds a literal secret (private keys, tokens, passwords in URLs or config).
 - **Evals.** `archi eval --bundle <name>` checks that a bundle answers its
   smoke set with cited records; `archi eval --context` scores retrieval with no
   model, and with `--agents` compares a model agent with bash over the raw

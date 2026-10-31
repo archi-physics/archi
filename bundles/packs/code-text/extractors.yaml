@@ -22,8 +22,10 @@
 # and docstring but never its body, so "what does X do with input Y" cannot be
 # answered from the graph.
 #
-# Every other code extension is routed to `text` by the source's
-# `extension_to_format` and split into plain windows.
+# Every other text file (other code, Markdown, YAML, JSON, shell scripts,
+# configuration, templates, files with no extension) is routed to `text` by
+# the source's `extension_to_format` or `text_fallback` and split into plain
+# windows.
 
 parser:
   - format: code

@@ -1,34 +1,62 @@
-# The text of the code in the repository the git-code pack clones: function
-# and class bodies as searchable, readable chunks. The code-symbols pack
-# gives each function's name, signature, docstring and line numbers, but not
-# its body, so a question like "what does this function do when the name
-# contains a slash" needs this source. It reads git-code's checkout and
+# The text of every text file in the repository the git-code pack clones:
+# code, Markdown, YAML, JSON, shell and other scripts, configuration and
+# templates, as searchable, readable chunks. The code-symbols pack gives each
+# function's name, signature, docstring and line numbers, but not its body,
+# and git-code stores each file as a name with no text, so "what does this
+# function do when the name contains a slash" or "which value does this
+# deployment file set" needs this source. It reads git-code's checkout and
 # clones nothing itself.
 #
 # What lands in the graph, per file:
 #   - a `document` node `doc:<repo>:<path>`, linked `derived_from` the
-#     `file:<repo>:<path>` node that github_repo emits. Reading the text of
-#     the file node points you to this document.
-#   - `document_chunk` nodes holding the code. Python is cut by okg's
+#     `file:<repo>:<path>` node that git-code's repo source emits. Reading the
+#     text of the file node points you to this document.
+#   - `document_chunk` nodes holding the text. Python is cut by okg's
 #     PythonSymbolChunker: one chunk per top-level function, per class (or per
 #     method of a large class) and per run of module-level code, each carrying
 #     `start_line`, `end_line` and `symbol`. The range starts at the blank or
 #     comment lines above the definition, so it can begin a line or two
 #     before the `def`; the first line holding code is the definition line.
-#     Other languages are cut into
-#     plain text windows. The parsers and chunk sizes are in the
-#     extractors.yaml this pack installs in the deployment directory.
+#     Every other text file is cut into plain text windows. The parsers and
+#     chunk sizes are in the extractors.yaml this pack installs in the
+#     deployment directory.
 #
-# Size, measured on a 99-file repository with 77 Python files (686 KB of
-# source, 528 functions): 77 documents, 613 chunk records holding 1.03x the
-# source text (the largest chunk is 4,000 characters; 25 long functions are
-# split into overlapping windows), 1,313 links, and 14.5 MB more database
-# (134.5 MB against 120.0 MB for the same install without this source).
+# Which files. Every tracked file except the binary types and the excludes
+# below. Markdown, YAML, JSON, TOML, HTML, CSV and notebooks are routed to
+# `text` rather than to okg's structured parsers: a templated Helm or Jinja
+# file does not parse as YAML, and plain text keeps every line searchable. A
+# file whose extension has no route is read as text when it reads as UTF-8
+# with no NUL byte (`text_fallback`), so extensionless scripts (`Makefile`,
+# `Dockerfile`, executables without `.sh`) are stored too.
 #
-# This is NOT a secret scanner. File contents become searchable, so a
-# credential committed to the repository becomes findable. The excludes below
-# skip the usual credential file names; narrow `include_globs` further for a
-# repository you have not reviewed.
+# Size. On a 99-file repository with 77 Python files (686 KB of source, 528
+# functions), reading only code gave 77 documents, 613 chunk records holding
+# 1.03x the source text, 1,313 links and 14.5 MB more database. Reading every
+# text file adds a document and its chunks per file, so expect the counts to
+# grow with the repository's non-code files.
+#
+# SECRETS. File contents become searchable, so a credential committed to the
+# repository would become findable. Two guards:
+#   - the excludes below skip the usual credential file names;
+#   - the source class is archi's SecretScreenedDocCorpusSource, okg's
+#     DocCorpusSource plus a screen that reads every selected file on every
+#     run and leaves out any file holding a literal secret (private keys,
+#     vendor tokens, JWTs, long non-public base64 runs, URLs with a
+#     password, Authorization headers, and secret-named keys, flags, .netrc
+#     lines and XML elements with a literal value).
+#     A left-out file gets no document; the run logs its path, never the
+#     value. See python/archi/sources/code_text.py for the rules.
+# The screen is pattern matching, not a proof. Narrow `include_globs` for a
+# repository nobody has reviewed. It covers this source's documents only:
+# git-code's history source stores per-file diffs, which okg redacts by its
+# own patterns, so a secret removed from the current files can still be read
+# in the diff that removed it.
+#
+# One cost of the screen: okg's `search(view="windows")` trusts stored
+# character positions only from sources whose registry names okg's own
+# DocCorpusSource, so a phrase, NEAR or regex window search inside these
+# documents may answer `window_continuity_unknown`. Plain search and text
+# reads are unaffected.
 #
 # `repo` and `repo_root` are git-code's own answers. `extractors_dir` comes
 # from the `--code-text-extractors-dir` answer. Its default is okg's run-time
@@ -38,8 +66,8 @@
 # comments included, so the placeholder itself cannot be written here.)
 #
 code_text:
-  module: okg.substrate.library.sources.doc_corpus
-  class: DocCorpusSource
+  module: archi.sources.code_text
+  class: SecretScreenedDocCorpusSource
   ownership_id: ${deployment_name}.code-text
   admission_policy:
     producer_id: ${deployment_name}.code-text
@@ -58,7 +86,7 @@ code_text:
         - {src_subtype: document, edge_type: contains, dst_subtype: document_chunk}
         - {src_subtype: document_chunk, edge_type: member_of, dst_subtype: document}
     output_scope_summary:
-      summary: the text of the code files in the configured repository, cut into function-sized chunks
+      summary: the text of the text files in the configured repository, with Python cut into function-sized chunks
       nodes: [document, document_chunk]
       edges:
         - document derived_from source_file
@@ -77,23 +105,12 @@ code_text:
     # text, then parsed as YAML).
     repo_root: '${archi_data_root}/repos/${git_code_repo_name}'
     extractors_dir: '${extractors_dir}'
-    # Same extensions as the code-symbols pack.
     include_globs:
-      - "**/*.py"
-      - "**/*.js"
-      - "**/*.jsx"
-      - "**/*.ts"
-      - "**/*.tsx"
-      - "**/*.go"
-      - "**/*.rs"
-      - "**/*.c"
-      - "**/*.cc"
-      - "**/*.cpp"
-      - "**/*.cxx"
-      - "**/*.h"
-      - "**/*.hpp"
-    # okg routes only `.py` to a code parser by default. Without these routes
-    # a matched file in any other language becomes a document with no text.
+      - "**/*"
+    # okg routes only `.py` to a code parser and sends Markdown, YAML, JSON,
+    # TOML, HTML, CSV, notebooks, LaTeX and mail to structured parsers this
+    # pack's extractors.yaml does not declare. Without these routes such a file
+    # becomes a document with no text.
     extension_to_format:
       ".js": text
       ".jsx": text
@@ -107,6 +124,20 @@ code_text:
       ".cxx": text
       ".h": text
       ".hpp": text
+      ".md": text
+      ".markdown": text
+      ".yaml": text
+      ".yml": text
+      ".json": text
+      ".toml": text
+      ".html": text
+      ".htm": text
+      ".csv": text
+      ".tsv": text
+      ".ipynb": text
+      ".tex": text
+      ".eml": text
+      ".email": text
     exclude_globs:
       # Paths whose contents are credentials.
       - "**/.env"
@@ -116,17 +147,71 @@ code_text:
       - "**/credentials/**"
       - "**/*credentials*"
       - "**/*.secret"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.jks"
+      - "**/*.keystore"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/*.ppk"
+      - "**/*.asc"
+      - "**/*.gpg"
+      - "**/.netrc"
+      - "**/.pgpass"
+      - "**/.htpasswd"
+      - "**/.dockerconfigjson"
+      - "**/.docker/config.json"
       # What git-code's repo source skips.
       - "**/__pycache__/**"
       - "**/.venv/**"
       - "**/node_modules/**"
       - "**/.git/**"
       - "**/*.pyc"
-    # Same caps as the code-symbols pack. A larger file is recorded as
-    # an `oversize` document with no text, counted, and the run continues.
-    max_files: 5000
+      # Binary files: no text to store, and okg would record each as a
+      # document with no text.
+      - "**/*.png"
+      - "**/*.jpg"
+      - "**/*.jpeg"
+      - "**/*.gif"
+      - "**/*.ico"
+      - "**/*.svg"
+      - "**/*.pdf"
+      - "**/*.zip"
+      - "**/*.gz"
+      - "**/*.tgz"
+      - "**/*.tar"
+      - "**/*.bz2"
+      - "**/*.xz"
+      - "**/*.jar"
+      - "**/*.whl"
+      - "**/*.so"
+      - "**/*.o"
+      - "**/*.a"
+      - "**/*.dylib"
+      - "**/*.class"
+      - "**/*.root"
+      - "**/*.db"
+      - "**/*.sqlite"
+      - "**/*.xlsx"
+      - "**/*.docx"
+      - "**/*.pptx"
+      - "**/*.woff"
+      - "**/*.woff2"
+      - "**/*.ttf"
+      - "**/*.otf"
+      - "**/*.eot"
+    # okg's own file cap: every text file of a large operations repository
+    # counts now, not only its code. More than `max_files` selected files
+    # stops the run with `doc_corpus_oversize`; raise it or narrow the globs.
+    # A file over `max_bytes_per_file` (the code-symbols pack's cap) is
+    # recorded as an `oversize` document with no text, counted, and the run
+    # continues.
+    max_files: 25000
     max_bytes_per_file: 1000000
-    # A Python 2 file that does not parse is stored as plain text windows
+    # A file with no route is read as plain text when it reads as UTF-8, and
+    # a Python 2 file that does not parse is stored as plain text windows
     # (warning `text_fallback:code`) instead of a document with no text.
     text_fallback: true
     # Run after git-code's repo source in the same cycle, so the file nodes exist and
