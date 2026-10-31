@@ -769,7 +769,9 @@ class FlaskAppWrapper:
                             iterable.append((resource_hash, path))
 
                 for resource_hash, path in iterable:
-                    metadata = candidate_metadata.get(resource_hash) or self.catalog.get_metadata_for_hash(resource_hash) or {}
+                    # Match the text first and look up metadata only for matching files.
+                    # Fetching metadata (one DB connection) for every file before matching
+                    # took 12 min per grep on a 165k-file catalogue.
                     text = load_text_from_path(path) or ""
                     if not text:
                         continue
@@ -782,6 +784,7 @@ class FlaskAppWrapper:
                     )
                     if not matches:
                         continue
+                    metadata = candidate_metadata.get(resource_hash) or self.catalog.get_metadata_for_hash(resource_hash) or {}
                     hits.append(
                         {
                             "hash": resource_hash,
