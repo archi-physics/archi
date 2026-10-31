@@ -774,6 +774,14 @@ def test_an_approved_promotion_makes_live_count():
     assert w.run(config(promotion_change="promote-x")).mode == "live"
 
 
+def test_a_live_run_of_a_promotion_with_no_trial_records_that_there_is_no_shadow_evidence():
+    """Board d717: `archi ops promote --no-trial --note <decision>`. The proposal of every live run says so."""
+    w = World(decision=approved(), promotions=Promotions(approved=True, at=at(-60), no_trial="board d717"))
+    assert w.run(config(promotion_change="promote-x")).mode == "live"
+    reason = w.recorder.calls[1][2]["mode_reason"]
+    assert reason.startswith("no shadow evidence: ") and "promote-x" in reason and "board d717" in reason
+
+
 def test_a_shadow_automation_never_asks_about_promotion():
     promotions = Promotions(approved=False)
     World(promotions=promotions).run(config(mode="shadow", level="L0"))

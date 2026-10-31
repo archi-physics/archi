@@ -410,3 +410,17 @@ def test_ops_yaml_names_the_promotion_change_and_a_hand_written_promoted_at_is_r
                                                                        "promoted_at": "2026-10-25T00:00:00Z"}}})
     with pytest.raises(RuntimeConfigError, match="unknown keys"):
         read_settings(inst)
+
+
+def test_status_says_whether_a_live_mode_is_approved_and_when_there_is_no_shadow_evidence():
+    """`mode: live` in ops.yaml is a request; the status line says whether the promotion is approved."""
+    from archi.cli.ops import _line
+
+    base = {"name": "ticket-triage", "level": "L2", "mode": "live",
+            "budget": {"per_day_cap": 5, "day_spent": 0, "exhausted": False},
+            "shadow": {"shadow_proposals": 0, "live_proposals": 0, "demotions": 0}}
+    waiting = _line({**base, "promotion": {"approved": False, "reason": "PACT change p is awaiting_review"}})
+    assert "mode live requested, runs in shadow until approved (PACT change p is awaiting_review)" in waiting
+    live = _line({**base, "promotion": {"approved": True, "at": "x", "reason": "", "no_trial": "board d717"}})
+    assert "mode live (promotion approved; no shadow evidence: board d717)" in live
+    assert "mode shadow," in _line({**base, "mode": "shadow"})

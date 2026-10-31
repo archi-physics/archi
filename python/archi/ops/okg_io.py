@@ -491,7 +491,7 @@ class OpsIO:
                                "ORDER BY id DESC LIMIT 1", (change,)).fetchone()
         if row is None:
             return {"approved": False, "at": None, "reason": f"PACT change {change} has no approve verdict in the ledger"}
-        return {"approved": True, "at": row[0].isoformat(), "reason": ""}
+        return {"approved": True, "at": row[0].isoformat(), "reason": "", "no_trial": str(record.get("no_trial") or "")}
 
     def ticket_cursor(self, automation: str, source: str) -> Optional[dict]:
         """`{updated, generation, seen}` for a ticket_queue automation's reading of one source, or None (never read)."""

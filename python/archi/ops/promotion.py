@@ -16,7 +16,7 @@ does the part before it:
 4. set `mode: live` and `promotion: <change>` in `ops.yaml` and commit those and the change directory,
    by name. Then it stops.
 
-With no trial (`archi ops promote <automation> --no-trial "<decision>"`), step 1 is replaced: the
+With no trial (`archi ops promote <automation> --no-trial --note "<decision>"`), step 1 is replaced: the
 request names the decision that waived the shadow trial (for example a board decision to switch a queue
 without one), and the change records it in its intent, in `promotion.json` (`no_trial`) and in its junit
 evidence (`test_promotion_without_trial`, passing, with the decision and the shadow report at request time).
@@ -78,7 +78,7 @@ def readiness_junit(readiness: Mapping[str, Any], report: Mapping[str, Any], thr
     """A junit file that says what the readiness check said: one test, failing with the reasons if not ready.
     With `no_trial` it is `test_promotion_without_trial`, passing, and names the decision that waived the trial."""
     if no_trial:
-        out = escape(f"no shadow trial, on the decision: {no_trial}\nreport at request time: {summary(report)}")
+        out = escape(f"no shadow evidence: no shadow trial, on the decision: {no_trial}\nreport at request time: {summary(report)}")
         return ('<?xml version="1.0" encoding="utf-8"?>\n<testsuites><testsuite name="archi-ops-promotion" tests="1" '
                 'failures="0" errors="0"><testcase classname="promotion.no_trial" '
                 f'name="test_promotion_without_trial"><system-out>{out}</system-out></testcase></testsuite></testsuites>\n')
@@ -164,7 +164,8 @@ def promote(
 
     change = change_id(automation, now)
     exe = okg or _okg()
-    basis = (f"No shadow trial, on the decision: {no_trial}. Shadow report at request time: {summary(report)}."
+    basis = (f"No shadow evidence: there was no shadow trial, on the decision: {no_trial}. Shadow report at request time: "
+             f"{summary(report)}."
              if no_trial else
              f"Shadow report: {summary(report)}. Thresholds: {json.dumps(thresholds, sort_keys=True)}.")
     text = (f"Promote automation {automation} from shadow to live. {basis}"
@@ -180,7 +181,7 @@ def promote(
     rel = f"pact/changes/{change}"
     test_id = ("promotion/no_trial.py::test_promotion_without_trial" if no_trial else
                "promotion/shadow_report.py::test_promotion_readiness")
-    acceptance = (f"An operator approves going live with no shadow trial, on the decision: {no_trial}." if no_trial
+    acceptance = (f"No shadow evidence: an operator approves going live with no shadow trial, on the decision: {no_trial}." if no_trial
                   else "The shadow report passes promotion_readiness and an operator approves.")
 
     def pact(*args: str, what: str) -> None:

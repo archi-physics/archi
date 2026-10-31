@@ -97,7 +97,7 @@ Until it is approved, the automation stays in shadow. Editing `ops.yaml` to
 say `live` changes nothing.
 
 An automation can go live with no shadow trial when someone decided so:
-`archi ops promote <automation> --no-trial "<decision>"` skips the
+`archi ops promote <automation> --no-trial --note "<decision>"` skips the
 thresholds and records the decision in the change. An operator still
 approves it.
 

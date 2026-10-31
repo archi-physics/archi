@@ -548,7 +548,8 @@ class _Demotions:
 class _Promotions:
     def check(self, automation: str, change: Optional[str]) -> PromotionState:
         d = _promotion_step(automation)
-        return PromotionState(bool(d["approved"]), _moment(d["at"]) if d.get("at") else None, d.get("reason") or "")
+        return PromotionState(bool(d["approved"]), _moment(d["at"]) if d.get("at") else None, d.get("reason") or "",
+                              d.get("no_trial") or "")
 
 
 class _Recorder:

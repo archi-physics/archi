@@ -177,8 +177,8 @@ class Demotions:
 class Promotions:
     """Approves the named PACT change (or not), as the okg ledger would."""
 
-    def __init__(self, approved=True, at=None, reason=""):
-        self.state, self.calls = (approved, at, reason), []
+    def __init__(self, approved=True, at=None, reason="", no_trial=""):
+        self.state, self.calls = (approved, at, reason, no_trial), []
 
     def check(self, automation, change):
         self.calls.append((automation, change))

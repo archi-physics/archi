@@ -41,7 +41,7 @@ node id under **Sources**.
 
 Every automation starts in **shadow**: it proposes and records, opens no escalation and changes nothing,
 until an operator promotes it (`archi ops promote ticket-triage`, then an approved PACT change).
-With no shadow trial, `archi ops promote ticket-triage --no-trial "<decision>"` names the decision that waived
+With no shadow trial, `archi ops promote ticket-triage --no-trial --note "<decision>"` names the decision that waived
 it; an operator still approves the change.
 
 ## Going back to shadow
