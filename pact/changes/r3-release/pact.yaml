@@ -21,7 +21,8 @@ requirements:
   statement: 'Every deployment in the inventory is migrated to 3.0 or pinned to a tagged v2.x;
     the v3 line becomes main, v2 is kept as branch v2; w10-v2-teardown''s cutover clause is
     evidenced. The v2 queue bots (Redmine, mailbox) move to 3.0''s ticket-triage automation
-    (board d701, reversing d405), so the cutover waits on it.
+    (board d701, reversing d405), so the cutover waits on it, on the terms PACT
+    r3-auto-ticket-triage sets (including its shadow report).
 
 
     Acceptance:
@@ -55,7 +56,9 @@ tasks:
 
     Test plan:
 
-    - repo settings [evidence: manual]'
+    - repo settings [evidence: manual]
+
+    - each deployment migrated or pinned, owner sign-off [evidence: manual]'
 - id: task.r3-release.tag
   requirement: req.r3-release.tag
   verification: 'Tag, publish, announce.
@@ -78,7 +81,8 @@ evidence:
     named) and a second chat on SubMIT (owner Maria D''Alfonso, per her fork). Jason confirmed FASRC, a
     CMS comp-ops bot at CERN, WisDQM, CRAB and course deployments do not run 2.x. Not yet done: the
     v2 version of each, read in its owner''s environment, and the migration itself (condition 2);
-    acc.r3-release.main is not evidenced.'
+    acc.r3-release.main is not evidenced. Superseded for versions, the row 1 owner and the
+    decision by the 2026-10-30 row below.'
 - kind: manual
   requirement: req.r3-release.inventory
   status: pass
