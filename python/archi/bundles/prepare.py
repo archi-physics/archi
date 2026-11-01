@@ -6,19 +6,19 @@ pack's answers are known and before okg reads the pack's sources. The docsite
 pack uses it to write its records cache.
 
 A step runs without a shell, in archi's own Python, with ARCHI_DATA_ROOT set
-to the instance's data root. A step that fails or times out raises
+to the instance's data root and the values of the instance's `.env` added to its
+environment (a value exported in the shell wins). A step that fails or times out raises
 PrepareError; the caller stops. Nothing is skipped and no empty result is
 substituted, because a source reading a missing or empty cache would publish
 nothing or fail the whole batch.
 """
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
 
 from archi.bundles.compose import question_prefix
 from archi.bundles.manifest import TEMPLATE_REF, Pack
@@ -95,9 +95,17 @@ def run_steps(
     *,
     echo: Callable[[str], None] = print,
     runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+    env_values: Optional[Mapping[str, str]] = None,
 ) -> None:
-    """Run the steps in order; the first failure raises PrepareError."""
-    env = dict(os.environ)
+    """Run the steps in order; the first failure raises PrepareError.
+
+    `env_values` is the instance's `.env`: a step (a downloader) reads its
+    credential from its environment, so those values are added to it. A value
+    exported in the shell wins.
+    """
+    from archi.stack.instance import instance_env
+
+    env = instance_env(env_values or {})
     env[DATA_ROOT_ENV] = str(data_root)
     Path(data_root).mkdir(parents=True, exist_ok=True)
     for step in steps:

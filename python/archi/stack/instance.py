@@ -7,7 +7,7 @@
         stack/mcp.Dockerfile    the MCP server image (committed)
         profiles/<name>/        the rendered okg profile (committed)
         deployments/<name>/     the okg deployment (committed)
-        .env                    generated secrets, mode 0600 (git-ignored)
+        .env                    generated secrets and source credentials, mode 0600 (git-ignored)
         .secrets/               okg's role-password file, mode 0600 (git-ignored)
 
 The data root (connector caches, repository checkouts) is outside the
@@ -322,15 +322,34 @@ def chat_dsn(secrets: Mapping[str, str]) -> str:
     return f"postgresql://postgres:{secrets['ARCHI_CHAT_DB_PASSWORD']}@chat-db:5432/okg_chat_app"
 
 
+def instance_env(values: Mapping[str, str], base: Optional[Mapping[str, str]] = None) -> dict[str, str]:
+    """`base` (the shell's environment by default) plus every value in the instance's `.env`.
+
+    A source reads its credential (`CERN_JIRA_TOKEN`, a cookie file path, ...)
+    from the environment of the process that ingests. This is how a value
+    written into `.env` reaches that process. A variable already set in `base`
+    keeps its value: a value exported in the shell wins over `.env`.
+    """
+    env = dict(os.environ if base is None else base)
+    for key, value in values.items():
+        env.setdefault(key, value)
+    return env
+
+
 def host_env(instance: Instance, secrets: Mapping[str, str], base: Optional[Mapping[str, str]] = None) -> dict[str, str]:
     """The environment okg runs in on the host, for this instance.
+
+    `secrets` is the instance's `.env`. Every value in it is passed on
+    (`instance_env`), so a source credential written there reaches ingestion;
+    a value exported in the shell wins, except for the instance's own
+    settings below, which always come from the instance.
 
     `OKG_PROFILES_DIR` is removed: okg is run from the instance directory and
     finds the rendered profile in `./profiles/`. Role passwords go to the
     instance's own `.secrets/` instead of okg's per-port file in ~/.config,
     which a second instance on a reused port would overwrite.
     """
-    env = dict(os.environ if base is None else base)
+    env = instance_env(secrets, base)
     env.pop("OKG_PROFILES_DIR", None)
     env.update(
         OKG_DSN=graph_dsn(instance, secrets),

@@ -158,6 +158,15 @@ Okg lint + doctor + archi's footgun checks, with remediations.
 | `--instance INSTANCE` | instance directory | `.` |
 | `--json` | one JSON object, for agents |  |
 
+## `archi ingest`
+
+Run okg ingest for the instance, with the credentials in its .env.
+
+| Option | Meaning | Default |
+|---|---|---|
+| `--instance INSTANCE` | instance directory | `.` |
+| `--include INCLUDE` | comma-separated source ids to ingest (default: every source) |  |
+
 ## `archi eval`
 
 Ask a bundle's smoke questions through the instance MCP with a local model, or score retrieval alone with --context.

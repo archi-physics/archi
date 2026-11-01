@@ -350,3 +350,43 @@ def test_the_indico_default_event_yields_to_any_named_scope(
     params = yaml.safe_load(text)["indico.indico_live"]["params"]
     source = IndicoLiveSource(**{k: v for k, v in params.items() if k != "required"})
     assert (source.event_ids, source.category_ids) == (read_events, read_categories)
+
+
+# ---------------------------------------------------------------------------
+# a prepare step (a downloader) gets the instance's .env
+# ---------------------------------------------------------------------------
+
+
+def test_a_step_gets_the_instance_env_values_and_the_shell_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("SHELL_ONLY", "shell")
+    monkeypatch.setenv("BOTH", "shell")
+    monkeypatch.delenv("DOTENV_ONLY", raising=False)
+    seen = {}
+
+    def runner(cmd, **kw):
+        seen.update(kw["env"])
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    run_steps([_step("one")], tmp_path, echo=lambda _: None, runner=runner,
+              env_values={"DOTENV_ONLY": "dotenv", "BOTH": "dotenv"})
+    assert seen["DOTENV_ONLY"] == "dotenv"
+    assert seen["BOTH"] == "shell"
+    assert seen["SHELL_ONLY"] == "shell"
+    assert seen["ARCHI_DATA_ROOT"] == str(tmp_path)
+
+
+def test_add_passes_the_instance_env_to_the_prepare_steps(cern, tmp_path, monkeypatch):
+    instance = tmp_path / "instance"
+    render_and_lock(cern, instance, ["cern-team"], without_packs=["docsite"])
+    deployment = _scaffold(instance, "cern-team", BASE_ANSWERS)
+    (instance / ".env").write_text("# test\nCERN_JIRA_TOKEN=from-dotenv\n")
+    seen = []
+
+    def stop(steps, data_root, **kw):
+        seen.append(kw.get("env_values"))
+        raise PrepareError("stop here")
+
+    monkeypatch.setattr("archi.bundles.prepare.run_steps", stop)
+    with pytest.raises(LockError):
+        add(instance, cern, "docsite", {}, deployment_dir=deployment, echo=lambda *_: None)
+    assert seen == [{"CERN_JIRA_TOKEN": "from-dotenv"}]

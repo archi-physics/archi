@@ -20,7 +20,6 @@ list as manual ones: commit, ownership claim, catalog load, ingest, publish.
 from __future__ import annotations
 
 import hashlib
-import os
 import shutil
 import subprocess
 import sys
@@ -320,6 +319,14 @@ def _okg_executable() -> str:
     return found
 
 
+def _instance_env_values(instance_dir: Path) -> dict[str, str]:
+    """The values in the instance's `.env`, or none when it has no `.env` (a bare profile)."""
+    from archi.stack.instance import ENV_FILE, read_env
+
+    path = Path(instance_dir) / ENV_FILE
+    return read_env(path) if path.is_file() else {}
+
+
 @dataclass
 class AddResult:
     pack: str
@@ -510,6 +517,10 @@ def add(
     plan = expected_scaffold(instance_dir, rendered.name, deployment_dir, all_answers)
     new_answers = {k: v for k, v in plan.answers.items() if k not in deployment_answers(deployment_dir)}
     new_answers.pop("HOME", None)
+    # The instance's `.env` (generated secrets and source credentials) is added
+    # to the environment of every step that ingests; a value exported in the
+    # shell wins.
+    env_values = _instance_env_values(instance_dir)
     if run_okg:
         # Before the deployment changes: a failed step leaves it as it was.
         from archi.bundles.prepare import PrepareError, run_steps, steps_for
@@ -517,7 +528,7 @@ def add(
         try:
             run_steps(
                 steps_for([catalog.packs[p] for p in added_packs], plan.answers),
-                Path(plan.answers["archi_data_root"]), echo=echo,
+                Path(plan.answers["archi_data_root"]), echo=echo, env_values=env_values,
             )
         except PrepareError as exc:
             raise LockError(f"preparing the new pack failed: {exc}") from exc
@@ -540,7 +551,9 @@ def add(
             [okg, "ingest", "--deployment", name, "--include", ",".join(new_sources)],
             [okg, "run", "--once", "--deployment", name, "--apply"],
         ]
-        env = dict(os.environ)
+        from archi.stack.instance import instance_env
+
+        env = instance_env(env_values)
         env.setdefault("OKG_DEPLOYMENTS_DIR", str(deployment_dir.parent))
         for cmd in steps:
             echo("$ " + " ".join(cmd[1:] if cmd[0] == okg else cmd))

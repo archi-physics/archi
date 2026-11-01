@@ -24,10 +24,17 @@ To choose packs at the start, use `archi init --with <pack>`.
 
 ## Credentials
 
-A pack names its credential variables. It never holds a value. Put the value
-in the environment of the process that reads the source, or in a cookie file
-whose path an init question asks for. Packs that need none, such as
-`docsite`, publish with nothing configured.
+A pack names its credential variables (its page lists them). It never holds a
+value. Put the value in the instance's `.env`, one `KEY=value` per line, or in
+a cookie file whose path an init question asks for. `.env` is mode 0600 and
+git ignores it. `archi add` and `archi ingest` add every value in `.env` to the
+environment of the steps that ingest; a value exported in the shell wins.
+`archi init` writes `.env` itself, so for a pack selected at `archi init`, export
+the value in the shell for the first ingest, then add it to `.env`.
+
+`okg` run by hand does not read `.env`. To refresh sources, run `archi ingest`
+(`--include <source id>,...` for some of them). Packs that need no credential,
+such as `docsite`, publish with nothing configured.
 
 ## Connectors that read a cache
 

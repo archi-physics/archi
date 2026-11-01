@@ -517,7 +517,7 @@ def source_freshness(ctx: Context) -> Result:
         return Result("source-freshness", FAIL,
                       f"{len(late)} of {len(rows)} sources over their max_staleness: "
                       f"{first['source']}: {first['reason']}{more}",
-                      f"okg ingest --deployment {ctx.instance.name} (run in the instance); to relax the "
+                      "archi ingest (run in the instance); to relax the "
                       "limit, edit the pack's freshness: and re-render",
                       data={"sources": rows})
     return Result("source-freshness", PASS, f"all {len(rows)} sources are within their max_staleness",

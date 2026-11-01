@@ -69,6 +69,12 @@ publishes again. See [Adding a source](../adding-a-source.md). If the bundle
 names companions for that pack (cms-comp-ops: `git-code` brings `code-text`),
 they come too and a note says so; `--without <companion>` leaves one out.
 
+**`archi ingest [--include SOURCE,...]`** runs `okg ingest` for the instance
+from its directory, with the values in `.env` added to okg's environment (a
+value exported in the shell wins). That is how a source credential written into
+`.env` reaches the source. It is the fix `archi doctor` names for a stale
+source. It exits with okg's code.
+
 ## A local model
 
 The chat needs a model server. With ollama on the same machine, `archi up`

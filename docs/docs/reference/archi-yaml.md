@@ -1,7 +1,7 @@
 # archi.yaml and ops.yaml
 
 `archi init` writes `archi.yaml` into the instance. `archi up`, `down`,
-`doctor` and `ops` read it. It holds settings, never secrets: those are in
+`doctor`, `ingest` and `ops` read it. It holds settings, never secrets: those are in
 `.env`.
 
 ## archi.yaml
@@ -66,7 +66,7 @@ Per automation, under `automations.<name>`:
 
 | File | What it holds |
 |---|---|
-| `.env` | Generated secrets, readable only by you, ignored by git. |
+| `.env` | Generated secrets and your source credentials, readable only by you, ignored by git. |
 | `archi.lock` | Bundle and pack versions and content digests. Committed. |
 | `compose.yaml` | The stack. Generated. Edit `archi.yaml`, not this file. |
 | `profiles/<name>/` | The rendered okg profile. |

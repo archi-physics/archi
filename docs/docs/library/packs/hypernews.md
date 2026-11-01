@@ -29,7 +29,7 @@ This pack asks no questions.
 
 ## Credentials
 
-The pack reads these environment variables. Only the names are listed. Set them in the environment of the shell that runs ingestion (okg and the downloaders): archi does not pass values from the instance's `.env` to ingestion.
+The pack reads these environment variables. Only the names are listed. Put each value in the instance's `.env` (`KEY=value`, one per line): `archi add` and `archi ingest` pass it to ingestion. A value exported in the shell wins. `okg` run by hand does not read `.env`.
 
 - `HYPERNEWS_COOKIE_FILE`
 
