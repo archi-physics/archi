@@ -160,7 +160,7 @@ def pack_page(pack: Pack, catalog: Catalog) -> str:
 
     out += ["## Credentials", ""]
     if pack.credentials:
-        out += ["The pack reads these environment variables. Only the names are listed; values stay in the instance's `.env`.", ""]
+        out += ["The pack reads these environment variables. Only the names are listed. Set them in the environment of the shell that runs ingestion (okg and the downloaders): archi does not pass values from the instance's `.env` to ingestion.", ""]
         out += [f"- `{c}`" for c in pack.credentials] + [""]
     else:
         out += ["The manifest names no credential variable.", ""]

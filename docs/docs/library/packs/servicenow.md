@@ -34,7 +34,7 @@ Add it to an instance with `archi add servicenow`.
 
 ## Credentials
 
-The pack reads these environment variables. Only the names are listed; values stay in the instance's `.env`.
+The pack reads these environment variables. Only the names are listed. Set them in the environment of the shell that runs ingestion (okg and the downloaders): archi does not pass values from the instance's `.env` to ingestion.
 
 - `SERVICENOW_CLIENT_ID`
 - `SERVICENOW_CLIENT_SECRET`

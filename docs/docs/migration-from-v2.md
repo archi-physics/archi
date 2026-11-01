@@ -59,6 +59,11 @@ does not have.
 - **Restricted Indico events.** The `indico` pack reads public events and
   asks for no credential.
 - **Helm deployment.** 3.0 runs one compose project with podman or docker.
+- **SSO login and admin roles for the chat (`services.chat_app.auth`,
+  `auth_roles`).** Open WebUI keeps its own accounts, but every chat user and
+  every connected agent reads the graph through one shared token, with no
+  per-user or per-role filtering. See
+  [who can read the graph](connecting-an-agent.md#who-can-read-the-graph).
 - **Live instances rebuilt from the bundles.** All four bundles ship
   (`cern-team`, `cms-physics`, `cms-comp-ops`, `cluster-manager`), but the
   live comp-ops and SubMIT instances have not been rebuilt from them yet.
