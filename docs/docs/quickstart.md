@@ -4,8 +4,13 @@ From an empty machine to a cited answer from your team's knowledge graph,
 with the `cern-team` bundle: five user commands, the same ones the nightly
 build runs (the `cd` is not counted, and the fifth is a check).
 
-**You need:** `docker` or `podman` (with `compose`), Python 3.12 or newer,
+**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; okg 0.2.0 does not install on 3.14),
 and `git`. No account, key or root access.
+
+With rootless podman, container health checks run from systemd user timers.
+Where there is no systemd user session (inside a container, or on some
+shared hosts), the checks may never run, and then `archi up` waits with no time limit.
+Use docker there, or log in to a session with a systemd user manager.
 
 ```bash
 pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl" "archi-kb @ git+https://github.com/archi-physics/archi@archi_v3#subdirectory=python"

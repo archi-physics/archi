@@ -5,6 +5,24 @@ streamable HTTP can use the same graph tools. The endpoint is
 `http://127.0.0.1:<ports.mcp>/mcp`; the bearer token is `OKG_CHAT_MCP_TOKEN` in
 the instance `.env`.
 
+## Who can read the graph
+
+In 3.0, access is all or nothing. Every client of an instance uses the same
+token, and anyone who holds it can read the whole published graph. There is
+no per-user, per-group or per-record filtering, and no single sign-on for the
+MCP endpoint. A request with no token or a wrong one gets HTTP 401.
+
+Clients connected with `archi connect` also get `query`, the raw SQL read
+tool. The Open WebUI preset leaves it out, but the server offers it to every
+client that holds the token. It runs as the read-only `okg_mcp` database
+role and refuses anything but `SELECT` and `WITH`. Give the token only to
+people who may read everything in the instance.
+
+The ports listen on 127.0.0.1 only. To reach the instance from another
+machine, use an SSH tunnel.
+
+## Configure a client
+
 ```console
 archi connect claude-code [--instance DIR] [--print | --write [PATH]] [--show-token] [--embed-token]
 ```

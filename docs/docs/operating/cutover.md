@@ -294,12 +294,12 @@ publisher is how `release.yml` publishes without a token.
 3. **Install the wheel before the irreversible upload.** Build it exactly as
    `release.yml` does, install it into a clean virtual environment, and smoke
    test it. Outside the repository, in a scratch directory. archi needs
-   Python 3.12 or newer; on a host whose `python3` is older (3.9 on some
+   Python 3.12 (3.13 is untested; okg 0.2.0 refuses 3.14); on a host whose `python3` is older (3.9 on some
    lab hosts) the wheel still builds but the install fails on an okg
    dependency, so name the interpreter:
 
    ```bash
-   PY=python3.12; "$PY" --version         # 3.12 or newer
+   PY=python3.12; "$PY" --version         # 3.12; okg 0.2.0 refuses 3.14
    W=$(mktemp -d)
    git clone --branch archi_v3 https://github.com/archi-physics/archi.git "$W/src"
    (cd "$W/src/python" && "$PY" -m venv "$W/build-venv" && "$W/build-venv/bin/pip" install build \
@@ -588,7 +588,7 @@ gh release create v3.0.0 --repo archi-physics/archi --verify-tag \
 ```
 
 **Check (this is the `r3-release` acceptance):** in an empty directory and a
-new environment, with Python 3.12 or newer (see step 6). It needs podman or
+new environment, with Python 3.12 (see step 6). It needs podman or
 Docker, as `archi up` does. `archi doctor` checks the running services, so it
 runs after `archi up`, as the nightly test does; right after `archi init` it
 exits 1 (`services`, `mcp-answers`, `webui-up`). The data root goes under
