@@ -22,7 +22,7 @@ The settings files are described in [archi.yaml](../reference/archi-yaml.md).
 
 - `archi.yaml`: the instance's settings.
 - `archi.lock`: which bundle and pack versions were installed.
-- `.env`: the generated secrets, readable only by you, ignored by git.
+- `.env`: the generated secrets and your source credentials, readable only by you, ignored by git.
 - `profiles/`, `deployments/`: the rendered profile and the OKG deployment.
 - The **data root** (`~/.local/share/archi/<name>` by default): connector
   caches and repository checkouts. It is outside the instance on purpose,

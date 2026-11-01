@@ -9,6 +9,7 @@ python/tests/cli/test_doctor.py without a running stack.
 from __future__ import annotations
 
 import asyncio
+import re
 import stat
 import subprocess
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ from archi.stack.instance import (
     COMPOSE_FILE,
     DEPLOYMENTS_DIR,
     ENV_FILE,
+    GENERATED_KEYS,
     SECRET_KEYS,
     SECRETS_DIR,
     Instance,
@@ -50,8 +52,8 @@ class Result:
 # ---------------------------------------------------------------------------
 
 
-def _git(directory: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(directory), *args], capture_output=True, text=True)
+def _git(directory: Path, *args: str, input: Optional[str] = None) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(directory), *args], capture_output=True, text=True, input=input)
 
 
 def _db_query(dsn: str, sql: str) -> list[tuple]:
@@ -182,6 +184,15 @@ def env_secrets(ctx: Context) -> Result:
     return Result("env-secrets", PASS, f"{len(SECRET_KEYS) + 1} secrets in {ENV_FILE}, mode 0600")
 
 
+#: A `.env` key whose value is a secret: one archi generated, or a credential by its name.
+#: A cookie-file path or a URL in `.env` is not scanned (it may well appear in committed answers).
+_SECRET_NAME = re.compile(r"(TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|_KEY)$")
+
+
+def _is_secret_key(key: str) -> bool:
+    return key in GENERATED_KEYS or bool(_SECRET_NAME.search(key))
+
+
 @check("secrets-not-committed", "FG-14")
 def secrets_not_committed(ctx: Context) -> Result:
     git = ctx.probes.git
@@ -189,7 +200,10 @@ def secrets_not_committed(ctx: Context) -> Result:
     ignored = git(ctx.instance.dir, "check-ignore", "-q", "--no-index", ENV_FILE)
     leaked = []
     for key, value in ctx.secrets.items():
-        if value and git(ctx.instance.dir, "grep", "-q", "-F", value, "HEAD").returncode == 0:
+        if not value or not _is_secret_key(key):
+            continue
+        # The value goes to git on stdin (-f -), never on a command line `ps` shows.
+        if git(ctx.instance.dir, "grep", "-q", "-F", "-f", "-", "HEAD", input=value + "\n").returncode == 0:
             leaked.append(key)
     if tracked or ignored.returncode != 0 or leaked:
         what = (f"tracked: {', '.join(tracked)}; " if tracked else "") + \

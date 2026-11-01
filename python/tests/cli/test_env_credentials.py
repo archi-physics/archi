@@ -132,3 +132,79 @@ def test_archi_ingest_is_a_command():
 
     args = build_parser().parse_args(["ingest", "--include", "a.b"])
     assert args.func is ingest_mod.cmd_ingest and args.include == "a.b"
+
+
+def test_read_env_takes_quotes_and_export_as_compose_does(instance):
+    add_to_env(instance, **{"A": '"double"', "B": "'single'", "C": "a'b"})
+    with open(instance.env_path, "a", encoding="utf-8") as fh:
+        fh.write("export D=exported\n")
+    values = read_env(instance.env_path)
+    assert (values["A"], values["B"], values["C"], values["D"]) == ("double", "single", "a'b", "exported")
+
+
+def test_keys_that_change_how_programs_run_are_not_passed_on(instance):
+    add_to_env(instance, LD_PRELOAD="/evil.so", PYTHONPATH="/evil", GIT_SSH_COMMAND="evil",
+               OKG_SOMETHING="x", PATH="/evil", **{TOKEN: "from-dotenv"})
+    warnings = []
+    from archi.stack.instance import instance_env
+
+    env = instance_env(read_env(instance.env_path), base={"PATH": "/usr/bin"}, warn=warnings.append)
+    assert env[TOKEN] == "from-dotenv"
+    assert env["PATH"] == "/usr/bin"
+    for key in ("LD_PRELOAD", "PYTHONPATH", "GIT_SSH_COMMAND", "OKG_SOMETHING"):
+        assert key not in env
+    assert len(warnings) == 1 and "LD_PRELOAD" in warnings[0] and "/evil" not in warnings[0]
+    # The generated OKG_CHAT_* secrets still pass.
+    assert env["OKG_CHAT_MCP_TOKEN"] == read_env(instance.env_path)["OKG_CHAT_MCP_TOKEN"]
+
+
+def test_an_empty_shell_value_counts_as_unset(instance, fake_okg, monkeypatch):
+    add_to_env(instance, **{TOKEN: "from-dotenv"})
+    monkeypatch.setenv(TOKEN, "")
+    Okg(instance, read_env(instance.env_path), echo=lambda _: None).run("ingest", "--deployment", instance.name)
+    assert saw(fake_okg)["token"] == "from-dotenv"
+
+
+def test_archi_ingest_runs_in_process_with_automations_and_can_publish(instance, monkeypatch):
+    from archi.cli import ingest as ingest_mod
+
+    calls = []
+
+    def runner(cmd, **kw):
+        calls.append(cmd[1:])
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(okg_mod, "executable", lambda: "okg")
+    monkeypatch.setattr("archi.cli.init.has_automations", lambda _d: True)
+    args = argparse.Namespace(instance=instance.dir, include=None, publish=True)
+    assert ingest_mod.cmd_ingest(args, runner=runner) == 0
+    assert calls == [
+        ["ingest", "--deployment", "my-team", "--inline"],
+        ["run", "--once", "--deployment", "my-team", "--apply", "--inline"],
+    ]
+
+
+def test_a_secret_in_env_committed_by_mistake_is_found_without_a_command_line(instance, monkeypatch):
+    """doctor's secrets-not-committed: a credential by name is scanned; its value goes to git on stdin."""
+    from archi.stack import checks
+
+    git = lambda *a: subprocess.run(["git", "-C", str(instance.dir), "-c", "user.name=t",
+                                     "-c", "user.email=t@e.invalid", "-c", "commit.gpgsign=false", *a],
+                                    check=True, capture_output=True)
+    git("init", "-q")
+    (instance.dir / "notes.txt").write_text("token abcdef0123456789 and /home/u/cookies.txt\n")
+    git("add", "notes.txt")
+    git("commit", "-qm", "x")
+    add_to_env(instance, **{TOKEN: "abcdef0123456789", "CERN_TWIKI_COOKIE_FILE": "/home/u/cookies.txt"})
+    argv = []
+    real = checks._git
+
+    def spy(directory, *args, input=None):
+        argv.append(args)
+        return real(directory, *args, input=input)
+
+    ctx = checks.Context(instance, read_env(instance.env_path), checks.Probes(git=spy))
+    result = checks.secrets_not_committed(ctx)
+    assert result.status == checks.FAIL and TOKEN in result.message
+    assert "CERN_TWIKI_COOKIE_FILE" not in result.message
+    assert not any("abcdef0123456789" in a for args in argv for a in args)

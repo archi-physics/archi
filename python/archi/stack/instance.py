@@ -20,9 +20,10 @@ import os
 import re
 import secrets as _secrets
 import socket
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 from urllib.parse import urlparse
 
 import yaml
@@ -51,6 +52,15 @@ SECRET_KEYS = (
     "OKG_CHAT_WEBUI_SECRET_KEY",
     "OKG_CHAT_MCP_TOKEN",
     "ARCHI_ADMIN_PASSWORD",
+)
+
+#: Everything `archi init` writes into `.env`: the generated secrets and okg's read-role password.
+GENERATED_KEYS = SECRET_KEYS + ("ARCHI_OKG_MCP_PASSWORD",)
+
+#: `.env` keys that are never passed on to ingestion: they change how programs
+#: run (the loader, Python, git, okg's own settings), not what a source reads.
+NEVER_FROM_ENV_FILE = re.compile(
+    r"^(PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|PYTHON\w*|GIT_\w*|SSH_\w*|OKG_\w*)$"
 )
 
 
@@ -302,7 +312,12 @@ def read_env(path: Path) -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        values[key.strip()] = value.strip()
+        key, value = key.strip(), value.strip()
+        if key.startswith("export "):
+            key = key[len("export "):].strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]  # KEY="value" or KEY='value', as docker compose reads it
+        values[key] = value
     return values
 
 
@@ -322,18 +337,48 @@ def chat_dsn(secrets: Mapping[str, str]) -> str:
     return f"postgresql://postgres:{secrets['ARCHI_CHAT_DB_PASSWORD']}@chat-db:5432/okg_chat_app"
 
 
-def instance_env(values: Mapping[str, str], base: Optional[Mapping[str, str]] = None) -> dict[str, str]:
+def instance_env(
+    values: Mapping[str, str],
+    base: Optional[Mapping[str, str]] = None,
+    *,
+    warn: Optional[Callable[[str], None]] = None,
+) -> dict[str, str]:
     """`base` (the shell's environment by default) plus every value in the instance's `.env`.
 
     A source reads its credential (`CERN_JIRA_TOKEN`, a cookie file path, ...)
     from the environment of the process that ingests. This is how a value
     written into `.env` reaches that process. A variable already set in `base`
-    keeps its value: a value exported in the shell wins over `.env`.
+    keeps its value: a value exported in the shell wins over `.env`. An empty
+    one counts as unset.
+
+    A key in NEVER_FROM_ENV_FILE (PATH, LD_*, PYTHON*, GIT_*, OKG_*, ...) is not
+    passed on, except the generated ones; `warn` gets their names, never values.
     """
     env = dict(os.environ if base is None else base)
+    skipped = []
     for key, value in values.items():
-        env.setdefault(key, value)
+        if key not in GENERATED_KEYS and NEVER_FROM_ENV_FILE.match(key):
+            skipped.append(key)
+            continue
+        if not env.get(key):
+            env[key] = value
+    new = sorted(set(skipped) - _WARNED) if warn is None else sorted(skipped)
+    if new:
+        (warn or _warn_stderr)(
+            "archi: not passed on from .env (they change how programs run, not what a source "
+            f"reads): {', '.join(new)}"
+        )
+        if warn is None:
+            _WARNED.update(new)
     return env
+
+
+#: Keys already named on stderr in this process: okg runs many times per command.
+_WARNED: set[str] = set()
+
+
+def _warn_stderr(message: str) -> None:
+    print(message, file=sys.stderr)
 
 
 def host_env(instance: Instance, secrets: Mapping[str, str], base: Optional[Mapping[str, str]] = None) -> dict[str, str]:

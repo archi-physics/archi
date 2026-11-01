@@ -69,7 +69,7 @@ def up(
         okg.run("runtime", "bootstrap", "--deployment", instance.name)
         ensure_ops_tables(instance, secrets)
         echo("ops runtime bootstrapped. The stack has no runtime worker yet: run `okg runtime worker "
-             f"--deployment {instance.name}` (with ARCHI_INSTANCE, OKG_DSN and ARCHI_OPS_DEPLOYMENT set) "
+             f"--deployment {instance.name}` (with ARCHI_INSTANCE, OKG_DSN, ARCHI_OPS_DEPLOYMENT and any source credentials from .env set) "
              "for automations to run")
     # Unauthenticated, the MCP endpoint answers 401: up, and refusing strangers.
     stack_compose.wait_for(

@@ -166,6 +166,7 @@ Run okg ingest for the instance, with the credentials in its .env.
 |---|---|---|
 | `--instance INSTANCE` | instance directory | `.` |
 | `--include INCLUDE` | comma-separated source ids to ingest (default: every source) |  |
+| `--publish` | then publish a new generation (okg run --once --apply) |  |
 
 ## `archi eval`
 

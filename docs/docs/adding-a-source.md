@@ -25,16 +25,30 @@ To choose packs at the start, use `archi init --with <pack>`.
 ## Credentials
 
 A pack names its credential variables (its page lists them). It never holds a
-value. Put the value in the instance's `.env`, one `KEY=value` per line, or in
-a cookie file whose path an init question asks for. `.env` is mode 0600 and
-git ignores it. `archi add` and `archi ingest` add every value in `.env` to the
-environment of the steps that ingest; a value exported in the shell wins.
-`archi init` writes `.env` itself, so for a pack selected at `archi init`, export
-the value in the shell for the first ingest, then add it to `.env`.
+value. Packs that need no credential, such as `docsite`, publish with nothing
+configured.
 
-`okg` run by hand does not read `.env`. To refresh sources, run `archi ingest`
-(`--include <source id>,...` for some of them). Packs that need no credential,
-such as `docsite`, publish with nothing configured.
+**Where the value goes.** Put it in the instance's `.env`, one `KEY=value` per
+line, or in a cookie file whose path an init question asks for. `.env` is mode
+0600 and git ignores it. Quotes around a value and a leading `export` are
+allowed.
+
+**What reads it.** `archi add`, `archi ingest` and every other okg command archi
+runs add every value in `.env` to the environment of the steps that ingest. A
+value exported in the shell wins. A value added to `.env` takes effect at the
+next `archi ingest` or `archi add`.
+Keys that change how programs run (`PATH`, `LD_*`, `PYTHON*`, `GIT_*`, `SSH_*`,
+`OKG_*`) are not passed on; archi names them on stderr.
+
+**What does not read it.**
+
+- `okg` run by hand. To refresh sources, run `archi ingest` instead
+  (`--include <source id>,...` for some of them, `--publish` to publish after).
+- The first ingest of `archi init`, because `archi init` writes `.env` itself.
+  For a pack selected at `archi init`, export the value in the shell, then add
+  it to `.env`.
+- The ops runtime worker, which you start yourself. Start it from a shell that
+  has the credentials exported.
 
 ## Connectors that read a cache
 
