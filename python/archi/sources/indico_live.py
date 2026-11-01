@@ -56,6 +56,8 @@ does. Attachment URLs are emitted; their contents are not fetched.
 """
 from __future__ import annotations
 
+import os
+
 import hashlib
 import html
 import json
@@ -124,6 +126,8 @@ class IndicoLiveSource:
         attachment_images: bool = False,
         max_images_per_talk: int = DEFAULT_MAX_IMAGES_PER_TALK,
         max_image_bytes: int = DEFAULT_MAX_IMAGE_BYTES,
+        token_env: str | None = None,
+        since: str | None = None,
         required: bool = False,
         max_events: int | None = None,
         timeout: float = DEFAULT_TIMEOUT,
@@ -163,6 +167,18 @@ class IndicoLiveSource:
         self.attachment_images = attachment_images
         self.max_images_per_talk = max_images_per_talk
         self.max_image_bytes = max_image_bytes
+        #: Name of the env var holding an Indico personal access token
+        #: (``indp_…``), as `siteconf` does for GitLab. A token is
+        #: preferred over a cookie jar for an unattended ingest: CERN
+        #: SSO cookies expire in hours and someone has to own refreshing
+        #: them, while an Indico token is long-lived and scoped
+        #: (`read:legacy_api` is enough for `/export/`).
+        self.token_env = token_env
+        #: Indico's own relative-date window, e.g. ``-365d``. Passed
+        #: through to `/export/` as `from=`; without it the walk is
+        #: bounded only by `max_events`, which truncates arbitrarily and
+        #: forfeits the completed-scope claim.
+        self.since = since
         self.required = required
         if max_events is not None and max_events < 1:
             raise ValueError(
@@ -197,6 +213,7 @@ class IndicoLiveSource:
                     }
                     if self.attachment_images else {}
                 ),
+                "since": self.since,
             },
             # The class alone misses the module-level fact builders
             # (`_event_facts`, `_contribution_node`); fingerprint both.
@@ -208,11 +225,28 @@ class IndicoLiveSource:
     def _session(self) -> requests.Session:
         session = requests.Session()
         session.headers["User-Agent"] = "archi-okg/indico-live"
+        if self.token_env:
+            token = os.environ.get(self.token_env, "").strip()
+            if token:
+                session.headers["Authorization"] = f"Bearer {token}"
         if self.cookie_file_env:
             jar = load_cookie_jar_from_env(self.cookie_file_env)
             if jar is not None:
                 session.cookies = jar
         return session
+
+    def _with_window(self, path: str) -> str:
+        """Append Indico's `from=` window to an export path.
+
+        Indico accepts a relative date (`-365d`) on `/export/` paths.
+        Bounding the walk by date rather than by `max_events` is what
+        lets a run still claim a complete scope: a truncated walk saw
+        less than its declared scope, a dated walk saw all of it.
+        """
+        if not self.since or "/export/" not in path:
+            return path
+        sep = "&" if "?" in path else "?"
+        return f"{path}{sep}from={self.since}"
 
     def _get_json(self, session: requests.Session, path: str) -> Any:
         response = session.get(
@@ -238,7 +272,7 @@ class IndicoLiveSource:
         probe = self.event_ids[0] if self.event_ids else None
         path = (
             f"/export/event/{probe}.json" if probe
-            else f"{CATEGORY_EXPORT}/{self.category_ids[0]}.json"
+            else self._with_window(f"{CATEGORY_EXPORT}/{self.category_ids[0]}.json")
         )
         try:
             self._get_json(self._session(), path)
@@ -387,7 +421,7 @@ class IndicoLiveSource:
         for category_id in self.category_ids:
             try:
                 payload = self._get_json(
-                    session, f"{CATEGORY_EXPORT}/{category_id}.json"
+                    session, self._with_window(f"{CATEGORY_EXPORT}/{category_id}.json")
                 )
             except (requests.RequestException, _LoginRedirect):
                 if probe:
