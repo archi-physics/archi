@@ -84,7 +84,7 @@ def _late_source(check_id: str, row: Mapping[str, Any], severity: str) -> Proble
     ]
     if not last and row.get("reason"):
         lines.append(f"- {row['reason']}")
-    lines += ["", "Fix: `okg ingest --deployment <instance name>` (run in the instance directory), or relax the "
+    lines += ["", "Fix: `archi ingest` (run in the instance directory), or relax the "
               "limit in the pack's `freshness:` and re-render. Source: `archi doctor --json`, check "
               f"`{check_id}`."]
     return Problem(make_key(check_id, source), "doctor", f"Source {source} is stale", "\n".join(lines), severity)

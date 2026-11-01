@@ -20,7 +20,6 @@ list as manual ones: commit, ownership claim, catalog load, ingest, publish.
 from __future__ import annotations
 
 import hashlib
-import os
 import shutil
 import subprocess
 import sys
@@ -320,6 +319,42 @@ def _okg_executable() -> str:
     return found
 
 
+def _instance_env_values(instance_dir: Path) -> dict[str, str]:
+    """The values in the instance's `.env`, or none when it has no `.env` (a bare profile)."""
+    from archi.stack.instance import ENV_FILE, read_env
+
+    path = Path(instance_dir) / ENV_FILE
+    return read_env(path) if path.is_file() else {}
+
+
+def _ingest_env(instance_dir: Path, deployment_dir: Path, env_values: Mapping[str, str]) -> dict[str, str]:
+    """The environment for `archi add`'s okg steps.
+
+    In an instance (archi.yaml and its generated secrets): `host_env`, so the
+    instance's settings (OKG_DSN, the role-password file, ...) come from the
+    instance and every `.env` value is passed on. A bare profile: the shell plus
+    `.env`, if any.
+    """
+    from archi.stack.instance import SECRET_KEYS, Instance, InstanceError, host_env, instance_env
+
+    try:
+        instance = Instance.load(instance_dir)
+    except InstanceError:
+        instance = None
+    if instance is not None and all(env_values.get(k) for k in SECRET_KEYS):
+        env = host_env(instance, env_values)
+    else:
+        env = instance_env(env_values)
+    env["OKG_DEPLOYMENTS_DIR"] = str(Path(deployment_dir).parent)
+    return env
+
+
+def _has_automations(instance_dir: Path) -> bool:
+    from archi.cli.init import has_automations
+
+    return has_automations(instance_dir)
+
+
 @dataclass
 class AddResult:
     pack: str
@@ -510,6 +545,10 @@ def add(
     plan = expected_scaffold(instance_dir, rendered.name, deployment_dir, all_answers)
     new_answers = {k: v for k, v in plan.answers.items() if k not in deployment_answers(deployment_dir)}
     new_answers.pop("HOME", None)
+    # The instance's `.env` (generated secrets and source credentials) is added
+    # to the environment of every step that ingests; a value exported in the
+    # shell wins.
+    env_values = _instance_env_values(instance_dir)
     if run_okg:
         # Before the deployment changes: a failed step leaves it as it was.
         from archi.bundles.prepare import PrepareError, run_steps, steps_for
@@ -517,7 +556,7 @@ def add(
         try:
             run_steps(
                 steps_for([catalog.packs[p] for p in added_packs], plan.answers),
-                Path(plan.answers["archi_data_root"]), echo=echo,
+                Path(plan.answers["archi_data_root"]), echo=echo, env_values=env_values,
             )
         except PrepareError as exc:
             raise LockError(f"preparing the new pack failed: {exc}") from exc
@@ -534,14 +573,17 @@ def add(
     if run_okg:
         okg = _okg_executable()
         name = deployment_dir.name
+        # With the ops runtime on, okg queues the ingest for a runtime worker, which
+        # does not have this environment (or may not run at all): ingest in-process,
+        # as `archi init` does.
+        inline = ["--inline"] if _has_automations(instance_dir) else []
         steps = [
             [okg, "catalog", "ownership", "claim", "--deployment", str(deployment_dir), "--json"],
             [okg, "catalog", "load", "--deployment", str(deployment_dir), "--apply", "--json"],
-            [okg, "ingest", "--deployment", name, "--include", ",".join(new_sources)],
-            [okg, "run", "--once", "--deployment", name, "--apply"],
+            [okg, "ingest", "--deployment", name, "--include", ",".join(new_sources), *inline],
+            [okg, "run", "--once", "--deployment", name, "--apply", *inline],
         ]
-        env = dict(os.environ)
-        env.setdefault("OKG_DEPLOYMENTS_DIR", str(deployment_dir.parent))
+        env = _ingest_env(instance_dir, deployment_dir, env_values)
         for cmd in steps:
             echo("$ " + " ".join(cmd[1:] if cmd[0] == okg else cmd))
             result = subprocess.run(cmd, cwd=deployment_dir, env=env, capture_output=True, text=True)

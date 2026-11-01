@@ -350,3 +350,100 @@ def test_the_indico_default_event_yields_to_any_named_scope(
     params = yaml.safe_load(text)["indico.indico_live"]["params"]
     source = IndicoLiveSource(**{k: v for k, v in params.items() if k != "required"})
     assert (source.event_ids, source.category_ids) == (read_events, read_categories)
+
+
+# ---------------------------------------------------------------------------
+# a prepare step (a downloader) gets the instance's .env
+# ---------------------------------------------------------------------------
+
+
+def test_a_step_gets_the_instance_env_values_and_the_shell_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("SHELL_ONLY", "shell")
+    monkeypatch.setenv("BOTH", "shell")
+    monkeypatch.delenv("DOTENV_ONLY", raising=False)
+    seen = {}
+
+    def runner(cmd, **kw):
+        seen.update(kw["env"])
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    run_steps([_step("one")], tmp_path, echo=lambda _: None, runner=runner,
+              env_values={"DOTENV_ONLY": "dotenv", "BOTH": "dotenv"})
+    assert seen["DOTENV_ONLY"] == "dotenv"
+    assert seen["BOTH"] == "shell"
+    assert seen["SHELL_ONLY"] == "shell"
+    assert seen["ARCHI_DATA_ROOT"] == str(tmp_path)
+
+
+def test_add_passes_the_instance_env_to_the_prepare_steps(cern, tmp_path, monkeypatch):
+    instance = tmp_path / "instance"
+    render_and_lock(cern, instance, ["cern-team"], without_packs=["docsite"])
+    deployment = _scaffold(instance, "cern-team", BASE_ANSWERS)
+    (instance / ".env").write_text("# test\nCERN_JIRA_TOKEN=from-dotenv\n")
+    seen = []
+
+    def stop(steps, data_root, **kw):
+        seen.append(kw.get("env_values"))
+        raise PrepareError("stop here")
+
+    monkeypatch.setattr("archi.bundles.prepare.run_steps", stop)
+    with pytest.raises(LockError):
+        add(instance, cern, "docsite", {}, deployment_dir=deployment, echo=lambda *_: None)
+    assert seen == [{"CERN_JIRA_TOKEN": "from-dotenv"}]
+
+
+def test_add_runs_its_okg_steps_with_the_instance_env(cern, tmp_path, monkeypatch):
+    """A stand-in okg records the credential each of add's okg steps sees."""
+    instance = tmp_path / "instance"
+    render_and_lock(cern, instance, ["cern-team"], without_packs=["docsite"])
+    deployment = _scaffold(instance, "cern-team", BASE_ANSWERS)
+    (instance / ".env").write_text("CERN_JIRA_TOKEN='from-dotenv'\nLD_PRELOAD=/evil.so\n")
+    seen = tmp_path / "okg-saw.txt"
+    fake = tmp_path / "bin" / "okg"
+    fake.parent.mkdir()
+    fake.write_text(
+        "#!/bin/sh\n"
+        f'printf "%s|%s|%s\\n" "${{CERN_JIRA_TOKEN:-<unset>}}" "${{LD_PRELOAD:-<unset>}}" "$1" >> "{seen}"\n'
+    )
+    fake.chmod(0o755)
+    monkeypatch.delenv("CERN_JIRA_TOKEN", raising=False)
+    monkeypatch.delenv("LD_PRELOAD", raising=False)
+    monkeypatch.setattr("archi.bundles.prepare.run_steps", lambda *a, **k: None)
+    monkeypatch.setattr("archi.bundles.lock._okg_executable", lambda: str(fake))
+    add(instance, cern, "docsite", {}, deployment_dir=deployment, echo=lambda *_: None)
+    rows = seen.read_text().splitlines()
+    assert [r.split("|")[2] for r in rows] == ["catalog", "catalog", "ingest", "run"]
+    assert all(r.startswith("from-dotenv|<unset>|") for r in rows), rows
+
+
+def test_add_in_an_instance_with_automations_ingests_inline_with_the_instance_dsn(cern, tmp_path, monkeypatch):
+    from archi.stack.instance import Instance, Ports, generate_secrets, write_env
+
+    instance = tmp_path / "instance"
+    render_and_lock(cern, instance, ["cern-team"], without_packs=["docsite"])
+    deployment = _scaffold(instance, "cern-team", BASE_ANSWERS)
+    inst = Instance(dir=instance, name=deployment.name, bundles=["cern-team"], data_root=tmp_path / "data",
+                    runtime="docker", ports=Ports(graph_db=15499, mcp=18799, webui=18099),
+                    profile="cern-team", okg_version="0.2.0", admin_email="a@b.invalid")
+    inst.save()
+    secrets = generate_secrets()
+    secrets["ARCHI_OKG_MCP_PASSWORD"] = "pw"
+    secrets["CERN_JIRA_TOKEN"] = "from-dotenv"
+    write_env(inst.env_path, secrets)
+    seen = tmp_path / "okg-saw.txt"
+    fake = tmp_path / "bin" / "okg"
+    fake.parent.mkdir()
+    fake.write_text(f'#!/bin/sh\nprintf "%s|%s|%s\\n" "$CERN_JIRA_TOKEN" "$OKG_DSN" "$*" >> "{seen}"\n')
+    fake.chmod(0o755)
+    monkeypatch.delenv("CERN_JIRA_TOKEN", raising=False)
+    monkeypatch.setenv("OKG_DSN", "postgresql://shell/elsewhere")
+    monkeypatch.setattr("archi.bundles.prepare.run_steps", lambda *a, **k: None)
+    monkeypatch.setattr("archi.bundles.lock._okg_executable", lambda: str(fake))
+    monkeypatch.setattr("archi.bundles.lock._has_automations", lambda _d: True)
+    add(instance, cern, "docsite", {}, deployment_dir=deployment, echo=lambda *_: None)
+    rows = [r.split("|") for r in seen.read_text().splitlines()]
+    assert all(token == "from-dotenv" for token, _, _ in rows)
+    assert all(dsn.startswith("postgresql://postgres:") and "127.0.0.1:15499" in dsn for _, dsn, _ in rows)
+    ingest, run = rows[2][2], rows[3][2]
+    assert ingest.startswith("ingest ") and ingest.endswith("--inline")
+    assert run.startswith("run --once") and run.endswith("--inline")

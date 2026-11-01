@@ -1,4 +1,4 @@
-"""The instance lifecycle commands: `archi init`, `up`, `down`, `doctor`, and `archi ops`.
+"""The instance lifecycle commands: `archi init`, `up`, `down`, `doctor`, `ingest`, and `archi ops`.
 
 `archi.bundles.cli` owns the parser; `register` adds these commands to it.
 """
@@ -8,12 +8,13 @@ import argparse
 
 
 def register(sub, roots, load_ops: bool = True) -> None:
-    from archi.cli import connect, doctor, evaluate, init, up
+    from archi.cli import connect, doctor, evaluate, ingest, init, up
 
     init.add_parser(sub, roots)
     connect.add_parser(sub)
     up.add_parsers(sub)
     doctor.add_parser(sub)
+    ingest.add_parser(sub)
     evaluate.add_parser(sub, roots)
     if load_ops:
         from archi.cli import ops
