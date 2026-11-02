@@ -99,5 +99,38 @@ tasks:
     Test plan:
 
     - python/tests/test_package_metadata.py [evidence: pytest]'
-evidence: []
+evidence:
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.okg040
+  status: pass
+  command: "CI run 41496573673 (ci.yml, job tests (python 3.12)): pip install the AKMON v0.4.0 wheel (sha256 18ccec94...1abc) and ./python[dev]; python -m pytest python/tests -q -> 4112 passed, 45 skipped, 0 failed"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+  note: "acc.r3-301-akmon-040.suite. The full suite on okg 0.4.0 in CI. The suite includes the tests for the other three requirements: tests/bundles/test_render_okg.py and tests/bundles/test_companions.py (doc_text_nodes at init and on archi add), tests/cli/test_init.py (my_team refused, nothing created), tests/test_package_metadata.py (release-notes links name their own tag)."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.okg040
+  status: pass
+  command: "CI run 41484374513 (nightly-e2e.yml on the PR, job 'empty runner to a cited answer'): user commands from the quickstart on a clean runner with the AKMON v0.4.0 wheel: archi init, archi up, archi doctor, a cited answer"
+  head: 531fcfe473be02dcdc931baa79005988196f81fa
+  at: "2026-11-02T16:55:46+00:00"
+  note: "acc.r3-301-akmon-040.e2e on cern-team without code-text. Run at 531fcfe4; the later commits change tests, docs, the release plan, archi add's mcp merge and the module match, none of which this path runs. The e2e re-run on 657f5cfa was still queued when this row was written."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.doctext
+  status: pass
+  command: "CI run 41496573673: tests/bundles/test_render_okg.py::test_doc_text_nodes_is_declared_only_when_a_pack_writes_doc_records, ::test_doc_text_modules_reads_quoted_and_commented_module_lines, tests/bundles/test_companions.py::test_archi_add_git_code_brings_code_text"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+  note: "acc.r3-301-akmon-040.doctext. Not run end to end with code-text on a live okg 0.4.0 instance."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.names
+  status: pass
+  command: "CI run 41496573673: tests/cli/test_init.py::test_an_underscore_name_is_refused_before_anything_is_created"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.release
+  status: pass
+  command: "CI run 41496573673: tests/test_package_metadata.py (release_notes_link_to_their_own_tag, install_lines_pin_this_version, install_lines_use_the_okg_wheel_ci_tests)"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
 decisions: []
