@@ -125,7 +125,7 @@ evidence:
   command: >-
     Jason's written acceptance of the six cutover losses (runbook docs/docs/operating/cutover.md step 2),
     board d1003, answered "yes d1003" in the desk chat at 2026-11-02T18:49:11Z; posted on #759 at https://github.com/archi-physics/archi/issues/759#issuecomment-6585757639
-  head: aea56cb8ba890336709604a131a01cea2150b19d
+  head: f20471904fadec1846b95754b6610fb290b8c8f6
   at: '2026-11-02T18:49:11+00:00'
   note: >-
     Step 2 only: condition 3 holds by written acceptance, not parity. Losses: ticket-triage with no shadow
