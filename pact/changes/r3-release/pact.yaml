@@ -136,6 +136,24 @@ evidence:
     GPT-6 Luna only and no live context-eval run; no upload, SSO page, status board or Helm, public Indico
     only, one repository per git-code pack. acc.r3-release.migrated (step 4) and acc.r3-release.main (step 7)
     are not evidenced by this row.
+- kind: executed_test
+  requirement: req.r3-release.tag
+  status: pass
+  command: >-
+    tag-301 TAG-AND-PUBLISH.sh accept: in a clean podman container on submit75, python3.12 -m venv; pip install
+    "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
+    archi-kb==3.0.1 (from PyPI); archi init; archi up; archi doctor; archi down --purge --yes
+  head: HEAD_TO_BIND
+  at: '2026-11-02T19:42:29+00:00'
+  note: >-
+    acc.r3-release.pypi for 3.0.1, the release that ships with the cutover. Tag v3.0.1 points to 86978f7565
+    (main after the cutover PR #896; its tree equals archi_v3 aea56cb8, 60/60 PACTs approved), pushed
+    2026-11-02T19:25:04Z after the tag script's check and rehearsal. Release run 41509736821 published
+    archi_kb-3.0.1-py3-none-any.whl at 19:26:52Z; the installed version printed 3.0.1, and the downloaded wheel's
+    sha256 5d4b997126b9a4b78ddefc66d147a163d412c2a268b518f08bdfa3034807fa6b equals PyPI's and the rehearsal
+    build's. Every step exited 0 (install 94 s, init 183 s, up 281 s, doctor 22 s, down 8 s). Two earlier tries
+    (19:27, 19:29) failed at install: pip in the container saw only 3.0.0 from a stale index, which cleared
+    by itself. Supported AKMON range for 3.0.1: okg 0.4.x (release notes 3.0.1).
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
