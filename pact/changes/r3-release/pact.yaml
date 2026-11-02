@@ -102,6 +102,23 @@ evidence:
     a tag; owner Maria D''Alfonso (per her fork). Versions are to be confirmed with the owners; Jason
     contacts them. The migrations themselves (acc.r3-release.migrated) and the branch swap
     (acc.r3-release.main) are not evidenced.
+- kind: executed_test
+  requirement: req.r3-release.tag
+  status: pass
+  command: >-
+    TAG-AND-PUBLISH.sh accept: in a clean podman container on submit75, python3.12 -m venv; pip install
+    "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12"
+    archi-kb==3.0.0 (from PyPI); archi init cutover-check; archi up; archi doctor; archi down --purge --yes
+  head: df17d7d9a98aaa383cebd34de0fb1444405c9b4b
+  at: '2026-11-02T16:18:50+00:00'
+  note: >-
+    acc.r3-release.pypi. head df17d7d9 differs from the tested tag commit b0abe604 only in pact/. Tag v3.0.0 points to b0abe604 (pushed 2026-11-02T16:06:21Z after Jason's "yes
+    d926" at the desk). Release run 41478188684 published archi_kb-3.0.0-py3-none-any.whl to PyPI at
+    16:10:01Z; its sha256 ad4c5a6a6a6d57e727cf4b4cea15bc718c03bf979659d90a5c35ebd86e571a7b equals the
+    pre-tag rehearsal build. GitHub release v3.0.0 exists; its docs links were repointed from main to
+    the v3.0.0 tag at 16:19Z. Every step exited 0 (init 131 s, up 239 s, doctor 15 s, down 7 s).
+    Supported AKMON range as announced in docs/release-notes-3.0.0.md: okg 0.2.0 only. AKMON 0.4.0 is
+    not supported by 3.0.0 (two breaks found; follow-up 3.0.1). The cutover requirement is not evidenced.
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
