@@ -60,7 +60,6 @@ jobs:
     # step and never the job.
     timeout-minutes: 70
     env:
-      OKG_WHEEL: "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
       QUESTION: "What is the Knowledge Bases and Agents for CERN workshop?"
     steps:
       # The AKMON Postgres image is 6.3 GB and Open WebUI about 4 GB; the
@@ -81,8 +80,8 @@ jobs:
       - name: Start the clock (housekeeping)
         run: echo "STARTED=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: "user command 1: install okg and archi"
-        run: pip install "$OKG_WHEEL" ./python
+      - name: "user command 1: install archi (pip installs okg with it, from PyPI)"
+        run: pip install ./python
 
       - name: "user command 2: archi init"
         working-directory: ${{ runner.temp }}

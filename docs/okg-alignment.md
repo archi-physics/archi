@@ -20,6 +20,16 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**archi-kb 3.0.2 depends on okg from PyPI (2026-11-02).** AKMON publishes okg on
+PyPI from v0.5.0 on, through a dispatch-only `pypi.yml` with trusted publishing
+(lane a4; board d1016), and also publishes the 0.4.0 release wheel archi is
+tested on (sha256 `18ccec94…1abc`). archi-kb now declares `okg>=0.4.0,<0.5`, so
+`pip install archi-kb` installs both, and no install page names the wheel URL.
+CI still installs that exact wheel first; `test_package_metadata` checks it is
+inside the declared range. No import in `python/archi` changed. The range stops
+below 0.5: archi has not been run against okg 0.5 (its dev branch could not be
+built on the shared host).
+
 **archi-kb 3.0.1 moves to AKMON 0.4.0 (2026-11-02).** 3.0.0 shipped on PyPI
 on AKMON 0.2.0. Reading okg 0.4.0 found two changes archi had to follow, and no
 import in `python/archi` changed. (1) The MCP server names `doc:` records in its

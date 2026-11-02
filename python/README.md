@@ -14,11 +14,11 @@ PyPI: that name belongs to an unrelated package.
 ## Install
 
 You need Python 3.12, `docker` or `podman` (with `compose`), and `git`.
-Archi runs on the `okg` graph engine, which is not on PyPI, so it is
-installed from its release file. In a virtual environment:
+Archi runs on the `okg` graph engine (AKMON), which pip installs with it. In a
+virtual environment:
 
 ```bash
-pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+pip install archi-kb==3.0.2
 ```
 
 ## First instance
@@ -56,9 +56,9 @@ cited ticket triage to `cms-comp-ops` or `cluster-manager`. They run in an
 
 ## Documentation
 
-- [Quickstart](https://github.com/archi-physics/archi/blob/v3.0.1/docs/docs/quickstart.md)
-- [Documentation](https://github.com/archi-physics/archi/tree/v3.0.1/docs/docs)
-- [Release notes for 3.0.1](https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md)
-- [Moving from Archi v2](https://github.com/archi-physics/archi/blob/v3.0.1/docs/docs/migration-from-v2.md)
+- [Quickstart](https://github.com/archi-physics/archi/blob/v3.0.2/docs/docs/quickstart.md)
+- [Documentation](https://github.com/archi-physics/archi/tree/v3.0.2/docs/docs)
+- [Release notes for 3.0.2](https://github.com/archi-physics/archi/blob/v3.0.2/docs/release-notes-3.0.2.md)
+- [Moving from Archi v2](https://github.com/archi-physics/archi/blob/v3.0.2/docs/docs/migration-from-v2.md)
 
 Archi is released under the MIT License.

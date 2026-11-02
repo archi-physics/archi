@@ -4,6 +4,19 @@ All notable changes to `archi-kb` (import name `archi`). Numbers like #786
 are pull requests on `archi-physics/archi`. The v2 line (`v2.x` tags, branch
 `v2` after the cutover) is not covered here.
 
+## 3.0.2
+
+One command installs Archi. See the [release notes](docs/release-notes-3.0.2.md).
+
+- `archi-kb` declares `okg>=0.4.0,<0.5`. `okg` (AKMON) is on PyPI from its
+  v0.5.0 release on, with the tested 0.4.0 wheel published too (board d1016),
+  so `pip install archi-kb` installs a matching graph engine. Before, okg came
+  only from AKMON's release wheel, a URL, which PyPI does not allow as a
+  dependency, and the install line named that wheel.
+- The install pages say `pip install archi-kb==3.0.2`. The nightly installs
+  the checkout with no separate okg step. CI still installs the exact okg wheel
+  it tests first, and a test checks that wheel is inside the declared range.
+
 ## 3.0.1
 
 Runs on AKMON 0.4.0 instead of 0.2.0. See the
