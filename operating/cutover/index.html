@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Cutover runbook - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Cutover runbook";
+        var mkdocs_page_input_path = "operating/cutover.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Cutover runbook</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#state-of-the-conditions">State of the conditions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-0-look-at-the-starting-point">Step 0. Look at the starting point</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-1-inventory-the-live-v2-deployments-r1">Step 1. Inventory the live v2 deployments (R1)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-2-accept-the-losses-in-writing">Step 2. Accept the losses in writing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-3-freeze-main-and-tag-the-last-v2-release">Step 3. Freeze main and tag the last v2 release</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-4-move-or-pin-each-v2-deployment">Step 4. Move or pin each v2 deployment</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-5-merge-the-release-readiness-change-into-archi_v3">Step 5. Merge the release-readiness change into archi_v3</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-6-prepare-pypi-once">Step 6. Prepare PyPI (once)</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-7-swap-the-branches">Step 7. Swap the branches</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#what-github-does-on-a-rename">What GitHub does on a rename</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7a-before-the-renames">7a. Before the renames</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7b-the-renames-with-nothing-between-them-and-the-restore">7b. The renames, with nothing between them and the restore</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7c-stop-point-verify-then-stop-if-anything-is-off">7c. Stop point: verify, then stop if anything is off</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#7d-tell-local-clones">7d. Tell local clones</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#rollback-of-step-7">Rollback of step 7</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-8-fix-the-workflow-triggers">Step 8. Fix the workflow triggers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-9-tag-301-and-publish">Step 9. Tag 3.0.1 and publish</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-9a-switch-submits-ticket-replies-to-ticket-triage">Step 9a. Switch SubMIT's ticket replies to ticket-triage</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#rollback-of-step-9a">Rollback of step 9a</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#step-10-announce">Step 10. Announce</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#if-something-goes-wrong-after-the-cutover">If something goes wrong after the cutover</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Operating</li>
+      <li class="breadcrumb-item active">Cutover runbook</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/operating/cutover.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="cutover-runbook-archi-30-becomes-main">Cutover runbook: Archi 3.0 becomes <code>main</code></h1>
+<p>This page is the order of work for the day the 3.0 line replaces v2 as
+<code>archi-physics/archi</code> <code>main</code>, and <code>archi-kb</code> 3.0.1 is tagged and published (3.0.0 reached PyPI on
+2026-11-02, before the cutover). It follows
+<a href="../../reference/adr/">ADR 0002</a> decision D1 and the cutover rules of ADR 0001
+section 14. Each step has the exact commands, a check that proves it, and a
+way back.</p>
+<p><strong>Every step marked <code>JASON</code> needs the repository owner</strong>: an admin setting, a
+PyPI account, a written decision or an announcement. Nobody else runs
+those. A step with no mark can be run by any maintainer with push rights.</p>
+<p>Run the steps in order. Do not start step 7 (the branch swap) until steps 1 to
+6 are done, and stop at the stop point inside step 7 if any check fails.</p>
+<h2 id="state-of-the-conditions">State of the conditions</h2>
+<p>ADR 0001 section 14 says the cutover happens when four things hold, "and not
+before". Where each stands when 3.0.1 is prepared:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>State</th>
+<th>What closes it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Every live v2 deployment has a named owner (R1).</td>
+<td><strong>Answered</strong> 2026-10-27 (board d384): two deployments, both moving to 3.0. See step 1.</td>
+<td>Step 1 (done).</td>
+</tr>
+<tr>
+<td>2. Each of those deployments is migrated or stays on a tagged <code>v2.x</code>.</td>
+<td>Not started. One known exception: SubMIT's v2 mail intake keeps running on the untagged, patched v2.3.x until 3.1 (board d704); step 2 names it in the written acceptance.</td>
+<td>Step 4.</td>
+</tr>
+<tr>
+<td>3. Parity for comp-ops and the chat migration hold, or the losses are accepted in writing.</td>
+<td><strong>Not met.</strong> The v2 Redmine bot is replaced by 3.0's <code>ticket-triage</code> automation at the cutover, with no trial first (board d717, 2026-10-31; d701 brought it back into 3.0). Mail intake stays with v2 until 3.1 (board d704); the resolution email pauses from the cutover until 3.1 (board d719). And the live comp-ops instance and SubMIT have not been rebuilt from their bundles. See <a href="../../migration-from-v2/#what-has-no-equivalent-yet">what has no equivalent yet</a>.</td>
+<td>Step 2 (the written acceptance), <code>JASON</code>.</td>
+</tr>
+<tr>
+<td>4. The last v2 release is tagged and documented.</td>
+<td>The newest tag is <code>v2.5.0</code>. <code>main</code> has had 52 commits since (check: step 0).</td>
+<td>Step 3.</td>
+</tr>
+</tbody>
+</table>
+<p>State today of the repository settings this runbook changes (read with <code>gh</code>
+on 2026-10-26 and again on 2026-10-30, so re-check at the time):</p>
+<ul>
+<li>the default branch is <code>main</code>, and it is protected: one approving review,
+  no force pushes, no deletions, admins not enforced, no required checks,
+  no required signatures, no rulesets;</li>
+<li><code>archi_v3</code> is not protected;</li>
+<li>there is no <code>v2</code> branch;</li>
+<li>the repository's environments are <code>copilot</code> and <code>github-pages</code>; none is
+  named <code>pypi</code>;</li>
+<li><code>archi-kb</code> has no pending publisher on PyPI. (Nobody has looked at
+  pypi.org for this page. Check it in step 6.)</li>
+<li>37 pull requests are open against <code>main</code> (2026-10-30; recount in step 0).
+  The rename in step 7 moves them to <code>v2</code>, which is where v2 fixes belong; say so in the tracking
+  issue so their authors are not surprised;</li>
+<li>the repository allows squash merges. Step 5 and every <code>archi_v3</code> merge
+  must use <code>--merge</code> (PACT reads the approval trailers a squash drops);
+  turning squash off is the owner's choice;</li>
+<li>the scheduled nightly (<code>nightly-e2e.yml</code>) has never run on its schedule:
+  GitHub runs scheduled workflows only from the default branch, and v2's
+  <code>main</code> has no such file. It starts after step 7.</li>
+</ul>
+<p>This page was last brought up to date on 2026-10-30, after #849 to #874
+merged and a local rehearsal (steps 0, 3 to 5, 6.3, the git side of 7, and 9
+with a locally built wheel), and on 2026-10-31 after a rehearsal of step 7 on a
+private copy of the repository (branch protection not exercised; see step 7).
+<code>ticket-triage</code> (#746) is in 3.0 and replaces SubMIT's v2 Redmine bot at the
+cutover (board d717); mail intake stays with v2 until 3.1 (board d704), and
+resolution emails pause from the cutover until 3.1 (board d719). If anything else
+lands before the freeze in step 3, update the "not in 3.0" lists in the
+changelog, the release notes and the <a href="../../migration-from-v2/">v2 guide</a> first.</p>
+<h2 id="step-0-look-at-the-starting-point">Step 0. Look at the starting point</h2>
+<p>Any maintainer. Read-only, except the last command, which opens the
+tracking issue. (Record the branch tips later, in step 7: step 5 moves
+<code>archi_v3</code>, so a tip written down now would be stale.)</p>
+<pre><code class="language-bash">git clone https://github.com/archi-physics/archi.git archi-cutover &amp;&amp; cd archi-cutover
+git fetch --tags origin
+git tag -l 'v2.*' --sort=-v:refname | head -3
+git log --oneline &quot;$(git tag -l 'v2.*' --sort=-v:refname | head -1)..origin/main&quot; | wc -l
+gh pr list --repo archi-physics/archi --base main --state open --limit 1000 --json number --jq length
+gh issue create --repo archi-physics/archi --title &quot;Archi 3.0 cutover&quot; --body &quot;Tracking issue for docs/docs/operating/cutover.md&quot;
+</code></pre>
+<p><strong>Check:</strong> the newest v2 tag and the count of commits after it are known, and
+the tracking issue exists. Its number is <code>&lt;issue&gt;</code> below.</p>
+<h2 id="step-1-inventory-the-live-v2-deployments-r1">Step 1. Inventory the live v2 deployments (R1)</h2>
+<p><code>JASON</code> decides who is asked. Anyone can gather the answers.</p>
+<p>For each machine that may run v2, on that machine:</p>
+<pre><code class="language-bash">archi list-deployments          # v2 command; run it in the v2 environment
+</code></pre>
+<p>Record, in one table in the tracking issue: deployment name, host, services
+(<code>chatbot</code>, <code>uploader</code>, queue bots), the v2 tag or commit it runs, the owner
+(a named person), and the decision: <strong>move to 3.0</strong> or <strong>stay on a tagged
+<code>v2.x</code></strong>. Ask the people who run <code>archi create</code> on shared machines and on
+SubMIT. A deployment nobody claims is a deployment nobody can move.</p>
+<p><strong>Check:</strong> every row has a named owner and a decision.
+<strong>Rollback:</strong> nothing to undo.</p>
+<p><strong>Recorded inventory</strong> (2026-10-27, confirmed by Jason on board d384; also on
+issue #758; versions and the row 1 owner added 2026-10-30). This list was found read-only, from process and port listings on
+two SubMIT hosts, the repository's forks and GitHub environments, and the
+v2 configs on <code>main</code>. Jason confirmed that FASRC, a CMS comp-ops bot at CERN,
+WisDQM, CRAB and MIT course deployments do not run 2.x, and that no other hosts
+do.</p>
+<table>
+<thead>
+<tr>
+<th>Deployment</th>
+<th>Host</th>
+<th>Services</th>
+<th>v2 version</th>
+<th>Owner</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SubMIT A2rchi</td>
+<td>a SubMIT host; linked from SubMIT's public A2rchi page</td>
+<td>chatbot, data manager, Redmine bot, mailbox bot (a SubMIT service account)</td>
+<td>about v2.3.x with local patches, hand-built; not a tag</td>
+<td>owner named by Jason on 2026-10-30; Jason is confirming with them</td>
+<td>move to 3.0; the Redmine bot is replaced by <code>ticket-triage</code> at the cutover (d717); the mailbox bot (mail intake) stays on this v2 deployment until 3.1 (d704)</td>
+</tr>
+<tr>
+<td>Second chat on SubMIT</td>
+<td>a second SubMIT host</td>
+<td>chatbot, data manager (her own account)</td>
+<td>v2.5.0 code; not checked out at a tag</td>
+<td>Maria D'Alfonso (per her fork)</td>
+<td>move to 3.0</td>
+</tr>
+</tbody>
+</table>
+<p>The versions were read on 2026-10-29 by comparing file hashes of the deployed
+code with the v2 tags. Neither deployment is checked out at a tag, so route B
+in step 4 changes the running code, and <code>git describe --tags</code> passes only after
+the owner checks out the tag. Confirm both versions with the owners. Jason
+contacts the owners; nobody else does, and not before the switch-over plan
+for each deployment exists.</p>
+<h2 id="step-2-accept-the-losses-in-writing">Step 2. Accept the losses in writing</h2>
+<p><code>JASON</code>. Condition 3 holds only with parity, or with the losses accepted in
+writing. 3.0 does not have parity. Write the acceptance and keep it with the
+inventory. It lists the known limits in the changelog, which are the canonical
+list, and the v2 features in <a href="../../migration-from-v2/#what-has-no-equivalent-yet">what has no equivalent yet</a>. In short:</p>
+<ul>
+<li><code>ticket-triage</code> replaces SubMIT's v2 Redmine bot at the cutover with no
+  shadow trial first (board d717); its proposals are not checked against a
+  trial before it goes live;</li>
+<li>mail intake has no 3.0 equivalent yet and stays with v2 until 3.1 (board
+  d704). So SubMIT's v2 deployment is neither migrated nor pinned to a tag
+  until then: its <code>-mailer</code> container keeps running the untagged, patched
+  v2.3.x, with the v2 postgres and config it depends on. The acceptance names
+  this as the exception to condition 2, and the SubMIT owner does not take
+  that v2 deployment down in step 4;</li>
+<li><strong>SubMIT users get no resolution emails from the cutover until 3.1</strong> (board
+  d719): the v2 service that sends them also posts v2's answers, so it stops
+  when <code>ticket-triage</code> takes over (step 9a), and 3.0 has no resolution email
+  yet. Before the cutover, <code>JASON</code> tells the SubMIT A2rchi owner and the
+  SubMIT users. Agents contact no one;</li>
+<li>the live comp-ops instance and SubMIT have not been rebuilt from their
+  bundles;</li>
+<li>the smoke sets pass on GPT-6 Luna, not on a local model, and the
+  context-eval acceptance run on a live instance has not happened;</li>
+<li>no upload, SSO-page, status-board or Helm equivalents, public Indico events
+  only, and one repository per <code>git-code</code> pack.</li>
+</ul>
+<p><strong>Check:</strong> the written acceptance is linked from the tracking issue and from
+the <code>r3-release</code> PACT evidence.
+<strong>Rollback:</strong> nothing to undo. Without the acceptance, stop here.</p>
+<h2 id="step-3-freeze-main-and-tag-the-last-v2-release">Step 3. Freeze <code>main</code> and tag the last v2 release</h2>
+<p><code>JASON</code> announces the freeze. Any maintainer with push rights tags. Do this
+before step 4, because the owners pin the tag it creates.</p>
+<ol>
+<li><strong>Announce the freeze</strong> in the tracking issue and wherever contributors
+   read: no merges to <code>main</code> from now until step 7 is done. Record the time
+   and the tip:</li>
+</ol>
+<p><code>bash
+   git fetch origin
+   FREEZE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+   FREEZE_TIP=$(git rev-parse origin/main)
+   gh issue comment &lt;issue&gt; --repo archi-physics/archi --body "main frozen at $FREEZE_AT, tip $FREEZE_TIP"</code></p>
+<ol>
+<li><strong>Check nothing merged since</strong>, just before you tag:</li>
+</ol>
+<p><code>bash
+   git fetch origin
+   test "$(git rev-parse origin/main)" = "$FREEZE_TIP" &amp;&amp; echo "tip unchanged"
+   gh pr list --repo archi-physics/archi --base main --state merged \
+       --search "merged:&gt;$FREEZE_AT" --limit 1000 --json number --jq length      # must print 0</code></p>
+<p>If either check fails, stop: the new commits must be in the release, so
+   take a new <code>FREEZE_TIP</code> and tell the people who merged.</p>
+<ol>
+<li><strong>Tag the release.</strong> Pick the next number if <code>v2.6.0</code> is taken (step 0
+   lists the tags).</li>
+</ol>
+<p><code>bash
+   git tag -a v2.6.0 "$FREEZE_TIP" -m "Last v2 release before the 3.0 cutover"
+   git push origin v2.6.0
+   gh release create v2.6.0 --repo archi-physics/archi --target "$FREEZE_TIP" \
+       --title "v2.6.0 (last v2 release)" \
+       --notes "The last v2 release. From the cutover this line lives on the v2 branch. See docs/docs/migration-from-v2.md."</code></p>
+<p>This is how <code>v2.1.0</code> to <code>v2.5.0</code> were made: annotated tags, by hand, on
+   a merge commit of <code>main</code>. Do not use v2's <code>test-and-build-tag.yml</code> for it.
+   Its two runs (December 2025) failed, it pushes bot commits to <code>main</code> (the
+   branch protection refuses them, and they would move <code>main</code> past the
+   freeze), and it makes a lightweight tag. Two v2 quirks to know: the
+   version string in v2's <code>pyproject.toml</code> is still <code>1.2.4</code> on every v2 tag,
+   so read the version from <code>git describe --tags</code>, not from the package; and
+   the hand tag builds no images. v2's Dockerfiles use
+   <code>a2rchi-python-base:latest</code> and <code>a2rchi-pytorch-base:latest</code>, so a v2.6.0
+   rebuild pulls whatever <code>:latest</code> is at the time. After step 7 nothing
+   republishes <code>:latest</code> automatically (v2's <code>publish-base-images.yml</code>
+   triggers on pushes to <code>main</code>, which is then the 3.0 line); someone can
+   still start it by hand from <code>v2</code>, and it pushes <code>:latest</code> too. Pinned
+   deployments that need a fixed image should record the image digest they
+   run.</p>
+<p><strong>Check:</strong> <code>gh release view v2.6.0 --repo archi-physics/archi</code> shows it, and
+<code>git rev-parse 'v2.6.0^{commit}'</code> equals <code>$FREEZE_TIP</code>.
+<strong>Rollback:</strong> <code>gh release delete v2.6.0 --repo archi-physics/archi --yes</code> and
+<code>git push origin :refs/tags/v2.6.0</code>. (Deleting a release or tag is
+destructive. <code>JASON</code> approves it.) Do it only if nobody has pinned the tag.
+Lift the freeze by saying so in the tracking issue.</p>
+<h2 id="step-4-move-or-pin-each-v2-deployment">Step 4. Move or pin each v2 deployment</h2>
+<p>Each owner, on the host. This is the real migration. Every deployment in the
+inventory takes one of two routes.</p>
+<p><strong>Route A. Move to 3.0.</strong> Follow <a href="../../migration-from-v2/">Moving from v2 to 3.0</a>:
+back up v2, stand 3.0 up beside it, move the sources, compare answers. v2 stays
+up until the owner is satisfied.</p>
+<p><strong>Route B. Stay on a tagged v2 release.</strong> Pin the deployment to the tag, so a
+later change on the v2 branch cannot reach it. In v2, <code>archi restart</code> needs
+<code>--name</code> and <code>--env-file</code>. <code>--config</code> or <code>--config-dir</code> is optional: without
+it the deployment keeps the configuration it was rendered with. Add
+<code>--podman</code> if the deployment runs on podman. The source is that tag's
+<code>src/cli/cli_main.py</code>.</p>
+<pre><code class="language-bash">cd &lt;the v2 checkout&gt;
+git fetch --tags origin
+git checkout v2.6.0                    # the tag step 3 created
+pip install -e .                       # in the v2 Python environment
+archi restart --name &lt;name&gt; --env-file &lt;the secrets .env the deployment was created with&gt; \
+    --service chatbot [--podman]
+</code></pre>
+<p>Repeat for each service the deployment runs (<code>--service data_manager</code>, and so
+on). <code>archi restart</code> rebuilds the image unless you pass <code>--no-build</code>. See the
+<a href="../../v2/cli_reference/#archi-restart">v2 CLI reference</a>; that page lists
+<code>--env-file</code> as optional, which is wrong for the code.</p>
+<p><strong>Check:</strong> for a pinned deployment, <code>git describe --tags</code> in its checkout prints the
+tag, and the service answers a question. For a moved one, <code>archi doctor</code>
+exits 0 on the new instance and its owner signs off on the comparison.
+<strong>Rollback:</strong> a moved deployment: <code>archi down --purge --yes</code> on the 3.0
+instance, v2 is untouched. A pinned one: <code>git checkout</code> the previous tag or
+commit and run the same <code>archi restart</code> again.</p>
+<h2 id="step-5-merge-the-release-readiness-change-into-archi_v3">Step 5. Merge the release-readiness change into <code>archi_v3</code></h2>
+<p>A maintainer merges the pull request that holds this page and the version
+bump to 3.0.1, after CI is green, not before:</p>
+<pre><code class="language-bash">gh pr checks &lt;number&gt; --repo archi-physics/archi
+gh pr merge &lt;number&gt; --repo archi-physics/archi --merge --match-head-commit &lt;sha&gt;
+</code></pre>
+<p>Use <code>--merge</code>, never <code>--squash</code>: a squash drops the approval trailers PACT
+reads. <code>archi_v3</code> has no required checks, so the merge happens at once. That is why
+you check first.</p>
+<p>Then stop merging to <code>archi_v3</code> as well. Announce that in the tracking issue.</p>
+<p><strong>Check:</strong> on <code>archi_v3</code>, <code>grep '^version' python/pyproject.toml</code> prints
+<code>version = "3.0.1"</code>, and <code>grep __version__ python/archi/__init__.py</code> prints
+the same.
+<strong>Rollback:</strong> <code>git revert -m 1 &lt;merge sha&gt;</code> on <code>archi_v3</code>, as a pull request.</p>
+<h2 id="step-6-prepare-pypi-once">Step 6. Prepare PyPI (once)</h2>
+<p><code>JASON</code>. Nothing here can be done from the repository. The trusted
+publisher is how <code>release.yml</code> publishes without a token.</p>
+<ol>
+<li>On pypi.org, signed in as the owner: <strong>Your projects, Publishing, Add a new
+   pending publisher</strong>. Enter:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PyPI project name</td>
+<td><code>archi-kb</code></td>
+</tr>
+<tr>
+<td>Owner</td>
+<td><code>archi-physics</code></td>
+</tr>
+<tr>
+<td>Repository name</td>
+<td><code>archi</code></td>
+</tr>
+<tr>
+<td>Workflow name</td>
+<td><code>release.yml</code></td>
+</tr>
+<tr>
+<td>Environment name</td>
+<td><code>pypi</code></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>On GitHub, create the environment the workflow names. Add yourself as a
+   required reviewer if you want a pause before each publish:</li>
+</ol>
+<p><code>bash
+   gh api --method PUT repos/archi-physics/archi/environments/pypi
+   gh api repos/archi-physics/archi/environments --jq '.environments[].name'</code></p>
+<p>(Or use Settings, Environments, New environment, <code>pypi</code>.)</p>
+<ol>
+<li><strong>Install the wheel before the irreversible upload.</strong> Build it exactly as
+   <code>release.yml</code> does, install it into a clean virtual environment, and smoke
+   test it. Outside the repository, in a scratch directory. archi needs
+   Python 3.12 (3.13 is untested; okg 0.4.0 refuses 3.14); on a host whose <code>python3</code> is older (3.9 on some
+   lab hosts) the wheel still builds but the install fails on an okg
+   dependency, so name the interpreter:</li>
+</ol>
+<p><code>bash
+   PY=python3.12; "$PY" --version         # 3.12; okg 0.4.0 refuses 3.14
+   W=$(mktemp -d)
+   git clone --branch archi_v3 https://github.com/archi-physics/archi.git "$W/src"
+   (cd "$W/src/python" &amp;&amp; "$PY" -m venv "$W/build-venv" &amp;&amp; "$W/build-venv/bin/pip" install build \
+       &amp;&amp; "$W/build-venv/bin/python" -m build --wheel --outdir "$W/dist")
+   ls "$W/dist"                          # archi_kb-3.0.1-py3-none-any.whl
+   "$PY" -m venv "$W/venv"
+   "$W/venv/bin/pip" install \
+       "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" \
+       "$W"/dist/archi_kb-3.0.1-py3-none-any.whl
+   "$W/venv/bin/python" -c "import archi; print(archi.__version__)"   # 3.0.1
+   "$W/venv/bin/archi" bundles validate                              # exits 0
+   "$W/venv/bin/archi" bundles list                                  # 4 bundles, then the packs
+   rm -rf "$W"</code></p>
+<p>TestPyPI is not an option: <code>release.yml</code> publishes to PyPI only and has no
+   switch for another index, so this local install is the rehearsal.</p>
+<p><strong>Check:</strong> the environment list prints <code>pypi</code>; the wheel is named
+<code>archi_kb-3.0.1-py3-none-any.whl</code>; the smoke commands succeed. The pending
+publisher itself is first exercised by step 9.
+<strong>Rollback:</strong> <code>gh api --method DELETE repos/archi-physics/archi/environments/pypi</code>;
+delete the pending publisher on pypi.org. Nothing has been published.</p>
+<h2 id="step-7-swap-the-branches">Step 7. Swap the branches</h2>
+<p><code>JASON</code>. This is the cutover itself. It needs repository admin: GitHub allows
+only an admin to rename the default branch or a protected branch.</p>
+<h3 id="what-github-does-on-a-rename">What GitHub does on a rename</h3>
+<p>From GitHub's page
+<a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/renaming-a-branch">Renaming a branch</a>
+(read 2026-10-26):</p>
+<ul>
+<li>"Branch protection policies are also updated." The rule follows the branch to
+  its new name.</li>
+<li>The base branch of open pull requests (including those from forks) and
+  draft releases is changed to the new name. A pull request whose <em>head</em> is the
+  renamed branch is closed.</li>
+<li>URLs with the old name redirect. "Raw file URLs are not redirected." "GitHub
+  Actions workflows do not follow renames."</li>
+<li>A <code>git pull</code> for the old name is not redirected, and every local clone must
+  be updated.</li>
+<li>"Some branches can only be renamed by a repository administrator: the
+  repository's default branch, and any branch covered by a branch protection
+  or a repository-level branch ruleset."</li>
+</ul>
+<p>So the first rename moves <code>main</code>'s protection to <code>v2</code>, and the new <code>main</code>
+(the old <code>archi_v3</code>) has <strong>no protection</strong> until you restore it. Do that
+immediately, as the next command.</p>
+<p>Rehearsed on 2026-10-31 on a private copy of the repository: the renames,
+the wait, the default branch, an open pull request moving from <code>main</code> to <code>v2</code>
+and back, 7d and the rollback all behaved as written here. Branch protection
+was not exercised (GitHub allows it on a private repository only on a paid
+plan), so the protection lines of 7a to 7c and of the rollback are untested.</p>
+<h3 id="7a-before-the-renames">7a. Before the renames</h3>
+<p>Record the tips in the tracking issue, not only in your shell, and capture the
+current protection rule:</p>
+<pre><code class="language-bash">git fetch origin
+V2_TIP=$(git rev-parse origin/main);      echo &quot;v2 tip  $V2_TIP&quot;
+V3_TIP=$(git rev-parse origin/archi_v3);  echo &quot;v3 tip  $V3_TIP&quot;
+test &quot;$V2_TIP&quot; = &quot;$FREEZE_TIP&quot; || echo &quot;STOP: main moved since the freeze&quot;
+gh issue comment &lt;issue&gt; --repo archi-physics/archi --body &quot;before swap: v2 tip $V2_TIP, v3 tip $V3_TIP&quot;
+
+gh api repos/archi-physics/archi/branches/main/protection &gt; main-protection.json
+jq '{
+  required_status_checks: (if .required_status_checks then {strict: .required_status_checks.strict, contexts: .required_status_checks.contexts} else null end),
+  enforce_admins: .enforce_admins.enabled,
+  required_pull_request_reviews: (if .required_pull_request_reviews then (.required_pull_request_reviews | {dismiss_stale_reviews, require_code_owner_reviews, require_last_push_approval, required_approving_review_count}) else null end),
+  restrictions: (if .restrictions then {users: [.restrictions.users[].login], teams: [.restrictions.teams[].slug], apps: [.restrictions.apps[].slug]} else null end),
+  required_linear_history: .required_linear_history.enabled,
+  allow_force_pushes: .allow_force_pushes.enabled,
+  allow_deletions: .allow_deletions.enabled,
+  block_creations: .block_creations.enabled,
+  required_conversation_resolution: .required_conversation_resolution.enabled,
+  lock_branch: .lock_branch.enabled,
+  allow_fork_syncing: .allow_fork_syncing.enabled
+}' main-protection.json &gt; main-protection-put.json
+cat main-protection-put.json
+jq '.required_signatures.enabled' main-protection.json     # false today; if true, see the note below
+</code></pre>
+<p>Read <code>main-protection-put.json</code>. On 2026-10-26 it said: one approving review,
+no dismiss-stale, no code-owner review, no force pushes, no deletions, admins
+not enforced, no required checks, no push restrictions. If the rule has changed,
+the file is still right: it is built from the live rule. If signatures are
+required, add them afterwards with
+<code>gh api --method POST repos/archi-physics/archi/branches/main/protection/required_signatures</code>.</p>
+<p>Attach both files to the tracking issue (<code>gh issue comment</code> with the text, or
+upload them) so the rule can be rebuilt by hand.</p>
+<h3 id="7b-the-renames-with-nothing-between-them-and-the-restore">7b. The renames, with nothing between them and the restore</h3>
+<p>Run this block as one. Do not run anything else in between.</p>
+<p>GitHub applies a rename in the background. For a few seconds after <code>main</code>
+becomes <code>v2</code>, the name <code>main</code> is still listed, and renaming <code>archi_v3</code> onto
+it fails with HTTP 422 "New branch already exists". <code>gone main</code> waits for
+the old name to leave the branch list (2 seconds in the 2026-10-31
+rehearsal). It fails, and so stops the block, if the API call fails or the
+name is still listed after 60 seconds. Define it first, in the same shell:</p>
+<pre><code class="language-bash">gone() {   # wait until branch $1 is no longer listed; fail on an API error or after 60 s
+  local i names
+  for i in $(seq 30); do
+    names=$(gh api repos/archi-physics/archi/branches --paginate --jq '.[].name') || return 1
+    grep -qx &quot;$1&quot; &lt;&lt;&lt;&quot;$names&quot; || return 0
+    sleep 2
+  done
+  echo &quot;branch $1 still listed after 60 s&quot; &gt;&amp;2
+  return 1
+}
+</code></pre>
+<p>Then the block:</p>
+<pre><code class="language-bash">gh api --method POST repos/archi-physics/archi/branches/main/rename -f new_name=v2 \
+&amp;&amp; gone main \
+&amp;&amp; gh api --method POST repos/archi-physics/archi/branches/archi_v3/rename -f new_name=main \
+&amp;&amp; gh api --method PUT repos/archi-physics/archi/branches/main/protection --input main-protection-put.json \
+&amp;&amp; gh repo edit archi-physics/archi --default-branch main
+</code></pre>
+<p>Until the last command, the default branch is <code>v2</code>: renaming the default
+branch moves the default with it.</p>
+<p><code>&amp;&amp;</code> stops at the first failure. Then look at where it stopped before you
+do anything:</p>
+<pre><code class="language-bash">gh api repos/archi-physics/archi/branches --paginate --jq '.[].name' | grep -xE 'main|v2|archi_v3'
+</code></pre>
+<ul>
+<li><code>main</code> and <code>archi_v3</code>, no <code>v2</code>: the first rename failed and nothing
+  changed. Find out why before you run the block again.</li>
+<li>All three listed: a rename is still being applied. Wait a few seconds and
+  list again.</li>
+<li><code>v2</code> and <code>archi_v3</code>, no <code>main</code>: only the first rename happened. Either run
+  the rest of the block (from <code>gone main</code>), or undo with
+  <code>gh api --method POST repos/archi-physics/archi/branches/v2/rename -f new_name=main</code>
+  and <code>gh repo edit archi-physics/archi --default-branch main</code>.</li>
+<li><code>main</code> and <code>v2</code>, no <code>archi_v3</code>: both renames happened. Re-run the <code>PUT</code> and
+  the <code>gh repo edit</code> line, then go on to 7c.</li>
+</ul>
+<h3 id="7c-stop-point-verify-then-stop-if-anything-is-off">7c. Stop point: verify, then stop if anything is off</h3>
+<pre><code class="language-bash"># 1. The new main has the rule; v2 kept its rule (it followed the rename).
+gh api repos/archi-physics/archi/branches/main/protection --jq '.required_pull_request_reviews.required_approving_review_count, .allow_force_pushes.enabled, .allow_deletions.enabled'
+gh api repos/archi-physics/archi/branches/v2/protection   --jq '.required_pull_request_reviews.required_approving_review_count, .allow_force_pushes.enabled, .allow_deletions.enabled'
+# 2. Default branch and tips.
+gh api repos/archi-physics/archi --jq .default_branch                       # main
+git ls-remote --heads origin main v2 archi_v3                               # main and v2 only
+test &quot;$(git ls-remote origin refs/heads/main | cut -f1)&quot; = &quot;$V3_TIP&quot; &amp;&amp; echo &quot;main is the v3 line&quot;
+test &quot;$(git ls-remote origin refs/heads/v2   | cut -f1)&quot; = &quot;$V2_TIP&quot; &amp;&amp; echo &quot;v2 holds the v2 line&quot;
+</code></pre>
+<p>Both protection reads must print <code>1</code>, <code>false</code>, <code>false</code>. Both <code>test</code> lines must
+print. <code>archi_v3</code> must not be listed. Then open
+<a href="https://github.com/archi-physics/archi">https://github.com/archi-physics/archi</a> in a browser and confirm that the
+default branch is <code>main</code> and shows the 3.0 README, and
+<a href="https://github.com/archi-physics/archi/tree/v2">https://github.com/archi-physics/archi/tree/v2</a> shows v2.</p>
+<p><strong>If any check fails, stop.</strong> Do not run step 8 or 9. Do the rollback below.
+If only the new <code>main</code>'s protection is missing, re-run the <code>PUT</code> from 7b; the
+swap itself is fine.</p>
+<h3 id="7d-tell-local-clones">7d. Tell local clones</h3>
+<p>In every clone of the repository:</p>
+<pre><code class="language-bash">git fetch --prune origin                                     # --prune drops origin/archi_v3
+git branch -m main v2 &amp;&amp; git branch -u origin/v2 v2          # a clone that had main (v2)
+git branch -m archi_v3 main &amp;&amp; git branch -u origin/main main  # a clone that had archi_v3
+git remote set-head origin -a
+</code></pre>
+<p>A clone that was on v2's <code>main</code> and only wants v2 runs <code>git fetch &amp;&amp; git
+switch v2</code> instead, and must never <code>git pull</code> on its old <code>main</code>.</p>
+<h3 id="rollback-of-step-7">Rollback of step 7</h3>
+<p>Precondition: nobody has pushed to the new <code>main</code> since 7b. Check:
+<code>test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$V3_TIP"</code>. If it
+fails, stop and talk first: a swap back moves their pull requests again.</p>
+<pre><code class="language-bash">gh api --method POST repos/archi-physics/archi/branches/main/rename -f new_name=archi_v3 \
+&amp;&amp; gone main \
+&amp;&amp; gh api --method POST repos/archi-physics/archi/branches/v2/rename -f new_name=main \
+&amp;&amp; gh repo edit archi-physics/archi --default-branch main
+</code></pre>
+<p><code>gone</code> is the function from 7b; define it again in a new shell. The wait is
+there for the same reason as in 7b. If the block stops, list the branches as
+in 7b:</p>
+<ul>
+<li><code>main</code> and <code>v2</code>, no <code>archi_v3</code>: nothing changed yet.</li>
+<li><code>archi_v3</code> and <code>v2</code>, no <code>main</code> (the default is now <code>archi_v3</code>): only the
+  first rename happened. Run the rest of the block from <code>gone main</code>.</li>
+<li><code>main</code> and <code>archi_v3</code>, no <code>v2</code>: both renames happened. Run the
+  <code>gh repo edit</code> line.</li>
+</ul>
+<p>Open pull requests move back to <code>main</code> with the rename (seen in the
+rehearsal). The rules follow the branches again: the new <code>archi_v3</code> carries the rule the
+new <code>main</code> had, and <code>main</code> (v2) gets back the rule it had. Check with the
+same commands as 7c with the names swapped, using <code>git ls-remote --heads
+origin</code> and the web pages, and re-apply <code>main-protection-put.json</code> to <code>main</code>
+if its rule is missing. Remove the rule from <code>archi_v3</code> in Settings, Branches,
+if you want it as it was.</p>
+<h2 id="step-8-fix-the-workflow-triggers">Step 8. Fix the workflow triggers</h2>
+<p>A maintainer, in a pull request on the new <code>main</code>. These edits are in
+<code>.github/workflows/</code>, which the release-readiness change does not touch:</p>
+<ul>
+<li><code>ci.yml</code>: the push trigger lists <code>[main, archi_v3]</code>. Drop <code>archi_v3</code>.</li>
+<li><code>nightly-e2e.yml</code>: the push trigger lists <code>archi_v3</code>. Change it to <code>main</code>.</li>
+<li><code>deploy-docs.yml</code>: it deploys the site on a push to <code>main</code>. The rename is not
+  a push, so run it once by hand:</li>
+</ul>
+<p><code>bash
+  gh workflow run deploy-docs.yml --repo archi-physics/archi --ref main
+  gh run list --workflow deploy-docs.yml --repo archi-physics/archi --limit 1</code></p>
+<p>The workflows on the <code>v2</code> branch name <code>main</code>. They do not run on <code>v2</code> until
+a v2 pull request changes them. Do that when the first v2 fix needs CI. Two
+of them trigger on pushes to <code>main</code>: <code>publish-base-images.yml</code> (rebuilds the
+v2 base images) and <code>trigger-gitlab.yml</code> (starts the GitLab pipeline). After
+the swap a push to <code>v2</code> starts neither, and the 3.0 <code>main</code> has neither file. v2 releases are tagged by hand (step 3), not with <code>test-and-build-tag.yml</code>.</p>
+<p>The nightly's schedule starts working now: GitHub runs scheduled workflows
+from the default branch only, and until the swap that was v2's <code>main</code>, which
+has no <code>nightly-e2e.yml</code>. Check its first scheduled run the next day with
+<code>gh run list --workflow nightly-e2e.yml --repo archi-physics/archi --event schedule --limit 1</code>.</p>
+<p><strong>Check:</strong> the next push to <code>main</code> runs <code>ci</code>; the site at
+<a href="https://archi-physics.github.io/archi/">https://archi-physics.github.io/archi/</a> shows the 3.0 pages.
+<strong>Rollback:</strong> revert the pull request.</p>
+<h2 id="step-9-tag-301-and-publish">Step 9. Tag 3.0.1 and publish</h2>
+<p><code>JASON</code> for the tag, because pushing it publishes to PyPI at once and a
+published version cannot be reused. Only after step 7's checks pass.</p>
+<p>Do not use <code>git pull</code> here: a clone's old local <code>main</code> may be the v2 line.
+Make the local <code>main</code> the remote one, and prove it:</p>
+<pre><code class="language-bash">git fetch origin
+git switch -C main origin/main
+test &quot;$(git rev-parse HEAD)&quot; = &quot;$(git rev-parse origin/main)&quot; &amp;&amp; echo &quot;HEAD is origin/main&quot;
+grep '^version' python/pyproject.toml          # version = &quot;3.0.1&quot;
+git tag -a v3.0.1 -m &quot;archi-kb 3.0.1&quot;
+git push origin v3.0.1
+</code></pre>
+<p>The tag starts <code>release.yml</code>. It refuses when the tag differs from the version
+in <code>python/pyproject.toml</code> or in <code>archi.__version__</code>. It builds the wheel, then
+publishes through the <code>pypi</code> environment. Watch it:</p>
+<pre><code class="language-bash">gh run list --workflow release.yml --repo archi-physics/archi --limit 1
+gh run watch --repo archi-physics/archi &quot;$(gh run list --workflow release.yml --repo archi-physics/archi --limit 1 --json databaseId --jq '.[0].databaseId')&quot;
+</code></pre>
+<p>If you made yourself a required reviewer in step 6, approve the <code>publish</code> job
+in the run.</p>
+<p>Then create the GitHub release from the release notes:</p>
+<pre><code class="language-bash">gh release create v3.0.1 --repo archi-physics/archi --verify-tag \
+    --title &quot;archi 3.0.1&quot; --notes-file docs/release-notes-3.0.1.md
+</code></pre>
+<p><strong>Check (this is the <code>r3-release</code> acceptance):</strong> in an empty directory and a
+new environment, with Python 3.12 (see step 6). It needs podman or
+Docker, as <code>archi up</code> does. <code>archi doctor</code> checks the running services, so it
+runs after <code>archi up</code>, as the nightly test does; right after <code>archi init</code> it
+exits 1 (<code>services</code>, <code>mcp-answers</code>, <code>webui-up</code>). The data root goes under
+<code>$V</code> too, so the last line removes everything the check made. (With rootful
+Docker some files in the data root may belong to root; remove those with
+<code>sudo</code>.)</p>
+<pre><code class="language-bash">PY=python3.12; V=$(mktemp -d)
+&quot;$PY&quot; -m venv &quot;$V/venv&quot;
+&quot;$V/venv/bin/pip&quot; install &quot;okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc&quot; archi-kb==3.0.1
+&quot;$V/venv/bin/python&quot; -c &quot;import archi; print(archi.__version__)&quot;     # 3.0.1
+&quot;$V/venv/bin/archi&quot; init cutover-check --dir &quot;$V/instance&quot; --data-root &quot;$V/data&quot;
+&quot;$V/venv/bin/archi&quot; up --instance &quot;$V/instance&quot;       # the first start loads an embedding model: minutes
+&quot;$V/venv/bin/archi&quot; doctor --instance &quot;$V/instance&quot;; echo &quot;doctor exit $?&quot;   # must print 0
+&quot;$V/venv/bin/archi&quot; down --purge --yes --instance &quot;$V/instance&quot;
+rm -rf &quot;$V&quot;
+</code></pre>
+<p><code>archi doctor</code> must exit 0. Record the output in the <code>r3-release</code> PACT evidence.</p>
+<p><strong>If the workflow fails before anything is uploaded.</strong> The <code>build</code> job (tag does
+not match the version, build error) or the <code>publish</code> job before upload (the
+pending publisher or the <code>pypi</code> environment is wrong) leaves nothing on PyPI.
+Check <code>https://pypi.org/project/archi-kb/</code> shows no 3.0.1. Then fix the cause
+(the settings in step 6, or a pull request for the version) and, if the tag is
+still the right commit, re-run the failed jobs without moving the tag:</p>
+<pre><code class="language-bash">gh run rerun --failed --repo archi-physics/archi &lt;run id&gt;
+</code></pre>
+<p>If the fix needs a code change, delete the tag (<code>git push origin :refs/tags/v3.0.1</code>),
+merge the fix, and tag again.</p>
+<p><strong>Rollback once something was uploaded.</strong> A published version stays on PyPI.
+Do not reuse the number. <code>JASON</code> yanks the release on pypi.org (Manage,
+Releases, Options, Yank), fixes the problem, and releases <code>3.0.2</code>. Delete the
+GitHub release (<code>gh release delete v3.0.1 --yes</code>) only if you also delete the
+tag, and only when nobody has installed it.</p>
+<h2 id="step-9a-switch-submits-ticket-replies-to-ticket-triage">Step 9a. Switch SubMIT's ticket replies to <code>ticket-triage</code></h2>
+<p>The SubMIT owner, after step 9's check passes and the SubMIT 3.0 instance
+from step 4 is up. Board d717 (2026-10-31): <code>ticket-triage</code> replaces the v2
+Redmine bot's ticket replies at the cutover, with no shadow trial first.
+Board d719 (2026-10-31): the v2 <code>redmine</code> service stops at the cutover, so
+<strong>SubMIT users get no resolution emails from the cutover until 3.1</strong>.</p>
+<p>What v2 runs (v2 code on <code>main</code>; SubMIT runs a patched v2.3.x, so the owner
+confirms it on the deployment): v2's <code>redmine-mailer</code> service starts two
+containers. The one whose name ends in <code>-redmine</code> runs
+<code>src/bin/service_redmine.py</code>, one loop that both posts answers to tickets
+and sends the resolution email when a ticket is resolved. The one whose name
+ends in <code>-mailer</code> runs <code>src/bin/service_mailbox.py</code>, the mail intake that
+turns emails into tickets. No setting turns off only the answers, so
+stopping the <code>-redmine</code> container ends both. The <code>-mailer</code> container, and the
+v2 postgres and config it depends on, keep running until 3.1 (board d704).</p>
+<p>Before the cutover, <code>JASON</code> tells the SubMIT A2rchi owner and the SubMIT
+users that resolution emails pause from the cutover until 3.1 (runbook
+step 2).</p>
+<p>This step needs <code>archi ops promote --no-trial</code> and the status line that
+tells a requested promotion from an approved one. Both come with the
+follow-up to #884, PR #885; without it the runtime refuses live mode for an
+automation that has no shadow results.</p>
+<p>The order keeps v2 and <code>ticket-triage</code> from both replying: v2 stops (4)
+before <code>ticket-triage</code> may act (5). Between 4 and 5 nobody replies, so do
+them one after the other.</p>
+<ol>
+<li>In the SubMIT instance repository, ask for the promotion:</li>
+</ol>
+<p><code>bash
+   archi ops promote ticket-triage --no-trial --note "board d717"</code></p>
+<p><code>--note</code> is required. The command opens a PACT change that records "no
+   shadow evidence" and sets <code>mode: live</code> and <code>promotion: &lt;change&gt;</code> in
+   <code>ops.yaml</code>. <code>ticket-triage</code> keeps running in shadow until sub-step 2
+   below.</p>
+<ol>
+<li>An operator approves the change, then commits the archived change:</li>
+</ol>
+<p><code>bash
+   okg pact decide &lt;change&gt; --verdict approve --principal &lt;name&gt;</code></p>
+<ol>
+<li>
+<p>Check: the <code>ticket-triage</code> line of <code>archi ops status</code> starts with
+   <code>ticket-triage: level</code> and says <code>mode live (promotion approved; no shadow
+   evidence: board d717)</code>. Before the approval it says <code>mode live requested,
+   runs in shadow until approved</code>.</p>
+</li>
+<li>
+<p>On the v2 host, stop the <code>-redmine</code> container and leave the <code>-mailer</code>
+   container running (<code>podman</code> or <code>docker</code>, whichever the deployment uses):</p>
+</li>
+</ol>
+<p><code>bash
+   podman ps --format '{{.Names}}' | grep -E -- '-(redmine|mailer)$'
+   podman stop &lt;name&gt;-redmine</code></p>
+<p>v2's compose file gives that container <code>restart: always</code>. With Docker, a
+   restart of the daemon or the host starts it again; with podman, a host
+   restart does if <code>podman-restart.service</code> is enabled. Then v2 would answer
+   tickets alongside <code>ticket-triage</code>. To keep it stopped, set its restart
+   policy to <code>no</code>: <code>docker update --restart=no &lt;name&gt;-redmine</code>, or, with
+   podman, <code>podman update --restart=no &lt;name&gt;-redmine</code> where
+   <code>podman update --help</code> lists <code>--restart</code> (older podman does not have it;
+   then disable <code>podman-restart.service</code> for that user, or check after any
+   reboot). Do not remove the container: the rollback starts it again.</p>
+<ol>
+<li>In <code>archi.yaml</code>, set <code>automations.ticket-triage.level: L2</code>, so the
+   approved actions run.</li>
+</ol>
+<p><strong>Check:</strong> the <code>ticket-triage</code> line of <code>archi ops status</code> starts with
+<code>ticket-triage: level L2, mode live (promotion approved; no shadow evidence:
+board d717)</code>. On the v2 host, of the <code>-redmine</code> and <code>-mailer</code> containers,
+only <code>-mailer</code> is running. Record the time in the tracking issue.</p>
+<h3 id="rollback-of-step-9a">Rollback of step 9a</h3>
+<p>Right away, in this order:</p>
+<ol>
+<li>In the SubMIT instance repository, set <code>mode: shadow</code> under
+   <code>automations.ticket-triage</code> in <code>ops.yaml</code>, and commit. No restart. From
+   the next run on, <code>ticket-triage</code> writes nothing to Redmine, and a run
+   already waiting for an approval writes nothing either, because the step
+   that acts reads <code>ops.yaml</code> again.</li>
+<li>On the v2 host, set the <code>-redmine</code> container's restart policy back to
+   <code>always</code> if you changed it, and start it (<code>podman start &lt;name&gt;-redmine</code>).
+   That brings back both v2 answers and the resolution emails.</li>
+</ol>
+<p>Know what starting it does. v2's loop answers every ticket assigned to its
+Redmine user that is in <code>New</code> or <code>In Progress</code>, and sends the resolution
+email for every ticket in <code>Resolved</code>, then closes it. So it sends, at once,
+the resolution emails held since the cutover, and it answers again any
+ticket <code>ticket-triage</code> already answered but left in one of those statuses.
+Before you start it, look at the queue for both, and tell the SubMIT users if
+a batch of emails is coming. The same backlog waits at 3.1.</p>
+<p><strong>Check:</strong> <code>archi ops status</code> shows <code>mode shadow</code>; the v2 bot answers a new
+ticket. Say in the tracking issue why it was rolled back.</p>
+<p>To switch forward again, set <code>mode: live</code> and stop the <code>-redmine</code> container
+again. The approved promotion still counts.</p>
+<h2 id="step-10-announce">Step 10. Announce</h2>
+<p><code>JASON</code> sends it. Include:</p>
+<ul>
+<li>where to start (<a href="../../quickstart/">quickstart</a>) and the
+  <a href="https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md">release notes</a>;</li>
+<li>the supported AKMON version (okg 0.4.0) and what 3.0.1 does not have
+  (step 2);</li>
+<li><strong>what changed for v2 users.</strong> <code>main</code> is now 3.0 and <code>v2</code> is v2. A v2
+  checkout must run <code>git fetch &amp;&amp; git switch v2</code>. Do not <code>git pull</code> on <code>main</code>.
+  Raw URLs that name <code>main</code>
+  (<code>raw.githubusercontent.com/archi-physics/archi/main/...</code>) now return 3.0 files
+  and are not redirected. Links in GitHub Actions <code>uses: ...@main</code> do not
+  follow the rename either;</li>
+<li>the date the v2 branch stops receiving fixes. That date is set from the
+  inventory in step 1, not before it.</li>
+</ul>
+<p>Also: point the archi-okg README at this repository if it does not already,
+and close the <code>3.0 · M7</code> milestone once the <code>r3-docs</code> and <code>r3-release</code> PACTs
+are approved.</p>
+<p><strong>Rollback:</strong> send a correction.</p>
+<h2 id="if-something-goes-wrong-after-the-cutover">If something goes wrong after the cutover</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Do this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A v2 owner needs a fix.</td>
+<td>Open the pull request against the <code>v2</code> branch. Tag <code>v2.&lt;n&gt;</code>. The owner pins the new tag as in step 4, route B.</td>
+</tr>
+<tr>
+<td>A v2 deployment must be rebuilt.</td>
+<td><code>git checkout v2.6.0</code> (or its pinned tag), then the restore steps in <a href="../../migration-from-v2/#roll-back">Moving from v2 to 3.0</a>.</td>
+</tr>
+<tr>
+<td>Someone's clone is confused by the renames.</td>
+<td>Step 7d, or a fresh clone.</td>
+</tr>
+<tr>
+<td>3.0.1 has a bad bug.</td>
+<td>Fix on <code>main</code>, bump to <code>3.0.2</code>, tag <code>v3.0.2</code>. Yank 3.0.1 only if it is harmful.</td>
+</tr>
+<tr>
+<td>The branch swap itself was wrong.</td>
+<td>The rollback of step 7. It is safe until people push to the new <code>main</code>. After that, talk first.</td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../upgrade-and-migration/" class="btn btn-neutral float-left" title="Upgrade and migration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../footguns/" class="btn btn-neutral float-right" title="Footgun ledger">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../upgrade-and-migration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../footguns/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

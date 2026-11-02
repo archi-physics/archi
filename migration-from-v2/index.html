@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Moving from v2 to 3.0 - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Moving from v2 to 3.0";
+        var mkdocs_page_input_path = "migration-from-v2.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Moving from v2 to 3.0</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-changes">What changes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#what-has-no-equivalent-yet">What has no equivalent yet</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#before-you-start-back-up-v2">Before you start: back up v2</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#stand-up-30-beside-v2">Stand up 3.0 beside v2</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#move-each-source">Move each source</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#roll-back">Roll back</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#tell-the-maintainers">Tell the maintainers</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Moving from v2 to 3.0</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/migration-from-v2.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="moving-from-v2-to-30">Moving from v2 to 3.0</h1>
+<p><strong>Short version.</strong> 3.0 is a new install, not an upgrade. You do not convert a
+v2 config file or a v2 database. You back v2 up, start a 3.0 instance beside
+it, point the new instance at the same sources, compare answers, and move your
+users when you are satisfied. v2 keeps running the whole time, and you can
+stop at any step and lose nothing.</p>
+<p>This page is for an operator who runs a v2 deployment from the <code>main</code> branch
+(<code>archi create ...</code>). The date the v3 line becomes <code>main</code> is the
+<a href="../operating/cutover/">cutover</a>. Until then <code>main</code> receives only v2 bug
+fixes. After it, v2 lives on the <code>v2</code> branch with its <code>v2.x</code> tags, and
+nothing in a running v2 deployment changes by itself. The v2 documentation
+stays on this site under <a href="../v2/">v2 (legacy)</a>.</p>
+<h2 id="what-changes">What changes</h2>
+<table>
+<thead>
+<tr>
+<th>In v2</th>
+<th>In 3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A RAG chatbot you configure with one large YAML file and deploy with <code>archi create</code>.</td>
+<td>A knowledge graph you install from a bundle with <code>archi init</code> and <code>archi up</code>. Settings live in <code>archi.yaml</code> and in the packs.</td>
+</tr>
+<tr>
+<td>Documents are chunked into a vector store the app owns.</td>
+<td>OKG owns retrieval. Every answer cites records from one published generation.</td>
+</tr>
+<tr>
+<td>The chat app, uploader and data viewer are Archi's own web apps.</td>
+<td>Open WebUI is one built-in client. Any MCP client can read the graph. See <a href="../connecting-an-agent/">Connecting an agent</a>.</td>
+</tr>
+<tr>
+<td>You pick a model provider (OpenAI, Anthropic, Gemini, local) in the Archi config.</td>
+<td>Archi stores no model. The agent is configured with its own.</td>
+</tr>
+<tr>
+<td>Sources are listed under <code>data_manager.sources</code> (links, git, Indico, JIRA, Redmine).</td>
+<td>Sources come in packs: <code>docsite</code>, <code>indico</code>, <code>jira</code>, <code>tickets</code> (Redmine and JIRA), <code>git-code</code> and more. See the <a href="../library/">library</a>.</td>
+</tr>
+<tr>
+<td>Queue bots (Redmine, JIRA, Mattermost) draft replies.</td>
+<td>Automations under autonomy levels, with a shadow period before going live. See <a href="../operations-layer/">the operations layer</a>.</td>
+</tr>
+<tr>
+<td>Quality is checked with <code>archi evaluate</code> (Ragas benchmark).</td>
+<td><code>archi eval</code> (smoke sets with deterministic checks) and <code>archi eval --context</code> (retrieval scored against gold evidence). See <a href="../operating/evals/">archi eval</a>.</td>
+</tr>
+<tr>
+<td>Redeploy with <code>archi restart</code>.</td>
+<td><code>archi up</code>, <code>archi down</code>, <code>archi add</code>, <code>archi diff</code>. See <a href="../operating/">Operating</a>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-has-no-equivalent-yet">What has no equivalent yet</h2>
+<p>Check this list before you plan a move. Each item is a v2 feature that 3.0.0
+does not have.</p>
+<ul>
+<li><strong>Resolution emails and mail intake.</strong> At SubMIT, <code>ticket-triage</code> replaces
+  the v2 Redmine bot at the cutover, with no shadow trial first (board d717).
+  The v2 service that posted the bot's answers also sent the resolution email,
+  and it stops at the cutover, so <strong>SubMIT users get no resolution emails from
+  the cutover until 3.1</strong> (board d719). The repository owner tells the SubMIT
+  A2rchi owner and the SubMIT users before the cutover. Mail intake (emails
+  turned into tickets) stays on v2 until 3.1 (board d704). The other v2 bots
+  (JIRA ticket responder, Mattermost) keep serving on a tagged <code>v2.x</code>.</li>
+<li><strong>The Ragas benchmark.</strong> <code>archi evaluate</code> scored answers with an LLM judge.
+  <code>archi eval</code> replaces it with deterministic checks (cited records and required
+  strings) and a retrieval score; there is no LLM-judged score.</li>
+<li><strong>The Piazza bot.</strong> It is retired and will not be ported.</li>
+<li><strong>The grader app, the A/B tools and the playbook store.</strong> The design drops
+  them. The <code>v2.x</code> tags keep them.</li>
+<li><strong>Document upload through the chat UI, and files copied into the data
+  folder.</strong> There is no upload source. To get a document in, publish it
+  somewhere a pack reads (a documentation site, a Git repository) or write a
+  pack.</li>
+<li><strong>The service status board and alert banners.</strong> Not ported.</li>
+<li><strong>Web pages behind a login (<code>sso-</code> links).</strong> The <code>docsite</code> pack reads public
+  pages only. <code>hypernews</code> reads an SSO cookie file, which is interactive to
+  make. There is no general SSO page scraper.</li>
+<li><strong>More than one Git repository per <code>git-code</code> pack,</strong> and the v2 "MkDocs
+  repository" mode. <code>git-code</code> reads one repository's tracked files and
+  history.</li>
+<li><strong>Restricted Indico events.</strong> The <code>indico</code> pack reads public events and
+  asks for no credential.</li>
+<li><strong>Helm deployment.</strong> 3.0 runs one compose project with podman or docker.</li>
+<li><strong>SSO login and admin roles for the chat (<code>services.chat_app.auth</code>,
+  <code>auth_roles</code>).</strong> Open WebUI keeps its own accounts, but every chat user and
+  every connected agent reads the graph through one shared token, with no
+  per-user or per-role filtering. See
+  <a href="../connecting-an-agent/#who-can-read-the-graph">who can read the graph</a>.</li>
+<li><strong>Live instances rebuilt from the bundles.</strong> All four bundles ship
+  (<code>cern-team</code>, <code>cms-physics</code>, <code>cms-comp-ops</code>, <code>cluster-manager</code>), but the
+  live comp-ops and SubMIT instances have not been rebuilt from them yet.</li>
+</ul>
+<h2 id="before-you-start-back-up-v2">Before you start: back up v2</h2>
+<p>Nothing here changes v2. Do it once, before anything else, and keep the
+backup until you have retired the v2 deployment.</p>
+<p>v2 keeps three things you care about:</p>
+<ul>
+<li>the <strong>deployment folder</strong>, <code>~/.archi/archi-&lt;name&gt;</code> (or <code>$ARCHI_DIR/archi-&lt;name&gt;</code>):
+  the rendered compose file, your config and the secrets;</li>
+<li>the <strong>Postgres volume</strong> <code>archi-pg-&lt;name&gt;</code>: conversations, document records,
+  and the data manager's catalog;</li>
+<li>the <strong>data volume</strong> <code>archi-data-&lt;name&gt;</code>: the scraped and uploaded documents.</li>
+</ul>
+<p>Set <code>RT</code> to <code>docker</code> or <code>podman</code>, whichever v2 runs on, and <code>NAME</code> to the
+deployment name that <code>archi list-deployments</code> prints.</p>
+<pre><code class="language-bash">RT=docker                  # or podman
+NAME=my-archi
+BK=~/archi-v2-backup/$NAME &amp;&amp; mkdir -p &quot;$BK&quot; &amp;&amp; cd &quot;$BK&quot;
+
+archi list-deployments                                  # confirm the name
+cp -a ~/.archi/archi-$NAME ./deployment                 # config, compose file, secrets
+$RT exec postgres-$NAME pg_dump -U archi -d archi-db -Fc &gt; archi-db.dump
+$RT run --rm -v archi-data-$NAME:/data -v &quot;$PWD&quot;:/backup alpine \
+    tar czf /backup/archi-data.tgz -C /data .
+ls -l                                                    # three non-empty items
+</code></pre>
+<p>Checks: <code>archi-db.dump</code> is not empty, and <code>pg_restore --list archi-db.dump |
+head</code> (if you have <code>pg_restore</code> on the host) prints a table of contents.
+<code>archi-data.tgz</code> lists with <code>tar tzf archi-data.tgz | head</code>. The deployment
+folder holds secrets, so keep the backup folder private.</p>
+<p>Write down which v2 sources and services you run: the <code>data_manager.sources</code>
+block of your config, and the <code>--services</code> you passed to <code>archi create</code>. You
+need them in the next sections.</p>
+<h2 id="stand-up-30-beside-v2">Stand up 3.0 beside v2</h2>
+<ol>
+<li><strong>Use a new Python environment.</strong> The v2 and 3.0 command-line programs are
+   both called <code>archi</code>. Do not install 3.0 into the environment that runs v2.</li>
+</ol>
+<p><code>bash
+   python3 -m venv ~/archi3-venv
+   . ~/archi3-venv/bin/activate
+   pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+   archi --help</code></p>
+<p>Check that <code>archi --help</code> lists <code>init</code> and <code>up</code>. If it lists
+   <code>create</code>, you are still in the v2 environment.</p>
+<ol>
+<li><strong>Make the instance under another name.</strong> Pick a name that v2 does not use
+   (here <code>NAME3</code>). Ports are chosen free at <code>init</code> time and bound to
+   127.0.0.1, so they do not collide with v2. The instance lives in its own
+   directory and its own containers and volumes.</li>
+</ol>
+<p>The 3.0 name takes lowercase letters, digits and <code>-</code> only (no <code>_</code>, no capitals),
+   so pick another <code>NAME3</code> if your v2 name has either.</p>
+<p><code>bash
+   NAME3=${NAME}-v3
+   archi init $NAME3 --bundle cern-team --dir ~/archi3/$NAME3
+   cd ~/archi3/$NAME3
+   archi up
+   archi doctor</code></p>
+<p><code>archi doctor</code> exits 0 when no check failed. <code>archi up</code> prints the chat
+   address and the MCP endpoint.</p>
+<ol>
+<li>
+<p><strong>Add your sources</strong> (next section), then run <code>archi doctor</code> again. Its
+   <code>source-freshness</code> check shows each source's age against its limit.</p>
+</li>
+<li>
+<p><strong>Ask your real questions.</strong> Use the questions your users ask v2, in the
+   chat or through <a href="../connecting-an-agent/">an agent</a>. Compare the cited
+   answers with v2's. Record which questions are worse and why.</p>
+</li>
+<li>
+<p><strong>Move your users</strong> when 3.0 answers well and nothing in the list above
+   blocks you. Keep v2 running as long as you need.</p>
+</li>
+</ol>
+<h2 id="move-each-source">Move each source</h2>
+<p><code>archi init --with &lt;pack&gt;</code> chooses packs at the start. <code>archi add &lt;pack&gt;</code> adds
+one to a running instance and publishes again. <code>--answer ID=VALUE</code> answers
+one of the pack's questions; the id is the pack name with dashes as
+underscores, then <code>_</code> and the question id. Credentials never go on the command
+line: put the value in <code>.env</code> in the instance, under the name the pack lists.</p>
+<table>
+<thead>
+<tr>
+<th>v2 source</th>
+<th>3.0 pack</th>
+<th>How to move it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>links</code>: public web pages from <code>.list</code> files</td>
+<td><code>docsite</code></td>
+<td><code>archi add docsite --answer docsite_urls=&lt;url&gt;[,&lt;url&gt;...]</code>. Give the documentation sites or pages to read. It downloads the pages first, then ingests. A page that cannot be fetched stops the add before it edits anything.</td>
+</tr>
+<tr>
+<td><code>links</code> behind SSO (<code>sso-</code> prefix)</td>
+<td>none</td>
+<td>No equivalent. Leave these on v2 or publish the content where a pack can read it.</td>
+</tr>
+<tr>
+<td><code>git</code> (an MkDocs repository, <code>git-</code> prefix)</td>
+<td><code>git-code</code></td>
+<td><code>archi add git-code --answer git_code_repo_url=&lt;url&gt; --answer git_code_repo_name=&lt;short name&gt;</code>. It reads every tracked file and the history, not only the Markdown. One repository per instance.</td>
+</tr>
+<tr>
+<td><code>indico</code></td>
+<td><code>indico</code></td>
+<td><code>archi add indico --answer indico_event_ids='["&lt;id&gt;"]'</code> or <code>--answer indico_category_ids='["&lt;id&gt;"]'</code>. Public events only. With no answer it reads the CERN workshop event 1716863.</td>
+</tr>
+<tr>
+<td><code>jira</code></td>
+<td><code>jira</code></td>
+<td>Archi reads a cache that a downloader writes, and <code>archi add jira</code> stops if the cache is missing. So download first: <code>python -m archi.downloaders.jira --output-dir &lt;data root&gt;/jira --project &lt;KEY&gt;</code> (repeat <code>--project</code>; set <code>CERN_JIRA_TOKEN</code> in the environment if the projects are not public), then <code>archi add jira</code>. <code>&lt;data root&gt;</code> is the <code>data_root:</code> value in <code>archi.yaml</code>. The downloader needs the <code>jira</code> Python package (<code>pip install jira</code>). See <code>python -m archi.downloaders.jira --help</code>. Refreshing the cache is yours to schedule: the pack expects data no older than 24 hours, and <code>archi doctor</code> reports it when it is older.</td>
+</tr>
+<tr>
+<td><code>redmine</code></td>
+<td><code>tickets</code></td>
+<td>Like <code>jira</code>, Archi reads a cache that a downloader writes. Download first: <code>python -m archi.downloaders.tickets --output-dir &lt;data root&gt;/tickets --redmine-url &lt;url&gt;</code> (set <code>REDMINE_API_KEY</code> in the environment), then <code>archi add tickets --answer tickets_base_url=&lt;url&gt;</code>. The same pack reads JIRA Server or Data Center with <code>--jira-url</code>. See <code>python -m archi.downloaders.tickets --help</code>.</td>
+</tr>
+<tr>
+<td>Uploaded files, files copied into the data folder</td>
+<td>none</td>
+<td>No equivalent.</td>
+</tr>
+<tr>
+<td>Mattermost, Piazza, grader, Grafana service board</td>
+<td>none</td>
+<td>Not ported. See above.</td>
+</tr>
+</tbody>
+</table>
+<p><a href="../adding-a-source/">Adding a source</a> says more about packs, and
+<a href="../reference/connector-caches/">connector caches</a> says what each downloader
+writes. The <a href="../library/">library</a> lists every pack with its
+questions and credentials.</p>
+<h2 id="roll-back">Roll back</h2>
+<p>Each stage has its own way back. v2 is never edited by the move, so the first
+two cost nothing.</p>
+<ul>
+<li><strong>Abandon the 3.0 instance.</strong> v2 is untouched. From the instance directory:</li>
+</ul>
+<p><code>bash
+  archi down --purge --yes     # stops the stack and deletes its volumes
+  cd ~ &amp;&amp; rm -rf ~/archi3/$NAME3</code></p>
+<p>Delete <code>~/.local/share/archi/$NAME3</code> too if you want the connector caches
+  gone (that is the default data root).</p>
+<ul>
+<li>
+<p><strong>Pause a move.</strong> Run <code>archi down</code> (no <code>--purge</code>). It keeps every volume.
+  <code>archi up</code> brings the instance back with the same graph.</p>
+</li>
+<li>
+<p><strong>Return your users to v2.</strong> If you pointed users or a proxy at 3.0, point
+  them back. v2 never stopped.</p>
+</li>
+<li>
+<p><strong>Restore v2 itself</strong> (only if v2 was damaged, for example after the cutover
+  moved its branch). Use the v2 line, not 3.0. In a v2 environment:</p>
+</li>
+</ul>
+<p><code>bash
+  git checkout v2.5.0           # or the newest v2.x tag your site pinned
+  pip install -e .
+  archi delete -n $NAME         # only if a broken deployment is still there
+  archi create -n $NAME -c "$BK/deployment/&lt;your config&gt;.yaml" \
+      -e "$BK/deployment/&lt;your secrets&gt;.env" --services &lt;your services&gt;
+  $RT exec -i postgres-$NAME pg_restore -U archi -d archi-db --clean --if-exists &lt; "$BK/archi-db.dump"
+  $RT run --rm -v archi-data-$NAME:/data -v "$BK":/backup alpine \
+      tar xzf /backup/archi-data.tgz -C /data</code></p>
+<p>The config and secrets are the files you used the first time. The copy of
+  the deployment folder in the backup shows which they were. <code>archi delete</code>
+  without <code>--rmv</code> keeps the volumes, and the restore then overwrites them.</p>
+<h2 id="tell-the-maintainers">Tell the maintainers</h2>
+<p>If you run a v2 deployment, tell the maintainers. The
+<a href="../operating/cutover/">cutover</a> waits until every live deployment has a named
+owner and has either moved or chosen to stay on a tagged <code>v2.x</code> release. A
+deployment that stays on v2 should pin the tag it runs, so a later fix on
+<code>main</code> cannot change it.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../reference/adr/" class="btn btn-neutral float-left" title="Design records"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../v2/" class="btn btn-neutral float-right" title="Home">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../reference/adr/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../v2/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

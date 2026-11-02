@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Install - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Install";
+        var mkdocs_page_input_path = "v2/install.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Home</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Install</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#system-requirements">System Requirements</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#helm-deployments">Helm deployments</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">v2 (legacy)</li>
+      <li class="breadcrumb-item active">Install</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/v2/install.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="install">Install</h1>
+<blockquote>
+<p><strong>v2 (legacy).</strong> This page describes the v2 application (the RAG chatbot) on the <code>main</code> branch. It is not the 3.0 documentation. v2 keeps running on <code>main</code> until the cutover; see <a href="../../migration-from-v2/">Moving from v2 to 3.0</a>.</p>
+</blockquote>
+<h2 id="system-requirements">System Requirements</h2>
+<p>Archi is deployed using a Python-based CLI onto containers. It requires:</p>
+<ul>
+<li><code>docker</code> version 24+ or <code>podman</code> version 5.4.0+ (for containers)</li>
+<li><code>python 3.10.0+</code> (for the CLI)</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> We support either running open-source models locally or connecting to existing APIs. If you plan to run open-source models on your machine's GPUs, see the <a href="../advanced_setup_deploy/">Advanced Setup &amp; Deployment</a> section.</p>
+</blockquote>
+<h2 id="installation">Installation</h2>
+<p>Clone the Archi repository:</p>
+<pre><code class="language-bash">git clone https://github.com/archi-physics/archi.git
+</code></pre>
+<p>Check out the latest stable tag (recommended for users; stay on <code>main</code> only if you're actively developing):</p>
+<pre><code class="language-bash">cd archi
+git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
+</code></pre>
+<p>Install Archi (from inside the repository):</p>
+<pre><code class="language-bash">pip install -e .
+</code></pre>
+<p>This installs Archi's dependencies and the CLI tool. Verify the installation with:</p>
+<pre><code class="language-bash">which archi
+</code></pre>
+<p>The command prints the path to the <code>archi</code> executable.</p>
+<h2 id="helm-deployments">Helm deployments</h2>
+<p>Archi also supports rendering and installing a Helm chart through the <code>archi install</code> command. This is useful when you want to deploy archi into a Kubernetes cluster instead of running the compose-based workflow locally. The standard command uses the local helm installation to deploy archi using the created chart. With the <code>dry-run</code> flag the CLI command only creates the chart and required templates.</p>
+<p>For a full walkthrough, see the <a href="../helm_deployment/">Helm deployment guide</a>.</p>
+<details>
+<summary>Show Full Installation Script</summary>
+
+
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/archi-physics/archi.git
+cd archi
+export ARCHI_DIR=$(pwd)
+
+# (Optional) Checkout the latest stable tag (recommended for users)
+# Skip this if you're developing and want the tip of main.
+git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
+
+# (Optional) Create and activate a virtual environment
+python3 -m venv archi_venv
+source archi_venv/bin/activate
+
+# Install dependencies
+cd &quot;$ARCHI_DIR&quot;
+pip install -e .
+
+# Verify installation
+which archi
+</code></pre>
+
+
+</details>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../" class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../quickstart/" class="btn btn-neutral float-right" title="Quickstart">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../quickstart/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

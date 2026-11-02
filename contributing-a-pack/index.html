@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Contributing a pack - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Contributing a pack";
+        var mkdocs_page_input_path = "contributing-a-pack.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Contributing a pack</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-the-package-declares">What the package declares</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#versioning">Versioning</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#what-users-see">What users see</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#how-to-test-it">How to test it</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bringing-an-mcp-server-instead">Bringing an MCP server instead</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Contributing a pack</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/contributing-a-pack.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="contributing-a-pack-from-your-own-package">Contributing a pack from your own package</h1>
+<p>An external group can ship packs, bundles and connectors as an ordinary Python
+package. Nothing lands in the archi repository. ADR 0002 section 4.4 is the
+design; <a href="../reference/pack-format/">Pack and bundle format</a> is the reference for the
+manifest files. This page says what your package must contain and how to test it.</p>
+<h2 id="what-the-package-declares">What the package declares</h2>
+<ol>
+<li>
+<p><strong>Entry points.</strong> One per directory you ship:</p>
+<p><code>toml
+[project.entry-points."archi.packs"]
+mywg = "mywg_packs:packs_dir"        # returns a directory of &lt;pack&gt;/pack.yaml
+[project.entry-points."archi.bundles"]
+mywg = "mywg_packs:bundles_dir"      # optional: a directory of &lt;bundle&gt;/bundle.yaml</code></p>
+<p>The value is a callable returning the directory (or the directory itself).
+The entry-point name (<code>mywg</code>) is the provider label users see.</p>
+</li>
+<li>
+<p><strong>Pack manifests</strong>, one <code>packs/&lt;name&gt;/pack.yaml</code> each, valid against the
+   published schema (<code>archi bundles validate &lt;dir&gt;</code>). Package the directories as
+   data files in your wheel. Rules that bite external packs:</p>
+<ul>
+<li>pack names are global: two providers with the same name are both reported
+  as a problem, so prefix yours (<code>mywg-...</code>);</li>
+<li>a pack that needs a credential sets <code>needs_credentials: true</code> and names
+  environment variables in <code>credentials</code>; never a value;</li>
+<li>every context-pack source has a <code>freshness</code> entry;</li>
+<li>automation packs cannot ask for a level above L2.</li>
+</ul>
+</li>
+<li>
+<p><strong>Connectors.</strong> A connector is the code that pulls one external system into the
+   graph. It is an okg <code>SourceAdapter</code> (okg's mechanism name), referenced from a
+   source template in the pack by <code>module:</code> and <code>class:</code>:</p>
+<p><code>yaml
+mywg-tickets:
+  module: mywg_connectors.tickets
+  class: TicketSource
+  ownership_id: ${deployment_name}.mywg-tickets
+  admission_policy: { ... }        # producer authority, output_signature, as okg requires</code></p>
+<p>Your package must be importable in the environment where <code>okg</code> runs, so list
+okg as an install-time requirement of the deployment, not of your wheel (okg is
+the host environment; archi does not declare it either). The adapter contract
+(change probes, producer authority, admission mode, record identity) is okg's,
+and <a href="https://github.com/archi-physics/archi/blob/archi_v3/docs/okg-alignment.md">okg alignment</a> lists the interface archi relies on.</p>
+</li>
+</ol>
+<h2 id="versioning">Versioning</h2>
+<ul>
+<li>Each pack and bundle has its own <code>version</code> (<code>MAJOR.MINOR.PATCH</code>). Raise MAJOR
+  when a source's output signature, record identity or a question id changes: an
+  instance's <code>archi.lock</code> records the selection and <code>archi diff</code> reports drift.</li>
+<li>Each bundle states the okg range it supports in <code>okg:</code> (PEP 440, for example
+  <code>"&gt;=0.4.0,&lt;0.5"</code>). A pack inherits the check through the bundles that use it.</li>
+<li>The wheel's version is yours. Pin the range of <code>archi-kb</code> you were tested
+  against in your own <code>dependencies</code>.</li>
+</ul>
+<h2 id="what-users-see">What users see</h2>
+<p>With your wheel installed in the same environment as archi:</p>
+<pre><code class="language-console">$ archi bundles list
+...
+  mywg-tickets 0.1.0 (context, needs credentials)  [mywg (mywg-packs 0.1.0)]
+</code></pre>
+<p>The bracket is the provider: the entry-point name and the distribution and
+version that registered it. <code>archi bundles list --json</code> has it as <code>provider</code>.
+Use <code>archi render --bundle B --with mywg-tickets --instance DIR</code> or
+<code>archi add mywg-tickets --instance DIR</code> to install it.</p>
+<h2 id="how-to-test-it">How to test it</h2>
+<ol>
+<li><code>archi bundles validate path/to/packs</code> must report no problem.</li>
+<li><code>archi bundles list --json</code> must show your packs with your provider label and
+   an empty <code>problems</code> list. A broken entry point is listed, not fatal.</li>
+<li><code>archi render --bundle &lt;your bundle&gt; --instance &lt;tmp&gt;</code> then
+   <code>okg install --profile &lt;name&gt; --dry-run --json --non-interactive ...</code>
+   must report <code>dry_run_ok</code> with no blockers.</li>
+<li>Publish against a real graph database in your own CI, the way
+   <code>archi init</code> does.</li>
+</ol>
+<p>archi's own copy of steps 2 and 3 runs against a fixture package,
+<code>python/tests/bundles/fixtures/thirdparty/archi_fixture_packs/</code>, built into a wheel
+in <code>python/tests/bundles/test_packaging.py</code>. Copy that package as a starting point.</p>
+<h2 id="bringing-an-mcp-server-instead">Bringing an MCP server instead</h2>
+<p>If what you have is a live tool and not ingestion, you do not need a pack:
+declare it under <code>mcp_servers:</code> in the instance's <code>archi.yaml</code> and
+<code>archi connect</code> registers it next to the instance server
+(<a href="../connecting-an-agent/">Connecting other agents</a>).</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../operating/footguns/" class="btn btn-neutral float-left" title="Footgun ledger"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../library/" class="btn btn-neutral float-right" title="Library (generated)">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../operating/footguns/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../library/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

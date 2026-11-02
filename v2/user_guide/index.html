@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>User Guide - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "User Guide";
+        var mkdocs_page_input_path = "v2/user_guide.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">User Guide</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-sources">Data Sources</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#services">Services</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agents-tools">Agents &amp; Tools</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#playbooks">Playbooks</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#models-providers">Models &amp; Providers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration-management">Configuration Management</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#secrets">Secrets</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#benchmarking">Benchmarking</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#alerts-service-status-board">Alerts &amp; Service Status Board</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#for-all-users">For all users</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#for-alert-managers">For alert managers</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#admin-guide">Admin Guide</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#becoming-an-admin">Becoming an Admin</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#admin-capabilities">Admin Capabilities</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#audit-logging">Audit Logging</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">v2 (legacy)</li>
+      <li class="breadcrumb-item active">User Guide</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/v2/user_guide.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="user-guide">User Guide</h1>
+<blockquote>
+<p><strong>v2 (legacy).</strong> This page describes the v2 application (the RAG chatbot) on the <code>main</code> branch. It is not the 3.0 documentation. v2 keeps running on <code>main</code> until the cutover; see <a href="../../migration-from-v2/">Moving from v2 to 3.0</a>.</p>
+</blockquote>
+<p>This guide covers the core concepts and features of Archi. Each topic has its own dedicated page for detailed reference.</p>
+<h2 id="overview">Overview</h2>
+<p>Archi is a retrieval-based assistant framework with four core parts:</p>
+<ul>
+<li><strong>Data sources</strong>: Where knowledge comes from (links, git repos, JIRA/Redmine, uploaded files)</li>
+<li><strong>Vector store + retrievers</strong>: Where ingested content is indexed and searched semantically/lexically</li>
+<li><strong>Agents + tools</strong>: The reasoning layer that decides what to do and can call tools (search, fetch, MCP, etc.)</li>
+<li><strong>Services</strong>: The apps users interact with (<code>chatbot</code>, <code>data_manager</code>, integrations, dashboards)</li>
+</ul>
+<p>Why both a vector store and tools?</p>
+<ul>
+<li>The <strong>vector store</strong> is best for relevance-based retrieval across the indexed knowledge base.</li>
+<li><strong>Tools</strong> let the agent do targeted operations (metadata lookup, full-document fetch, external system calls) that pure embedding search cannot do reliably.</li>
+</ul>
+<p>Services are enabled at deployment via flags to <code>archi create</code>:</p>
+<pre><code class="language-bash">archi create [...] --services chatbot
+</code></pre>
+<p>Pipelines (agent classes) define runtime behavior. Agent specs define prompt + enabled tool subset. Models, embeddings, and retriever settings are configured in YAML.</p>
+<h2 id="data-sources">Data Sources</h2>
+<p>Data sources define what gets ingested into Archi's knowledge base for retrieval.
+Archi supports several data ingestion methods:</p>
+<ul>
+<li><strong>Web link lists</strong> (including SSO-protected pages)</li>
+<li><strong>Git scraping</strong> for MkDocs-based repositories</li>
+<li><strong>JIRA</strong> and <strong>Redmine</strong> ticketing systems</li>
+<li><strong>Manual document upload</strong> via the Uploader service or direct file copy</li>
+<li><strong>Local documents</strong></li>
+</ul>
+<p>Sources are configured under <code>data_manager.sources</code> in your config file.</p>
+<p><strong><a href="../data_sources/">Read more →</a></strong></p>
+<hr />
+<h2 id="services">Services</h2>
+<p>Archi provides these deployable services:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Description</th>
+<th>Default Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chatbot</code></td>
+<td>Web-based chat interface</td>
+<td>7861</td>
+</tr>
+<tr>
+<td><code>data_manager</code></td>
+<td>Data ingestion and vectorstore management</td>
+<td>7871</td>
+</tr>
+<tr>
+<td><code>jira_ticket_responder</code></td>
+<td>Jira ticket responder service</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>piazza</code></td>
+<td>Piazza forum integration with Slack</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>redmine-mailer</code></td>
+<td>Redmine ticket responses via email</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>mattermost</code></td>
+<td>Mattermost channel integration</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>grafana</code></td>
+<td>Monitoring dashboard</td>
+<td>3000</td>
+</tr>
+<tr>
+<td><code>grader</code></td>
+<td>Automated grading service</td>
+<td>7862</td>
+</tr>
+</tbody>
+</table>
+<p><strong><a href="../services/">Read more →</a></strong></p>
+<hr />
+<h2 id="agents-tools">Agents &amp; Tools</h2>
+<p>Agents are defined by <strong>agent specs</strong> — Markdown files with YAML frontmatter specifying name, tools, and system prompt. The agent specs directory is configured via <code>services.chat_app.agents_dir</code>.</p>
+<p><strong><a href="../agents_tools/">Read more →</a></strong></p>
+<hr />
+<h2 id="playbooks">Playbooks</h2>
+<p>Playbooks are per-user reusable instruction packs — the chat-side analog of editing a <code>SKILL.md</code> skill file, for users who have no filesystem access:</p>
+<ul>
+<li><strong>Invoke</strong> one in chat by typing <code>/</code> and picking it from the menu (<code>/name arguments…</code>); the turn shows a playbook chip.</li>
+<li><strong>Manage</strong> them under <strong>Settings → Playbooks</strong>: create, edit, delete, share (make public), and add public playbooks shared by other users to your active list.</li>
+<li><strong>Ask the agent</strong>: the assistant can save, update, and delete your playbooks through its own tools (it always previews a draft and asks before saving, and asks before deleting).</li>
+<li><strong>Export/import</strong> uses the Agent Skills <code>&lt;name&gt;/SKILL.md</code> zip layout, so playbooks are portable to and from claude.ai. Imports always arrive private.</li>
+</ul>
+<p>Public playbooks from other users are read-only and their content is fenced before the agent sees it. See the <a href="../api_reference/#playbooks">API reference</a> for the REST endpoints.</p>
+<hr />
+<h2 id="models-providers">Models &amp; Providers</h2>
+<p>Archi supports five LLM provider types:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Models</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI</td>
+<td>GPT-4o, GPT-4, etc.</td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td>Claude 4, Claude 3.5 Sonnet, etc.</td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td>Gemini 2.0 Flash, Gemini 1.5 Pro, etc.</td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td>Access to 100+ models via a unified API</td>
+</tr>
+<tr>
+<td>Local (Ollama/vLLM)</td>
+<td>Any open-source model</td>
+</tr>
+</tbody>
+</table>
+<p>Users can also provide their own API keys at runtime via <strong>Bring Your Own Key (BYOK)</strong>.</p>
+<p><strong><a href="../models_providers/">Read more →</a></strong></p>
+<hr />
+<h2 id="configuration-management">Configuration Management</h2>
+<p>Archi uses a three-tier configuration system:</p>
+<ol>
+<li><strong>Static Configuration</strong> (deploy-time, immutable): deployment name, embedding model, available pipelines</li>
+<li><strong>Dynamic Configuration</strong> (admin-controlled, runtime-modifiable): default model, temperature, retrieval parameters</li>
+<li><strong>User Preferences</strong> (per-user overrides): preferred model, temperature, prompt selections</li>
+</ol>
+<p>Settings are resolved as: User Preference → Dynamic Config → Static Default.</p>
+<p>See the <a href="../configuration/">Configuration Reference</a> for the full YAML schema and the <a href="../api_reference/">API Reference</a> for the configuration API.</p>
+<hr />
+<h2 id="secrets">Secrets</h2>
+<p>Secrets are stored in a <code>.env</code> file passed via <code>--env-file</code>. Required secrets depend on your deployment:</p>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Required For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PG_PASSWORD</code></td>
+<td>All deployments</td>
+</tr>
+<tr>
+<td><code>OPENAI_API_KEY</code></td>
+<td>OpenAI provider</td>
+</tr>
+<tr>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td>Anthropic provider</td>
+</tr>
+<tr>
+<td><code>GOOGLE_API_KEY</code></td>
+<td>Google Gemini provider</td>
+</tr>
+<tr>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td>OpenRouter provider</td>
+</tr>
+<tr>
+<td><code>HUGGINGFACEHUB_API_TOKEN</code></td>
+<td>Private HuggingFace models</td>
+</tr>
+<tr>
+<td><code>GIT_USERNAME</code> / <code>GIT_TOKEN</code></td>
+<td>Git source</td>
+</tr>
+<tr>
+<td><code>JIRA_PAT</code></td>
+<td>JIRA source</td>
+</tr>
+<tr>
+<td><code>JIRA_TICKET_RESPONDER_PAT</code></td>
+<td>Jira ticket responder service</td>
+</tr>
+<tr>
+<td><code>REDMINE_USER</code> / <code>REDMINE_PW</code></td>
+<td>Redmine source</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../data_sources/">Data Sources</a> and <a href="../services/">Services</a> for service-specific secrets.</p>
+<hr />
+<h2 id="benchmarking">Benchmarking</h2>
+<p>Archi has benchmarking functionality via the <code>archi evaluate</code> CLI command:</p>
+<ul>
+<li><strong>SOURCES mode</strong>: Checks if retrieved documents contain the correct sources</li>
+<li><strong>RAGAS mode</strong>: Uses the Ragas evaluator for answer relevancy, faithfulness, context precision, and context relevancy</li>
+</ul>
+<p><strong><a href="../benchmarking/">Read more →</a></strong></p>
+<hr />
+<h2 id="alerts-service-status-board">Alerts &amp; Service Status Board</h2>
+<p>The <strong>Service Status Board (SSB)</strong> lets operators communicate service health, outages, maintenance windows, and general announcements to all users directly in the chat app.</p>
+<h3 id="for-all-users">For all users</h3>
+<ul>
+<li><strong>Alert banners</strong> appear at the top of every page when active alerts exist. Up to 5 banners are shown; each can be dismissed individually.</li>
+<li>The banner colour indicates severity: red (<code>alarm</code>), amber (<code>warning</code>), blue (<code>news</code>), slate (<code>info</code>).</li>
+<li>Click <strong>details</strong> on any banner, or navigate to <strong>Status</strong> in the header, to view the full <a href="/ssb/status">Service Status Board</a> with alert history.</li>
+</ul>
+<h3 id="for-alert-managers">For alert managers</h3>
+<p>Navigate to <code>/ssb/status</code> and use the <strong>Post New Alert</strong> form to create an alert. Required fields are <strong>Message</strong> and <strong>Severity</strong>. Optionally add an extended <strong>Description</strong> (shown only on the status page) and set an <strong>Expires at</strong> datetime for time-bounded notices.</p>
+<p>Delete alerts by clicking <strong>Delete</strong> on any alert card. Deletion is permanent; expired alerts remain in history until deleted.</p>
+<p>To grant alert manager access, add usernames to <code>services.chat_app.alerts.managers</code> in your config:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    alerts:
+      managers:
+        - alice
+        - bob
+</code></pre>
+<p>If auth is disabled, all users can manage alerts. If auth is enabled and the managers list is absent or empty, nobody can manage alerts.</p>
+<p><strong><a href="../services/#service-status-board--alert-banners">Read more →</a></strong></p>
+<hr />
+<h2 id="admin-guide">Admin Guide</h2>
+<h3 id="becoming-an-admin">Becoming an Admin</h3>
+<p>Set admin status in PostgreSQL:</p>
+<pre><code class="language-sql">UPDATE users SET is_admin = true WHERE email = 'admin@example.com';
+</code></pre>
+<h3 id="admin-capabilities">Admin Capabilities</h3>
+<ul>
+<li>Set deployment-wide defaults via the dynamic configuration API</li>
+<li>Manage prompts (add, edit, reload via API)</li>
+<li>View the configuration audit log</li>
+<li>Grant admin privileges to other users</li>
+</ul>
+<h3 id="audit-logging">Audit Logging</h3>
+<p>All admin configuration changes are logged and queryable:</p>
+<pre><code>GET /api/config/audit?limit=50
+</code></pre>
+<p>See the <a href="../api_reference/#configuration">API Reference</a> for full endpoint documentation.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../quickstart/" class="btn btn-neutral float-left" title="Quickstart"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../data_sources/" class="btn btn-neutral float-right" title="Data Sources">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../quickstart/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../data_sources/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

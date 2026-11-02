@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>archi.yaml and ops.yaml - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "archi.yaml and ops.yaml";
+        var mkdocs_page_input_path = "reference/archi-yaml.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">archi.yaml and ops.yaml</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#archiyaml">archi.yaml</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#mcp_servers">mcp_servers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#automation-levels">Automation levels</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#opsyaml">ops.yaml</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#other-files">Other files</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">archi.yaml and ops.yaml</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/reference/archi-yaml.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="archiyaml-and-opsyaml">archi.yaml and ops.yaml</h1>
+<p><code>archi init</code> writes <code>archi.yaml</code> into the instance. <code>archi up</code>, <code>down</code>,
+<code>doctor</code>, <code>ingest</code> and <code>ops</code> read it. It holds settings, never secrets: those are in
+<code>.env</code>.</p>
+<h2 id="archiyaml">archi.yaml</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>instance_version</code></td>
+<td>The file format. Always <code>1</code>.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>The instance and deployment name. A lowercase slug.</td>
+</tr>
+<tr>
+<td><code>bundles</code></td>
+<td>The bundles selected at init, in order.</td>
+</tr>
+<tr>
+<td><code>with_packs</code>, <code>without_packs</code></td>
+<td>Packs added to or removed from the bundles' defaults.</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td>The name of the rendered okg profile under <code>profiles/</code>.</td>
+</tr>
+<tr>
+<td><code>okg_version</code></td>
+<td>The OKG version the instance was made with.</td>
+</tr>
+<tr>
+<td><code>data_root</code></td>
+<td>Absolute path of the data root: connector caches and repository checkouts. Outside the instance.</td>
+</tr>
+<tr>
+<td><code>runtime</code></td>
+<td><code>docker</code> or <code>podman</code>.</td>
+</tr>
+<tr>
+<td><code>ports</code></td>
+<td>Host ports, all bound to 127.0.0.1: <code>graph_db</code>, <code>mcp</code>, <code>webui</code>.</td>
+</tr>
+<tr>
+<td><code>admin_email</code></td>
+<td>The Open WebUI admin account.</td>
+</tr>
+<tr>
+<td><code>mcp_servers</code></td>
+<td>External MCP servers <code>archi connect</code> registers next to the instance's own. See below.</td>
+</tr>
+<tr>
+<td><code>automations</code></td>
+<td>Per automation, <code>level</code>: <code>L0</code>, <code>L1</code> or <code>L2</code>. See below.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mcp_servers">mcp_servers</h2>
+<pre><code class="language-yaml">mcp_servers:
+  - name: notes                       # lowercase letters, digits, - _
+    url: https://notes.example.org/mcp
+    headers:
+      Authorization: NOTES_AUTH       # header name -&gt; NAME of an environment variable
+</code></pre>
+<p>The variable holds the whole header value, for example <code>Bearer abc</code>. The file
+is committed, so it never holds a secret. <code>archi connect</code> stops with the reason
+for a value that is not a variable name, a URL with credentials or a query
+string, an unknown key, a duplicate name, or the instance's own server name.
+See <a href="../../connecting-an-agent/#external-mcp-servers">Connecting an agent</a>.</p>
+<h2 id="automation-levels">Automation levels</h2>
+<pre><code class="language-yaml">automations:
+  instance-health:
+    level: L1
+</code></pre>
+<p>A name under <code>automations</code> must be an automation pack the instance selected.
+<code>level</code> can be <code>L0</code>, <code>L1</code> or <code>L2</code>. Any other value, including <code>L3</code>, is
+refused when the file loads. The effective level is the lowest of this
+value, the bundle's bound and the pack's maximum.</p>
+<h2 id="opsyaml">ops.yaml</h2>
+<p>Per automation, under <code>automations.&lt;name&gt;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mode</code></td>
+<td><code>shadow</code> (default) or <code>live</code>. <code>live</code> counts only after an approved promotion.</td>
+</tr>
+<tr>
+<td><code>timeout_seconds</code></td>
+<td>How long an L2 escalation waits for a person. Default 4 hours.</td>
+</tr>
+<tr>
+<td><code>estimate_cost</code></td>
+<td>Cost checked against the budget before each proposal. Default: the pack's <code>cost_per_run</code>.</td>
+</tr>
+<tr>
+<td><code>promotion</code></td>
+<td>The change <code>archi ops promote</code> opened. Do not edit by hand.</td>
+</tr>
+<tr>
+<td><code>proposer</code>, <code>outcome</code></td>
+<td>How proposals and outcomes are produced. See <a href="../pack-format/#running-automations-archi-ops">Running automations</a>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="other-files">Other files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.env</code></td>
+<td>Generated secrets and your source credentials, readable only by you, ignored by git.</td>
+</tr>
+<tr>
+<td><code>archi.lock</code></td>
+<td>Bundle and pack versions and content digests. Committed.</td>
+</tr>
+<tr>
+<td><code>compose.yaml</code></td>
+<td>The stack. Generated. Edit <code>archi.yaml</code>, not this file.</td>
+</tr>
+<tr>
+<td><code>profiles/&lt;name&gt;/</code></td>
+<td>The rendered okg profile.</td>
+</tr>
+</tbody>
+</table>
+<p>The keys of <code>pack.yaml</code> and <code>bundle.yaml</code> are in the
+<a href="../pack-format/">pack and bundle format</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../cli/" class="btn btn-neutral float-left" title="Commands"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../pack-format/" class="btn btn-neutral float-right" title="Pack and bundle format">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../cli/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../pack-format/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

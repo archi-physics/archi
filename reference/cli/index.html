@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Commands - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Commands";
+        var mkdocs_page_input_path = "reference/cli.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Commands</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#archi-bundles">archi bundles</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-bundles-list">archi bundles list</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-bundles-show">archi bundles show</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-bundles-validate">archi bundles validate</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-render">archi render</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-add">archi add</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-diff">archi diff</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-init">archi init</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-connect">archi connect</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-up">archi up</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-down">archi down</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-doctor">archi doctor</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-ingest">archi ingest</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-eval">archi eval</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-ops">archi ops</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-status">archi ops status</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-halt">archi ops halt</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-promote">archi ops promote</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-resume">archi ops resume</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-pending">archi ops pending</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-approve">archi ops approve</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#archi-ops-reject">archi ops reject</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Commands</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/reference/cli.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <!-- Generated by python/archi/docs_gen.py from the argparse parser in archi.bundles.cli. Do not edit by hand: run `cd python && python -m archi.docs_gen`. -->
+
+<h1 id="command-reference">Command reference</h1>
+<p>Every <code>archi</code> command, as its parser defines it. Run <code>archi &lt;command&gt; --help</code> for the same text in a terminal.</p>
+<p>Commands that read an instance take <code>--instance DIR</code> (default: the current directory).</p>
+<h2 id="archi-bundles"><code>archi bundles</code></h2>
+<p>Inspect and check packs and bundles.</p>
+<h3 id="archi-bundles-list"><code>archi bundles list</code></h3>
+<p>Every pack and bundle installed packages register.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-bundles-show"><code>archi bundles show</code></h3>
+<p>One pack or bundle in full (JSON).</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-bundles-validate"><code>archi bundles validate</code></h3>
+<p>Check manifests against the published schemas and the composition rules.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paths</code></td>
+<td>pack or bundle directories (or their manifest files); default: every one found</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-render"><code>archi render</code></h2>
+<p>Compose bundles and packs into one okg profile.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--bundle BUNDLE</code></td>
+<td>bundle to install (repeatable; chat scalars come from the last)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--with WITH_PACKS</code></td>
+<td>add packs (comma-separated or repeated)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--without WITHOUT_PACKS</code></td>
+<td>remove packs (comma-separated or repeated)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory; the profile goes to &lt;instance&gt;/profiles/&lt;name&gt;/</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--name NAME</code></td>
+<td>profile name (default: the bundle names joined by -)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--deployment DEPLOYMENT</code></td>
+<td>installed okg deployment directory to record in archi.lock</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-add"><code>archi add</code></h2>
+<p>Add a pack to an installed instance and publish again.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pack</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--deployment DEPLOYMENT</code></td>
+<td>okg deployment directory (default: the one archi.lock records)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--answer ID=VALUE</code></td>
+<td>answer one of the new pack's questions, by rendered id (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--without PACK</code></td>
+<td>leave out a companion pack the new pack would bring (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--no-okg</code></td>
+<td>edit and commit the deployment, but run no okg command</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-diff"><code>archi diff</code></h2>
+<p>Report drift from archi.lock.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--deployment DEPLOYMENT</code></td>
+<td>okg deployment directory (default: the one archi.lock records)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-init"><code>archi init</code></h2>
+<p>Create an instance: git repo, secrets, profile, published graph.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>instance and deployment name (lowercase slug)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--bundle BUNDLE</code></td>
+<td>bundle to install (repeatable; default: cern-team)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--with WITH_PACKS</code></td>
+<td>add packs (comma-separated or repeated)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--without WITHOUT_PACKS</code></td>
+<td>remove packs (comma-separated or repeated)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--dir DIR</code></td>
+<td>instance directory (default: ./&lt;name&gt;)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--data-root DATA_ROOT</code></td>
+<td>connector caches and checkouts, outside the instance (default: ~/.local/share/archi/&lt;name&gt;)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--answer ID=VALUE</code></td>
+<td>answer a profile question (repeatable); relative paths are made absolute</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--runtime RUNTIME</code></td>
+<td>container runtime (default: the first that works)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--admin-email ADMIN_EMAIL</code></td>
+<td>Open WebUI admin account (default: admin@&lt;name&gt;.archi.invalid)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--no-okg</code></td>
+<td>write and commit the instance, but start nothing and run no okg command</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-connect"><code>archi connect</code></h2>
+<p>Write another agent's MCP config for this instance.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>client</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--print</code></td>
+<td>print the config (the default)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--write PATH</code></td>
+<td>merge into this client config (default per client: claude-code ./.mcp.json, codex ~/.codex/config.toml, openclaw ~/.openclaw/openclaw.json, mcp ./archi-mcp.json)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--show-token</code></td>
+<td>include the bearer token in what is printed</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--embed-token</code></td>
+<td>with --write: write the literal token (mode 0600) instead of a ${OKG_CHAT_MCP_TOKEN} reference; refused unless the file is git-ignored</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-up"><code>archi up</code></h2>
+<p>Start the instance's compose project and wire the chat to the graph.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--ollama-url OLLAMA_URL</code></td>
+<td>model server as the webui container reaches it (default: http://host.docker.internal:11434 when an ollama answers on this host)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--no-sync</code></td>
+<td>start the containers only; skip the admin sign-in and <code>okg chat sync</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-down"><code>archi down</code></h2>
+<p>Stop the instance's compose project (volumes are kept).</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--purge</code></td>
+<td>also delete the volumes (needs --yes)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-doctor"><code>archi doctor</code></h2>
+<p>Okg lint + doctor + archi's footgun checks, with remediations.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>one JSON object, for agents</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-ingest"><code>archi ingest</code></h2>
+<p>Run okg ingest for the instance, with the credentials in its .env.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--include INCLUDE</code></td>
+<td>comma-separated source ids to ingest (default: every source)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--publish</code></td>
+<td>then publish a new generation (okg run --once --apply)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-eval"><code>archi eval</code></h2>
+<p>Ask a bundle's smoke questions through the instance MCP with a local model, or score retrieval alone with --context.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--bundle BUNDLE</code></td>
+<td>bundle whose smoke set to run (repeatable; default: the instance's bundles)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory (default: .)</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--model MODEL</code></td>
+<td>model name at the endpoint (default: the bundle's chat.default_model)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--model-url MODEL_URL</code></td>
+<td>OpenAI-compatible base URL (default: http://127.0.0.1:11434/v1, a local Ollama)</td>
+<td><code>http://127.0.0.1:11434/v1</code></td>
+</tr>
+<tr>
+<td><code>--out OUT</code></td>
+<td>report directory, written straight into and replaced on the next run (default: a new &lt;data root&gt;/eval/&lt;bundle&gt;/&lt;UTC stamp&gt;/ per run, outside the instance repository, with latest.json naming the newest)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--keep N</code></td>
+<td>without --out: keep the newest N dated runs per bundle and delete older ones (default 20; 0 keeps all)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--mcp-url MCP_URL</code></td>
+<td>MCP endpoint (default: the instance's, http://127.0.0.1:&lt;port&gt;/mcp)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--chat-prompt CHAT_PROMPT</code></td>
+<td>the chat system prompt to give the agent (default: the instance deployment's skills/chat-system-prompt.md, the one <code>archi up</code> gives the chat)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--max-steps MAX_STEPS</code></td>
+<td>tool-call rounds allowed per question</td>
+<td><code>8</code></td>
+</tr>
+<tr>
+<td><code>--no-think</code></td>
+<td>ask a reasoning model to skip its thinking pass (reasoning_effort: none)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--allow-remote-model</code></td>
+<td>allow a model endpoint off this host or network (may cost money; off by default)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--context</code></td>
+<td>score retrieval instead: call the MCP search tool directly (no model) and report recall@k of each question's gold ids, with a lexical baseline arm; each run is kept under &lt;data root&gt;/eval/context/&lt;bundle&gt;/&lt;UTC stamp&gt;/</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--questions QUESTIONS</code></td>
+<td>with --context: the question file, kept outside this repository (default: $ARCHI_CONTEXT_EVAL_QUESTIONS, else the bundle's eval/context.yaml)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--k K</code></td>
+<td>with --context: the recall cut-off (default: the file's k, else 10)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--agents ARMS</code></td>
+<td>also run the agent arms (default both: agent-bash,agent-graph)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--tries TRIES</code></td>
+<td>tries per question and arm (default 1)</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>--corpus CORPUS</code></td>
+<td>the raw corpus (default: the newest under &lt;data root&gt;/eval/raw-corpus/&lt;bundle&gt;/)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--reasoning-effort REASONING_EFFORT</code></td>
+<td>reasoning_effort sent with each agent call (for example medium)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--model-api MODEL_API</code></td>
+<td>the API the agent calls use: responses (/responses, OpenAI's Responses API) or chat (/chat/completions); auto, the default, is responses for api.openai.com and chat for anything else, such as a local Ollama</td>
+<td><code>auto</code></td>
+</tr>
+<tr>
+<td><code>--model-key-env MODEL_KEY_ENV</code></td>
+<td>environment variable holding the PATH of a file with the model API key (default ARCHI_EVAL_MODEL_KEY_FILE); the key is never logged and never enters the sandbox</td>
+<td><code>ARCHI_EVAL_MODEL_KEY_FILE</code></td>
+</tr>
+<tr>
+<td><code>--model-price IN/OUT[/CACHED]</code></td>
+<td>the model's price in dollars per million input/output[/cached input] tokens (required)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--max-output-tokens MAX_OUTPUT_TOKENS</code></td>
+<td>max_completion_tokens per agent call (max_output_tokens on the Responses API), also the spend guard's output bound (default 16000)</td>
+<td><code>16000</code></td>
+</tr>
+<tr>
+<td><code>--max-turns MAX_TURNS</code></td>
+<td>model turns per try (default 30)</td>
+<td><code>30</code></td>
+</tr>
+<tr>
+<td><code>--max-tool-calls MAX_TOOL_CALLS</code></td>
+<td>tool calls per try (default 200)</td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td><code>--try-seconds TRY_SECONDS</code></td>
+<td>wall time per try (default 900)</td>
+<td><code>900.0</code></td>
+</tr>
+<tr>
+<td><code>--cap DOLLARS</code></td>
+<td>spend cap in dollars for the run, judge included (required: there is no default); the run stops before a call that could cross it</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--judge</code></td>
+<td>grade answers against the question file's answer keys with a judge model (off by default)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--judge-model JUDGE_MODEL</code></td>
+<td>the judge model</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--judge-url JUDGE_URL</code></td>
+<td>the judge's OpenAI-compatible base URL (default https://api.openai.com/v1)</td>
+<td><code>https://api.openai.com/v1</code></td>
+</tr>
+<tr>
+<td><code>--judge-reasoning-effort JUDGE_REASONING_EFFORT</code></td>
+<td>reasoning_effort for the judge (default high)</td>
+<td><code>high</code></td>
+</tr>
+<tr>
+<td><code>--judge-max-output-tokens JUDGE_MAX_OUTPUT_TOKENS</code></td>
+<td>max_completion_tokens per judge call, also its spend bound (default 16000)</td>
+<td><code>16000</code></td>
+</tr>
+<tr>
+<td><code>--allow-low-price</code></td>
+<td>accept a price below $0.01 input or $0.04 output per million tokens (a local model); refused by default as a likely typo</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--judge-key-env JUDGE_KEY_ENV</code></td>
+<td>environment variable holding the PATH of a file with the judge API key (default ARCHI_EVAL_JUDGE_KEY_FILE)</td>
+<td><code>ARCHI_EVAL_JUDGE_KEY_FILE</code></td>
+</tr>
+<tr>
+<td><code>--judge-price IN/OUT[/CACHED]</code></td>
+<td>the judge's price, as --model-price</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--judge-passes JUDGE_PASSES</code></td>
+<td>judge passes per answer (default 1)</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>--raw-corpus</code></td>
+<td>build the raw-document corpus from the instance's connector caches, under &lt;data root&gt;/eval/raw-corpus/&lt;bundle&gt;/&lt;lock sha&gt;/, and exit</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--pack-root PACK_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/pack.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--bundle-root BUNDLE_ROOT</code></td>
+<td>extra directory of &lt;name&gt;/bundle.yaml entries (repeatable)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="archi-ops"><code>archi ops</code></h2>
+<p>Status, halt, resume, promote and answer the operations automations.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--instance INSTANCE</code></td>
+<td>instance directory</td>
+<td><code>.</code></td>
+</tr>
+<tr>
+<td><code>--deployment DEPLOYMENT</code></td>
+<td>okg deployment name (default: the instance's name)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--dsn DSN</code></td>
+<td>graph database (default: $OKG_DSN, else the instance's secrets)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-status"><code>archi ops status</code></h3>
+<p>Levels, schedules, pending escalations, budgets and shadow scores.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-halt"><code>archi ops halt</code></h3>
+<p>Stop every automation on this instance.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--as WHO</code></td>
+<td>who is halting (default: the OS user)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--no-cancel</code></td>
+<td>pause the scanner but leave runs in flight; their mediator step refuses to act</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-promote"><code>archi ops promote</code></h3>
+<p>Ask for an automation to go live: opens a PACT change for an operator to approve.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>automation</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--note NOTE</code></td>
+<td>a note for the PACT decision</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--as AS_USER</code></td>
+<td>who is deciding (recorded as "&lt;os user&gt; for X")</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--min-proposals MIN_PROPOSALS</code></td>
+<td></td>
+<td><code>30</code></td>
+</tr>
+<tr>
+<td><code>--min-answered MIN_ANSWERED</code></td>
+<td></td>
+<td><code>20</code></td>
+</tr>
+<tr>
+<td><code>--min-coverage MIN_COVERAGE</code></td>
+<td></td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td><code>--min-agreement MIN_AGREEMENT</code></td>
+<td></td>
+<td><code>0.8</code></td>
+</tr>
+<tr>
+<td><code>--max-false-rate MAX_FALSE_RATE</code></td>
+<td></td>
+<td><code>0.1</code></td>
+</tr>
+<tr>
+<td><code>--no-trial</code></td>
+<td>go live with no shadow results, on the decision --note names (required); the change records that there is no shadow evidence, and an operator still approves it</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-resume"><code>archi ops resume</code></h3>
+<p>Resume the schedules halt paused.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-pending"><code>archi ops pending</code></h3>
+<p>Escalations waiting for a person.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-approve"><code>archi ops approve</code></h3>
+<p>Approve an escalation.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>escalation_id</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--note NOTE</code></td>
+<td>a note recorded with the decision</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--as AS_USER</code></td>
+<td>who is deciding (default: the OS user)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="archi-ops-reject"><code>archi ops reject</code></h3>
+<p>Reject an escalation.</p>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>escalation_id</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>machine-readable output</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--note NOTE</code></td>
+<td>a note recorded with the decision</td>
+<td></td>
+</tr>
+<tr>
+<td><code>--as AS_USER</code></td>
+<td>who is deciding (default: the OS user)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../library/" class="btn btn-neutral float-left" title="Library (generated)"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../archi-yaml/" class="btn btn-neutral float-right" title="archi.yaml and ops.yaml">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../../library/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../archi-yaml/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Connecting an agent - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Connecting an agent";
+        var mkdocs_page_input_path = "connecting-an-agent.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Connecting an agent</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#who-can-read-the-graph">Who can read the graph</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configure-a-client">Configure a client</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#external-mcp-servers">External MCP servers</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#checking-a-recipe-without-a-model">Checking a recipe without a model</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Connecting an agent</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/connecting-an-agent.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="connecting-other-agents-archi-connect">Connecting other agents (<code>archi connect</code>)</h1>
+<p>Open WebUI is one client of an instance. Any agent that speaks MCP over
+streamable HTTP can use the same graph tools. The endpoint is
+<code>http://127.0.0.1:&lt;ports.mcp&gt;/mcp</code>; the bearer token is <code>OKG_CHAT_MCP_TOKEN</code> in
+the instance <code>.env</code>.</p>
+<h2 id="who-can-read-the-graph">Who can read the graph</h2>
+<p>In 3.0, access is all or nothing. Every client of an instance uses the same
+token, and anyone who holds it can read the whole published graph. There is
+no per-user, per-group or per-record filtering, and no single sign-on for the
+MCP endpoint. A request with no token or a wrong one gets HTTP 401.</p>
+<p>Clients connected with <code>archi connect</code> also get <code>query</code>, the raw SQL read
+tool. The Open WebUI preset leaves it out, but the server offers it to every
+client that holds the token. It runs as the read-only <code>okg_mcp</code> database
+role and refuses anything but <code>SELECT</code> and <code>WITH</code>. Give the token only to
+people who may read everything in the instance.</p>
+<p>The ports listen on 127.0.0.1 only. To reach the instance from another
+machine, use an SSH tunnel.</p>
+<h2 id="configure-a-client">Configure a client</h2>
+<pre><code class="language-console">archi connect claude-code [--instance DIR] [--print | --write [PATH]] [--show-token] [--embed-token]
+</code></pre>
+<p><code>--print</code> (the default) shows the config. <code>--write</code> merges it into the client's
+config file (default path below). A config file that exists is never replaced:
+archi adds or updates its own entries (<code>archi-&lt;instance name&gt;</code> and the external
+servers) and keeps everything else. Running the same command again changes
+nothing. A file that archi cannot parse is left alone and the command stops.</p>
+<p>The token is not printed unless you pass <code>--show-token</code>. Printed and written configs carry
+<code>${OKG_CHAT_MCP_TOKEN}</code>, which Claude Code and OpenClaw expand from the environment, so
+export the variable (from the instance <code>.env</code>) in the shell that starts the client. A new
+file is mode 0600. <code>--write --embed-token</code> writes the literal token instead; archi refuses
+unless the file is outside any git repository or git ignores it (<code>git check-ignore</code>), and
+tightens an existing file to 0600. A symlinked config is written through to its target.</p>
+<p>For Codex, archi sets only the keys it owns in <code>[mcp_servers.&lt;name&gt;]</code> (<code>url</code>,
+<code>bearer_token_env_var</code>, <code>env_http_headers</code>). Your own keys there (<code>startup_timeout_sec</code>,
+<code>tool_timeout_sec</code>, <code>enabled</code>, sub-tables) and the rest of the file are kept. The file is
+read with a TOML parser, and the result is checked to differ from the old file only in
+those tables; otherwise nothing is written.</p>
+<table>
+<thead>
+<tr>
+<th>Client</th>
+<th>Default file</th>
+<th>Format</th>
+<th>Checked how</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>claude-code</code></td>
+<td><code>./.mcp.json</code></td>
+<td><code>mcpServers.&lt;name&gt;</code> with <code>type: "http"</code>, <code>url</code>, <code>headers</code></td>
+<td>Matches what <code>claude mcp add --transport http NAME URL --header "H: V"</code> writes (run against the installed CLI).</td>
+</tr>
+<tr>
+<td><code>codex</code></td>
+<td><code>~/.codex/config.toml</code></td>
+<td><code>[mcp_servers.&lt;name&gt;]</code> with <code>url</code>, <code>bearer_token_env_var</code>, <code>env_http_headers</code></td>
+<td>Codex's MCP documentation. Codex speaks streamable HTTP itself; no stdio bridge such as <code>mcp-remote</code> is needed. Codex reads the token from the environment: <code>export OKG_CHAT_MCP_TOKEN=...</code>. Not run against a Codex binary.</td>
+</tr>
+<tr>
+<td><code>openclaw</code></td>
+<td><code>~/.openclaw/openclaw.json</code></td>
+<td><code>mcp.servers.&lt;name&gt;</code> with <code>url</code>, <code>transport: "streamable-http"</code>, <code>headers</code></td>
+<td>OpenClaw's configuration documentation only; <strong>not run against a live OpenClaw</strong>. The file is JSON5: archi merges only strict JSON and otherwise tells you to merge by hand. Check with <code>openclaw mcp show</code>.</td>
+</tr>
+<tr>
+<td><code>mcp</code></td>
+<td><code>./archi-mcp.json</code></td>
+<td><code>mcpServers.&lt;name&gt;</code> JSON</td>
+<td>The shape most MCP clients read; for any client not listed.</td>
+</tr>
+<tr>
+<td><code>open-webui</code></td>
+<td>none</td>
+<td>none</td>
+<td><code>archi up</code> already registered the server (<code>okg chat sync</code>); the command prints the URL the site uses (<code>http://mcp:&lt;port&gt;/mcp</code>), the site URL and where the token is.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="external-mcp-servers">External MCP servers</h2>
+<p>Declare them in the instance's <code>archi.yaml</code>:</p>
+<pre><code class="language-yaml">mcp_servers:
+  - name: notes                       # lowercase letters, digits, - _
+    url: https://notes.example.org/mcp
+    headers:
+      Authorization: NOTES_AUTH       # header name -&gt; NAME of an environment variable
+</code></pre>
+<p>The variable holds the whole header value (for example <code>Bearer abc</code>). The file is
+committed, so it never holds a secret; a value that is not a variable name, a URL
+with credentials or a query string, an unknown key, a duplicate name or the
+instance's own server name stops <code>archi connect</code> with the reason.</p>
+<p><code>archi connect</code> writes these entries next to the instance's own, as <code>${NOTES_AUTH}</code>
+references (Codex: <code>env_http_headers</code>). Export the variable before starting the
+client. Open WebUI is not synced from this block; the command lists them to add
+under Settings &gt; Admin &gt; External Tools.</p>
+<h2 id="checking-a-recipe-without-a-model">Checking a recipe without a model</h2>
+<p><code>python/tests/connect/recipe_check.py</code> reads a written config, connects exactly as
+the client would (URL and headers as written; <code>${VAR}</code> and Codex's variables come
+from the environment or <code>--env-file DIR/.env</code>; an unset variable is an error),
+calls <code>search</code> on the instance server and <code>echo</code> on any external server that has
+one, and prints a JSON result. Exit 0 means every call succeeded.</p>
+<pre><code class="language-console">archi connect claude-code --write /tmp/probe/.mcp.json
+python python/tests/connect/recipe_check.py --client claude-code \
+    --config /tmp/probe/.mcp.json --env-file DIR/.env --query &quot;CMSSW&quot;
+</code></pre>
+<p>For Open WebUI, <code>python/tests/connect/webui_check.py --instance DIR</code> signs in as the site
+admin, reads the tool server the site registered, and runs an MCP client inside the webui
+container (<code>podman|docker exec</code>) that calls <code>search</code> at that registered URL over the compose
+network; it exits 0 only if the answer cites rows.</p>
+<p><code>python/tests/connect/fixtures/echo_server.py</code> is a small external server (one
+<code>echo</code> tool) for trying the <code>mcp_servers:</code> path.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../bundles-and-packs/" class="btn btn-neutral float-left" title="Bundles and packs"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../adding-a-source/" class="btn btn-neutral float-right" title="Adding a source">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../bundles-and-packs/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../adding-a-source/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

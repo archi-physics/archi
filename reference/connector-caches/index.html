@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Connector caches - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Connector caches";
+        var mkdocs_page_input_path = "reference/connector-caches.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Connector caches</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#how-caches-are-read">How caches are read</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-eight-without-a-downloader">The eight without a downloader</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#cric-cric-topology">cric — CRIC topology</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#cric_core-cric-core-services">cric_core — CRIC core services</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#conddb_global_tags-condition-global-tags">conddb_global_tags — condition global tags</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#dbs_datasets-dataset-catalog">dbs_datasets — dataset catalog</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#dqm-data-quality-certifications">dqm — data-quality certifications</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#gocdb_downtimes-grid-downtimes">gocdb_downtimes — grid downtimes</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#indico-meetings-and-their-attachments">indico — meetings and their attachments</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#wmstats_workflows-production-workflows">wmstats_workflows — production workflows</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-ones-that-do-have-tooling">The ones that do have tooling</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#cluster-manager-caches">Cluster-manager caches</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#reference-caches-are-different">Reference caches are different</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#shipping-caches-without-credentials">Shipping caches without credentials</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Connector caches</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/reference/connector-caches.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="connector-cache-contracts">Connector cache contracts</h1>
+<p>Most Archi connectors do not fetch anything. They read a <strong>local cache
+file</strong> that some other process — a downloader script, an operator, a
+scheduled job — is responsible for refreshing. This page is the contract
+between those two halves: for each cache-backed connector, what file it
+reads, what shape that file must have, and which keys the parser looks
+at.</p>
+<p>It exists because a live bring-up of the comp-ops instance found that
+eight connectors had no refresh tooling anywhere: the runbook assumed
+downloader scripts that were never written, and only the JIRA and static
+docs downloaders exist (now <code>archi.downloaders.jira</code> and
+<code>archi.downloaders.static_docs</code>, moved from okg-deployments). Whoever writes the
+missing ones — us or an operations team who already fetch this data —
+needs to know exactly what to produce. That is this page.</p>
+<h2 id="how-caches-are-read">How caches are read</h2>
+<ul>
+<li>Paths in a registry entry's <code>params</code> are <strong>relative to the deployment
+  directory</strong> (or to <code>ARCHI_DATA_ROOT</code>), e.g. <code>data/cric/sites.json</code>.</li>
+<li>A cache file that is <strong>configured but missing</strong> makes the connector
+  fail loudly. It never silently ingests nothing — an empty scope claim
+  would retract every record the connector previously published.</li>
+<li>Records that are malformed (not an object, or missing the identity
+  key) are <strong>skipped and counted</strong>, and any skip makes the run withhold
+  its completed-scope claim. So a downloader that emits half-broken
+  records degrades coverage; it does not destroy data.</li>
+<li>Field names are often accepted in two spellings — the upstream API's
+  own name and a normalized one (for example DBS <code>dataset</code> or
+  <code>dataset_name</code>). Where that is true it is noted; either works.</li>
+</ul>
+<h2 id="the-eight-without-a-downloader">The eight without a downloader</h2>
+<h3 id="cric-cric-topology"><code>cric</code> — CRIC topology</h3>
+<p>Files, all JSON objects keyed by name:</p>
+<table>
+<thead>
+<tr>
+<th>file</th>
+<th>keyed by</th>
+<th>value keys read</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data/cric/sites.json</code></td>
+<td>site name</td>
+<td><code>facility</code>, <code>tier_level</code>, <code>country</code>, <code>timezone</code>, <code>state</code>, <code>is_monitored</code>, <code>sitedb_title</code></td>
+</tr>
+<tr>
+<td><code>data/cric/storage_units.json</code></td>
+<td>unit name</td>
+<td><code>endpoint</code>, <code>flavour</code>, <code>type</code>, <code>site</code></td>
+</tr>
+<tr>
+<td><code>data/cric/compute_units.json</code></td>
+<td>unit name</td>
+<td><code>corepower</code>, <code>pledged_cms</code>, <code>potential_max</code>, <code>promised</code>, <code>state</code></td>
+</tr>
+<tr>
+<td><code>data/cric/facilities.json</code></td>
+<td>facility name</td>
+<td><code>name</code>, <code>country</code>, <code>tier_level</code></td>
+</tr>
+<tr>
+<td><code>data/cric/responsibilities.json</code></td>
+<td>—</td>
+<td>an object carrying a <code>result</code> list; each entry names a person and their role for a site</td>
+</tr>
+</tbody>
+</table>
+<p>A missing <code>tier_level</code> defaults to 0, which presents a site as Tier-0 —
+downloaders should emit it explicitly.</p>
+<p><code>responsibilities.json</code> must be the full payload including its <code>result</code>
+key. A payload without <code>result</code> is treated as corrupt and fails the run
+rather than being read as "nobody is responsible for anything".</p>
+<h3 id="cric_core-cric-core-services"><code>cric_core</code> — CRIC core services</h3>
+<table>
+<thead>
+<tr>
+<th>file</th>
+<th>keyed by</th>
+<th>value keys read</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data/cric-core/services.json</code></td>
+<td>service name</td>
+<td><code>endpoint</code>, <code>type</code>, <code>state</code>, <code>rcsite</code></td>
+</tr>
+<tr>
+<td><code>data/cric-core/rcsites.json</code></td>
+<td>site name</td>
+<td><code>country</code>, <code>infrastructure</code>, <code>tier_level</code>, <code>vos</code></td>
+</tr>
+<tr>
+<td><code>data/cric-core/federations.json</code></td>
+<td>federation name</td>
+<td><code>accounting_name</code>, <code>country</code>, <code>infrastructure</code>, <code>pledges</code>, <code>rcsites</code>, <code>tier_level</code>, <code>vos</code></td>
+</tr>
+</tbody>
+</table>
+<p>Service <code>endpoint</code> values may carry a scheme (<code>https://host:port/path</code>)
+or be a bare host; both parse.</p>
+<h3 id="conddb_global_tags-condition-global-tags"><code>conddb_global_tags</code> — condition global tags</h3>
+<p><code>data/conddb-global-tags/records.json</code>, a JSON <strong>list</strong> of objects:
+<code>name</code> (or <code>tag_name</code>), <code>description</code>, <code>release</code>, <code>scenario</code>,
+<code>snapshot_time</code> (or <code>created_at</code>). The <code>release</code> value is matched
+against the CMSSW release set when <code>cmssw_records_path</code> is configured,
+so it should be a release label like <code>CMSSW_14_0_2</code>.</p>
+<h3 id="dbs_datasets-dataset-catalog"><code>dbs_datasets</code> — dataset catalog</h3>
+<p><code>data/dbs-datasets/records.json</code>, a JSON <strong>list</strong>. Keys, upstream name or
+normalized: <code>dataset</code> / <code>dataset_name</code>, <code>primary_ds_name</code> /
+<code>primary_dataset</code>, <code>processed_ds_name</code> / <code>processed_dataset</code>,
+<code>data_tier_name</code> / <code>data_tier</code>, <code>dataset_access_type</code>,
+<code>physics_group_name</code> / <code>physics_group</code>, <code>creation_date</code>, <code>nevents</code> /
+<code>total_events</code>, <code>nfiles</code> / <code>total_files</code>, <code>dataset_size</code> /
+<code>total_size_bytes</code>. Dataset paths are case-sensitive.</p>
+<h3 id="dqm-data-quality-certifications"><code>dqm</code> — data-quality certifications</h3>
+<p><code>data/dqm/records.json</code>, a JSON <strong>list</strong>: <code>cert_name</code>, <code>filename</code>,
+<code>run_range</code> (a two-element range the connector expands against runs),
+<code>datasets</code>, <code>num_lumi_sections</code>.</p>
+<h3 id="gocdb_downtimes-grid-downtimes"><code>gocdb_downtimes</code> — grid downtimes</h3>
+<p><code>data/gocdb-downtimes/records.json</code>, a JSON <strong>list</strong>: <code>downtime_id</code>
+(must be numeric — non-numeric entries are skipped and counted),
+<code>primary_key</code>, <code>hostname</code>, <code>hosted_by</code>, <code>service_type</code>, <code>severity</code>,
+<code>classification</code>, <code>description</code>, <code>start_date</code>, <code>end_date</code>. The connector
+matches <code>hostname</code> against CRIC sites and services, so this cache is
+most useful refreshed alongside the two CRIC ones.</p>
+<h3 id="indico-meetings-and-their-attachments"><code>indico</code> — meetings and their attachments</h3>
+<p><code>data/indico/records.json</code>, a JSON <strong>list</strong> of event objects: <code>id</code>,
+<code>title</code>, <code>type</code>, <code>category</code>, <code>categoryId</code>, <code>startDate</code>, <code>endDate</code>,
+<code>description</code>, <code>chairs</code>, <code>folders</code>, plus two derived fields the
+downloader must produce — <code>_contributions_text</code> (flattened agenda text)
+and <code>_pdf_texts</code> (extracted text per attached PDF). Only PDFs whose text
+was extracted become documents in the graph; other attachments appear as
+URLs only.</p>
+<h3 id="wmstats_workflows-production-workflows"><code>wmstats_workflows</code> — production workflows</h3>
+<p><code>data/wmstats-workflows/records.json</code>, a JSON <strong>list</strong> of request docs,
+upstream or normalized names: <code>RequestName</code> / <code>request_name</code> /
+<code>workflow_name</code>, <code>RequestType</code> / <code>request_type</code>, <code>RequestStatus</code> /
+<code>status</code>, <code>RequestPriority</code> / <code>priority</code>, <code>Campaign</code> / <code>campaign</code>,
+<code>CMSSWVersion</code> / <code>cmssw_version</code>, <code>PrepID</code> / <code>prep_id</code>, <code>InputDataset</code> /
+<code>input_dataset</code>, <code>OutputDatasets</code> / <code>output_datasets</code>, <code>RequestDate</code> /
+<code>created_at</code>, <code>updated_at</code>.</p>
+<h2 id="the-ones-that-do-have-tooling">The ones that do have tooling</h2>
+<table>
+<thead>
+<tr>
+<th>connector</th>
+<th>cache</th>
+<th>refreshed by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jira</code></td>
+<td><code>data/jira/records.json</code> (+ <code>meta.json</code>)</td>
+<td><code>python -m archi.downloaders.jira</code>. Needs the <code>jira</code> Python package in the operator venv (<code>pip install jira</code>); without it the downloader stops with a message naming the package. The token (<code>CERN_JIRA_TOKEN</code>) is optional: unset, the download is anonymous and sees only public projects such as <code>ADAPTYST</code>; a project that is not public stops the run with a plain message. The parsed record count is cross-checked against <code>meta.json</code>'s <code>record_count</code>; a mismatch withholds the scope claim.</td>
+</tr>
+<tr>
+<td><code>docsite</code>, <code>gitlab_docs</code></td>
+<td><code>data/docsite/records.json</code>, <code>data/gitlab-docs/records.json</code></td>
+<td><code>python -m archi.downloaders.static_docs</code> (targets in the packaged <code>source-download-manifest.yaml</code>)</td>
+</tr>
+<tr>
+<td><code>cmssw_releases</code></td>
+<td><code>data/cmssw-releases/releases.map</code></td>
+<td>the connector itself, from the public cms-bot map — no auth, no downloader</td>
+</tr>
+<tr>
+<td><code>cmssst_site_status</code></td>
+<td><code>data/cmssst-site-status/records.json</code>: a JSON <strong>list</strong>, one object per CMS site, keys <code>site</code>, <code>time</code> (snapshot epoch), <code>alert</code>, <code>msg</code>, <code>ggus</code> (<code>[ticket id, opened epoch]</code> pairs) and <code>metrics</code> (metric name → time range → list of status-letter strings; the reader reads each metric's <code>today</code>).</td>
+<td><code>python -m archi.downloaders.cmssst</code>, from the public CMS SST site status data (<code>siteStatus/data/summary.js</code> and <code>&lt;SITE&gt;.json</code>) — no auth. All or nothing: one failed site fetch writes no cache.</td>
+</tr>
+<tr>
+<td><code>cmsweb_docs</code>, <code>hypernews</code></td>
+<td>crawled live through an SSO cookie jar</td>
+<td><code>python -m archi.downloaders.sso_login</code>, which is <strong>interactive and needs a TOTP code</strong> — inherently an operator step</td>
+</tr>
+<tr>
+<td><code>twiki_eos</code></td>
+<td>an EOS snapshot path</td>
+<td>whatever populates that EOS area</td>
+</tr>
+<tr>
+<td><code>analysis_notes</code></td>
+<td>a directory of <code>&lt;PAG&gt;-YY-NNN/</code> and <code>AN-YY-NNN/</code> LaTeX trees</td>
+<td>a clone of <code>gitlab.cern.ch/tdr/notes</code>, which needs a CERN account and a <code>CERN_GITLAB_TOKEN</code>; the commands are in <code>bundles/packs/analysis-notes/README.md</code></td>
+</tr>
+<tr>
+<td><code>monit_*</code></td>
+<td>none — queried live</td>
+<td>a MONIT/Grafana token</td>
+</tr>
+</tbody>
+</table>
+<p>Upgrade note for <code>cmssw_releases</code>: release records now carry <code>production_architecture</code>. An instance installed earlier keeps its own copy of <code>schemas/operations.yaml</code>; copy the new file over it (or reinstall) so the field is declared and searchable. After copying, commit the deployment config, then run <code>okg catalog ownership claim --deployment .</code> and <code>okg catalog load --apply</code> from the deployment directory before the next ingest: without the load, ingest refuses with <code>catalog_applied_version_absent</code>. Then re-ingest <code>cmssw_releases</code> and publish; about 2,365 release records update.</p>
+<p>Upgrade note for <code>twiki_eos</code>: TWiki pages whose topic name holds a CMS analysis id (HIG29991, B2G28992Review) now carry <code>analysis_id</code> (HIG-29-991) and the page text gains "HIG-29-991 CMS-HIG-29-991", so a search for the hyphenated id finds them. An earlier install keeps its own copy of <code>schemas/sources.yaml</code>; copy the new file over it (or reinstall), commit, run <code>okg catalog ownership claim --deployment .</code> and <code>okg catalog load --apply</code>, then re-ingest <code>twiki_eos</code> and publish. On the CMS dump, 4,282 of 43,431 page records change (new attribute and text); no chunk changes, so no chunk is re-embedded.</p>
+<h2 id="cluster-manager-caches">Cluster-manager caches</h2>
+<p>The <code>cluster-manager</code> bundle's packs read these caches under <code>ARCHI_DATA_ROOT</code>
+(for example <code>servicenow/records.json</code>). Each downloader writes <code>records.json</code> and
+<code>meta.json</code> atomically; <code>meta.json</code>'s <code>record_count</code> is cross-checked against what the
+reader parses, and a mismatch withholds the scope claim. A cache that is missing, empty
+or the wrong JSON shape fails the run loudly, as above. Nothing is fetched at ingest.</p>
+<table>
+<thead>
+<tr>
+<th>pack</th>
+<th>cache</th>
+<th>refreshed by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>servicenow</code></td>
+<td><code>servicenow/records.json</code>, a JSON <strong>list</strong> of Table API rows, each with a <code>table</code> (<code>incident</code>, <code>sc_request</code> or <code>kb_knowledge</code>) and a <code>number</code>. Reads <code>short_description</code>, <code>description</code> (<code>text</code> for an article), <code>state</code>, <code>priority</code>, <code>category</code>, <code>assignment_group</code>, <code>assigned_to</code>, <code>opened_by</code> / <code>caller_id</code> / <code>requested_for</code>, <code>author</code>, <code>cmdb_ci</code>, <code>opened_at</code>, <code>sys_updated_on</code>, <code>resolved_at</code>, <code>close_notes</code>. A reference may be a string or a <code>{"display_value": ...}</code> object.</td>
+<td><code>python -m archi.downloaders.servicenow --instance-url &lt;url&gt; --auth oauth\|basic</code>. OAuth reads <code>SERVICENOW_CLIENT_ID</code> and <code>SERVICENOW_CLIENT_SECRET</code>; basic auth reads <code>SERVICENOW_USERNAME</code> and <code>SERVICENOW_PASSWORD</code>. Read-only GETs; no value is written or printed.</td>
+</tr>
+<tr>
+<td><code>tickets</code></td>
+<td><code>tickets/records.json</code>, a JSON <strong>list</strong>: the flat shape (<code>system</code>, <code>key</code>, <code>subject</code>, <code>description</code>, <code>project</code>, <code>tracker</code>, <code>status</code>, <code>priority</code>, <code>author</code>, <code>assignee</code>, <code>created</code>, <code>updated</code>, <code>closed</code>, <code>notes</code>, optional <code>url</code>) or a Redmine REST issue (<code>id</code>, <code>subject</code>, <code>project</code>, <code>author</code>, <code>assigned_to</code>, <code>created_on</code>, <code>journals</code>). The node id is <code>tracker_ticket:&lt;system&gt;:&lt;key&gt;</code>, so a JIRA issue moved to another project (a new key) becomes a new node and the old one is retracted at the next complete download.</td>
+<td><code>python -m archi.downloaders.tickets --redmine-url &lt;url&gt;</code> and/or <code>--jira-url &lt;url&gt; --jira-project &lt;KEY&gt;</code> (or <code>--jql</code>); both URLs write one cache. <code>REDMINE_API_KEY</code> is optional: unset, only public projects are visible. A JIRA download needs <code>JIRA_API_TOKEN</code> (a personal access token, sent as a bearer header to the REST v2 search API) and an <code>https://</code> URL; it pages in key order, writes people as display names, replaces <code>[~login]</code> mentions, and skips comments restricted to a group or role unless <code>--include-restricted-comments</code> is given. Email addresses in text are removed when the cache is read. <code>python -m archi.downloaders.redmine --base-url &lt;url&gt;</code> still writes a Redmine-only cache.</td>
+</tr>
+<tr>
+<td><code>slurm</code></td>
+<td><code>slurm/records.json</code>, a JSON <strong>object</strong>: <code>cluster</code>, <code>collected_at</code>, and lists <code>partitions</code>, <code>nodes</code>, <code>reservations</code>, <code>jobs</code> (field list in <code>archi/sources/slurm.py</code>). No partitions and no nodes is a failed export.</td>
+<td><code>python -m archi.downloaders.slurm --cluster &lt;name&gt;</code> on a host with the Slurm client: it runs <code>sinfo</code>, <code>scontrol show reservation</code> and <code>sacct</code>, all read-only, and needs no credential from archi.</td>
+</tr>
+<tr>
+<td><code>htcondor</code></td>
+<td><code>htcondor/records.json</code>, a JSON <strong>object</strong>: <code>pool</code>, <code>collected_at</code>, <code>totals</code>, <code>machines</code>, <code>schedds</code>. No machines is a failed export.</td>
+<td><code>python -m archi.downloaders.htcondor --pool &lt;name&gt;</code>: two read-only <code>condor_status</code> queries.</td>
+</tr>
+<tr>
+<td><code>node-health</code></td>
+<td><code>node-health/records.json</code>, a JSON <strong>list</strong> of per-node reports: <code>node</code>, <code>cluster</code>, <code>observed_at</code>, optional <code>status</code>, and <code>checks</code> (<code>name</code>, <code>status</code> of <code>ok</code>, <code>warn</code> or <code>fail</code>, <code>detail</code>).</td>
+<td>the site's own health exporter; nothing in archi runs a check.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reference-caches-are-different">Reference caches are different</h2>
+<p><code>docsite</code> and <code>gitlab_docs</code> can also read <em>reference</em> caches to emit
+cross-links (<code>document_chunk references site</code> / <code>cmssw_release</code> /
+<code>jira_issue</code> / <code>infrastructure_service</code>). Those point at other
+connectors' caches and are optional — but each one configured must
+exist, or the run fails rather than quietly dropping that edge kind.</p>
+<p>For releases specifically there are two accepted shapes: a
+<code>records.json</code> list of <code>{label: ...}</code> objects (<code>releases_path</code>), or the
+cms-bot map that <code>cmssw_releases</code> already fetches
+(<code>releases_map_path: data/cmssw-releases/releases.map</code>). Use the map on
+a live instance — nothing produces a releases <code>records.json</code>.</p>
+<h2 id="shipping-caches-without-credentials">Shipping caches without credentials</h2>
+<p><code>python -m archi.snapshot</code> packs existing caches into checksummed, redacted
+per-group archives with a lock file, so an install can fetch data without
+CERN access. See <a href="https://github.com/archi-physics/archi/blob/archi_v3/docs/cache-snapshot.md">cache snapshots</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../pack-format/" class="btn btn-neutral float-left" title="Pack and bundle format"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../adr/" class="btn btn-neutral float-right" title="Design records">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../pack-format/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../adr/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

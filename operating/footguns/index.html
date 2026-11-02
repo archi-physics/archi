@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Footgun ledger - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Footgun ledger";
+        var mkdocs_page_input_path = "operating/footguns.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Footgun ledger</a>
+    <ul class="current">
+    </ul>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Operating</li>
+      <li class="breadcrumb-item active">Footgun ledger</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/operating/footguns.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="golden-path-footgun-ledger">Golden-path footgun ledger</h1>
+<p>Every trap in the <a href="https://github.com/archi-physics/archi/blob/archi_v3/docs/cern-team-quickstart.md">long cern-team quickstart</a>, and
+what became of it once <code>archi init</code> / <code>up</code> / <code>doctor</code> existed (PACT
+<code>r3-golden-path</code>, ADR 0002 §8).</p>
+<ul>
+<li><strong>absorbed</strong>: archi handles it. The <em>Proof</em> column names the test, or the
+  <code>archi doctor</code> check that fails when the trap comes back (each check has a
+  failing fixture in <code>python/tests/cli/test_doctor.py</code>).</li>
+<li><strong>filed</strong>: it needs a change in AKMON (okg). The <em>Proof</em> column names the
+  ask. Each ask is written in
+  <a href="https://github.com/archi-physics/archi/blob/archi_v3/docs/golden-path-akmon-asks.md">golden-path-akmon-asks.md</a>, filed on <code>mitdbg/akmon</code>
+  (2026-10-25) and tracked here by an <code>upstream-ask</code> issue; both links are in the table.</li>
+</ul>
+<p>An entry can be both: archi covers the gap today, and the ask would let
+archi delete that cover (ADR 0002 D7).</p>
+<p>Quickstart sections are cited as §1–§8 and by heading.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Trap</th>
+<th>Status</th>
+<th>How</th>
+<th>Proof</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FG-01</td>
+<td>§1: okg had to be <code>pip install -e</code> from a clone, or publish refused with a message about <code>release.pin.code_repository</code></td>
+<td>absorbed; filed (ask 1: <a href="https://github.com/mitdbg/akmon/issues/3">mitdbg/akmon#3</a>, #798)</td>
+<td>archi installs the AKMON v0.2.0 release wheel; the published path was run from the wheel. PyPI wheels are ask 1</td>
+<td><code>okg-version</code> check; golden-path run (PACT evidence)</td>
+</tr>
+<tr>
+<td>FG-02</td>
+<td>§2: the graph Postgres needs three preloaded libraries, <code>cron.database_name</code>, one server per deployment, and <code>--shm-size 2g</code></td>
+<td>absorbed</td>
+<td>the compose <code>graph-db</code> service carries all of them</td>
+<td><code>graph-db-preload</code>, <code>graph-db-shm</code> checks</td>
+</tr>
+<tr>
+<td>FG-03</td>
+<td>§3: the deployments directory must be a git repository with a baseline commit</td>
+<td>absorbed</td>
+<td><code>archi init</code> makes the instance a git repository and commits a baseline first</td>
+<td><code>instance-git</code> check; <code>test_init_writes_a_git_instance_with_secrets_kept_out</code></td>
+</tr>
+<tr>
+<td>FG-04</td>
+<td>§3: okg finds a profile only through <code>OKG_PROFILES_DIR</code> or <code>./profiles/</code> relative to where it runs</td>
+<td>absorbed; filed (r3-bundle-format ask 1: <a href="https://github.com/mitdbg/akmon/issues/1">mitdbg/akmon#1</a>, #792)</td>
+<td>archi renders into <code>&lt;instance&gt;/profiles/</code> and always runs okg from the instance with <code>OKG_PROFILES_DIR</code> removed</td>
+<td><code>profiles-env</code> check; <code>test_init_installs_commits_then_publishes</code></td>
+</tr>
+<tr>
+<td>FG-05</td>
+<td>§3: a repository connector must be renamed from <code>.yaml.example</code> <em>and</em> given a URL; one without the other blocks the whole publish</td>
+<td>absorbed</td>
+<td>packs select sources (<code>archi init --with</code>, <code>archi add --answer</code>); doctor flags a selected source with an empty URL</td>
+<td><code>selected-sources-fed</code> check</td>
+</tr>
+<tr>
+<td>FG-06</td>
+<td>§3: the data root must sit outside <code>deployments/</code>, because <code>okg install --force</code> deletes the deployment</td>
+<td>absorbed</td>
+<td>the data root defaults to <code>~/.local/share/archi/&lt;name&gt;</code>; init refuses one inside the instance</td>
+<td><code>data-root</code> check; <code>test_data_root_inside_the_instance_is_refused</code></td>
+</tr>
+<tr>
+<td>FG-07</td>
+<td>§3, §8: relative path answers (<code>archi_data_root</code>, <code>twiki_eos_root</code>) resolve against okg's working directory and ignore <code>ARCHI_DATA_ROOT</code></td>
+<td>absorbed</td>
+<td>init passes every path answer absolute; relative defaults are anchored on the data root</td>
+<td><code>absolute-paths</code> check; <code>test_relative_path_defaults_are_anchored_on_the_data_root</code></td>
+</tr>
+<tr>
+<td>FG-08</td>
+<td>§3: <code>okg install</code> fails at its own publish because the files it just wrote are not committed</td>
+<td>absorbed; filed (ask 6: <a href="https://github.com/mitdbg/akmon/issues/6">mitdbg/akmon#6</a>, #801)</td>
+<td>init runs <code>okg install --no-publish</code>, commits, then <code>okg provision</code></td>
+<td><code>deployment-committed</code> check; <code>test_init_installs_commits_then_publishes</code></td>
+</tr>
+<tr>
+<td>FG-09</td>
+<td>§3, §5: "did it publish?" means reading <code>okg status</code> for a non-null generation</td>
+<td>absorbed</td>
+<td>doctor reads it</td>
+<td><code>published</code> check</td>
+</tr>
+<tr>
+<td>FG-10</td>
+<td>§3, "What still needs a person": loopback roles have no password after the migration; catalog load fails on authentication</td>
+<td>absorbed; filed (ask 4: <a href="https://github.com/mitdbg/akmon/issues/4">mitdbg/akmon#4</a>, #799)</td>
+<td>init runs <code>okg db role-passwords --apply</code> after the first publish</td>
+<td><code>role-passwords</code> check; <code>test_init_installs_commits_then_publishes</code></td>
+</tr>
+<tr>
+<td>FG-11</td>
+<td>§3: <code>inspect</code>, <code>filter</code> and the MCP server fail with <code>mcp_role_cannot_login</code> until read-role passwords are set</td>
+<td>absorbed; filed (ask 4: <a href="https://github.com/mitdbg/akmon/issues/4">mitdbg/akmon#4</a>, #799)</td>
+<td>the same step; the okg_mcp password reaches the MCP container through <code>.env</code></td>
+<td><code>role-passwords</code>, <code>mcp-answers</code> checks</td>
+</tr>
+<tr>
+<td>FG-12</td>
+<td>§4: <code>okg install</code> will not re-run over a deployment; later changes are hand edits, commit, claim, load, ingest</td>
+<td>absorbed</td>
+<td><code>archi add &lt;pack&gt;</code> (r3-bundle-format) does the edit, commit, claim, load, ingest and publish</td>
+<td><code>python/tests/bundles/test_lock.py</code>; r3-bundle-format scratch run</td>
+</tr>
+<tr>
+<td>FG-13</td>
+<td>§4: an edit applied before it is committed fails with <code>repository provenance inputs are not committed</code></td>
+<td>absorbed</td>
+<td><code>archi add</code> commits before it runs okg; doctor names uncommitted deployment files</td>
+<td><code>deployment-committed</code> check</td>
+</tr>
+<tr>
+<td>FG-14</td>
+<td>§6: the chat database password must be set once, in one shell, and never changed; secrets were typed by hand</td>
+<td>absorbed</td>
+<td>init generates every secret once into <code>.env</code> (mode 0600, git-ignored); compose reads it</td>
+<td><code>env-secrets</code>, <code>secrets-not-committed</code> checks; <code>test_init_writes_a_git_instance_with_secrets_kept_out</code></td>
+</tr>
+<tr>
+<td>FG-15</td>
+<td>§6: the chat app needs its own Postgres, distinct from the graph</td>
+<td>absorbed</td>
+<td>the compose <code>chat-db</code> service</td>
+<td><code>chat-db-distinct</code> check</td>
+</tr>
+<tr>
+<td>FG-16</td>
+<td>§6: the graph tools are a separate long-running <code>okg mcp-serve</code> in its own terminal; <code>status</code> reports them dead</td>
+<td>absorbed; filed (ask 5: <a href="https://github.com/mitdbg/akmon/issues/5">mitdbg/akmon#5</a>, #800)</td>
+<td>the compose <code>mcp</code> service</td>
+<td><code>services</code> check</td>
+</tr>
+<tr>
+<td>FG-17</td>
+<td>§6: publish the chat database and MCP on the container gateway, never on 0.0.0.0</td>
+<td>absorbed</td>
+<td>services reach each other by name on the compose network; every published port is on 127.0.0.1</td>
+<td><code>ports-loopback</code> check</td>
+</tr>
+<tr>
+<td>FG-18</td>
+<td>§6: Open WebUI's first start overruns <code>chat-instance up</code>'s 120 s default; needs <code>--ready-timeout 300</code></td>
+<td>absorbed</td>
+<td><code>archi up</code> waits up to 600 s for <code>/health</code></td>
+<td><code>webui-up</code> check</td>
+</tr>
+<tr>
+<td>FG-19</td>
+<td>§6: the site being up does not mean the assistant reaches the graph</td>
+<td>absorbed</td>
+<td><code>archi up</code> runs <code>okg chat sync</code>, which registers the MCP connection and proves <code>initialize</code> + <code>tools/list</code>; doctor reads the graph through MCP</td>
+<td><code>mcp-answers</code> check</td>
+</tr>
+<tr>
+<td>FG-20</td>
+<td>§6: MCP must be served on <code>chat.mcp.port</code> (8765), where <code>chat sync</code> dials and nowhere else</td>
+<td>absorbed</td>
+<td>the <code>mcp</code> service is rendered from <code>chat.mcp.port</code></td>
+<td><code>mcp-port</code> check</td>
+</tr>
+<tr>
+<td>FG-21</td>
+<td>§6: <code>--container-runtime podman</code> is needed on <code>up</code> and refused by <code>status</code></td>
+<td>absorbed</td>
+<td>archi detects docker or podman once and records it in <code>archi.yaml</code></td>
+<td><code>test_detect_runtime_*</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-22</td>
+<td>§6: a retry must remove both containers, because the chat container bakes in its connection string</td>
+<td>absorbed</td>
+<td>compose recreates a container whose settings changed; archi never rewrites <code>.env</code> after init (you may add source credentials to it)</td>
+<td><code>test_compose_holds_no_secret_value</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-23</td>
+<td>§6: the DSN says 127.0.0.1 and okg rewrites it for the container through the gateway</td>
+<td>absorbed</td>
+<td>containers use service names; the host uses 127.0.0.1 and the published port</td>
+<td><code>test_compose_services_reach_each_other_by_name</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-24</td>
+<td>§6: the admin token for <code>chat sync</code> comes from a hand-run signup <code>curl</code></td>
+<td>absorbed; filed (ask A: <a href="https://github.com/mitdbg/akmon/issues/7">mitdbg/akmon#7</a>, #802)</td>
+<td><code>archi up</code> signs in, or signs up on a fresh site, with the generated admin password</td>
+<td><code>test_admin_token_*</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-25</td>
+<td>§6: <code>chat sync</code> refuses a deployment without a system prompt</td>
+<td>absorbed</td>
+<td>the bundle ships <code>skills/chat-system-prompt.md</code>; nothing for the operator to do</td>
+<td><code>python/tests/test_bundle_cern_team.py</code></td>
+</tr>
+<tr>
+<td>FG-26</td>
+<td>§6: a remote host needs an SSH tunnel to reach the loopback-bound site</td>
+<td>absorbed</td>
+<td><code>archi up</code> prints the tunnel command when it runs over SSH</td>
+<td><code>test_up_prints_the_tunnel_over_ssh</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-27</td>
+<td>§6: the model provider is set by hand, at <code>host.docker.internal:&lt;the right port&gt;</code></td>
+<td>absorbed</td>
+<td><code>archi up</code> points the site at a local ollama when one answers (<code>--ollama-url</code> otherwise); the webui service maps <code>host.docker.internal</code></td>
+<td><code>test_configure_ollama_*</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-28</td>
+<td>§6: the site opens on the raw model, not the preset with the graph tools</td>
+<td>filed (ask B: <a href="https://github.com/mitdbg/akmon/issues/8">mitdbg/akmon#8</a>, #803)</td>
+<td><code>okg chat sync</code> sets the site default to <code>chat.models.default</code>; archi cannot change it without breaking sync's readback. <code>archi up</code> says to pick the preset</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/8">mitdbg/akmon#8</a>, #803</td>
+</tr>
+<tr>
+<td>FG-29</td>
+<td>§6: Open WebUI attaches a preset's tools only for browser sessions, not API callers</td>
+<td>absorbed</td>
+<td>the supported surface is the MCP endpoint (ADR 0002 D5); the nightly asks over MCP</td>
+<td>nightly workflow</td>
+</tr>
+<tr>
+<td>FG-30</td>
+<td>§7: every selected source must finish, or nothing publishes</td>
+<td>filed (r3-bundle-format ask 2: <a href="https://github.com/mitdbg/akmon/issues/2">mitdbg/akmon#2</a>, #793)</td>
+<td>optional sources in okg would remove it; until then packs keep unfed sources out of the selection</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/2">mitdbg/akmon#2</a>, #793</td>
+</tr>
+<tr>
+<td>FG-31</td>
+<td>§4: with code symbols the first <code>okg ingest</code> fails, because it runs before the repository is cloned; run it twice</td>
+<td>filed (ask C: <a href="https://github.com/mitdbg/akmon/issues/9">mitdbg/akmon#9</a>, #804)</td>
+<td>an ordering bug between a source and its predecessor's checkout</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/9">mitdbg/akmon#9</a>, #804</td>
+</tr>
+<tr>
+<td>FG-32</td>
+<td>§4: code symbols need a hand-edited module list</td>
+<td>absorbed</td>
+<td>packs carry their modules and composition unions them (r3-bundle-format)</td>
+<td><code>python/tests/bundles/test_compose.py</code></td>
+</tr>
+<tr>
+<td>FG-33</td>
+<td>§4: optional sources added after install hold unfilled placeholders (<code>${deployment_name}</code>, <code>predecessor_source</code>)</td>
+<td>absorbed</td>
+<td><code>archi add</code> renders the pack with the deployment's own answers</td>
+<td><code>python/tests/bundles/test_lock.py</code></td>
+</tr>
+<tr>
+<td>FG-34</td>
+<td>§4, §8: after every registry edit, <code>okg catalog ownership claim</code> or the publish is refused as drifted</td>
+<td>absorbed</td>
+<td><code>archi add</code> runs the claim and catalog load</td>
+<td><code>python/tests/bundles/test_lock.py</code></td>
+</tr>
+<tr>
+<td>FG-35</td>
+<td>§8: <code>okg install --force</code> rewrites <code>deployment.yaml</code> and resets the <code>chat:</code> block</td>
+<td>absorbed</td>
+<td>archi never runs <code>--force</code>: init refuses a non-empty directory and <code>archi add</code> only adds</td>
+<td><code>test_a_non_empty_directory_and_a_bad_name_are_refused</code></td>
+</tr>
+<tr>
+<td>FG-36</td>
+<td>§8: a reinstall can exit red at its ingest stage with its data staged anyway</td>
+<td>filed (ask D: <a href="https://github.com/mitdbg/akmon/issues/10">mitdbg/akmon#10</a>, #805)</td>
+<td>the exit code should tell "failed" from "staged, not published"</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/10">mitdbg/akmon#10</a>, #805</td>
+</tr>
+<tr>
+<td>FG-37</td>
+<td>§8: a large first publish ends with a <code>lock_headroom</code> warning that reads like a failure</td>
+<td>absorbed</td>
+<td>init treats <code>okg provision</code> exit 8 (<code>capacity_warning</code>) as published and says so</td>
+<td><code>test_provision_capacity_warning_is_not_a_failure</code></td>
+</tr>
+<tr>
+<td>FG-38</td>
+<td>§8: the TWiki dump path must be absolute and does not follow <code>--archi-data-root</code></td>
+<td>absorbed</td>
+<td>as FG-07: path answers are made absolute</td>
+<td><code>absolute-paths</code> check</td>
+</tr>
+<tr>
+<td>FG-39</td>
+<td>"Adding other sources": a removed source's records stay in the graph</td>
+<td>absorbed</td>
+<td>fixed in okg v0.2.0: <code>okg deployment remove-source &lt;deployment&gt; &lt;pack&gt;.&lt;source&gt; --apply --yes</code> retracts the source's records, publishes, and removes its registry entry. Draft ask E is withdrawn</td>
+<td>proven 2026-10-25 on a scratch cern-team instance: removing <code>twiki.twiki_eos</code> retracted 6 records and 5 links in a new generation; its page is <code>node_not_found</code> there, and other sources' records are still visible</td>
+</tr>
+<tr>
+<td>FG-40</td>
+<td>"Starting over": deleting the deployment folder is not a reset; the claim lives in the database</td>
+<td>absorbed</td>
+<td><code>archi down --purge --yes</code> deletes the database volumes with the containers</td>
+<td><code>test_down_purge_deletes_volumes</code> (<code>test_stack.py</code>)</td>
+</tr>
+<tr>
+<td>FG-41</td>
+<td>"Starting over": a run that fails partway wedges behind <code>staged source work was not published</code>; the only recovery is a teardown</td>
+<td>filed (ask D: <a href="https://github.com/mitdbg/akmon/issues/10">mitdbg/akmon#10</a>, #805)</td>
+<td>archi's recovery is <code>archi down --purge --yes</code> and a fresh init; okg should offer resume or discard</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/10">mitdbg/akmon#10</a>, #805</td>
+</tr>
+<tr>
+<td>FG-42</td>
+<td>"Starting over": <code>okg install</code> is not a retry</td>
+<td>absorbed</td>
+<td><code>archi init</code> refuses an existing instance and names the reset</td>
+<td><code>test_a_non_empty_directory_and_a_bad_name_are_refused</code></td>
+</tr>
+<tr>
+<td>FG-43</td>
+<td>Found here: on public okg v0.2.0, <code>okg chat-instance up</code> refuses every published image; its pinned image is under <code>your-registry.invalid</code></td>
+<td>absorbed; filed (ask A: <a href="https://github.com/mitdbg/akmon/issues/7">mitdbg/akmon#7</a>, #802)</td>
+<td>compose runs upstream <code>open-webui:v0.11.4</code>, which reads okg's text results, and <code>okg chat sync</code> accepts it</td>
+<td>golden-path run (PACT evidence)</td>
+</tr>
+<tr>
+<td>FG-44</td>
+<td>Found here: <code>okg mcp-serve</code> needs <code>git</code> on its PATH to serve reads (<code>repository provenance is unavailable</code>)</td>
+<td>absorbed; filed (ask F: <a href="https://github.com/mitdbg/akmon/issues/11">mitdbg/akmon#11</a>, #806)</td>
+<td>the MCP image installs git and marks the mounted instance safe</td>
+<td>golden-path run</td>
+</tr>
+<tr>
+<td>FG-45</td>
+<td>Found here: <code>okg db role-passwords</code> records passwords per loopback port in <code>~/.config/okg</code>, so two instances that reuse a port overwrite each other</td>
+<td>absorbed</td>
+<td>archi points <code>OKG_ROLE_SECRETS_FILE</code> at the instance's own <code>.secrets/</code></td>
+<td><code>test_init_installs_commits_then_publishes</code></td>
+</tr>
+<tr>
+<td>FG-46</td>
+<td>Found here: a fresh instance's chat shows "OKG graph health: unavailable (error)"</td>
+<td>filed (ask G: <a href="https://github.com/mitdbg/akmon/issues/12">mitdbg/akmon#12</a>, #807)</td>
+<td>the banner reads okg's dogfood trust level, which a cern-team instance never reports ready</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/12">mitdbg/akmon#12</a>, #807</td>
+</tr>
+<tr>
+<td>FG-47</td>
+<td>§1: <code>pip install archi</code> installs an unrelated package</td>
+<td>absorbed</td>
+<td>the distribution is <code>archi-kb</code> (r3-release-home)</td>
+<td><code>python/tests/test_packaging.py</code></td>
+</tr>
+<tr>
+<td>FG-48</td>
+<td>§1: the SSO cookie helper needs <code>requests-kerberos</code>, which needs Kerberos headers</td>
+<td>absorbed</td>
+<td>the <code>cern</code> extra declares it</td>
+<td><code>python/tests/test_install_extras.py</code></td>
+</tr>
+<tr>
+<td>FG-49</td>
+<td>"Adding other sources": <code>okg add</code> works only for sources the deployment already knows (<code>activation_blocked</code>)</td>
+<td>absorbed</td>
+<td><code>archi add &lt;pack&gt;</code> adds any installed pack</td>
+<td><code>python/tests/bundles/test_lock.py</code></td>
+</tr>
+<tr>
+<td>FG-50</td>
+<td>"Adding other sources": Indico talk images need an <code>agent_surface</code> block in <code>deployment.yaml</code></td>
+<td>filed (ask H: <a href="https://github.com/mitdbg/akmon/issues/13">mitdbg/akmon#13</a>, #808)</td>
+<td>the block lives in the deployment manifest; okg should let a source declare the hosts it fetches</td>
+<td><a href="https://github.com/mitdbg/akmon/issues/13">mitdbg/akmon#13</a>, #808</td>
+</tr>
+</tbody>
+</table>
+<p>Not traps, and so not in the table: the docsite manifest for a site without a
+sitemap (a feature), and count drift between runs (§3, explained there).</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../cutover/" class="btn btn-neutral float-left" title="Cutover runbook"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../contributing-a-pack/" class="btn btn-neutral float-right" title="Contributing a pack">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../cutover/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../contributing-a-pack/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>The operations layer - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "The operations layer";
+        var mkdocs_page_input_path = "operations-layer.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">The operations layer</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#the-loop">The loop</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#automation-packs">Automation packs</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#autonomy-levels">Autonomy levels</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#shadow-and-promotion">Shadow and promotion</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#halt">Halt</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archi-ops">archi ops</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#what-ships">What ships</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">The operations layer</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/operations-layer.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="the-operations-layer">The operations layer</h1>
+<p>The operations layer runs automations over the context layer. It is the
+purpose of Archi 3.0. Agents propose. A separate component, the <strong>mediator</strong>,
+acts. No agent holds a credential that can change an external system.</p>
+<h2 id="the-loop">The loop</h2>
+<p>Every automation follows the same loop.</p>
+<pre><code>signal -&gt; context read -&gt; proposal -&gt; decision -&gt; action -&gt; outcome
+</code></pre>
+<ol>
+<li><strong>Signal.</strong> A schedule fires, a ticket arrives or a watched value crosses
+   a threshold.</li>
+<li><strong>Context read.</strong> The runtime reads the graph at one pinned generation and
+   checks the <a href="../context-layer/#the-context-gate">context gate</a>.</li>
+<li><strong>Proposal.</strong> The agent writes a typed proposal: a summary, the ids of the
+   evidence it used, an action class and payload, a confidence and a
+   rollback.</li>
+<li><strong>Decision.</strong> The autonomy policy, and at L2 a person, decide.</li>
+<li><strong>Action.</strong> The mediator carries out an approved action class.</li>
+<li><strong>Outcome.</strong> The result is checked later and written to the
+   <a href="../context-layer/#ops-record-the-operational-memory">ops-record</a>.</li>
+</ol>
+<p>The loop runs as an OKG deployment workflow, scheduled by DBOS (a durable
+workflow library). Durable state lives in the database, never in a local
+file.</p>
+<h2 id="automation-packs">Automation packs</h2>
+<p>An <a href="../reference/pack-format/#automation-packs">automation pack</a> declares one
+automation:</p>
+<ul>
+<li>a <strong>trigger</strong>: a schedule, a new ticket in a queue, or a watched signal</li>
+<li>a <strong>context gate</strong></li>
+<li>a <strong>playbook</strong>: the instructions the agent follows</li>
+<li><strong>action classes</strong>: each with a typed payload, its mediator, whether it is
+  reversible, a blast-radius note and the highest level it may have</li>
+<li>a <strong>proposal schema</strong> and a <strong>budget</strong> (cost per run and per day, runs per
+  hour)</li>
+</ul>
+<p>Tool packs ship the live tools that act as mediators. An automation never
+calls an external system any other way. See
+<a href="../writing-an-automation/">Writing an automation</a>.</p>
+<h2 id="autonomy-levels">Autonomy levels</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Meaning</th>
+<th>In 3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L0 observe</td>
+<td>Writes findings to the ops-record only.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>L1 draft</td>
+<td>Drafts a reply or a ticket for a person to send.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>L2 propose</td>
+<td>Proposes an action. It runs only after a person approves an escalation. A timed-out proposal never runs.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>L3 act within limits</td>
+<td>Runs a reversible action without review, inside rate and budget limits.</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why not L3.</strong> There is no live track record of L2 automations yet. Without
+one, nobody can say that an automation is safe to run unreviewed. So the
+3.0 runtime refuses an L3 setting wherever it appears: in a pack, a bundle,
+<code>archi.yaml</code>, or at run start. L3 is revisited once L2 automations have a
+live history.</p>
+<p>Three rules set the level:</p>
+<ul>
+<li>The instance sets each automation's level in its own <code>archi.yaml</code>. A
+  bundle only sets an upper bound.</li>
+<li>The effective level is the lowest of the instance level, the bundle bound
+  and the pack maximum.</li>
+<li>An action class has its own highest level too.</li>
+</ul>
+<pre><code class="language-yaml"># archi.yaml
+automations:
+  instance-health:
+    level: L1
+</code></pre>
+<h2 id="shadow-and-promotion">Shadow and promotion</h2>
+<p>Every automation starts in <strong>shadow</strong> at its configured level. It proposes
+and records, and nothing runs. Its proposals are scored against what people
+did on the same incidents: how often it agreed, how often it was wrong, how
+quickly it would have responded.</p>
+<p>Going live needs recorded shadow results and an operator's approval:</p>
+<pre><code class="language-bash">archi ops promote &lt;automation&gt;
+</code></pre>
+<p>The command refuses unless the shadow report passes the thresholds (by
+default at least 30 proposals, 20 answered, 50% coverage, 80% agreement and
+at most a 10% false-proposal rate; each can be changed with a flag). It then
+opens a change in the instance repository that holds the report. An operator
+approves that change with <code>okg pact decide</code>. Archi never takes that step.
+Until it is approved, the automation stays in shadow. Editing <code>ops.yaml</code> to
+say <code>live</code> changes nothing.</p>
+<p>An automation can go live with no shadow trial when someone decided so:
+<code>archi ops promote &lt;automation&gt; --no-trial --note "&lt;decision&gt;"</code> skips the
+thresholds and records the decision in the change. An operator still
+approves it.</p>
+<p>To go back, set <code>mode: shadow</code> for the automation in <code>ops.yaml</code>. From the
+next run on it sends nothing, and a run already waiting for an approval
+sends nothing either: the step that acts reads <code>ops.yaml</code> again.</p>
+<p>A live automation whose context gate fails runs in shadow for that run. It
+stays in shadow until a promotion is approved after the failure.</p>
+<h2 id="halt">Halt</h2>
+<pre><code class="language-bash">archi ops halt
+</code></pre>
+<p>stops every automation on the instance. It pauses the scanner, rejects each
+open escalation, cancels runs that have not finished and records them as
+<code>halted</code>. <code>archi ops resume</code> undoes the pause. Halt wraps OKG's pause and
+drain until OKG ships a first-class kill switch.</p>
+<h2 id="archi-ops">archi ops</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>archi ops status</code></td>
+<td>Levels, schedules, pending escalations, budgets and shadow scores.</td>
+</tr>
+<tr>
+<td><code>archi ops pending</code></td>
+<td>Escalations waiting for a person.</td>
+</tr>
+<tr>
+<td><code>archi ops approve &lt;id&gt;</code> / <code>reject &lt;id&gt;</code></td>
+<td>Decide an escalation.</td>
+</tr>
+<tr>
+<td><code>archi ops halt</code> / <code>resume</code></td>
+<td>Stop or restart all automations.</td>
+</tr>
+<tr>
+<td><code>archi ops promote &lt;automation&gt;</code></td>
+<td>Ask for an automation to go live.</td>
+</tr>
+</tbody>
+</table>
+<p>The full list is in the <a href="../reference/cli/">command reference</a>. The details
+of the runtime (the worker, <code>ops.yaml</code>, the mediator contract, recovery after
+a crash) are in
+<a href="../reference/pack-format/#running-automations-archi-ops">Running automations</a>.</p>
+<h2 id="what-ships">What ships</h2>
+<p>Two automation packs ship. <a href="../library/packs/ticket-triage/"><code>ticket-triage</code></a>, the reference
+automation in the design, triages new and updated Redmine, JIRA and ServiceNow tickets: a cited
+draft at L1, and at L2 an approved assignment, status change or posted reply
+(the reply written by a model when <code>proposer.drafter</code> is set). At SubMIT it replaces the v2 Redmine
+bot at the 3.0 cutover, with no shadow trial first (board d717). <a href="../library/packs/instance-health/"><code>instance-health</code></a> is
+an automation that watches the instance itself (doctor results, source
+freshness, failed ingests, automation error rates) and keeps one issue per
+problem in the instance repository. It starts at L1 and runs in shadow
+until promoted.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../context-layer/" class="btn btn-neutral float-left" title="The context layer"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../bundles-and-packs/" class="btn btn-neutral float-right" title="Bundles and packs">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../context-layer/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../bundles-and-packs/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

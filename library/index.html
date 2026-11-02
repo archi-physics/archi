@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Library (generated) - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Library (generated)";
+        var mkdocs_page_input_path = "library/index.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Library (generated)</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#bundles">Bundles</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#packs">Packs</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Library (generated)</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/library/index.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <!-- Generated by python/archi/docs_gen.py from bundles/. Do not edit by hand: run `cd python && python -m archi.docs_gen`. -->
+
+<h1 id="bundles-and-packs-in-this-release">Bundles and packs in this release</h1>
+<p>Each page below is generated from the manifest in the repository, so it cannot drift from what ships.</p>
+<h2 id="bundles">Bundles</h2>
+<table>
+<thead>
+<tr>
+<th>Bundle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="bundles/cern-team/"><code>cern-team</code></a></td>
+<td>A generic CERN team knowledge instance - documentation, meetings, wiki, documents, tickets and code.</td>
+</tr>
+<tr>
+<td><a href="bundles/cluster-manager/"><code>cluster-manager</code></a></td>
+<td>A cluster manager's knowledge instance - documentation, tickets, operational memory and, optionally, ServiceNow, Slurm, HTCondor, node health and code.</td>
+</tr>
+<tr>
+<td><a href="bundles/cms-comp-ops/"><code>cms-comp-ops</code></a></td>
+<td>A CMS computing operations knowledge instance - sites, storage, datasets and workflows from the CMS catalogs, site status, CMSSW releases, and the operational memory of past incidents.</td>
+</tr>
+<tr>
+<td><a href="bundles/cms-physics/"><code>cms-physics</code></a></td>
+<td>A CMS physics knowledge instance - physics TWiki pages, CDS records, CMSSW releases, analysis notes, and the analysis ids, groups and techniques that link them.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="packs">Packs</h2>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>Kind</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="packs/analysis-notes/"><code>analysis-notes</code></a></td>
+<td>context</td>
+<td>CMS analysis notes, read from a local mirror of gitlab.cern.ch/tdr/notes - notes, sections, figures, bibliography and links to TWiki pages.</td>
+</tr>
+<tr>
+<td><a href="packs/cds/"><code>cds</code></a></td>
+<td>context</td>
+<td>CERN Document Server records, harvested over the public OAI-PMH endpoint.</td>
+</tr>
+<tr>
+<td><a href="packs/cms-analyses/"><code>cms-analyses</code></a></td>
+<td>context</td>
+<td>CMS physics group and technique hubs, and rules joining analysis ids across CDS records, TWiki pages and analysis notes (code is not linked).</td>
+</tr>
+<tr>
+<td><a href="packs/cms-catalogs/"><code>cms-catalogs</code></a></td>
+<td>context</td>
+<td>CMS computing catalogs - CRIC, CRIC core, SITECONF, DBS, WMStats, GOCDB and CondDB.</td>
+</tr>
+<tr>
+<td><a href="packs/cmssst/"><code>cmssst</code></a></td>
+<td>context</td>
+<td>CMS Site Support Team site status, from the cache the cmssst downloader writes.</td>
+</tr>
+<tr>
+<td><a href="packs/cmssw-releases/"><code>cmssw-releases</code></a></td>
+<td>context</td>
+<td>The CMSSW release catalog, from the public cms-bot releases.map.</td>
+</tr>
+<tr>
+<td><a href="packs/code-symbols/"><code>code-symbols</code></a></td>
+<td>context</td>
+<td>Functions, classes, imports and calls in git-code's repository.</td>
+</tr>
+<tr>
+<td><a href="packs/code-text/"><code>code-text</code></a></td>
+<td>context</td>
+<td>The text of every text file in git-code's repository (code, Markdown, YAML, scripts, configuration), with Python cut into one chunk per function or class and files holding a literal secret left out.</td>
+</tr>
+<tr>
+<td><a href="packs/core-playbooks/"><code>core-playbooks</code></a></td>
+<td>tool</td>
+<td>The generic archi playbooks for retrieving, citing and synthesising graph evidence.</td>
+</tr>
+<tr>
+<td><a href="packs/docsite/"><code>docsite</code></a></td>
+<td>context</td>
+<td>Documentation sites, read from the records cache the static-docs downloader writes.</td>
+</tr>
+<tr>
+<td><a href="packs/dqm/"><code>dqm</code></a></td>
+<td>context</td>
+<td>CMS DQM data-quality certifications, with the runs and datasets they cover.</td>
+</tr>
+<tr>
+<td><a href="packs/git-code/"><code>git-code</code></a></td>
+<td>context</td>
+<td>One Git repository's tracked files and history (commits, tags, authors, per-file diffs).</td>
+</tr>
+<tr>
+<td><a href="packs/htcondor/"><code>htcondor</code></a></td>
+<td>context</td>
+<td>An HTCondor pool snapshot (machines, schedds and CPU totals) with live condor_status and condor_q tools.</td>
+</tr>
+<tr>
+<td><a href="packs/hypernews/"><code>hypernews</code></a></td>
+<td>context</td>
+<td>CMS HyperNews forum threads, from a records cache or a live SSO crawl.</td>
+</tr>
+<tr>
+<td><a href="packs/indico/"><code>indico</code></a></td>
+<td>context</td>
+<td>Indico events and their talks, read live from the Indico HTTP API.</td>
+</tr>
+<tr>
+<td><a href="packs/instance-health/"><code>instance-health</code></a></td>
+<td>automation</td>
+<td>Watches the instance itself (doctor, source freshness, failed ingests, automation error rates, eval trends) and keeps one issue per problem in the instance repository.</td>
+</tr>
+<tr>
+<td><a href="packs/jira/"><code>jira</code></a></td>
+<td>context</td>
+<td>JIRA issues and their participants, read from the cache the JIRA downloader writes.</td>
+</tr>
+<tr>
+<td><a href="packs/monit-live/"><code>monit-live</code></a></td>
+<td>context</td>
+<td>CERN MONIT monitoring snapshots (SAM, HTCondor, Rucio) and the live MONIT query tools.</td>
+</tr>
+<tr>
+<td><a href="packs/node-health/"><code>node-health</code></a></td>
+<td>context</td>
+<td>Compute-node health from a JSON list of per-node reports that a site's own health exporter writes to node-health/records.json (each report has node, cluster, observed_at and checks, a list of name, status ok or warn or fail, and detail).</td>
+</tr>
+<tr>
+<td><a href="packs/ops-record/"><code>ops-record</code></a></td>
+<td>context</td>
+<td>Operational memory, the incidents, proposals, decisions, actions and outcomes automations record through okg admission (ADR 0002 section 6.2).</td>
+</tr>
+<tr>
+<td><a href="packs/servicenow/"><code>servicenow</code></a></td>
+<td>context</td>
+<td>ServiceNow incidents, requests and knowledge-base articles, read from the records cache the ServiceNow downloader writes.</td>
+</tr>
+<tr>
+<td><a href="packs/slurm/"><code>slurm</code></a></td>
+<td>context</td>
+<td>Slurm partitions, nodes, reservations and job summaries from an exported snapshot, with live squeue and sinfo tools and gated drain, resume and requeue actions.</td>
+</tr>
+<tr>
+<td><a href="packs/ticket-triage/"><code>ticket-triage</code></a></td>
+<td>automation</td>
+<td>Triages new and updated Redmine, JIRA and ServiceNow tickets - a cited triage draft for a person to send (L1), or a status or assignment change or a posted reply that runs only after a person approves it (L2).</td>
+</tr>
+<tr>
+<td><a href="packs/tickets/"><code>tickets</code></a></td>
+<td>context</td>
+<td>Generic tracker tickets from Redmine, any JIRA, or both, read from the records cache the tickets downloader writes.</td>
+</tr>
+<tr>
+<td><a href="packs/twiki/"><code>twiki</code></a></td>
+<td>context</td>
+<td>TWiki topics, read from an EOS dump of the wiki's raw markup.</td>
+</tr>
+</tbody>
+</table>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../contributing-a-pack/" class="btn btn-neutral float-left" title="Contributing a pack"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../reference/cli/" class="btn btn-neutral float-right" title="Commands">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../contributing-a-pack/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../reference/cli/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

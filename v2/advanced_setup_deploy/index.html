@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Advanced Setup - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Advanced Setup";
+        var mkdocs_page_input_path = "v2/advanced_setup_deploy.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Advanced Setup</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#configuring-podman">Configuring Podman</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-llms-locally-on-your-gpus">Running LLMs locally on your GPUs</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#helpful-notes-for-production-deployments">Helpful Notes for Production Deployments</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#running-multiple-deployments-on-the-same-machine">Running multiple deployments on the same machine</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#persisting-data-between-deployments">Persisting data between deployments</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#https-configuration-for-production">HTTPS Configuration for Production</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#using-a-reverse-proxy">Using a Reverse Proxy</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#session-cookie-security">Session Cookie Security</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#security-checklist">Security Checklist</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">v2 (legacy)</li>
+      <li class="breadcrumb-item active">Advanced Setup</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/v2/advanced_setup_deploy.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="advanced-setup-deployment">Advanced Setup &amp; Deployment</h1>
+<blockquote>
+<p><strong>v2 (legacy).</strong> This page describes the v2 application (the RAG chatbot) on the <code>main</code> branch. It is not the 3.0 documentation. v2 keeps running on <code>main</code> until the cutover; see <a href="../../migration-from-v2/">Moving from v2 to 3.0</a>.</p>
+</blockquote>
+<p>Topics related to advanced setup and deployment of Archi.</p>
+<h2 id="configuring-podman">Configuring Podman</h2>
+<p>To ensure your Podman containers stay running for extended periods, you need to enable lingering. To do this, run:</p>
+<pre><code class="language-bash">loginctl enable-linger
+</code></pre>
+<p>To check or confirm the lingering status, run:</p>
+<pre><code class="language-bash">loginctl user-status | grep -m1 Linger
+</code></pre>
+<p>See the Red Hat <a href="https://access.redhat.com/solutions/7054698">documentation</a> for additional context.</p>
+<h2 id="running-llms-locally-on-your-gpus">Running LLMs locally on your GPUs</h2>
+<p>There are a few additional system requirements for this to work:</p>
+<ol>
+<li>Make sure you have NVIDIA drivers installed.</li>
+<li>(Optional) For the containers where Archi will run to access the GPUs, install the <a href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html">NVIDIA container toolkit</a>.</li>
+<li>Configure the container runtime to access the GPUs.</li>
+</ol>
+<details>
+<summary>For Podman</summary>
+
+Run the following command:
+
+
+<pre><code class="language-bash">sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+</code></pre>
+
+
+Then list the devices:
+
+
+<pre><code class="language-bash">nvidia-ctk cdi list
+</code></pre>
+
+
+You should see output similar to:
+
+
+<pre><code class="language-text">INFO[0000] Found 9 CDI devices
+...
+nvidia.com/gpu=0
+nvidia.com/gpu=1
+...
+nvidia.com/gpu=all
+...
+</code></pre>
+
+
+These listed "CDI devices" will be referenced to run Archi on the GPUs, so make sure they are present. To learn more, consult the [Podman GPU documentation](https://podman-desktop.io/docs/podman/gpu).
+
+</details>
+
+<details>
+<summary>For Docker</summary>
+
+Run the following command:
+
+
+<pre><code class="language-bash">sudo nvidia-ctk runtime configure --runtime=docker
+</code></pre>
+
+
+The remaining steps mirror the Podman flow. NOTE: this has not yet been fully tested with Docker. Refer to the [NVIDIA toolkit documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#configuration) for details.
+
+</details>
+
+<p>Once these requirements are met, the <code>archi create [...] --gpu-ids &lt;gpus&gt;</code> option will deploy Archi across your GPUs. For Helm deployments, <code>archi install [...] --gpu-ids &lt;gpus&gt;</code> writes the GPU settings into the generated chart. Explicit IDs request the matching <code>nvidia.com/gpu</code> count; <code>all</code> sets <code>NVIDIA_VISIBLE_DEVICES=all</code>, and you can set <code>gpu.count</code> in <code>values.yaml</code> when your Kubernetes cluster requires an explicit limit.</p>
+<h2 id="helpful-notes-for-production-deployments">Helpful Notes for Production Deployments</h2>
+<p>You may wish to use the CLI in order to stage production deployments. This section covers some useful notes to keep in mind.</p>
+<h3 id="running-multiple-deployments-on-the-same-machine">Running multiple deployments on the same machine</h3>
+<p>The CLI allows multiple deployments to run on the same daemon in the case of Docker (Podman has no daemon). The container networks between all the deployments are separate, so there is very little risk of them accidentally communicating with one another.</p>
+<p>However, you need to be careful with the external ports. Suppose you're running two deployments and both of them are running the chat on external port 8000. There is no way to view both deployments at the same time from the same port, so instead you should forward the deployments to other external ports. Generally, this can be done in the configuration:</p>
+<pre><code class="language-yaml">services:
+  chat_app:
+    external_port: 7862  # default is 7861
+  uploader_app:
+    external_port: 5004  # default is 5003
+  grafana:
+    external_port: 3001  # default is 3000
+  postgres:
+    port: 5432  # default is 5432
+</code></pre>
+<h3 id="persisting-data-between-deployments">Persisting data between deployments</h3>
+<p>Volumes persist between deployments, so if you deploy an instance and upload additional documents, you do not need to redo this every time you deploy. If you are editing any data, explicitly remove this information from the volume, or remove the volume itself with:</p>
+<pre><code class="language-bash">docker/podman volume rm &lt;volume-name&gt;
+</code></pre>
+<p>To see what volumes are currently present, run:</p>
+<pre><code class="language-bash">docker/podman volume ls
+</code></pre>
+<h3 id="https-configuration-for-production">HTTPS Configuration for Production</h3>
+<p>For production deployments, especially when using BYOK (Bring Your Own Key), HTTPS is strongly recommended to protect API keys in transit.</p>
+<h4 id="using-a-reverse-proxy">Using a Reverse Proxy</h4>
+<p>The recommended approach is to terminate TLS at a reverse proxy (nginx, Caddy, Traefik):</p>
+<p><strong>Example nginx configuration:</strong></p>
+<pre><code class="language-nginx">server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:7861;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection &quot;upgrade&quot;;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE streaming support
+        proxy_buffering off;
+        proxy_cache off;
+    }
+}
+</code></pre>
+<p><strong>Example Caddy configuration (automatic HTTPS):</strong></p>
+<pre><code class="language-caddyfile">your-domain.com {
+    reverse_proxy localhost:7861
+}
+</code></pre>
+<h4 id="session-cookie-security">Session Cookie Security</h4>
+<p>When running behind HTTPS, enable secure cookies by setting the environment variable:</p>
+<pre><code class="language-bash">FLASK_SESSION_COOKIE_SECURE=true
+</code></pre>
+<p>Or configure in your deployment's environment file:</p>
+<pre><code class="language-env">FLASK_SESSION_COOKIE_SECURE=true
+</code></pre>
+<p>This ensures session cookies (which may contain API keys) are only sent over encrypted connections.</p>
+<h4 id="security-checklist">Security Checklist</h4>
+<ul>
+<li>[ ] TLS termination at reverse proxy or load balancer</li>
+<li>[ ] <code>FLASK_SESSION_COOKIE_SECURE=true</code> in production</li>
+<li>[ ] Strong <code>FLASK_UPLOADER_APP_SECRET_KEY</code> configured (not auto-generated)</li>
+<li>[ ] Firewall rules limiting direct access to internal ports</li>
+<li>[ ] Regular certificate renewal (use Let's Encrypt/certbot)</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../benchmarking/" class="btn btn-neutral float-left" title="Benchmarking"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../helm_deployment/" class="btn btn-neutral float-right" title="Helm Deployment">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../benchmarking/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../helm_deployment/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

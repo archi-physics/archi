@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Pack and bundle format - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Pack and bundle format";
+        var mkdocs_page_input_path = "reference/pack-format.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Pack and bundle format</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#layout">Layout</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#packyaml">pack.yaml</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#preparing-a-packs-input">Preparing a pack's input</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#bundleyaml">bundle.yaml</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#checking-manifests">Checking manifests</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#composing-an-instance">Composing an instance</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#packaging-and-discovery">Packaging and discovery</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#archilock-archi-add-archi-diff">archi.lock, archi add, archi diff</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#context-quality">Context quality</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#automation-packs">Automation packs</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#levels">Levels</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#what-the-renderer-writes">What the renderer writes</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#running-automations-archi-ops">Running automations (archi ops)</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#the-mediator-contract">The mediator contract</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#commands">Commands</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#instance-health">Instance health</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#ticket-triage">Ticket triage</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Pack and bundle format</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/reference/pack-format.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="packs-and-bundles">Packs and bundles</h1>
+<p>A <strong>pack</strong> is the smallest installable capability: one source family, a set
+of live tools, or one automation. A <strong>bundle</strong> is a named selection of packs
+plus a chat preset and an eval set. The design is ADR 0002 §3; this page is
+the reference for the files.</p>
+<p>The published JSON schemas are
+<a href="https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/schema/pack.schema.json"><code>pack.schema.json</code></a> and
+<a href="https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/schema/bundle.schema.json"><code>bundle.schema.json</code></a>.
+Both refuse unknown keys.</p>
+<h2 id="layout">Layout</h2>
+<pre><code>bundles/
+  packs/&lt;pack&gt;/pack.yaml
+  &lt;bundle&gt;/bundle.yaml
+</code></pre>
+<p>Every path inside a manifest is relative to the directory holding it and may
+not leave that directory (<code>..</code>, absolute paths and <code>~</code> are refused).</p>
+<h2 id="packyaml">pack.yaml</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>yes</td>
+<td>Equals the directory name. Lowercase words joined by <code>-</code>.</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td>yes</td>
+<td><code>context</code> (sources), <code>tool</code> (live tools) or <code>automation</code>.</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>yes</td>
+<td><code>MAJOR.MINOR.PATCH</code>.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>yes</td>
+<td>One sentence.</td>
+</tr>
+<tr>
+<td><code>needs_credentials</code></td>
+<td>yes</td>
+<td><code>true</code> when the pack cannot publish without a credential.</td>
+</tr>
+<tr>
+<td><code>requires.modules</code></td>
+<td></td>
+<td>okg ontology modules the pack needs.</td>
+</tr>
+<tr>
+<td><code>requires.packs</code></td>
+<td></td>
+<td>Other packs it needs.</td>
+</tr>
+<tr>
+<td><code>sources</code></td>
+<td>context packs</td>
+<td>Directory of templates, one <code>&lt;source&gt;.yaml</code> per source. Its single top-level key is <code>&lt;source&gt;</code>. A context pack with no sources must declare <code>schemas</code> (records reach it through okg admission, as in <code>ops-record</code>).</td>
+</tr>
+<tr>
+<td><code>schemas</code></td>
+<td></td>
+<td>Directory of LinkML schema slices.</td>
+</tr>
+<tr>
+<td><code>init_questions</code></td>
+<td></td>
+<td>File holding an <code>init_questions:</code> list, in okg's profile question format.</td>
+</tr>
+<tr>
+<td><code>invariants</code></td>
+<td></td>
+<td>File holding an <code>invariants:</code> list. The pack owns them.</td>
+</tr>
+<tr>
+<td><code>freshness</code></td>
+<td>context packs with sources</td>
+<td><code>{&lt;pack&gt;.&lt;source&gt;: {max_staleness: 24h}}</code>, one entry for every source. A positive integer and one unit of <code>s m h d w</code> (no ISO-8601). <code>archi doctor</code> compares each source's age to it.</td>
+</tr>
+<tr>
+<td><code>link_coverage</code></td>
+<td></td>
+<td>List of link-coverage targets, see <a href="#context-quality">Context quality</a>.</td>
+</tr>
+<tr>
+<td><code>playbooks</code></td>
+<td></td>
+<td>Directory of playbooks.</td>
+</tr>
+<tr>
+<td><code>skill_triggers</code></td>
+<td></td>
+<td>File with <code>version:</code> and an <code>intents:</code> mapping.</td>
+</tr>
+<tr>
+<td><code>search_subtypes</code></td>
+<td></td>
+<td>Subtypes added to the <code>content</code> search profile.</td>
+</tr>
+<tr>
+<td><code>search_profiles</code></td>
+<td></td>
+<td>Named okg search profiles, <code>{&lt;name&gt;: {description, subtypes}}</code>, added to the instance's <code>search.profiles</code>. Not <code>content</code>.</td>
+</tr>
+<tr>
+<td><code>live_tools</code></td>
+<td></td>
+<td><code>archi.tools.*</code> entries for the MCP server.</td>
+</tr>
+<tr>
+<td><code>action_classes</code></td>
+<td></td>
+<td>File holding an <code>action_classes:</code> mapping keyed by id. Automation packs declare theirs here; a pack that ships the live tools those classes use may declare them too (<code>slurm</code> does), so every instance that installs the pack gets the same payload schemas.</td>
+</tr>
+<tr>
+<td><code>automation</code></td>
+<td>automation packs</td>
+<td>The automation: trigger, context gate, playbook, action classes, proposal schema, budget, levels. See <a href="#automation-packs">Automation packs</a>.</td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td></td>
+<td>Files installed at the same path in the deployment root (okg's <code>files:</code> allow-list applies).</td>
+</tr>
+<tr>
+<td><code>prompt_fragment</code></td>
+<td></td>
+<td>Markdown appended to the chat system prompt.</td>
+</tr>
+<tr>
+<td><code>prepare</code></td>
+<td></td>
+<td>Steps run before the pack's first ingest, see <a href="#preparing-a-packs-input">Preparing a pack's input</a>.</td>
+</tr>
+<tr>
+<td><code>credentials</code></td>
+<td></td>
+<td>Environment-variable <strong>names</strong> the pack reads.</td>
+</tr>
+</tbody>
+</table>
+<p>Source templates may reference three kinds of answers: the base questions
+every instance has (<code>deployment_name</code>, <code>postgres_dsn</code>, <code>archi_data_root</code>,
+<code>chat_site_name</code>, <code>chat_model</code>; see
+<a href="https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/base/questions.yaml"><code>base/questions.yaml</code></a>), the
+pack's own questions, by their local id (<code>${site_url}</code>), and the questions of
+a pack listed in <code>requires.packs</code>, by their rendered id
+(<code>${git_code_repo_name}</code> for <code>git-code</code>'s <code>repo_name</code>). The last kind is
+checked when the packs are composed: a reference no selected pack asks stops
+the render.</p>
+<h3 id="preparing-a-packs-input">Preparing a pack's input</h3>
+<p>Some sources read a cache that nothing else writes (docsite reads a records
+cache). A pack declares the step that writes it, so a bare install has its
+input and no operator runs a downloader by hand:</p>
+<pre><code class="language-yaml">prepare:
+  - name: records-cache                      # unique within the pack
+    module: archi.downloaders.static_docs    # run as `python -m &lt;module&gt;`
+    args: [--skip-gitlab, --docsite-output, &quot;${archi_data_root}/docsite/records.json&quot;,
+           --urls, &quot;${urls}&quot;]
+    timeout: 300                             # seconds, 1 to 3600; default 600
+</code></pre>
+<ul>
+<li><code>${id}</code> in an argument is the answer to the pack's own init question <code>id</code>
+  (or to a base question such as <code>archi_data_root</code>), including its default.
+  <code>validate</code> refuses a reference to anything else.</li>
+<li>A step is <code>python -m &lt;module&gt; &lt;args&gt;</code> in archi's own Python, with no shell
+  and <code>ARCHI_DATA_ROOT</code> set to the instance's data root. <code>module</code> must be a
+  dotted Python name, so a pack can name only code that is installed.
+  <strong>A prepare step runs a Python module of the pack's choosing, at <code>archi init</code>
+  or <code>archi add</code> time, with your full environment and your privileges.</strong> That
+  is the same trust as installing the pack, but it is used earlier: before
+  okg reads anything. Install packs only from sources you trust, and read a
+  third-party pack's <code>prepare</code> before you init or add it.</li>
+<li><code>archi init</code> runs every selected pack's steps, in resolution order, after
+  rendering and before it starts the graph database or reads any source.
+  <code>archi add</code> runs the new pack's steps before it edits the deployment. Neither
+  runs them with <code>--no-okg</code>.</li>
+<li>A step that exits non-zero, cannot start or passes its <code>timeout</code> stops the
+  command with the pack and step named and the end of its output. Nothing is
+  skipped and no empty result stands in for the missing input. After a failed
+  <code>archi init</code>, remove the half-made instance directory and run it again; a
+  failed <code>archi add</code> leaves the deployment as it was.</li>
+<li>A step should be safe to repeat. The static-docs downloader merges pages by
+  URL, so a second run only updates them.</li>
+<li>Steps run once, at install. They are not a refresh: to refresh a cache,
+  run the same module again (for docsite,
+  <code>python -m archi.downloaders.static_docs</code>), or schedule it.</li>
+</ul>
+<h2 id="bundleyaml">bundle.yaml</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>yes</td>
+<td>Equals the directory name.</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>yes</td>
+<td><code>MAJOR.MINOR.PATCH</code>.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>yes</td>
+<td>One sentence.</td>
+</tr>
+<tr>
+<td><code>packs.default</code></td>
+<td>yes</td>
+<td>Packs installed unless removed with <code>--without</code>.</td>
+</tr>
+<tr>
+<td><code>packs.optional</code></td>
+<td></td>
+<td>Packs offered for <code>--with</code>.</td>
+</tr>
+<tr>
+<td><code>packs.companions</code></td>
+<td></td>
+<td><code>{&lt;pack&gt;: [&lt;companion&gt;, ...]}</code>: when <code>&lt;pack&gt;</code> is selected (by default or with <code>--with</code>), each companion comes on too, with the packs it requires. Opt out with <code>--without &lt;companion&gt;</code>. Merged over <code>extends</code>.</td>
+</tr>
+<tr>
+<td><code>extends</code></td>
+<td></td>
+<td>Bundles whose default packs this one inherits.</td>
+</tr>
+<tr>
+<td><code>chat</code></td>
+<td></td>
+<td><code>site_name</code>, <code>default_model</code>, <code>description</code>, <code>suggestions</code>.</td>
+</tr>
+<tr>
+<td><code>answers</code></td>
+<td></td>
+<td>Install-question defaults, <code>{&lt;rendered question id&gt;: value}</code> (for example <code>analysis_notes_min_notes: 2500</code>). A later bundle overrides an earlier one; an id no selected pack asks is refused.</td>
+</tr>
+<tr>
+<td><code>automations</code></td>
+<td></td>
+<td><code>{&lt;automation pack&gt;: {max_level}}</code>: an upper bound on that automation's level. See <a href="#levels">Levels</a>.</td>
+</tr>
+<tr>
+<td><code>eval</code></td>
+<td></td>
+<td>Eval set (JSONL).</td>
+</tr>
+<tr>
+<td><code>okg</code></td>
+<td>yes</td>
+<td>Supported AKMON range, PEP 440 (<code>"&gt;=0.4.0,&lt;0.5"</code>).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="checking-manifests">Checking manifests</h2>
+<pre><code class="language-bash">archi bundles validate                 # every pack and bundle archi ships
+archi bundles validate path/to/pack    # one pack or bundle directory
+</code></pre>
+<p>Besides the schema, <code>validate</code> refuses:</p>
+<ul>
+<li>a path the manifest names that does not exist;</li>
+<li>a credential written as a value: a <code>credentials</code> entry that is not an
+  environment-variable name, a credential-named key in a source template
+  holding a literal instead of <code>${VAR}</code>, or a credential question with a
+  default;</li>
+<li>a template reference to a question that neither the base nor the pack
+  declares, unless it names a required pack's question (<code>${&lt;pack&gt;_&lt;id&gt;}</code>,
+  checked when the packs are composed);</li>
+<li>a <code>prepare</code> step whose <code>module</code> is not a dotted Python name, that repeats
+  another step's <code>name</code>, or whose <code>args</code> reference an unknown question;</li>
+<li>a <code>freshness</code> key that is not one of the pack's own sources, a value that is
+  not a duration, or a context pack source with no <code>freshness</code> entry;</li>
+<li>a <code>link_coverage</code> target whose edge (<code>from -[edge]-&gt; to</code>, or the reverse for
+  <code>direction: in</code>) no source of the pack declares in its <code>output_signature</code>;</li>
+<li>an automation pack that breaks the rules in <a href="#automation-packs">Automation packs</a>, including any level above L2;</li>
+<li>a bundle that names an unknown pack or bundle, extends itself in a cycle,
+  or has no credential-free default context pack with sources (taking
+  inherited defaults into account), because a bundle with nothing configured
+  must publish.</li>
+</ul>
+<p>It prints every problem it finds and exits 1 if there is any.</p>
+<h2 id="composing-an-instance">Composing an instance</h2>
+<pre><code class="language-bash">archi render --bundle cern-team --with indico,git-code --instance ~/myteam
+</code></pre>
+<p><code>render</code> selects packs by ADR 0002 §3.3:</p>
+<pre><code>packs = closure(requires, ∪ default(extends*(A, B, ...))) ∪ with − without
+</code></pre>
+<p>in a fixed <em>resolution order</em>: each <code>--bundle</code> in the order given, preceded
+by the bundles it extends (parents first); their default packs, each preceded
+by the packs it requires; then <code>--with</code> packs; then <code>--without</code> removals.
+<code>requires</code> is closed over the defaults only, so a <code>--with</code> pack whose
+requirement is not selected stops the render with the <code>--with</code> that fixes it,
+and so does a <code>--without</code> that removes a pack another selected pack needs.</p>
+<p>It then merges the packs and writes one okg profile to
+<code>&lt;instance&gt;/profiles/&lt;name&gt;/</code> (<code>&lt;name&gt;</code> defaults to the bundle names joined
+by <code>-</code>). okg looks in <code>./profiles/</code>, so running okg from the instance
+directory finds it with no <code>OKG_PROFILES_DIR</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Rule</th>
+<th>Conflict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>modules</td>
+<td>union</td>
+<td>—</td>
+</tr>
+<tr>
+<td>schemas</td>
+<td>union by relative path</td>
+<td>same path, different bytes: stops, printing both digests</td>
+</tr>
+<tr>
+<td>sources</td>
+<td>id <code>&lt;pack&gt;.&lt;source&gt;</code>; file <code>source-defaults/&lt;pack&gt;.&lt;source&gt;.yaml</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>init questions</td>
+<td>base questions, then each pack's as <code>&lt;pack&gt;_&lt;id&gt;</code> (flag <code>--&lt;pack&gt;-&lt;id&gt;</code>)</td>
+<td>same id, different definition: stops</td>
+</tr>
+<tr>
+<td>invariants</td>
+<td>union; each stays with its pack</td>
+<td>same name, different body: stops</td>
+</tr>
+<tr>
+<td>freshness</td>
+<td>union; each stays with its pack</td>
+<td>—</td>
+</tr>
+<tr>
+<td>link coverage</td>
+<td>each target becomes an invariant <code>&lt;pack&gt;_link_&lt;name&gt;</code>, owned by its pack</td>
+<td>same invariant name, different body: stops</td>
+</tr>
+<tr>
+<td>search <code>content</code> subtypes</td>
+<td>union</td>
+<td>—</td>
+</tr>
+<tr>
+<td>other search profiles</td>
+<td>union by name</td>
+<td>same name, different body: stops</td>
+</tr>
+<tr>
+<td>playbooks, skill triggers</td>
+<td>union by file name / intent id</td>
+<td>different content: stops</td>
+</tr>
+<tr>
+<td>action classes</td>
+<td>union by id</td>
+<td>different body: stops</td>
+</tr>
+<tr>
+<td>files</td>
+<td>union by path</td>
+<td>different bytes: stops</td>
+</tr>
+<tr>
+<td>chat prompt</td>
+<td>the base prompt, then each <code>prompt_fragment</code> in resolution order</td>
+<td>a pack shipping <code>chat-system-prompt.md</code> or <code>skill-triggers.yaml</code> as a playbook: stops</td>
+</tr>
+<tr>
+<td>chat scalars</td>
+<td>from the last <code>--bundle</code> given (a child before its parents); other values are printed as notes</td>
+<td>—</td>
+</tr>
+<tr>
+<td>chat suggestions</td>
+<td>union</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>okg</code> range</td>
+<td>intersection</td>
+<td>empty: stops</td>
+</tr>
+</tbody>
+</table>
+<p>A pack that is not selected contributes nothing: rendering a selection with
+<code>--with P --without P</code> gives the same bytes as rendering it without <code>P</code>. The
+profile directory is rebuilt from scratch on every render.</p>
+<p>The base questions, deployment defaults and chat prompt every profile starts
+from are in <a href="https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/base/"><code>python/archi/bundles/base/</code></a>.</p>
+<h2 id="packaging-and-discovery">Packaging and discovery</h2>
+<p>The <code>archi-kb</code> wheel carries <code>bundles/</code> and <code>skills/</code> as real files under
+<code>archi/_payload/</code> (symlinks in the repository are followed at build time).
+<code>archi bundles list</code> and <code>archi bundles show NAME</code> find packs and bundles
+through two entry-point groups, so another package can add its own:</p>
+<pre><code class="language-toml">[project.entry-points.&quot;archi.packs&quot;]
+mywg = &quot;mywg_packs:packs_dir&quot;      # returns a directory of &lt;pack&gt;/pack.yaml
+[project.entry-points.&quot;archi.bundles&quot;]
+mywg = &quot;mywg_packs:bundles_dir&quot;    # returns a directory of &lt;bundle&gt;/bundle.yaml
+</code></pre>
+<p>The value is a callable returning the directory, or the directory itself;
+the name labels the provider in <code>archi bundles list</code>. Two providers shipping
+a pack or bundle of the same name, or an entry point that fails to load, are
+listed as problems and do not hide the rest. What an external package must
+declare, and how to test it, is in <a href="../../contributing-a-pack/">Contributing a pack</a>.</p>
+<p>A bundle directory that holds an okg <code>profile.yaml</code> and no <code>bundle.yaml</code> is
+listed as a legacy profile, and <code>archi render --bundle &lt;name&gt; --instance DIR</code>
+copies it, symlinks followed, to <code>DIR/profiles/&lt;name&gt;/</code>. Every bundle archi
+ships is now a <code>bundle.yaml</code> (cern-team since PACT <code>r3-packs-split</code>). Either
+way the profile lands in <code>&lt;instance&gt;/profiles/</code>, and okg run from the instance
+directory finds it, so no step sets <code>OKG_PROFILES_DIR</code>.</p>
+<h2 id="archilock-archi-add-archi-diff">archi.lock, archi add, archi diff</h2>
+<p><code>archi render</code> also writes <code>&lt;instance&gt;/archi.lock</code>. Commit it with the
+instance. It records the selection (bundles, <code>--with</code>, <code>--without</code>), the okg
+range and the okg version it was rendered with, each bundle's and pack's
+version, provider and content digest, a sha256 of every rendered profile
+file, and what the renderer composed that okg does not read: freshness SLOs,
+live tools, action classes, and the pack that owns each source.
+<code>archi render --deployment DIR</code> also records the installed okg deployment.</p>
+<pre><code class="language-bash">archi add indico --deployment deployments/myteam --answer indico_base_url=https://indico.cern.ch
+archi diff            # exit 0: no drift; 1: drift; 2: no usable lock
+</code></pre>
+<p><code>archi add &lt;pack&gt;</code> re-renders the instance with one more pack (and whatever
+it requires that the instance lacks), then adds to the installed deployment only what is new: the
+pack's registry entries with this deployment's answers filled in, schema
+slices, files, playbooks, invariants, skill triggers, modules and search
+subtypes. A file the deployment already holds with different content stops
+the add; archi does not overwrite what the instance changed. If the
+deployment is in a git repository the change is committed. Then archi runs
+the okg steps the quickstart used to list as manual ones:</p>
+<pre><code>okg catalog ownership claim --deployment DIR --json
+okg catalog load --deployment DIR --apply --json
+okg ingest --deployment NAME --include &lt;the new source ids&gt;
+okg run --once --deployment NAME --apply
+</code></pre>
+<p><code>--no-okg</code> stops after the edit and the commit. New questions are answered
+with <code>--answer &lt;rendered id&gt;=&lt;value&gt;</code>; any not answered take their defaults.</p>
+<p><code>archi diff</code> reports three kinds of drift: rendered profile files edited,
+added or missing since the render; packs and bundles whose installed version
+or content no longer matches the lock; and, for the recorded deployment,
+registry entries that differ from what the rendered profile produces with
+the deployment's own install answers (an entry edited by hand, removed, or
+added outside archi).</p>
+<h2 id="context-quality">Context quality</h2>
+<p>ADR 0002 section 6.1 asks that the context layer be measured, not assumed.
+Packs carry three of the measures; the fourth, the context eval, is a question
+set run by <code>archi eval --context</code> (see <a href="../../operating/evals/#context-evals-archi-eval-context">archi eval</a>).</p>
+<p><strong>Freshness.</strong> Every source of a context pack declares <code>max_staleness</code> in
+<code>freshness:</code>. No source template sets a schedule (their triggers are <code>manual</code>
+and <code>reconcile</code>), so each value is a judgment: how old the source may get
+before an answer from it is likely wrong, written in a comment above the
+<code>freshness:</code> block. <code>archi render</code> copies the values into <code>archi.lock</code>
+(<code>composed.freshness</code>).</p>
+<p><code>archi doctor</code> has a <code>source-freshness</code> check. It runs <code>okg doctor --check
+sources --deployment &lt;name&gt; --json</code> and reads each source's
+<code>coverage.watermark.last_reconcile_at</code>, the time of its last completed
+reconcile in okg's <code>source_watermarks</code>. A source is late when that age passes its
+<code>max_staleness</code>, and also when okg lists no run for it. <code>archi doctor --json</code>
+lists every source in the check's <code>data.sources</code>:</p>
+<pre><code class="language-json">{&quot;source&quot;: &quot;monit-live.monit_sam&quot;, &quot;age&quot;: &quot;40h&quot;, &quot;max_staleness&quot;: &quot;36h&quot;, &quot;ok&quot;: false,
+ &quot;age_seconds&quot;: 144000, &quot;max_staleness_seconds&quot;: 129600,
+ &quot;last_reconcile_at&quot;: &quot;2026-10-23T20:00:00+00:00&quot;, &quot;reason&quot;: &quot;last run 40h ago, over the 36h limit&quot;}
+</code></pre>
+<p>The check is skipped, and says so, for an instance with no <code>archi.lock</code>.</p>
+<p><strong>Link coverage.</strong> A pack that carries identifiers other sources refer to (sites,
+datasets, runs, releases, tickets) declares how well they must link:</p>
+<pre><code class="language-yaml">link_coverage:
+  - name: storage_endpoint_site   # invariant: cms_catalogs_link_storage_endpoint_site
+    from: storage_endpoint        # nodes that carry the identifier
+    edge: contains
+    to: site
+    direction: in                 # `in`: site -[contains]-&gt; storage_endpoint; default `out`
+    min_fraction: 0.9             # share of `from` nodes that need such an edge
+    severity: warn                # default; `error` blocks the publish
+</code></pre>
+<p>Composition turns each target into an okg invariant in the <code>invariants.yaml</code>
+format. It returns one row, with the counts, when the share of linked nodes
+falls short, and no row when the subtype is empty (the pack's coverage
+invariant reports that). Targets are <code>warn</code> so that thin data cannot block a
+publish; set <code>error</code> where a miss should. Declare a target only for an edge the
+pack already emits.</p>
+<p><strong>Context gate.</strong> <code>archi.ops.context_gate</code> evaluates a gate (sources, maximum
+staleness, minimum context-eval score, required invariants) against the
+current generation's facts and returns pass, or fail with each failing check
+named (<code>freshness:&lt;source&gt;</code>, <code>context_eval</code>, <code>invariant:&lt;name&gt;</code>, <code>published</code>).
+Facts come from <code>archi doctor --json</code> (<code>facts_from_doctor</code>), plus invariant
+results and the context-eval score from the caller. A missing score or result
+is a failure. <code>published: true</code> asks only that the graph has a published
+generation; it is the gate of an automation that reports on the instance's own
+health, which must keep running while a source is stale.</p>
+<h2 id="automation-packs">Automation packs</h2>
+<p>An automation pack (<code>kind: automation</code>) declares one automation and the typed
+actions it may propose (ADR 0002 sections 7.2 and 7.3). The pack holds the
+declaration only. The runtime that runs it is PACT <code>r3-ops-runtime</code>.</p>
+<p>One pack declares one automation, in an <code>automation:</code> block of <code>pack.yaml</code>.
+The action classes live in the pack's <code>action_classes</code> file, which the
+composer already merges by id across packs; the block lists the ids this
+automation may propose.</p>
+<pre><code class="language-yaml">name: ticket-triage
+kind: automation
+version: 0.1.0
+description: Reads new tickets and drafts or proposes a response.
+requires: {packs: [redmine]}          # packs whose live tools act as mediators
+playbooks: playbooks/
+action_classes: action_classes.yaml
+needs_credentials: false
+automation:
+  trigger: {type: ticket_queue, system: redmine, queue: cms-comp-ops}
+  context_gate:                       # the keys of archi.ops.context_gate.GateSpec
+    sources: [redmine.tickets]
+    max_staleness: 24h
+    min_context_eval_score: 0.8       # the newest `archi eval --context` run's graph recall@k
+    max_age_days: 14                  # optional; that run may be at most this old (default 14)
+    invariants: [redmine_link_ticket_site]
+  playbook: triage.md                 # under playbooks/
+  action_classes: [draft_reply, set_ticket_status]
+  proposal_schema:                    # JSON Schema; see below
+    type: object
+    required: [summary, evidence_ids, action_class, payload, confidence, rollback]
+    properties:
+      summary: {type: string}
+      evidence_ids: {type: array, minItems: 1, items: {type: string}}
+      action_class: {type: string}
+      payload: {type: object}
+      confidence: {type: number, minimum: 0, maximum: 1}
+      rollback: {type: string}
+  budget: {cost_per_run: 0.5, cost_per_day: 10, runs_per_hour: 20}   # USD
+  default_level: L1      # where it starts when the instance sets no level
+  max_level: L2          # the most this pack allows
+</code></pre>
+<pre><code class="language-yaml"># action_classes.yaml
+action_classes:
+  set_ticket_status:
+    payload_schema: {type: object, required: [ticket_key, status], properties: {...}}
+    mediator: archi.tools.redmine:set_status   # a live tool, or a workflow step name
+    reversible: true
+    blast_radius: One ticket's status field.
+    max_level: L2
+</code></pre>
+<p>Choices worth knowing:</p>
+<ul>
+<li><strong>Trigger.</strong> <code>schedule</code> needs <code>cron</code> (five fields). <code>ticket_queue</code> needs
+  <code>system</code> (<code>redmine</code>, <code>jira</code> or <code>servicenow</code>, or a list of them) and <code>queue</code>
+  (<code>"*"</code>: every ticket the instance ingests; <code>queues:</code> in <code>ops.yaml</code> narrows
+  it). <code>signal</code> needs
+  <code>source</code> (a rendered source id) and <code>condition</code> (text). A cron that can fire
+  more often than <code>budget.runs_per_hour</code> is refused. The check reads the
+  minute and hour fields (numbers, ranges, lists, <code>*</code> and steps) and counts the
+  busiest hour; the day, month and weekday fields are treated as unrestricted,
+  so it is an upper bound. It does not handle <code>@daily</code> style macros or names
+  (<code>MON</code>, <code>JAN</code>) in the minute or hour field; those are refused.</li>
+<li><strong>Context gate.</strong> The same keys and the same parser as the runtime gate
+  (<code>archi.ops.context_gate.GateSpec</code>). The gate must name at least one check,
+  because a gate that checks nothing cannot make the automation depend on
+  measured context (D12).</li>
+<li><strong>Optional inputs.</strong> <code>narrow_to_selected: true</code> is for an automation that
+  can read several optional packs. The renderer keeps only the gate sources,
+  and the <code>ticket_queue</code> systems, whose pack the instance selected; it writes
+  what it left out under <code>not_selected</code>, and refuses an instance that selected
+  none of them. Without it every gate source must be installed, or the gate
+  fails on every run.</li>
+<li><strong>Mediator.</strong> <code>archi.tools.x:fn</code> must appear in <code>live_tools</code> of this pack or
+  of a pack in <code>requires.packs</code>. Required packs are found through the catalog,
+  so they may come from any pack root: a third-party automation can require a
+  shipped pack. Anything else must be a registered <em>workflow step</em>. Steps live
+  in the registry <code>archi.ops.steps</code>, the one place the runtime registers them,
+  and only steps with no external effect exist: <code>record_finding</code> (highest level
+  L0, writes a finding to the ops record), <code>draft_reply</code> (L1, stores a draft,
+  never sends) and <code>draft_issue</code> (L1, writes issue files in the instance
+  repository and commits them there; see <a href="#instance-health">Instance health</a>).
+  A step that has an implementation (<code>draft_issue</code>) runs at L1 with no
+  escalation: the halt check and the at-most-once record of a mediator still
+  apply, and it gets the instance directory in its context. A step without one
+  is recorded on the proposal and never runs. A live tool never runs at L1. An
+  action class whose mediator is a step may not have a
+  <code>max_level</code> above the step's. An action that changes an external system
+  (a ticket update, a restart) must be a live tool of a tool pack; an
+  automation never calls an external system any other way (ADR 0002 section 7.2).</li>
+<li><strong>Proposal schema.</strong> The proposal is the <code>ops_proposal</code> record of
+  <code>ops-record</code>. The schema must be a valid JSON Schema and must require
+  <code>summary</code>, <code>evidence_ids</code>, <code>action_class</code>, <code>payload</code>, <code>confidence</code> and
+  <code>rollback</code> with these types: <code>summary</code>, <code>action_class</code> and <code>rollback</code>
+  strings; <code>evidence_ids</code> an array of strings; <code>payload</code> an object;
+  <code>confidence</code> a number with <code>minimum</code> &gt;= 0 and <code>maximum</code> &lt;= 1. It may not
+  name other properties, and may add constraints such as <code>minItems: 1</code> on the
+  evidence. The runtime fills the other record fields (<code>incident_id</code>, mode,
+  autonomy level, generation read) and serialises <code>payload</code> to JSON text,
+  because the record stores it as text.</li>
+<li><strong>Budget.</strong> <code>cost_per_run</code>, <code>cost_per_day</code> and <code>runs_per_hour</code> must be
+  greater than zero, and a run may not cost more than a day.</li>
+<li><strong>Duplicate keys.</strong> A key repeated in a manifest (the automation block
+  included) or in the <code>action_classes</code> file is refused. YAML would otherwise
+  keep the last one silently.</li>
+</ul>
+<h3 id="levels">Levels</h3>
+<p>Three places set a level for one automation, and none may name L3:</p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pack</td>
+<td><code>automation.default_level</code></td>
+<td>the level it starts at when the instance sets none</td>
+</tr>
+<tr>
+<td>pack</td>
+<td><code>automation.max_level</code></td>
+<td>the most the pack allows; each action class also has a <code>max_level</code></td>
+</tr>
+<tr>
+<td>bundle</td>
+<td><code>automations: {&lt;name&gt;: {max_level}}</code> in <code>bundle.yaml</code></td>
+<td>an upper bound for the bundle's instances; <code>&lt;name&gt;</code> is the automation pack</td>
+</tr>
+<tr>
+<td>instance</td>
+<td><code>automations: {&lt;name&gt;: {level}}</code> in <code>archi.yaml</code></td>
+<td>the level to run at</td>
+</tr>
+</tbody>
+</table>
+<p>The effective level is the lowest of the instance level (the pack default when
+the instance sets none), the bundle bound and the pack maximum. When two
+selected bundles bound the same automation, the lower bound counts.
+<code>archi.ops.levels.effective_level(...)</code> computes it and raises <code>LevelError</code>
+for L3 or an unknown value in any input, so the runtime can call it at run
+start. <code>archi bundles validate</code>, loading <code>archi.yaml</code> and <code>effective_level</code>
+all refuse any value other than <code>L0</code>, <code>L1</code> or <code>L2</code>, citing ADR 0002 D13.
+A name under <code>automations:</code> in <code>archi.yaml</code> must be an automation pack the
+instance selected; <code>archi doctor</code> (check <code>automation-names</code>) and
+<code>archi.ops.levels.instance_levels(...)</code>, which the runtime calls, refuse a
+misspelled name instead of ignoring it. Without a catalog, <code>validate_pack</code>
+reports a mediator that needs a required pack's tool as not resolvable; it
+does not guess from neighbouring directories.</p>
+<h3 id="what-the-renderer-writes">What the renderer writes</h3>
+<p>For each selected automation pack, <code>archi render</code> writes
+<code>&lt;instance&gt;/automations/&lt;name&gt;.yaml</code> and records the same declaration in
+<code>archi.lock</code> under <code>composed.automations</code>. It holds the trigger, context gate,
+proposal schema, budget, <code>default_level</code>, <code>pack_max_level</code>, <code>bundle_max_level</code>
+(the lowest bound any selected bundle sets, or <code>null</code>), the playbook as its
+path in the rendered profile (<code>skills/&lt;playbook&gt;</code>) and the action class ids.
+The file also carries the action classes in full
+(<code>action_class_definitions</code>); the lock keeps those once, under
+<code>composed.action_classes</code>. The instance's own level is not rendered: it is set
+in <code>archi.yaml</code>. <code>archi add</code> of an automation pack re-renders both.</p>
+<p><code>archi bundles validate</code> also refuses: a missing <code>automation:</code> block (or one on a
+pack of another kind), a missing playbook file, an action class id that is
+repeated, listed twice or not defined, an invalid <code>payload_schema</code>, a mediator
+that resolves to neither a declared live tool nor a registered step, a bundle
+bound for a pack that is not an automation pack, and a missing or mistyped
+proposal field.</p>
+<h2 id="running-automations-archi-ops">Running automations (<code>archi ops</code>)</h2>
+<p>An automation runs as an okg deployment workflow, <code>archi.ops.workflow</code>. Any
+render that selects an automation pack writes <code>runtime: {enabled: true,
+workflows: [archi.ops.workflow]}</code> into the deployment defaults, so it is in
+<code>deployment.yaml</code> when <code>okg install</code> starts. (Editing <code>runtime:</code> after install
+makes publish refuse until <code>okg catalog load --apply</code>.)</p>
+<p>Because the runtime is on from the start, <code>okg install</code> without <code>--no-publish</code>
+stops at its last stage (the DBOS schema does not exist yet). <code>archi init</code> uses
+<code>okg install --no-publish</code> and <code>okg provision</code>, which finish on okg 0.2.0 (not yet checked
+on 0.4.0 with an automation selected), and then
+runs <code>okg runtime bootstrap</code>; if a later okg stops provision on the missing schema,
+<code>archi init</code> bootstraps and ingests in-process (<code>okg ingest --inline</code>, <code>okg run
+--once --apply</code>). <code>archi up</code> repeats the bootstrap, which is idempotent. The stack
+has no runtime worker yet: start <code>okg runtime worker --deployment &lt;name&gt;</code> yourself,
+with <code>ARCHI_INSTANCE</code>, <code>OKG_DSN</code>, <code>ARCHI_OPS_DEPLOYMENT</code> and <code>OKG_ROLE_SECRETS_FILE</code> (the instance's
+<code>.secrets/role-secrets.json</code>, for okg's read-only roles) set.</p>
+<p>okg publishes only from a committed instance repository. <code>archi.yaml</code> and
+<code>ops.yaml</code> are in it, so commit an edit to either before the next publish (<code>archi
+ops promote</code> commits its own).</p>
+<p>Settings that belong to the instance, not the pack:</p>
+<ul>
+<li><code>archi.yaml</code>, <code>automations.&lt;name&gt;.level</code>: the level to run at. L3 and
+  unknown values are refused when <code>archi.yaml</code> loads, and again at run start.</li>
+<li><code>ops.yaml</code>, <code>automations.&lt;name&gt;</code>: <code>mode</code> (<code>shadow</code>, the default, or <code>live</code>),
+  <code>timeout_seconds</code> (how long an L2 escalation waits; default 4 hours),
+  <code>estimate_cost</code> (checked against the budget before each proposal; default
+  the pack's <code>budget.cost_per_run</code>), <code>promotion</code> (the PACT change <code>archi ops
+  promote</code> opened; see below), and the <code>proposer</code> and <code>outcome</code>. The proposer's
+  <code>kind</code> is <code>stub</code> (fixed answers, until the model-backed proposer lands) or
+  <code>instance-health</code> (see <a href="#instance-health">Instance health</a>). <code>test_gate_seconds</code>
+  is for tests only.</li>
+</ul>
+<p>An automation whose trigger is <code>schedule</code> gets a signal from the scanner for its latest cron time
+(<code>tick-&lt;UTC time&gt;</code>, source <code>schedule</code>, entity the instance name; <code>archi.ops.schedule</code>). A scan that runs
+again in the same cron time adds nothing, and a worker that was down adds one tick, not a backlog. No tick
+is added while the scanner is halted.</p>
+<p>One scanner (<code>archi_ops_scan</code>, a <code>@deployment_scheduled</code> workflow) starts the
+next run of each automation that has none in flight (one at a time: a run
+waiting hours for a person holds that automation's next signal), with the
+workflow id <code>&lt;automation&gt;~&lt;signal id&gt;~&lt;attempt&gt;</code>. Neither an automation name
+nor a signal id may contain <code>~</code>, so two runs never share an id. Each external
+effect is a durable step. A live automation whose context gate fails runs in
+shadow for that run, with the failing checks in the proposal's <code>mode_reason</code>,
+and it stays in shadow until a promotion approved after the demotion. The
+demotion is written to <code>archi_ops.demotions</code> when it happens, so the very next
+run sees it without waiting for a publish; the published ops records carry the
+same history.</p>
+<p><code>mode: live</code> in <code>ops.yaml</code> is a request. The runtime counts it only while the
+PACT change named by <code>promotion:</code> is approved in okg's decision ledger; with no
+such change, or one still awaiting review, the run is in shadow and its
+proposal's <code>mode_reason</code> says "not promoted: ...". Hand-editing <code>ops.yaml</code> to say
+live changes nothing, and so does naming another approved change: the change must
+carry this automation's name in its own <code>promotion.json</code>, must be the newest
+promotion change for it, and its approval must come after the latest demotion.
+If okg cannot be run to read the ledger, the run is in shadow with that reason.</p>
+<p>An L2 proposal waits for an okg escalation. Only an approval made before the
+deadline, by a named person, for that proposal and escalation, reaches the
+mediator step, which checks halt and the escalation again.</p>
+<h3 id="the-mediator-contract">The mediator contract</h3>
+<p>A mediator is a live tool called as <code>tool(payload=..., context=...)</code>; the
+context carries <code>idempotency_key</code> (the run id), <code>proposal_id</code>, <code>workflow_id</code>
+and <code>dsn</code>. The runtime calls it at most once per key: it records an attempt in
+<code>archi_ops.mediations</code> before the call, and a replay that finds an attempt with
+no recorded end (the worker died mid-call) does not call again. It records the
+action as <code>unknown</code> and the outcome as <code>unknown</code>, "possible duplicate
+prevented; check the external system". A tool that can run at L2 must also be
+listed in its pack's <code>idempotent_tools:</code> (a subset of <code>live_tools:</code>; <code>archi
+bundles validate</code> refuses an L2 action class whose tool is not): given the same
+key twice it has the effect once, because the step cannot know whether a
+crashed call finished.</p>
+<p>Runbook: an <code>unknown</code> outcome after a crash may mean the tool ran or did not.
+The attempt row is written before the call, so a crash between that row and the
+tool call leaves the same trace as a crash inside the call. Check the external
+system before acting; do not assume it ran, and do not assume it did not.</p>
+<h3 id="commands">Commands</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>archi ops status [--json]</code></td>
+<td>Effective level, mode, scanner state, pending escalations, today's budget against its cap, shadow counts and scores.</td>
+</tr>
+<tr>
+<td><code>archi ops pending</code></td>
+<td>Escalations waiting for a person.</td>
+</tr>
+<tr>
+<td><code>archi ops approve &lt;id&gt; [--note] [--as]</code></td>
+<td>Approve (<code>reject</code> refuses). Only an open escalation about an <code>ops_proposal:</code> of this instance's automations is accepted; a timed-out or already-decided one exits non-zero with the reason.</td>
+</tr>
+<tr>
+<td><code>archi ops halt [--no-cancel]</code></td>
+<td>Pause the scanner, answer each open escalation of a run with <code>reject</code> (decided by <code>archi ops halt</code>), cancel runs that have not finished, record them as <code>halted</code>. It reports any escalation it could not close and exits non-zero. <code>--no-cancel</code> leaves runs in flight; their mediator step refuses to act.</td>
+</tr>
+<tr>
+<td><code>archi ops resume</code></td>
+<td>Resume what halt paused. A cancelled run is not resumed; its signal runs again as attempt 2.</td>
+</tr>
+<tr>
+<td><code>archi ops promote &lt;automation&gt;</code></td>
+<td>Needs a shadow report that passes <code>promotion_readiness</code> (thresholds: <code>--min-proposals</code> and the others). Opens a PACT change in the instance repo that holds the shadow report and the thresholds used, with the readiness verdict as its junit evidence, names it in <code>ops.yaml</code> (<code>mode: live</code>, <code>promotion: &lt;change&gt;</code>), commits both, and stops. An operator then approves it: <code>okg pact decide &lt;change&gt; --verdict approve --principal &lt;name&gt;</code>, a step archi never takes; commit the archived change. Until then the automation runs in shadow. Refuses without a passing report, and outside a repository. <code>.okg/</code> is ignored by the instance repo.</td>
+</tr>
+</tbody>
+</table>
+<p><code>decided_by</code> is the OS user. <code>--as X</code> is recorded as "<os user> for X", not as
+X: nothing authenticates the caller until okg offers an authenticated proposal
+API (docs/ops-runtime-akmon-asks.md, O3). Put <code>--instance</code>, <code>--deployment</code> and
+<code>--dsn</code> (default <code>$OKG_DSN</code>) before the subcommand: <code>archi ops --dsn ... pending</code>.
+<code>python/tests/ops/scratch_ops_runtime_run.sh</code> runs every case above on a scratch
+okg 0.2.0 instance.</p>
+<h2 id="instance-health">Instance health</h2>
+<p>The <code>instance-health</code> pack (ADR 0002 section 7.5, PACT <code>r3-ops-self-monitoring</code>) is the automation that
+watches an instance. It is an ordinary automation pack, hourly (<code>7 * * * *</code>), with no model call, and at most
+L1: L0 records what it finds, L1 drafts the issues. Select it with <code>ops-record</code>, which it writes to:</p>
+<pre><code class="language-bash">archi init myteam --bundle cern-team --with ops-record,instance-health
+</code></pre>
+<p>Then switch it on in the instance's <code>ops.yaml</code> (nothing runs for an automation <code>ops.yaml</code> does not name), and
+start the runtime worker as for any automation:</p>
+<pre><code class="language-yaml">automations:
+  instance-health:
+    mode: shadow                  # live only after `archi ops promote instance-health` is approved
+    proposer: {kind: instance-health}
+</code></pre>
+<p><strong>Signals.</strong> Each run reads, and nothing else:</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Read from</th>
+<th>Problem key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>doctor</td>
+<td><code>archi doctor --json</code>, every failing check (warnings with <code>include_warnings: true</code>)</td>
+<td><code>&lt;check id&gt;/instance</code>; <code>source-freshness/&lt;source&gt;</code> for each late source</td>
+</tr>
+<tr>
+<td>ingest</td>
+<td><code>okg sync frontier --json</code>: a source whose frontier is <code>blocked</code> (failed run, blocked publish)</td>
+<td><code>ingest/&lt;source&gt;</code></td>
+</tr>
+<tr>
+<td>automation errors</td>
+<td>the ops records, through the reader of <code>archi.ops.shadow</code>: an automation with at least <code>min_decisions</code> decisions in <code>window_hours</code> of which <code>max_rate</code> or more are <code>error</code>, <code>invalid_proposal</code> or <code>refused</code></td>
+<td><code>automation-errors/&lt;automation&gt;</code></td>
+</tr>
+<tr>
+<td>eval</td>
+<td>every <code>report.json</code> that <a href="../../operating/evals/"><code>archi eval</code></a> wrote under <code>&lt;data root&gt;/eval/</code> (its default <code>--out</code>; <code>eval.reports_dir</code> reads elsewhere), for the bundles <code>archi.yaml</code> lists (others are left out, and the proposal says so). Per bundle, the latest run is a problem when it ended <code>execution_failed</code> (a failed signal, an error; no score is judged), when it passed fewer questions than the bundle's threshold (an error), or when its score (passed / total) is more than <code>min_drop</code> (default 0.1, one question in ten) below the mean of up to three earlier runs of the same model and question set (a warning). Earlier runs that ended <code>execution_failed</code>, or in which any question did, are left out of that mean; such questions in the latest run are named in the issue as a model or endpoint failure. With no report at all, the signal is skipped, and the proposal says so. When the latest run has no earlier run to compare with (one run so far, or none of the same model and question set), it is judged on its threshold only, and the proposal says the trend was skipped (<code>eval-trend</code>). A newest run older than <code>max_age_days</code> (default 14) is a note in the proposal (<code>eval-stale</code>), not an issue</td>
+<td><code>eval/&lt;bundle&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>A signal that cannot be read (okg down, <code>archi doctor</code> crashing, a malformed eval report) is itself a
+problem, <code>monitor/&lt;signal&gt;</code>, and that signal's other issues are left as they are for the run: failing to
+look is not evidence of health.</p>
+<p><strong>Issues.</strong> The key is the check plus its subject, never a time or a count, so the same problem is the same
+issue run after run. A run makes the tracker match what it found:</p>
+<ul>
+<li>a new key opens an issue; a changed text updates it; an unchanged one writes nothing;</li>
+<li>a key no longer found, in a signal that was read, marks its issue resolved (never deleted);</li>
+<li>a resolved key that returns reopens the same issue.</li>
+</ul>
+<p>The text of an issue holds no age or run time (a late source shows its last reconcile time and its limit), so a
+lasting problem does not rewrite its issue every hour.</p>
+<p><strong>Trackers.</strong> Set <code>proposer.tracker</code> in <code>ops.yaml</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>Where the issues go</th>
+<th>Credential</th>
+<th>Runs as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>local</code> (default)</td>
+<td><code>.archi/issues/&lt;check&gt;--&lt;subject&gt;.md</code> in the instance repository, committed by the run (a commit limited to that path)</td>
+<td>none</td>
+<td>the step <code>draft_issue</code>, at L1</td>
+</tr>
+<tr>
+<td><code>gitlab</code> (<code>url</code>, <code>project</code>, <code>token_env</code>)</td>
+<td>issues labelled <code>archi-health</code> on that project, through <code>/api/v4</code></td>
+<td>the variable <code>token_env</code> names</td>
+<td>the live tool <code>archi.tools.instance_health:sync_forge_issues</code>, at L2</td>
+</tr>
+<tr>
+<td><code>github</code> (<code>repo</code>, <code>token_env</code>, optional <code>api_url</code>)</td>
+<td>the same on a GitHub repository, through <code>/repos/&lt;repo&gt;/issues</code></td>
+<td>the variable <code>token_env</code> names</td>
+<td>the same live tool, at L2</td>
+</tr>
+</tbody>
+</table>
+<p>Only the name of the token variable goes in the file; a value is refused. A forge issue is found by a marker
+comment at the end of its body, not by its title. Why the split: writing files under <code>.archi/issues/</code> in
+the instance's own repository has no external effect, so it is a workflow step and runs at L1 without an
+escalation. A forge is an external system, so ADR 0002 section 7.2 puts it in a live tool, and a live tool
+runs only after a person approves it (L2). The pack ships with maximum L1, so the forge tracker is available
+to an instance that raises the pack's <code>max_level</code> to L2 (and its own level in <code>archi.yaml</code>); each sync is then
+an escalation. A draft pull request for a mechanical fix is not built yet.</p>
+<p><code>ops.yaml</code> can also set <code>ignore_checks: [services]</code>, <code>include_warnings</code>, <code>error_rate: {window_hours,
+min_decisions, max_rate}</code> and <code>eval: {min_drop, reports_dir, max_age_days}</code> under <code>proposer</code>. <code>archi eval</code> keeps each default
+run in its own <code>&lt;data root&gt;/eval/&lt;bundle&gt;/&lt;UTC stamp&gt;/</code> (<code>--keep</code>, default 20), so a trend needs no extra flag.</p>
+<h2 id="ticket-triage">Ticket triage</h2>
+<p>The <code>ticket-triage</code> pack (ADR 0002 section 7.4, PACT <code>r3-auto-ticket-triage</code>) triages new and updated
+tickets from the ticket packs the instance selected: <code>tickets</code> (Redmine, and any JIRA through its generic reader), <code>jira</code> and <code>servicenow</code>. It is
+optional in <code>cluster-manager</code> and <code>cms-comp-ops</code>, starts in shadow at L1, and makes no model call.</p>
+<pre><code class="language-bash">archi init mycluster --bundle cluster-manager --with ticket-triage
+</code></pre>
+<pre><code class="language-yaml"># ops.yaml
+automations:
+  ticket-triage:
+    mode: shadow
+    queues: [Cluster Ops]          # optional: projects (ServiceNow: assignment groups) to triage
+    proposer: {kind: ticket-triage}
+</code></pre>
+<p><strong>Signals.</strong> The scanner reads each system's tickets at the latest published generation and adds a signal
+for every open ticket updated since the last one it saw (<code>archi_ops.ticket_cursors</code>). The first read only
+sets that starting point, so installing the pack does not triage the existing queue.</p>
+<p><strong>A run</strong> reads, at its pinned generation, the ticket, related tickets (okg's search over the same system),
+documentation (<code>proposer.doc_subtypes</code>) and ops-record precedents on those tickets, and proposes
+(<code>archi.triage.proposer</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Action class</th>
+<th>Runs as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L0, L1</td>
+<td><code>draft_reply</code>: category, likely component, related tickets, precedents, documentation and a suggested reply, each claim cited <code>[n]</code> to a node id</td>
+<td>the step <code>draft_reply</code>; recorded on the proposal, never sent</td>
+</tr>
+<tr>
+<td>L2</td>
+<td><code>assign_ticket</code> (an unassigned ticket whose related tickets mostly went to one person or group) or <code>set_ticket_status</code> (to <code>triaged_status</code>, from one of <code>triage_from</code>)</td>
+<td>the live tools <code>archi.tools.tickets:assign_ticket</code> and <code>:set_ticket_status</code>, after a person approves the escalation</td>
+</tr>
+</tbody>
+</table>
+<p>An L2 tool checks the approval again, refuses a stale proposal (the field changed since), writes the field
+with a note on the ticket that names the approver and the escalation, and reads it back. The API and the
+names of its credential variables are set per system under <code>proposer.systems</code> (see the pack's
+<code>skills/triage.md</code>); the tool sends only to the endpoint configured there, and only for a ticket whose link
+lies under it.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../archi-yaml/" class="btn btn-neutral float-left" title="archi.yaml and ops.yaml"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../connector-caches/" class="btn btn-neutral float-right" title="Connector caches">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../archi-yaml/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../connector-caches/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

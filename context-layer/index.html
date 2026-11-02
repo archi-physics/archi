@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>The context layer - Archi Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "The context layer";
+        var mkdocs_page_input_path = "context-layer.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">The context layer</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-solid-means">What "solid" means</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#freshness">Freshness</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#link-coverage">Link coverage</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#the-context-gate">The context gate</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#context-evals">Context evals</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#ops-record-the-operational-memory">ops-record: the operational memory</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">The context layer</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/context-layer.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="the-context-layer">The context layer</h1>
+<p>The context layer is the knowledge graph plus the checks that say whether
+you can trust it. Automations act on what it says, so "solid" has to be
+measured and checked by machine. It is never just asserted.</p>
+<h2 id="what-solid-means">What "solid" means</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>What it means</th>
+<th>How it is checked</th>
+<th>Status in this branch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Current</td>
+<td>Each source is recent enough.</td>
+<td>Each pack declares <code>max_staleness</code> for each source. OKG records when each source last finished a run. <code>archi doctor</code> compares the two.</td>
+<td>Working</td>
+</tr>
+<tr>
+<td>Complete</td>
+<td>The graph holds what each pack should emit.</td>
+<td>Each pack owns coverage invariants. A failing <code>error</code> invariant blocks the publish.</td>
+<td>Working</td>
+</tr>
+<tr>
+<td>Linked</td>
+<td>Identifiers (sites, datasets, runs, releases, tickets) connect records across sources.</td>
+<td>Each pack can declare link coverage targets.</td>
+<td>Working</td>
+</tr>
+<tr>
+<td>Cited</td>
+<td>Every answer and every proposal names the records it used.</td>
+<td>OKG reads are pinned to one published generation. A proposal must list evidence ids.</td>
+<td>Working</td>
+</tr>
+<tr>
+<td>Measured</td>
+<td>Operator questions with known right evidence are scored.</td>
+<td>Context evals (<code>archi eval --context</code>).</td>
+<td>Working; each instance keeps its own question set</td>
+</tr>
+<tr>
+<td>Clean</td>
+<td>No credentials or personal data in the graph.</td>
+<td>Redaction at ingest, connector tests.</td>
+<td>Working in the connectors</td>
+</tr>
+</tbody>
+</table>
+<p>A <strong>generation</strong> is one published snapshot of the graph. An <strong>invariant</strong> is
+a stored query that must return no rows. A <strong>publish</strong> makes a new
+generation visible to readers.</p>
+<h2 id="freshness">Freshness</h2>
+<p>A pack that has sources lists a freshness limit for each one:</p>
+<pre><code class="language-yaml">freshness:
+  indico.indico_live: {max_staleness: 24h}
+</code></pre>
+<p>The unit is <code>s</code>, <code>m</code>, <code>h</code>, <code>d</code> or <code>w</code>. The value is a judgment: how old the
+source may get before an answer from it is probably wrong. <code>archi doctor</code>
+reads each source's last completed run from OKG and reports it late when the
+age passes the limit, or when OKG lists no run at all. See
+<a href="../reference/pack-format/#context-quality">Context quality</a> for the JSON it
+prints.</p>
+<h2 id="link-coverage">Link coverage</h2>
+<p>A pack that carries identifiers other packs refer to declares how well they
+must link. For example, "at least 90% of storage endpoints sit under a
+site". Archi turns each target into an invariant named
+<code>&lt;pack&gt;_link_&lt;name&gt;</code>. A miss is a warning by default. Set <code>severity: error</code>
+where a miss should block the publish. The library pages list each pack's
+targets, for example <a href="../library/packs/cms-catalogs/"><code>cms-catalogs</code></a>.</p>
+<h2 id="the-context-gate">The context gate</h2>
+<p>An automation says which context it needs: sources, a maximum staleness, a
+minimum context-eval score (with <code>max_age_days</code>, default 14,
+<code>context_eval_bundle</code> when the instance has more than one bundle, and the
+optional pins <code>context_eval_k</code> and <code>context_eval_min_questions</code>) and the
+invariants that must hold. Before each
+run the runtime checks that gate against the current generation. If any check
+fails, the run drops to <strong>shadow</strong> mode: it proposes and records, and never
+acts. The proposal names the failing check, so the operator sees why. Failing
+checks are named <code>freshness:&lt;source&gt;</code>, <code>context_eval</code>, <code>invariant:&lt;name&gt;</code>
+and <code>published</code>. A missing score or result counts as a failure.</p>
+<p>An automation that watches the instance itself asks only for <code>published</code>. It
+has to keep running while a source is stale.</p>
+<h2 id="context-evals">Context evals</h2>
+<p>A context eval is a set of operator questions, each with the evidence that
+should answer it (its gold node ids). <code>archi eval --context</code> scores retrieval
+(was the right evidence found) separately from answer quality: it calls the
+instance's MCP search tool directly, with no model, and reports recall@k of
+the gold ids for the graph search and for a lexical baseline (the server's
+lexical index over chunks and attributes, without roll-up to records). The
+graph search is lexical too, with concept expansion and record roll-up on, so
+the difference measures those, not graph links. Each
+run is kept under <code>&lt;data root&gt;/eval/context/&lt;bundle&gt;/&lt;UTC stamp&gt;/</code>. The graph
+search's recall@k is the score: the context gate reads the newest run of its
+bundle for <code>min_context_eval_score</code>, and fails the check, naming the reason,
+when there is none, or it cannot be read, did not execute cleanly, overrode
+the graph arm, is older than <code>max_age_days</code> (default 14) or dated in the
+future, or misses the gate's optional <code>context_eval_k</code> and
+<code>context_eval_min_questions</code> pins. The <code>instance-health</code> automation does not
+read context evals. Question sets are private to the instance and
+never committed here; name one at run time with <code>--questions</code> or
+<code>ARCHI_CONTEXT_EVAL_QUESTIONS</code>. See <a href="../operating/evals/#context-evals-archi-eval-context">Operating</a>.</p>
+<h2 id="ops-record-the-operational-memory">ops-record: the operational memory</h2>
+<p>The <code>ops-record</code> pack stores the record of operations in the graph, next to
+the docs and tickets it cites:</p>
+<ul>
+<li><strong>incident:</strong> what broke, where, when</li>
+<li><strong>proposal:</strong> what an automation suggested, and on which evidence</li>
+<li><strong>decision:</strong> who or what approved or rejected it, and when</li>
+<li><strong>action:</strong> what the mediator ran, and what it returned</li>
+<li><strong>outcome:</strong> whether it worked, checked later</li>
+</ul>
+<p>Automations write these records through OKG admission, the same path any
+producer uses. Past resolutions then become context ("this transfer error
+last time was fixed by..."). The record also serves as the test set for the
+next automation. See the <a href="../library/packs/ops-record/"><code>ops-record</code> page</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../quickstart/" class="btn btn-neutral float-left" title="Quickstart"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../operations-layer/" class="btn btn-neutral float-right" title="The operations layer">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../quickstart/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../operations-layer/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

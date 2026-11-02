@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>API Reference - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "API Reference";
+        var mkdocs_page_input_path = "v2/api_reference.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/upgrade-and-migration/">Upgrade and migration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../operating/footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">API Reference</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#how-to-read-this-page">How to Read This Page</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#chat">Chat</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiget_chat_response">POST /api/get_chat_response</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiget_chat_response_stream">POST /api/get_chat_response_stream</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apicancel_stream">POST /api/cancel_stream</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apitracetrace_id">GET /api/trace/&lt;trace_id&gt;</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiabcreate">POST /api/ab/create</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiabpool">GET /api/ab/pool</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiabcompare">POST /api/ab/compare</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiabmetrics">GET /api/ab/metrics</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#playbooks">Playbooks</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiplaybooks">GET /api/playbooks</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiplaybooksid">GET /api/playbooks/&lt;id&gt;</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiplaybooks">POST /api/playbooks</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#put-apiplaybooksid">PUT /api/playbooks/&lt;id&gt;</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#delete-apiplaybooksid">DELETE /api/playbooks/&lt;id&gt;</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiplaybooksidenable-post-apiplaybooksiddisable">POST /api/playbooks/&lt;id&gt;/enable · POST /api/playbooks/&lt;id&gt;/disable</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiplaybooksexport">GET /api/playbooks/export</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiplaybooksimport">POST /api/playbooks/import</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#authentication">Authentication</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#getpost-login">GET|POST /login</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-logout">GET /logout</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-authuser">GET /auth/user</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#user-management">User Management</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiusersme">GET /api/users/me</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#patch-apiusersmepreferences">PATCH /api/users/me/preferences</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#put-apiusersmeapi-keysprovider">PUT /api/users/me/api-keys/{provider}</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#delete-apiusersmeapi-keysprovider">DELETE /api/users/me/api-keys/{provider}</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#provider-keys-byok">Provider Keys (BYOK)</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiproviderskeys">GET /api/providers/keys</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiproviderskeysset">POST /api/providers/keys/set</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiproviderskeysclear">POST /api/providers/keys/clear</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiconfigstatic">GET /api/config/static</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiconfigdynamic">GET /api/config/dynamic</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#patch-apiconfigdynamic">PATCH /api/config/dynamic</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiconfigeffective">GET /api/config/effective</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiconfigaudit">GET /api/config/audit</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#agents">Agents</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiagentslist">GET /api/agents/list</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiagentsspec">GET /api/agents/spec</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiagentstemplate">GET /api/agents/template</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiagents">POST /api/agents</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#delete-apiagents">DELETE /api/agents</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiagentsactive">POST /api/agents/active</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiabagentslist">GET /api/ab/agents/list</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiabagentstemplate">GET /api/ab/agents/template</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apiabagents">POST /api/ab/agents</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#prompts">Prompts</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiprompts">GET /api/prompts</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apipromptstype">GET /api/prompts/{type}</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apipromptstypename">GET /api/prompts/{type}/{name}</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apipromptsreload">POST /api/prompts/reload</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#document-selection">Document Selection</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apidocumentsselection">GET /api/documents/selection</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#put-apidocumentsuser-defaults">PUT /api/documents/user-defaults</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#put-apidocumentsconversation-override">PUT /api/documents/conversation-override</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#delete-apidocumentsconversation-override">DELETE /api/documents/conversation-override</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-viewer">Data Viewer</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apidatadocuments">GET /api/data/documents</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apidatadocumentshashcontent">GET /api/data/documents/&lt;hash&gt;/content</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apidatadocumentshashenable">POST /api/data/documents/&lt;hash&gt;/enable</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apidatadocumentshashdisable">POST /api/data/documents/&lt;hash&gt;/disable</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apidatabulk-enable">POST /api/data/bulk-enable</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apidatabulk-disable">POST /api/data/bulk-disable</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apidatastats">GET /api/data/stats</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#analytics">Analytics</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apianalyticsmodel-usage">GET /api/analytics/model-usage</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apianalyticsab-comparisons">GET /api/analytics/ab-comparisons</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-manager">Data Manager</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiingestionstatus">GET /api/ingestion/status</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#post-apireload-schedules">POST /api/reload-schedules</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apischedules">GET /api/schedules</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#health-info">Health &amp; Info</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apihealth">GET /api/health</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#get-apiinfo">GET /api/info</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">v2 (legacy)</li>
+      <li class="breadcrumb-item active">API Reference</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/v2/api_reference.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="api-reference">API Reference</h1>
+<blockquote>
+<p><strong>v2 (legacy).</strong> This page describes the v2 application (the RAG chatbot) on the <code>main</code> branch. It is not the 3.0 documentation. v2 keeps running on <code>main</code> until the cutover; see <a href="../../migration-from-v2/">Moving from v2 to 3.0</a>.</p>
+</blockquote>
+<p>REST API endpoints for the Archi chat application. All endpoints are prefixed with <code>/api/</code>.</p>
+<blockquote>
+<p><strong>Note:</strong> For the CLI reference, see <a href="../cli_reference/">CLI Reference</a>. For the configuration YAML schema, see <a href="../configuration/">Configuration Reference</a>.</p>
+</blockquote>
+<h2 id="how-to-read-this-page">How to Read This Page</h2>
+<ul>
+<li>Base URL is your running chat service (for example <code>http://localhost:7861</code>).</li>
+<li>Most <code>/api/*</code> endpoints require an authenticated session.</li>
+<li>Endpoints marked <strong>Admin only</strong> require an admin user.</li>
+<li>Authentication routes (<code>/login</code>, <code>/logout</code>, <code>/auth/user</code>) are not under <code>/api/</code>.</li>
+</ul>
+<hr />
+<h2 id="chat">Chat</h2>
+<h3 id="post-apiget_chat_response"><code>POST /api/get_chat_response</code></h3>
+<p>Send a message and receive a complete response.</p>
+<h3 id="post-apiget_chat_response_stream"><code>POST /api/get_chat_response_stream</code></h3>
+<p>Send a message and receive a streaming response via NDJSON (<code>application/x-ndjson</code>).</p>
+<p>Each line is a JSON object with a <code>type</code> field. Event types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meta</code></td>
+<td>Stream metadata (sent first, includes padding)</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>Response text delta</td>
+</tr>
+<tr>
+<td><code>tool_start</code></td>
+<td>Agent is invoking a tool</td>
+</tr>
+<tr>
+<td><code>tool_output</code></td>
+<td>Tool result</td>
+</tr>
+<tr>
+<td><code>thinking_start</code></td>
+<td>Reasoning model thinking begins</td>
+</tr>
+<tr>
+<td><code>thinking_end</code></td>
+<td>Reasoning model thinking ends</td>
+</tr>
+<tr>
+<td><code>final</code></td>
+<td>Final response with full message and metadata</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>Error occurred</td>
+</tr>
+</tbody>
+</table>
+<h3 id="post-apicancel_stream"><code>POST /api/cancel_stream</code></h3>
+<p>Cancel an in-progress streaming response.</p>
+<h3 id="get-apitracetrace_id"><code>GET /api/trace/&lt;trace_id&gt;</code></h3>
+<p>Retrieve the full trace of a previous request.</p>
+<h3 id="post-apiabcreate"><code>POST /api/ab/create</code></h3>
+<p>Create an A/B comparison between two model responses (legacy manual mode).</p>
+<h3 id="get-apiabpool"><code>GET /api/ab/pool</code></h3>
+<p>Get the server-side A/B testing pool configuration. The response shape depends on RBAC:</p>
+<ul>
+<li><code>ab:view</code> or <code>ab:manage</code>: full read-only experiment configuration</li>
+<li><code>ab:participate</code>: participant-focused payload including the effective per-user sample rate and participant eligibility diagnostics</li>
+<li>otherwise: <code>enabled: false</code></li>
+</ul>
+<p><strong>Response (pool active):</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;enabled&quot;: true,
+  &quot;can_view&quot;: true,
+  &quot;can_manage&quot;: false,
+  &quot;champion&quot;: &quot;default&quot;,
+  &quot;variants&quot;: [&quot;default&quot;, &quot;creative&quot;, &quot;concise&quot;],
+  &quot;comparison_rate&quot;: 0.25,
+  &quot;default_comparison_rate&quot;: 0.25,
+  &quot;participant_eligible&quot;: true,
+  &quot;participant_reason&quot;: &quot;eligible&quot;
+}
+</code></pre>
+<p>Participant payloads can also report <code>participant_reason: "not_targeted"</code> when the deployment has an active experiment but the current user's roles or permissions are not included in that experiment's target filters.</p>
+<h3 id="post-apiabcompare"><code>POST /api/ab/compare</code></h3>
+<p>Stream a pool-based champion-vs-variant A/B comparison. The server randomly pairs the champion against another variant from the pool and streams interleaved NDJSON events tagged with <code>arm: "a"</code> or <code>arm: "b"</code>. A final <code>ab_meta</code> event carries the <code>comparison_id</code> and variant mapping.</p>
+<p><strong>Request body:</strong> Same as <code>/api/get_chat_response_stream</code>.</p>
+<h3 id="get-apiabmetrics"><code>GET /api/ab/metrics</code></h3>
+<p>Get per-variant aggregate metrics (wins, losses, ties, total comparisons).</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;metrics&quot;: [
+    {
+      &quot;variant_name&quot;: &quot;creative&quot;,
+      &quot;wins&quot;: 12,
+      &quot;losses&quot;: 5,
+      &quot;ties&quot;: 3,
+      &quot;total_comparisons&quot;: 20,
+      &quot;last_updated&quot;: &quot;2025-01-15T10:30:00&quot;
+    }
+  ]
+}
+</code></pre>
+<hr />
+<h2 id="playbooks">Playbooks</h2>
+<p>Per-user reusable instruction packs (the chat-side analog of an Agent Skills <code>SKILL.md</code>). Invoked in chat with <code>/name</code>; managed from <strong>Settings → Playbooks</strong> or via this API. In anonymous mode the caller's <code>client_id</code> doubles as the owner credential — pass it as a query parameter (GET) or JSON body field (POST/PUT/DELETE). With SSO enabled the verified session identity is the owner and <code>client_id</code> is ignored.</p>
+<h3 id="get-apiplaybooks"><code>GET /api/playbooks</code></h3>
+<p>List the caller's playbooks plus public ones (no bodies). Each item carries <code>id</code>, <code>name</code>, <code>description</code>, <code>visibility</code>, <code>is_mine</code>, and <code>is_enabled</code> (whether a public playbook has been added to the caller's active list).</p>
+<h3 id="get-apiplaybooksid"><code>GET /api/playbooks/&lt;id&gt;</code></h3>
+<p>Fetch one playbook, including its body — own or public.</p>
+<h3 id="post-apiplaybooks"><code>POST /api/playbooks</code></h3>
+<p>Create a playbook owned by the caller: <code>{name, description, body, visibility?, client_id?}</code>. Names are lowercase slugs (<code>a-z0-9</code> with single hyphens, max 64 chars). Returns <code>409</code> for a duplicate own name, <code>400</code> for validation errors.</p>
+<h3 id="put-apiplaybooksid"><code>PUT /api/playbooks/&lt;id&gt;</code></h3>
+<p>Update fields of an owned playbook (same body shape; all fields optional).</p>
+<h3 id="delete-apiplaybooksid"><code>DELETE /api/playbooks/&lt;id&gt;</code></h3>
+<p>Delete an owned playbook.</p>
+<h3 id="post-apiplaybooksidenable-post-apiplaybooksiddisable"><code>POST /api/playbooks/&lt;id&gt;/enable</code> · <code>POST /api/playbooks/&lt;id&gt;/disable</code></h3>
+<p>Add / remove a public playbook to / from the caller's active list (opt-in). Own playbooks are always active.</p>
+<h3 id="get-apiplaybooksexport"><code>GET /api/playbooks/export</code></h3>
+<p>Download the caller's <strong>own</strong> playbooks as a zip of <code>&lt;name&gt;/SKILL.md</code> folders (the Agent Skills layout, portable to claude.ai). Public playbooks owned by others are excluded.</p>
+<h3 id="post-apiplaybooksimport"><code>POST /api/playbooks/import</code></h3>
+<p>Import playbooks from a multipart upload (field <code>file</code>: a zip of <code>&lt;name&gt;/SKILL.md</code> folders or a single SKILL.md) or the legacy JSON body <code>{playbooks: [...], on_conflict?, client_id?}</code>. <code>on_conflict</code> is <code>skip</code> (default) or <code>overwrite</code>. Imports are always created <strong>private</strong> (a file's public flag never publishes deployment-wide); per-item validation errors are reported without aborting the batch.</p>
+<hr />
+<h2 id="authentication">Authentication</h2>
+<p>Authentication routes are served at the application root (not under <code>/api/</code>).</p>
+<h3 id="getpost-login"><code>GET|POST /login</code></h3>
+<p>Authenticate with email and password. GET renders the login page; POST processes credentials.</p>
+<h3 id="get-logout"><code>GET /logout</code></h3>
+<p>End the current session.</p>
+<h3 id="get-authuser"><code>GET /auth/user</code></h3>
+<p>Get the current authenticated user.</p>
+<hr />
+<h2 id="user-management">User Management</h2>
+<h3 id="get-apiusersme"><code>GET /api/users/me</code></h3>
+<p>Get or create the current user.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;user_abc123&quot;,
+  &quot;display_name&quot;: &quot;John Doe&quot;,
+  &quot;email&quot;: &quot;john@example.com&quot;,
+  &quot;auth_provider&quot;: &quot;basic&quot;,
+  &quot;theme&quot;: &quot;dark&quot;,
+  &quot;preferred_model&quot;: &quot;gpt-4o&quot;,
+  &quot;preferred_temperature&quot;: 0.7,
+  &quot;has_openrouter_key&quot;: true,
+  &quot;has_openai_key&quot;: false,
+  &quot;has_anthropic_key&quot;: false
+}
+</code></pre>
+<h3 id="patch-apiusersmepreferences"><code>PATCH /api/users/me/preferences</code></h3>
+<p>Update user preferences (model, temperature, prompts, theme, and A/B participation override).</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;theme&quot;: &quot;light&quot;,
+  &quot;preferred_model&quot;: &quot;claude-3-opus&quot;,
+  &quot;preferred_temperature&quot;: 0.5,
+  &quot;ab_participation_rate&quot;: 0.75
+}
+</code></pre>
+<h3 id="put-apiusersmeapi-keysprovider"><code>PUT /api/users/me/api-keys/{provider}</code></h3>
+<p>Set a BYOK API key. Provider: <code>openrouter</code>, <code>openai</code>, <code>anthropic</code>.</p>
+<h3 id="delete-apiusersmeapi-keysprovider"><code>DELETE /api/users/me/api-keys/{provider}</code></h3>
+<p>Delete a BYOK API key.</p>
+<hr />
+<h2 id="provider-keys-byok">Provider Keys (BYOK)</h2>
+<h3 id="get-apiproviderskeys"><code>GET /api/providers/keys</code></h3>
+<p>Get status of all provider API keys.</p>
+<h3 id="post-apiproviderskeysset"><code>POST /api/providers/keys/set</code></h3>
+<p>Set a session API key (validates before storing).</p>
+<h3 id="post-apiproviderskeysclear"><code>POST /api/providers/keys/clear</code></h3>
+<p>Clear a session API key.</p>
+<hr />
+<h2 id="configuration">Configuration</h2>
+<h3 id="get-apiconfigstatic"><code>GET /api/config/static</code></h3>
+<p>Get static (deploy-time) configuration.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;deployment_name&quot;: &quot;my-archi&quot;,
+  &quot;embedding_model&quot;: &quot;text-embedding-3-small&quot;,
+  &quot;available_pipelines&quot;: [&quot;QAPipeline&quot;, &quot;CMSCompOpsAgent&quot;],
+  &quot;available_models&quot;: [&quot;gpt-4o&quot;, &quot;claude-3-opus&quot;],
+  &quot;auth_enabled&quot;: true,
+  &quot;prompts_path&quot;: &quot;/root/archi/data/prompts/&quot;
+}
+</code></pre>
+<h3 id="get-apiconfigdynamic"><code>GET /api/config/dynamic</code></h3>
+<p>Get dynamic (runtime) configuration.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;active_pipeline&quot;: &quot;QAPipeline&quot;,
+  &quot;active_model&quot;: &quot;gpt-4o&quot;,
+  &quot;temperature&quot;: 0.7,
+  &quot;max_tokens&quot;: 4096,
+  &quot;top_p&quot;: 0.9,
+  &quot;top_k&quot;: 50,
+  &quot;num_documents_to_retrieve&quot;: 10,
+  &quot;verbosity&quot;: 3
+}
+</code></pre>
+<h3 id="patch-apiconfigdynamic"><code>PATCH /api/config/dynamic</code></h3>
+<p>Update dynamic configuration. <strong>Admin only.</strong></p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;active_model&quot;: &quot;gpt-4o&quot;,
+  &quot;temperature&quot;: 0.8,
+  &quot;num_documents_to_retrieve&quot;: 5
+}
+</code></pre>
+<h3 id="get-apiconfigeffective"><code>GET /api/config/effective</code></h3>
+<p>Get effective configuration for the current user (user preferences applied).</p>
+<h3 id="get-apiconfigaudit"><code>GET /api/config/audit</code></h3>
+<p>Get configuration change audit log. <strong>Admin only.</strong></p>
+<p><strong>Query params:</strong> <code>limit</code> (default: 100)</p>
+<hr />
+<h2 id="agents">Agents</h2>
+<h3 id="get-apiagentslist"><code>GET /api/agents/list</code></h3>
+<p>List all available agent specs.</p>
+<h3 id="get-apiagentsspec"><code>GET /api/agents/spec</code></h3>
+<p>Get a specific agent spec (name, tools, prompt). Pass <code>name</code> as a query parameter.</p>
+<h3 id="get-apiagentstemplate"><code>GET /api/agents/template</code></h3>
+<p>Get the template for creating a new agent (available tools, defaults).</p>
+<h3 id="post-apiagents"><code>POST /api/agents</code></h3>
+<p>Create or update an agent spec.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;My Agent&quot;,
+  &quot;tools&quot;: [&quot;search_vectorstore_hybrid&quot;, &quot;fetch_catalog_document&quot;],
+  &quot;prompt&quot;: &quot;You are a helpful assistant...&quot;
+}
+</code></pre>
+<h3 id="delete-apiagents"><code>DELETE /api/agents</code></h3>
+<p>Delete an agent spec. Pass <code>name</code> as a query parameter or in the request body.</p>
+<h3 id="post-apiagentsactive"><code>POST /api/agents/active</code></h3>
+<p>Set the active agent for the current session.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;agent_name&quot;: &quot;CMS Comp Ops&quot;
+}
+</code></pre>
+<h3 id="get-apiabagentslist"><code>GET /api/ab/agents/list</code></h3>
+<p>List the Postgres-backed A/B agent catalog for the A/B admin page. Requires A/B page access.</p>
+<h3 id="get-apiabagentstemplate"><code>GET /api/ab/agents/template</code></h3>
+<p>Get the A/B admin template payload with structured tool metadata. Requires <code>ab:manage</code>.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;New A/B Agent&quot;,
+  &quot;prompt&quot;: &quot;Write your system prompt here.&quot;,
+  &quot;tools&quot;: [
+    {&quot;name&quot;: &quot;search_vectorstore_hybrid&quot;, &quot;description&quot;: &quot;Search indexed documents.&quot;}
+  ],
+  &quot;scope&quot;: &quot;ab&quot;
+}
+</code></pre>
+<h3 id="post-apiabagents"><code>POST /api/ab/agents</code></h3>
+<p>Create a new Postgres-backed A/B agent spec from structured fields. Requires <code>ab:manage</code>.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;name&quot;: &quot;A/B Candidate&quot;,
+  &quot;tools&quot;: [&quot;search_vectorstore_hybrid&quot;],
+  &quot;prompt&quot;: &quot;You are a helpful A/B experiment agent.&quot;
+}
+</code></pre>
+<hr />
+<h2 id="prompts">Prompts</h2>
+<h3 id="get-apiprompts"><code>GET /api/prompts</code></h3>
+<p>List all available prompts by type.</p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;condense&quot;: [&quot;default&quot;, &quot;concise&quot;],
+  &quot;chat&quot;: [&quot;default&quot;, &quot;formal&quot;, &quot;technical&quot;],
+  &quot;system&quot;: [&quot;default&quot;, &quot;helpful&quot;]
+}
+</code></pre>
+<h3 id="get-apipromptstype"><code>GET /api/prompts/{type}</code></h3>
+<p>List prompts for a specific type.</p>
+<h3 id="get-apipromptstypename"><code>GET /api/prompts/{type}/{name}</code></h3>
+<p>Get prompt content.</p>
+<h3 id="post-apipromptsreload"><code>POST /api/prompts/reload</code></h3>
+<p>Reload prompt cache from disk. <strong>Admin only.</strong></p>
+<hr />
+<h2 id="document-selection">Document Selection</h2>
+<p>Three-tier document selection: conversation override → user default → system default.</p>
+<h3 id="get-apidocumentsselection"><code>GET /api/documents/selection</code></h3>
+<p>Get enabled documents. Query param: <code>conversation_id</code>.</p>
+<h3 id="put-apidocumentsuser-defaults"><code>PUT /api/documents/user-defaults</code></h3>
+<p>Set user's default for a document.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;document_id&quot;: 42,
+  &quot;enabled&quot;: false
+}
+</code></pre>
+<h3 id="put-apidocumentsconversation-override"><code>PUT /api/documents/conversation-override</code></h3>
+<p>Set conversation-specific override.</p>
+<h3 id="delete-apidocumentsconversation-override"><code>DELETE /api/documents/conversation-override</code></h3>
+<p>Clear conversation override (fall back to user default).</p>
+<hr />
+<h2 id="data-viewer">Data Viewer</h2>
+<h3 id="get-apidatadocuments"><code>GET /api/data/documents</code></h3>
+<p>List ingested documents with pagination and filtering.</p>
+<p><strong>Query params:</strong> <code>limit</code> (default: 100), <code>offset</code>, <code>search</code>, <code>source_type</code></p>
+<p><strong>Response:</strong></p>
+<pre><code class="language-json">{
+  &quot;documents&quot;: [
+    {
+      &quot;hash&quot;: &quot;5e90ca54526f3e11&quot;,
+      &quot;file_name&quot;: &quot;readme.md&quot;,
+      &quot;source_type&quot;: &quot;links&quot;,
+      &quot;chunk_count&quot;: 5,
+      &quot;enabled&quot;: true,
+      &quot;ingested_at&quot;: &quot;2025-01-29T10:30:00Z&quot;
+    }
+  ],
+  &quot;total&quot;: 42
+}
+</code></pre>
+<h3 id="get-apidatadocumentshashcontent"><code>GET /api/data/documents/&lt;hash&gt;/content</code></h3>
+<p>Get document content and chunks.</p>
+<h3 id="post-apidatadocumentshashenable"><code>POST /api/data/documents/&lt;hash&gt;/enable</code></h3>
+<p>Enable a document for retrieval.</p>
+<h3 id="post-apidatadocumentshashdisable"><code>POST /api/data/documents/&lt;hash&gt;/disable</code></h3>
+<p>Disable a document from retrieval.</p>
+<h3 id="post-apidatabulk-enable"><code>POST /api/data/bulk-enable</code></h3>
+<p>Enable multiple documents.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-json">{
+  &quot;hashes&quot;: [&quot;5e90ca54526f3e11&quot;, &quot;a1b2c3d4e5f67890&quot;]
+}
+</code></pre>
+<h3 id="post-apidatabulk-disable"><code>POST /api/data/bulk-disable</code></h3>
+<p>Disable multiple documents.</p>
+<h3 id="get-apidatastats"><code>GET /api/data/stats</code></h3>
+<p>Get document statistics (total, enabled, disabled, by source type).</p>
+<hr />
+<h2 id="analytics">Analytics</h2>
+<h3 id="get-apianalyticsmodel-usage"><code>GET /api/analytics/model-usage</code></h3>
+<p>Get model usage statistics. Query params: <code>start_date</code>, <code>end_date</code>, <code>service</code>.</p>
+<h3 id="get-apianalyticsab-comparisons"><code>GET /api/analytics/ab-comparisons</code></h3>
+<p>Get A/B comparison statistics with win rates. Query params: <code>model_a</code>, <code>model_b</code>, <code>start_date</code>, <code>end_date</code>.</p>
+<hr />
+<h2 id="data-manager">Data Manager</h2>
+<p>These endpoints are served by the Data Manager service (default port: 7871).</p>
+<h3 id="get-apiingestionstatus"><code>GET /api/ingestion/status</code></h3>
+<p>Get current ingestion progress.</p>
+<h3 id="post-apireload-schedules"><code>POST /api/reload-schedules</code></h3>
+<p>Trigger schedule reload from database.</p>
+<h3 id="get-apischedules"><code>GET /api/schedules</code></h3>
+<p>Get current schedule status.</p>
+<hr />
+<h2 id="health-info">Health &amp; Info</h2>
+<h3 id="get-apihealth"><code>GET /api/health</code></h3>
+<p>Health check with database connectivity status.</p>
+<h3 id="get-apiinfo"><code>GET /api/info</code></h3>
+<p>Get API version and available features.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../cli_reference/" class="btn btn-neutral float-left" title="CLI Reference"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../benchmarking/" class="btn btn-neutral float-right" title="Benchmarking">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../cli_reference/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../benchmarking/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

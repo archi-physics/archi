@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Upgrade and migration - Archi Docs</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Upgrade and migration";
+        var mkdocs_page_input_path = "operating/upgrade-and-migration.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../.." class="icon icon-home"> Archi Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">What Archi is</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../quickstart/">Quickstart</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../context-layer/">The context layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../operations-layer/">The operations layer</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../bundles-and-packs/">Bundles and packs</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../connecting-an-agent/">Connecting an agent</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../adding-a-source/">Adding a source</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../writing-an-automation/">Writing an automation</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Operating</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../">Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../commands/">What each command does</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../doctor/">archi doctor</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../evals/">archi eval</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../persistence/">Data persistence</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Upgrade and migration</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-changed">What changed</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#which-instance-do-you-have">Which instance do you have?</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#instances-created-before-the-graph-volume-fix">Instances created before the graph-volume fix</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#instances-with-an-archilock">Instances with an archi.lock</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#what-changes-in-the-registry">What changes in the registry</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#keeping-cmssw-releases">Keeping cmssw-releases</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#taking-up-the-new-defaults">Taking up the new defaults</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#check">Check</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#instances-without-an-archilock">Instances without an archi.lock</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cutover/">Cutover runbook</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../footguns/">Footgun ledger</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../contributing-a-pack/">Contributing a pack</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../library/">Library (generated)</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/cli/">Commands</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/archi-yaml/">archi.yaml and ops.yaml</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pack-format/">Pack and bundle format</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/connector-caches/">Connector caches</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/adr/">Design records</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../migration-from-v2/">Moving from v2 to 3.0</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">v2 (legacy)</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/">Home</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/install/">Install</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/quickstart/">Quickstart</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/user_guide/">User Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/data_sources/">Data Sources</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/services/">Services</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/models_providers/">Models & Providers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/agents_tools/">Agents & Tools</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/configuration/">Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/cli_reference/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/api_reference/">API Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/benchmarking/">Benchmarking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/advanced_setup_deploy/">Advanced Setup</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/helm_deployment/">Helm Deployment</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/developer_guide/">Developer Guide</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../v2/troubleshooting/">Troubleshooting</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">Archi Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Operating</li>
+      <li class="breadcrumb-item active">Upgrade and migration</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/archi-physics/archi/edit/master/docs/operating/upgrade-and-migration.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="migrating-an-existing-cern-team-instance">Migrating an existing cern-team instance</h1>
+<p>For anyone who already runs an instance made from the <code>cern-team</code> bundle. A
+new install needs none of this: <code>archi init myteam</code> now publishes with no
+answers (see the <a href="../../quickstart/">quickstart</a>).</p>
+<h2 id="what-changed">What changed</h2>
+<table>
+<thead>
+<tr>
+<th>Before</th>
+<th>Now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The only default source was <code>cmssw_releases</code> (the public CMSSW release catalog).</td>
+<td>The default packs are <code>docsite</code>, <code>indico</code> and <code>core-playbooks</code>. <code>cmssw-releases</code> is not in the bundle.</td>
+</tr>
+<tr>
+<td>A bare <code>archi init</code> of the pack-based bundle stopped: docsite had no records cache and indico had no event. The quickstart said <code>--without docsite,indico --with cmssw-releases</code>.</td>
+<td>docsite downloads two small public documentation sites (FTS3 and Rucio) before the first ingest. indico reads one public event (1716863). Both are credential-free, and the workaround is gone.</td>
+</tr>
+<tr>
+<td>An indico source with no event or category was refused when built.</td>
+<td>With no event or category answered, indico reads event 1716863 (<code>default_event_ids</code>); before, that was an error. A new pack question, <code>docsite_urls</code>, names the pages docsite downloads.</td>
+</tr>
+<tr>
+<td>Packs <code>docsite</code> and <code>indico</code> at 0.1.0, bundle at 0.2.0.</td>
+<td>docsite 0.2.0, indico 0.2.0, bundle 0.3.0.</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing about an instance that is already published changes by itself. The
+bundle only matters when you render, add a pack, or install again.</p>
+<h2 id="which-instance-do-you-have">Which instance do you have?</h2>
+<p>Look for <code>archi.lock</code> in the instance directory.</p>
+<p><strong>It has an <code>archi.lock</code></strong> (made by <code>archi init</code> or <code>archi render</code>). Its
+registry source ids look like <code>docsite.docsite</code>, <code>indico.indico_live</code>,
+<code>cmssw-releases.cmssw_releases</code>, and <code>archi diff</code> works.</p>
+<p><strong>It has none</strong> (installed with <code>okg install --profile cern-team</code> from the
+older single-file profile). Its registry ids are bare names (<code>cmssw_releases</code>,
+<code>docsite</code>, <code>indico_live</code>, <code>twiki_eos</code>, ...). See
+<a href="#instances-without-an-archilock">Instances without an archi.lock</a>.</p>
+<h2 id="instances-created-before-the-graph-volume-fix">Instances created before the graph-volume fix</h2>
+<p>Before this change the graph database volume was mounted at a path the AKMON
+image does not use (the image keeps its data in <code>/home/postgres/pgdata/data</code>).
+The graph lived only in the container, so <code>archi down</code> followed by <code>archi up</code>,
+or any container recreation (podman-compose recreates on every <code>up</code>), lost it.
+After you upgrade, the next <code>archi up</code> recreates the container on the corrected
+volume, which starts empty. Re-init the instance (<code>archi down --purge --yes</code>,
+remove the directory, <code>archi init</code> again) or re-run <code>okg install</code> and
+<code>okg provision</code>. From then on the graph survives <code>down</code> and <code>up</code>.</p>
+<h2 id="instances-with-an-archilock">Instances with an archi.lock</h2>
+<h3 id="what-changes-in-the-registry">What changes in the registry</h3>
+<p>Nothing, until you act. The registry and the lock record what you selected,
+so an instance that selected <code>cmssw-releases</code> keeps it, and one that dropped
+docsite or indico keeps them dropped. What you will see:</p>
+<ul>
+<li><code>archi diff</code> reports <code>pack docsite: version 0.1.0 locked, 0.2.0 installed</code>
+  (and the same for <code>indico</code> and the <code>cern-team</code> bundle). That is the new
+  pack text, not a change to your deployment. Your registry entries do not
+  differ, so the <code>deployment</code> section stays clean.</li>
+<li>A source id is <code>&lt;pack&gt;.&lt;source&gt;</code>. The ownership ids okg records are the
+  same as before (<code>&lt;deployment&gt;.cmssw-releases</code>, <code>&lt;deployment&gt;.docsite</code>,
+  <code>&lt;deployment&gt;.indico-live</code>), so the records stay owned by the same source.</li>
+</ul>
+<h3 id="keeping-cmssw-releases">Keeping cmssw-releases</h3>
+<p>If the instance was made with <code>--with cmssw-releases</code> (the old quickstart
+command), it is already in <code>archi.lock</code>, in the registry, and in the graph.
+Do nothing.</p>
+<p>If it was not, and you want the CMSSW releases:</p>
+<pre><code class="language-bash">archi add cmssw-releases --instance ./myteam
+</code></pre>
+<p>This adds the <code>cmssw-releases.cmssw_releases</code> source to the deployment,
+commits the change, claims ownership, loads the catalog, ingests and
+publishes. Answer its question with
+<code>--answer cmssw_releases_releases_map_url=&lt;url&gt;</code> only if you read the release
+map from somewhere other than the public cms-bot one.</p>
+<h3 id="taking-up-the-new-defaults">Taking up the new defaults</h3>
+<p>If the instance has no docsite or indico (it was made with
+<code>--without docsite,indico</code>), add them when you want them:</p>
+<pre><code class="language-bash">archi add docsite --instance ./myteam
+archi add indico  --instance ./myteam
+</code></pre>
+<p><code>archi add docsite</code> downloads the pages of <code>docsite_urls</code> into
+<code>&lt;data root&gt;/docsite/records.json</code> first. If a page cannot be fetched it stops
+before it edits the deployment. Give your own pages with
+<code>--answer docsite_urls=&lt;url&gt;[,&lt;url&gt;...]</code>. <code>archi add &lt;pack&gt; --no-okg</code> skips the
+prepare step (it runs no okg command either), so the cache is not written;
+run <code>python -m archi.downloaders.static_docs</code> yourself before the first ingest. <code>archi add indico</code> reads
+event 1716863 unless you answer <code>--answer indico_event_ids='["&lt;id&gt;"]'</code> or
+<code>--answer indico_category_ids='["&lt;id&gt;"]'</code>; either replaces the default.</p>
+<p>An instance that already has docsite or indico is not touched: <code>archi add</code>
+refuses a pack that is already installed, and the new default event applies
+only to new installs. To read more events, edit <code>source_registry.yaml</code> as
+before.</p>
+<h3 id="check">Check</h3>
+<pre><code class="language-bash">archi diff      # `upstream` lines for the new pack versions are expected; deployment: clean
+archi doctor
+</code></pre>
+<p>To accept the new pack versions in the lock, run <code>archi render --bundle
+cern-team ...</code> again with the same <code>--with</code> and <code>--without</code> choices (they are
+in <code>archi.lock</code> under <code>selection</code>) and commit.</p>
+<h2 id="instances-without-an-archilock">Instances without an archi.lock</h2>
+<p>These were installed by <code>okg install --profile cern-team</code>, before the bundle
+was split into packs. <code>archi add</code> and <code>archi diff</code> need the lock, so they do
+not work on these instances, and there is no automatic in-place conversion.
+Two routes:</p>
+<ol>
+<li><strong>Leave it.</strong> The deployment is a self-contained copy of the old profile.
+   It keeps its <code>cmssw_releases</code> source and everything else it had, and keeps
+   publishing. Nothing in this change reaches it.</li>
+<li><strong>Rebuild on the new layout.</strong> Make a new instance and a new database, and
+   retire the old one when you are satisfied:</li>
+</ol>
+<p><code>bash
+   archi init myteam2 --with cmssw-releases            # keeps the CMSSW releases
+   archi init myteam2 --without docsite,indico --with cmssw-releases   # exactly the old default</code></p>
+<p>Records in the old database stay in the old database. Removing a source
+   from a deployment does not remove its records from a database that already
+   holds them, so do not reuse the old database for the new instance. The
+   registry ids differ (<code>cmssw_releases</code> becomes <code>cmssw-releases.cmssw_releases</code>;
+   the other bare ids gain their pack name the same way), and so do some
+   question names: pack questions are <code>&lt;pack&gt;_&lt;id&gt;</code>, for example
+   <code>git_code_repo_url</code>, where the old profile asked <code>github_repo_url</code> and
+   <code>gitlab_repo_url</code>.</p>
+<p>Renaming the registry keys of a pre-lock deployment in place is not
+supported and untested: okg's ownership claim and published generations were
+made under the old source ids.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../persistence/" class="btn btn-neutral float-left" title="Data persistence"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../cutover/" class="btn btn-neutral float-right" title="Cutover runbook">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/archi-physics/archi" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+      <span><a href="../persistence/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../cutover/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
