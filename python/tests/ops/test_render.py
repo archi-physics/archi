@@ -29,7 +29,7 @@ def team(tmp_path):
         "name": "triage-team", "version": "0.1.0", "description": "t",
         "packs": {"default": ["alpha", "fixture-triage"]},
         "automations": {"fixture-triage": {"max_level": "L1"}},
-        "okg": ">=0.2.0,<0.3",
+        "okg": ">=0.4.0,<0.5",
     }, sort_keys=False))
     catalog = discovery.from_roots([root / "packs"], [root / "bundles"])
     assert catalog.problems == []
@@ -97,7 +97,7 @@ def test_two_bundles_take_the_lower_bound(team, tmp_path):
         "name": "tight", "version": "0.1.0", "description": "t",
         "packs": {"default": ["alpha"], "optional": ["fixture-triage"]},
         "automations": {"fixture-triage": {"max_level": "L0"}},
-        "okg": ">=0.2.0,<0.3",
+        "okg": ">=0.4.0,<0.5",
     }))
     catalog = discovery.from_roots([root.parent / "packs"], [root])
     assert catalog.problems == []

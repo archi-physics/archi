@@ -33,7 +33,7 @@ def instance(tmp_path):
     bdir.mkdir(parents=True)
     (bdir / "bundle.yaml").write_text(yaml.safe_dump({
         "name": "triage-team", "version": "0.1.0", "description": "t",
-        "packs": {"default": ["alpha", "fixture-triage"]}, "okg": ">=0.2.0,<0.3",
+        "packs": {"default": ["alpha", "fixture-triage"]}, "okg": ">=0.4.0,<0.5",
     }, sort_keys=False))
     catalog = discovery.from_roots([root / "packs"], [root / "bundles"])
     inst = tmp_path / "inst"
@@ -58,7 +58,7 @@ def test_render_leaves_the_runtime_off_without_an_automation(tmp_path):
     bdir.mkdir(parents=True)
     (bdir / "bundle.yaml").write_text(yaml.safe_dump({
         "name": "plain", "version": "0.1.0", "description": "t", "packs": {"default": ["alpha"]},
-        "okg": ">=0.2.0,<0.3"}, sort_keys=False))
+        "okg": ">=0.4.0,<0.5"}, sort_keys=False))
     catalog = discovery.from_roots([root / "packs"], [root / "bundles"])
     render_and_lock(catalog, tmp_path / "inst", ["plain"])
     defaults = yaml.safe_load(next((tmp_path / "inst").glob("profiles/*/deployment-defaults.yaml")).read_text())

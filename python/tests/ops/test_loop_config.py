@@ -28,7 +28,7 @@ def instance(tmp_path):
         "name": "triage-team", "version": "0.1.0", "description": "t",
         "packs": {"default": ["alpha", "fixture-triage"]},
         "automations": {"fixture-triage": {"max_level": "L1"}},
-        "okg": ">=0.2.0,<0.3",
+        "okg": ">=0.4.0,<0.5",
     }, sort_keys=False))
     catalog = discovery.from_roots([root / "packs"], [root / "bundles"])
     assert catalog.problems == []

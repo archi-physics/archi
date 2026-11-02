@@ -85,7 +85,7 @@ def library_with_bundle(tmp_path, bounds):
     (bdir / "bundle.yaml").write_text(yaml.safe_dump({
         "name": "triage-team", "version": "0.1.0", "description": "t",
         "packs": {"default": ["alpha", "fixture-tools", "fixture-triage"]},
-        "okg": ">=0.2.0,<0.3",
+        "okg": ">=0.4.0,<0.5",
         "automations": bounds,
     }, sort_keys=False))
     return root

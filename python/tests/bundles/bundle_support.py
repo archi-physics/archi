@@ -65,7 +65,7 @@ def clone_pack(root: Path, source: str, name: str, change=None) -> Path:
 def write_bundle(root: Path, name: str, **fields) -> Path:
     data = {"name": name, "version": "0.1.0", "description": f"{name} test bundle."}
     data.update(fields)
-    data.setdefault("okg", ">=0.2.0,<0.3")
+    data.setdefault("okg", ">=0.4.0,<0.5")
     bdir = root / name
     bdir.mkdir(parents=True, exist_ok=True)
     (bdir / "bundle.yaml").write_text(yaml.safe_dump(data, sort_keys=False))

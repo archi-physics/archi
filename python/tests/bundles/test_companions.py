@@ -106,7 +106,7 @@ def test_an_unknown_companion_stops_resolution_naming_its_trigger(companions):
 
     catalog = load_catalog(companions)
     catalog.bundles["broken"] = Bundle(companions / "broken", {
-        "name": "broken", "version": "0.1.0", "description": "x", "okg": ">=0.2.0,<0.3",
+        "name": "broken", "version": "0.1.0", "description": "x", "okg": ">=0.4.0,<0.5",
         "packs": {"default": ["alpha"], "companions": {"alpha": ["nope"]}},
     })
     err = _conflict(lambda: resolve(catalog, ["broken"]), "unknown_pack")
