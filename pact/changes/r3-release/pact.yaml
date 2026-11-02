@@ -154,6 +154,24 @@ evidence:
     build's. Every step exited 0 (install 94 s, init 183 s, up 281 s, doctor 22 s, down 8 s). Two earlier tries
     (19:27, 19:29) failed at install: pip in the container saw only 3.0.0 from a stale index, which cleared
     by itself. Supported AKMON range for 3.0.1: okg 0.4.x (release notes 3.0.1).
+- kind: manual
+  requirement: req.r3-release.cutover
+  status: pass
+  command: >-
+    gh pr view 896 (merged 2026-11-02T19:13:46Z as a merge commit); git ls-remote origin main v2 and tag v2.6.0;
+    gh api repos/archi-physics/archi --jq .default_branch; CUTOVER.sh step7-pr (read-only, 19:14Z)
+  head: HEAD_TO_BIND
+  at: '2026-11-02T19:51:52+00:00'
+  note: >-
+    Recorded as pass on Jason's answer to board d1007 (19:51:52Z): "Record a pass row now, whose note says the
+    owner sign-offs are waived by your words". acc.r3-release.main holds: by Jason's choice the swap was PR #896,
+    not the runbook's renames ("I don't care about the open PRs"). main became 86978f7565, whose tree equals
+    archi_v3 aea56cb8 (3.0.1, 60/60 PACTs approved) and which descends from it and from the frozen v2 main; the
+    default branch is main; branch v2 is 3c889e0258, tagged v2.6.0 (frozen 19:00:39Z). acc.r3-release.migrated is
+    WAIVED, not met: neither v2 owner has signed off. Jason's words recorded at step 4 (desk chat, 2026-11-02):
+    "they will move don't worry about them". SubMIT's v2 -mailer keeps running until 3.1 (d704, the named
+    exception in d1003). Open when recorded: branch v2 had no protection rule (board d1008); archi_v3 still
+    exists at aea56cb8.
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
