@@ -850,3 +850,56 @@ def test_a_protected_folder_hides_its_attachments_from_images(monkeypatch):
         event_ids=["1716863"], contributions=True, attachment_images=True))
     assert [v["url"] for v in _talk_node(facts).attrs["attachment_images"]] == [
         _BASE + "open.pdf"]
+# --- token auth and the date window -----------------------------------
+
+def test_a_token_becomes_a_bearer_header(monkeypatch):
+    """An Indico personal access token is preferred over a cookie jar.
+
+    CERN SSO cookies expire in hours and someone has to own refreshing
+    them; an Indico token (`indp_…`, scope `read:legacy_api`) is
+    long-lived and is what an unattended ingest should carry.
+    """
+    monkeypatch.setenv("ARCHI_INDICO_TOKEN", "indp_abc123")
+    source = IndicoLiveSource(event_ids=["1"], token_env="ARCHI_INDICO_TOKEN")
+    session = source._session()
+    assert session.headers["Authorization"] == "Bearer indp_abc123"
+
+
+def test_an_unset_or_blank_token_sets_no_header(monkeypatch):
+    """A blank token must not send `Bearer ` — that reads as a
+    malformed credential rather than as no credential."""
+    monkeypatch.delenv("ARCHI_INDICO_TOKEN", raising=False)
+    source = IndicoLiveSource(event_ids=["1"], token_env="ARCHI_INDICO_TOKEN")
+    assert "Authorization" not in source._session().headers
+    monkeypatch.setenv("ARCHI_INDICO_TOKEN", "   ")
+    assert "Authorization" not in source._session().headers
+
+
+def test_the_token_value_never_reaches_the_change_probe():
+    """The probe config records the VARIABLE NAME, never the secret."""
+    source = IndicoLiveSource(event_ids=["1"], token_env="ARCHI_INDICO_TOKEN")
+    import json
+    blob = json.dumps(source.change_probe.__dict__, default=str)
+    assert "indp_" not in blob
+
+
+def test_since_is_appended_to_export_paths():
+    source = IndicoLiveSource(category_ids=["6803"], since="-365d")
+    assert source._with_window("/export/categ/6803.json") == \
+        "/export/categ/6803.json?from=-365d"
+    assert source._with_window("/export/categ/6803.json?limit=5") == \
+        "/export/categ/6803.json?limit=5&from=-365d"
+
+
+def test_no_since_leaves_the_path_alone():
+    source = IndicoLiveSource(category_ids=["6803"])
+    assert source._with_window("/export/categ/6803.json") == \
+        "/export/categ/6803.json"
+
+
+def test_the_category_walk_uses_the_window():
+    source = IndicoLiveSource(category_ids=["6803"], since="-365d")
+    calls: list[str] = []
+    source._get_json = lambda session, path: (calls.append(path), {"results": [{"id": "9"}]})[1]
+    source._event_ids_in_scope(object())
+    assert calls == ["/export/categ/6803.json?from=-365d"]
