@@ -136,22 +136,6 @@ evidence:
     GPT-6 Luna only and no live context-eval run; no upload, SSO page, status board or Helm, public Indico
     only, one repository per git-code pack. acc.r3-release.migrated (step 4) and acc.r3-release.main (step 7)
     are not evidenced by this row.
-- kind: manual
-  requirement: req.r3-release.cutover
-  status: waived
-  command: >-
-    gh pr view 896 (merged 2026-11-02T19:13:46Z by JasonMoho as a merge commit); git ls-remote origin main v2
-    and tag v2.6.0; gh api repos/archi-physics/archi --jq .default_branch; CUTOVER.sh step7-pr (read-only)
-  head: aea56cb8ba890336709604a131a01cea2150b19d
-  at: '2026-11-02T19:14:23+00:00'
-  note: >-
-    acc.r3-release.main holds: by Jason's choice the swap was a PR, not the runbook's renames ("I don't care about
-    the open PRs", desk chat, 2026-11-02). main is 86978f7565 (the merge of #896), whose tree equals archi_v3
-    aea56cb8 (3.0.1, 60/60 PACTs approved) and which descends from it and from the frozen v2 main; the default
-    branch is main; branch v2 is 3c889e0258, tagged v2.6.0 (frozen 19:00:39Z). acc.r3-release.migrated is waived,
-    not met: neither v2 owner has signed off; Jason recorded "they will move don't worry about them" (desk chat,
-    2026-11-02) as the step 4 record. Open at this row: branch v2 has no protection rule (the renames would have
-    carried main's over), and archi_v3 still exists at aea56cb8. SubMIT's v2 -mailer keeps running until 3.1 (d704).
 decisions:
 - digest: sha256:ab0ea327f3ec0229a02316d9b50e0a5079533885d4edd4bbe429a7cbc9d5d1b5
   reviewer: Jason Mohoney
