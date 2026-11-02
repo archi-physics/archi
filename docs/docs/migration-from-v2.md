@@ -114,7 +114,7 @@ need them in the next sections.
    ```bash
    python3 -m venv ~/archi3-venv
    . ~/archi3-venv/bin/activate
-   pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+   pip install archi-kb==3.0.2
    archi --help
    ```
 

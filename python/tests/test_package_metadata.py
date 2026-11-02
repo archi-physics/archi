@@ -7,7 +7,8 @@ afterwards, so these are checked before the tag:
 - every readme link is absolute, because PyPI cannot resolve a relative one;
 - every versioned link, release-notes file and install line names the version
   being released;
-- every install line uses the exact okg wheel (URL and sha256) that CI tests.
+- archi-kb declares okg, in a range that holds the okg wheel CI tests, and no
+  install line asks for that wheel by URL (okg comes from PyPI with archi-kb).
 """
 from __future__ import annotations
 
@@ -84,12 +85,21 @@ def test_install_lines_pin_this_version():
         assert pins and set(pins) == {VERSION}, (rel, pins)
 
 
-def test_install_lines_use_the_okg_wheel_ci_tests():
-    pinned = re.search(r'okg @ (https://\S+?#sha256=[0-9a-f]{64})', CI)
-    assert pinned, "ci.yml pins the okg wheel by URL and sha256"
+def test_archi_kb_declares_an_okg_range_that_holds_the_okg_ci_tests():
+    from packaging.requirements import Requirement
+
+    okg = [r for r in map(Requirement, PROJECT["dependencies"]) if r.name == "okg"]
+    assert len(okg) == 1, "archi-kb declares okg exactly once"
+    tested = re.search(r"okg @ https://\S+/okg-([0-9][^-/]*)-py3-none-any\.whl#sha256=[0-9a-f]{64}", CI)
+    assert tested, "ci.yml pins the okg wheel it tests by URL and sha256"
+    assert tested.group(1) in okg[0].specifier, (str(okg[0]), tested.group(1))
+
+
+def test_install_lines_need_no_okg_wheel():
+    # okg is on PyPI and archi-kb depends on it, so a page that still asks for
+    # the wheel URL is out of date.
     for rel in INSTALL_PAGES:
-        wheels = re.findall(r"okg @ (https://[^\s\"]+)", text(rel))
-        assert wheels and set(wheels) == {pinned.group(1)}, (rel, wheels)
+        assert "okg @ " not in text(rel), rel
 
 
 def test_no_install_page_says_archi_is_unpublished():

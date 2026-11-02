@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 # The distribution is `archi-kb` (ADR 0002 D2): the name `archi` on PyPI
 # belongs to an unrelated package. The import name stays `archi`.
 name = "archi-kb"
-version = "3.0.1"
+version = "3.0.2"
 description = "Operations automation for scientific computing: agents propose actions, people approve them, and every step cites the facility's own knowledge"
 requires-python = ">=3.12"
 # The PyPI project page shows this file. Its links point at this version's tag,
@@ -15,6 +15,10 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
+    # The graph engine, AKMON. Declared since archi-kb 3.0.2, once okg was on PyPI (board
+    # d1011, d1016); before that it came only from the AKMON release wheel, a URL, which PyPI
+    # does not allow as a dependency.
+    "okg>=0.4.0,<0.5",
     "requests>=2.31",
     "pyyaml>=6.0",
     "jsonschema>=4.18",
@@ -23,8 +27,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/archi-physics/archi"
-Documentation = "https://github.com/archi-physics/archi/tree/v3.0.1/docs/docs"
-"Release notes" = "https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md"
+Documentation = "https://github.com/archi-physics/archi/tree/v3.0.2/docs/docs"
+"Release notes" = "https://github.com/archi-physics/archi/blob/v3.0.2/docs/release-notes-3.0.2.md"
 Issues = "https://github.com/archi-physics/archi/issues"
 
 [project.scripts]
@@ -42,8 +46,7 @@ archi = "archi.paths:profiles_dir"
 [project.optional-dependencies]
 # ADR SS10's definition of done mandates `black --check .` and `isort --check .`;
 # without this extra neither tool (nor pytest) is declared anywhere, so the DoD
-# was unrunnable. okg itself is NOT declared: it is the host environment archi is
-# installed into, not a dependency of the distribution.
+# was unrunnable. okg is a runtime dependency (above).
 dev = [
     "pytest>=8.0",
     "black>=24.0",
