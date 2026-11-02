@@ -1,0 +1,19 @@
+name: code-text
+kind: context
+version: 0.2.0
+description: The text of every text file in git-code's repository (code, Markdown, YAML, scripts, configuration), with Python cut into one chunk per function or class and files holding a literal secret left out.
+requires:
+  modules: [document_starter, person, extraction, git_graph]
+  packs: [git-code]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+files: [extractors.yaml]
+# Rebuilt from git-code's checkout; same bound as git-code.
+freshness:
+  code-text.code_text: {max_staleness: 7d}
+search_subtypes: [document, document_chunk]
+prompt_fragment: prompt.md
+# It reads git-code's checkout and fetches nothing itself.
+needs_credentials: false

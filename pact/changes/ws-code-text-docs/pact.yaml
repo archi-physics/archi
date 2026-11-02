@@ -1,0 +1,62 @@
+pact_version: 5
+id: ws-code-text-docs
+title: 'Code-text docs: paste route for an existing deployment'
+tier: 2
+why: 'Adding the code_text source to a deployment that was already installed means
+  pasting the example entry by hand. A staging run showed two traps the docs did not
+  name. The example''s `predecessor_source` placeholder is not filled in, and the bare
+  name `github_repo` is refused with `PredecessorNotRun`; it must be the qualified
+  id, such as `myteam.github-repo`. After the registry edit, the publish was refused
+  as drifted until a fresh `okg catalog ownership claim` was run. This change says
+  so in the quickstart section and the headers of both examples, and adds a test
+  that keeps the guide and examples saying it. Docs and one test; no code changes.'
+affected_code:
+- docs/cern-team-quickstart.md
+- bundles/cern-team/source-defaults/code_text.yaml.example
+- bundles/cern-team/source-defaults/code_text_gitlab.yaml.example
+- python/tests/test_bundle_code_text.py
+requirements:
+- id: req.ws-code-text-docs.docs
+  statement: 'The "Function bodies" section of docs/cern-team-quickstart.md has an
+    "Already installed?" route with a before and after using invented values: the
+    placeholders to replace, the qualified `predecessor_source`, the copy of
+    extractors.yaml, and a fresh `okg catalog ownership claim` after every registry
+    edit and before the ingest (a first install through the installer needs none).
+    Both code_text examples carry the same warning in their headers without writing
+    any placeholder in a comment (the installer expands every one).
+
+
+    Acceptance:
+
+    - acc.ws-code-text-docs.test: the bundle test reads the guide section and both
+    example headers and requires the qualified id and the claim command. [evidence: pytest]
+
+    - acc.ws-code-text-docs.install: the existing install test still passes, so the
+    comments added to the examples do not break the installer. [evidence: pytest]'
+tasks:
+- id: task.ws-code-text-docs.docs
+  requirement: req.ws-code-text-docs.docs
+  verification: 'Edit the guide and the two example headers; add one test.
+
+
+    Test plan:
+
+    - python/tests/test_bundle_code_text.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.ws-code-text-docs.docs
+  status: pass
+  command: "cd python && PYTHONPATH=. pytest tests/test_bundle_code_text.py tests/test_bundle_cern_team.py tests/test_bundle_source_adapters.py -> 84 passed (1 new)"
+  artifact: pact/changes/ws-code-text-docs/evidence/bundle_code_text.junit.xml
+  sha256: 0d3a390ba4894068706da1b1e5c25222a9e7584163c6280302b66b6704a0ef4a
+  head: 2fd626eb764c97ddbc4b5dc54a5f3c4ac07df865
+  at: "2026-10-22T12:00:00+00:00"
+  note: "Lab host, venv with okg installed from the main checkout; docs and tests only, so the installed okg code is the same. The junit hostname is replaced with lab-host. The new test reads the guide section and both example headers; the existing install test shows the added comments do not break the installer."
+- kind: manual
+  requirement: req.ws-code-text-docs.docs
+  status: pass
+  command: "compare the guide text with the staging run of code_text on an existing deployment"
+  head: 2fd626eb764c97ddbc4b5dc54a5f3c4ac07df865
+  at: "2026-10-22T12:00:00+00:00"
+  note: "Staging run: bare github_repo predecessor refused with PredecessorNotRun; the qualified id worked; a registry edit without a new ownership claim was refused as drifted, and a new claim fixed it. extractors_dir left as the deployment-directory placeholder was expanded by okg. The guide route follows that order."
+decisions: []

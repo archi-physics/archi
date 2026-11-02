@@ -1,0 +1,238 @@
+pact_version: 5
+id: r3-bundle-format
+title: 'Composable bundles: pack and bundle manifests, resolver, renderer, discovery'
+tier: 2
+why: 'Today a bundle is one okg profile directory: sources opt in by renaming *.yaml.example,
+  invariants are bundle-wide so dropping a source breaks the floor, skills and schemas are
+  symlinks that only work from a checkout, and OKG_PROFILES_DIR must be set by hand. Four
+  bundles that share most of their sources need a unit smaller than a bundle and a way to
+  combine them. ADR 0002 §3; okg has no profile composition, so archi renders and files the
+  ask (D7).'
+affected_code:
+- python/archi/bundles/
+- bundles/
+- python/pyproject.toml
+- python/tests/bundles/
+requirements:
+- id: req.r3-bundle-format.manifests
+  statement: 'pack.yaml and bundle.yaml have published JSON schemas (ADR 0002 §3.1-3.2); `archi
+    bundles validate` rejects unknown keys, missing files, credential values (anything but
+    env-var names) and a bundle with no credential-free default pack.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-format.schema: schema tests over valid and invalid fixtures. [evidence:
+    pytest]'
+- id: req.r3-bundle-format.compose
+  statement: 'Resolution follows ADR 0002 §3.3 exactly: extends closure, requires closure,
+    --with/--without, and each merge rule (modules union, schema byte-identity, <pack>.<source>
+    ids, question identity, pack-owned invariants, subtype union, prompt fragment order, last-bundle-wins
+    scalars, okg range intersection). A pack not selected leaves nothing in the rendered profile.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-format.rules: one test per rule, including each conflict error. [evidence:
+    pytest]
+
+    - acc.r3-bundle-format.no-trace: rendered profile of base+P minus P equals rendered base.
+    [evidence: pytest]
+
+    - acc.r3-bundle-format.okg-accepts: every rendered profile in the test matrix passes okg
+    install --dry-run/plan. [evidence: pytest]'
+- id: req.r3-bundle-format.lock
+  statement: 'Rendering writes archi.lock (bundle and pack versions, content digests, okg
+    range) into the instance; `archi add <pack>` extends an installed instance, re-claiming
+    catalog ownership; `archi diff` reports drift from the lock.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-format.add: archi add on a published scratch instance publishes again
+    without manual steps. [evidence: executed_test]
+
+    - acc.r3-bundle-format.diff: a hand edit to the registry shows in archi diff. [evidence:
+    pytest]'
+- id: req.r3-bundle-format.packaging
+  statement: 'The wheel ships packs and bundles as real files; `archi bundles list` finds
+    them through the archi.bundles / archi.packs entry points, including from a third-party
+    package; no user step sets OKG_PROFILES_DIR.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-format.wheel: built wheel contains no symlinks and lists every bundle.
+    [evidence: pytest]
+
+    - acc.r3-bundle-format.third-party: a fixture package registering a pack is listed and
+    installable. [evidence: pytest]'
+- id: req.r3-bundle-format.upstream
+  statement: 'AKMON issues exist for profile discovery by entry point and for profile composition/optional
+    sources, each linked from an upstream-ask issue here.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-format.filed: issue links recorded in this PACT''s evidence. [evidence:
+    manual]'
+tasks:
+- id: task.r3-bundle-format.schema
+  requirement: req.r3-bundle-format.manifests
+  verification: 'Write the schemas and the validate command.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_manifest_schema.py [evidence: pytest]'
+- id: task.r3-bundle-format.resolver
+  requirement: req.r3-bundle-format.compose
+  verification: 'Implement resolution and merge rules.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_compose.py [evidence: pytest]'
+- id: task.r3-bundle-format.render
+  requirement: req.r3-bundle-format.compose
+  verification: 'Render to an okg profile and plan it with okg.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_render_okg.py [evidence: pytest]'
+- id: task.r3-bundle-format.packaging
+  requirement: req.r3-bundle-format.packaging
+  verification: 'Dereference at build; entry points; list/show.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_packaging.py [evidence: pytest]'
+- id: task.r3-bundle-format.add-diff
+  requirement: req.r3-bundle-format.lock
+  verification: 'archi.lock, archi add, archi diff.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_lock.py; scratch-instance run [evidence: executed_test]'
+- id: task.r3-bundle-format.upstream
+  requirement: req.r3-bundle-format.upstream
+  verification: 'File the two AKMON issues.
+
+
+    Test plan:
+
+    - links [evidence: manual]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-bundle-format.manifests
+  status: pass
+  command: python -m pytest python/tests/bundles/test_manifest_schema.py -q
+  head: 4b653632b9a922a4edabf67799d53579e774944c
+  at: '2026-10-25T13:03:35+00:00'
+  note: 'acc.r3-bundle-format.schema: 45 passed. Both published JSON schemas are valid draft
+    2020-12 schemas that refuse unknown keys; the valid fixture catalog loads clean; one test
+    per rejection: unknown keys, missing files, a credential value in the manifest, in a source
+    template and in a question default, an unknown template reference, a bundle with no credential-free
+    default pack (inherited defaults count), an extends cycle. archi bundles validate exits
+    1 and lists every problem. Full suite: 1953 passed, 1 skipped.'
+- kind: executed_test
+  requirement: req.r3-bundle-format.compose
+  status: pass
+  command: python -m pytest python/tests/bundles/test_compose.py -q
+  head: 5dd4d53d0f97b4b00fc22eafec45e0679d4b1ee5
+  at: '2026-10-25T13:14:03+00:00'
+  note: 'acc.r3-bundle-format.rules: 46 passed. One test per ADR 0002 3.3 rule: extends closure
+    (parents first, transitive), requires closure (requirements first, unlisted packs pulled
+    in, cycles refused), --with/--without (unknown pack, unmet requirement after --with or
+    --without, removing an unselected pack all refused with the fix named), a pack selected
+    twice installs once, modules union, schema byte identity (conflict names both packs and
+    both sha256 digests), <pack>.<source> ids, <pack>_<id> question identity (identical merges,
+    differing refused), pack-owned invariants and freshness (dropping the pack drops them;
+    same name different body refused), subtype union, playbook/trigger/action-class/file identity,
+    reserved prompt file, prompt fragments in resolution order, chat scalars from the last
+    bundle given with the losers reported, okg range intersection and an empty one refused.'
+- kind: executed_test
+  requirement: req.r3-bundle-format.compose
+  status: pass
+  command: python -m pytest python/tests/bundles/test_render_okg.py -q
+  head: 5dd4d53d0f97b4b00fc22eafec45e0679d4b1ee5
+  at: '2026-10-25T13:14:03+00:00'
+  note: 'acc.r3-bundle-format.no-trace and acc.r3-bundle-format.okg-accepts: 26 passed. Real
+    input: the shipped cern-team profile regrouped into packs at test time. no-trace: for
+    each of the 6 optional packs P, render(cern-team --with P --without P) is byte-identical
+    to render(cern-team), and no source or question P owns appears in it; same on the fixture
+    library. okg-accepts: for 8 selections (bare, each optional pack, all), okg 0.2.0 install
+    --dry-run --json run from the instance dir with OKG_PROFILES_DIR unset returns dry_run_ok
+    with no blockers, and okg deployment lint on the scaffold reports exactly the two blockers
+    the hand-written cern-team profile already has (docsite params.source_name; git_history
+    admission drift), shown by a separate test. The rendered registry entries, schemas, invariants,
+    files and playbooks equal what okg builds from the hand-written profile. Full suite 2025
+    passed, 1 skipped.'
+- kind: executed_test
+  requirement: req.r3-bundle-format.packaging
+  status: pass
+  command: python -m pytest python/tests/bundles/test_packaging.py -q
+  head: ee7c6802cfedeeab7d2f9821ca89a3d8ec954338
+  at: '2026-10-25T13:19:54+00:00'
+  note: 'acc.r3-bundle-format.wheel and acc.r3-bundle-format.third-party: 9 passed, on built
+    artifacts. The hatchling-built archi wheel has no symlink entry, carries every file under
+    bundles/ and skills/ (symlinks followed) byte for byte under archi/_payload/, the manifest
+    schemas and base files, and registers the archi.packs / archi.bundles entry points. Unpacked
+    first on PYTHONPATH (archi imported from the wheel, asserted), archi bundles list --json
+    lists every bundle in the repo (today cern-team, as a legacy profile) from inside the
+    wheel. A fixture third-party package built as its own wheel registers a pack and a bundle
+    through the same groups: both are listed with provider ''fixture (archi-fixture-packs
+    0.0.1)'', archi render --bundle mirror-team renders it, and okg install --dry-run from
+    the instance dir with OKG_PROFILES_DIR unset returns dry_run_ok with --repo-mirror-url
+    answered. archi render --bundle cern-team copies the wheel''s legacy profile into ./profiles
+    and okg finds it with OKG_PROFILES_DIR unset. A broken entry point is listed as a problem
+    without hiding the rest. Full suite 2035 passed, 1 skipped.'
+- kind: executed_test
+  requirement: req.r3-bundle-format.lock
+  status: pass
+  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:<port>/scratch python/tests/bundles/scratch_add_run.sh
+    <empty dir>
+  head: 915498bd8f9fca337b44a2c26b349c0957318839
+  at: '2026-10-25T13:32:33+00:00'
+  note: 'acc.r3-bundle-format.add: scratch instance on AKMON v0.2.0 against a fresh database
+    in a local AKMON Postgres container (okg-pg17 image, timescaledb/pg_cron/pg_textsearch
+    preloaded). archi render --bundle cern-team (the shipped profile regrouped into packs)
+    then okg install from the instance dir with OKG_PROFILES_DIR unset published generation
+    okg:r3bf:...:gen:20261025T133157156156Z (2481 cmssw_release rows, not blocked). One command,
+    archi add repo-mirror --answer repo_mirror_url=file://<local git repo>, added the third-party
+    pack''s registry entry, modules and search subtype to the deployment and ran okg catalog
+    ownership claim, catalog load --apply, ingest --include repo-mirror.repo and run --once
+    --apply: generation ...gen:20261025T133214435923Z published, not blocked, with 2 source_file
+    and 1 git_branch rows added, and okg search ''hello'' returns file:demo:hello.py from
+    it. No manual step. archi diff was clean before and after the add.'
+- kind: executed_test
+  requirement: req.r3-bundle-format.lock
+  status: pass
+  command: python -m pytest python/tests/bundles/test_lock.py -q
+  head: 915498bd8f9fca337b44a2c26b349c0957318839
+  at: '2026-10-25T13:32:34+00:00'
+  note: 'acc.r3-bundle-format.diff: 14 passed. archi render writes archi.lock with the selection,
+    okg range and rendered-with version, bundle and pack versions, providers and content digests,
+    per-file digests of the rendered profile, and the composed freshness, live tools, action
+    classes and source owners; it is deterministic. On okg''s own scaffold of the rendered
+    profile, archi diff is clean; a hand edit to a registry entry (params.fetch) shows as
+    ''registry differs from the profile in [params]'', and a removed or hand-added source
+    shows too; edited or extra profile files and an upstream pack version or content change
+    each show; exit codes 0/1/2. archi add --no-okg adds the new entries, schema slices, files,
+    modules, subtypes and answers, records the deployment in the lock, refuses an already-installed
+    pack and a diverged file, and leaves diff clean. Full suite 2049 passed, 1 skipped.'
+- kind: manual
+  requirement: req.r3-bundle-format.upstream
+  status: pass
+  command: gh issue view 1 2 --repo mitdbg/akmon; gh issue view 792 793 --repo archi-physics/archi
+  head: 4bad68a73ade023510dd8e88f995a24c38511972
+  at: '2026-10-25T15:51:52+00:00'
+  note: 'acc.r3-bundle-format.filed: both AKMON issues are filed (by Jason, 2026-10-25): profile
+    discovery by entry point, https://github.com/mitdbg/akmon/issues/1, and profile composition
+    with optional sources, https://github.com/mitdbg/akmon/issues/2. Each is linked from an
+    upstream-ask issue here: https://github.com/archi-physics/archi/issues/792 and
+    https://github.com/archi-physics/archi/issues/793.'
+decisions: []

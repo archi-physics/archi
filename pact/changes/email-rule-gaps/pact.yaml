@@ -1,0 +1,177 @@
+pact_version: 5
+id: email-rule-gaps
+title: 'Close the email redaction gaps from #14'
+tier: 2
+why: 'Issue #14. The shared redactor in python/archi/enrichment/anonymizer.py (JIRA #5, TWiki
+  #13, comp-ops snapshot builder #11) still leaves parts of some addresses in the text, and
+  its spelled-out pass removes text that is not an address.
+
+
+  Under-removal (found by the differential review of #13 at 011232ae15 and lane B''s review
+  of #11):
+
+  - An invisible character splits an address. The @ pass read only five invisible characters
+  (soft hyphen, zero-width space, non-joiner, joiner, word joiner) as part of an address,
+  so jdoe<U+FEFF>x@cern.ch kept jdoe, and the same for U+200E, U+200F, U+2061 and the other
+  format (Cf) characters, the control characters (jdoe<DEL>x@cern.ch) and the U+FFFD a decoder
+  writes for a stray byte. One inside the domain (jdoe@cern<U+200E>.ch) kept the whole address.
+  The spelled-out pass had the same gap (jdoe<DEL>[at]cern.ch kept whole, jd<U+FEFF>oe[at]cern.ch
+  kept jd).
+
+  - A quoted local part after an earlier match. "x git@a.b y"@cern.ch became "x  y"@cern.ch:
+  after the first match the scan no longer looked back for the opening quote.
+
+
+  Over-removal by redact_obfuscated_email_addresses (lane B, hand-written strings): CMS site
+  names and wiki markup before [at] (site T2_CH_CERN [at] cern.ch, dataset (at) T2_US_MIT.mit.edu,
+  WebHome [AT] Twiki.Main), code (cfg(at)process.source.fileNames, read[at]self.buf.data,
+  data[at]i.root), and a bare nospam.ch (nospam.ch config became " config").
+
+
+  Operator rule (Jason, 2026-09-28, "8a/a") still bounds the redactor: bracketed and (at)/(dot)
+  forms are removed, free-prose "at ... dot" forms are kept, the literal git@ account is kept
+  (with #13''s hardened forward scan: the exemption never keeps a character of an address),
+  ssh user@host logins are removed.'
+affected_code:
+- python/archi/enrichment/anonymizer.py
+- python/archi/snapshot/builder.py
+- docs/cache-snapshot.md
+- python/tests/enrichment/test_anonymizer.py
+- python/tests/snapshot/test_snapshot_builder.py
+requirements:
+- id: req.email-rule-gaps.main
+  statement: 'The redactor removes whole addresses that invisible characters or an earlier
+    match inside a quoted local part used to split, and its spelled-out pass no longer removes
+    CMS site names, wiki names, code attribute chains or a bare NOSPAM domain.
+
+
+    Invisible characters (_is_invisible): every format character (Unicode Cf), every control
+    character that is not whitespace (C0 without tab, line feed, vertical tab, form feed,
+    carriage return and U+001C-U+001F; DEL; C1 without U+0085), and U+FFFD. The @ pass reads
+    them as local-part and domain characters, as it read the five listed before. The spelled-out
+    pass matches the text with them taken out and removes the invisible characters inside
+    a match with it. Whitespace controls still end an address (a<TAB>jdoe@cern.ch keeps a<TAB>).
+
+
+    Quoted local part: the opening quote is the nearest unescaped " before the closing one,
+    on the same line, looked for past earlier matches and across up to 16 backslash-escaped
+    quotes; the span covers and merges the earlier matches inside it, and local-part characters
+    directly before the opening quote go with it. So "x git@a.b y"@cern.ch, "x jdoe@a.bc y"@cern.ch,
+    "q\"x jdoe@a.bc"@cern.ch and jdoe"x"@cern.ch are removed whole. The git@ exemption reads
+    a quoted local part the same way, so a git@ token inside one is never kept.
+
+
+    Spelled-out bracketed forms ((at) [at] {at} <at>, and a spaced " at " before a bracketed
+    (dot)): the domain labels are letters, digits and - only (no _), the last label is two
+    letters or one of com org net edu gov mil int info biz name pro aero coop museum mobi
+    asia cat jobs tel travel eus xyz dev app cloud online site tech email, and the user name
+    is not a CMS site name (T<digit>_<two capitals>_...). NOSPAM tokens must have a letter
+    or digit before the domain ending once NOSPAM is taken out, so nospam.ch and NOSPAM.org
+    stay; a name@ before the token goes with it (jdoe@cernNOSPAMch, whose dotless domain the
+    @ pass skips, used to leave jdoe@). Glued forms (_at_) are unchanged.
+
+
+    Kept by the rule and unchanged: git@ tokens (git clone git@github.com:org/x.git), free-prose
+    forms (john.doe at cern.ch, jdoe AT cern DOT ch), T2_US_MIT (at) CERN, Run2 [at] 13.6TeV.
+    ssh user@host logins are still removed.
+
+
+    Snapshot builder: a page whose invalid byte became a C1 control inside an address (a.b@c<U+0081>d.ch)
+    now uses the dropped-byte view, as before; without that the redactor would remove the
+    address from the fallback view and the span rule would refuse the whole group.
+
+
+    Not covered: an invisible character inside a multi-character separator (%4<U+2063>0, &#6<U+200B>4;)
+    is not read as a separator; a quoted local part across a line break or behind more than
+    16 escaped quotes; code or wiki names whose last label is a two-letter word or a listed
+    TLD (f(at)obj.ch, x[at]module.py) are still removed; a real address at a domain whose
+    top-level domain is not two letters and not on the list (jdoe[at]lab.science) is now kept;
+    the known gaps of PACTs jira-email-redaction and twiki-email-redaction stay.
+
+
+    Accepted over-removal (fail closed): a quoted string in code before "@..." reads as a
+    quoted local part, as on main, and now also takes the name-like characters before its
+    opening quote: f("xAbc", "@abcdef99.size()") loses xAbc", "@abcdef99.size where main lost
+    ", "@abcdef99.size (3 such code lines and 1 prose line on the TWiki snapshot).
+
+
+    Acceptance:
+
+    - acc.email-rule-gaps.gaps: for each gap a test that fails on main (e63fc466a1) and passes
+    here: invisible characters in the @ pass (8 shapes x 21 characters, and a seeded property
+    test), quoted local parts after a match (rows and the updated #13 rows), invisible characters
+    in the spelled-out pass, and site names, wiki names, code and a bare NOSPAM kept. [evidence:
+    executed_test]
+
+    - acc.email-rule-gaps.rule: the operator rule tests and #13''s seeded git@ property test
+    pass, with its generator extended to format, control and U+FFFD characters, escaped quotes
+    and quotes enclosing an earlier match; a differential property test against #13''s bracketed
+    pattern shows real bracketed addresses still removed (also with invisible characters inside)
+    and nothing removed that #13 kept. [evidence: executed_test]
+
+    - acc.email-rule-gaps.snapshot: python/tests/snapshot passes (380 tests). [evidence: executed_test]
+
+    - acc.email-rule-gaps.measure: on the cms-kb TWiki snapshot, counts of addresses removed,
+    spelled-out forms removed and git@/prose forms spared before and after, with every changed
+    decision listed by shape only. [evidence: manual]'
+tasks:
+- id: task.email-rule-gaps.deliver
+  requirement: req.email-rule-gaps.main
+  verification: 'Read every Cf, non-whitespace control and U+FFFD character as part of an
+    address in both passes, find a quoted local part past earlier matches, tighten the bracketed
+    forms and NOSPAM, and keep the snapshot builder''s fallback outcome for a C1 byte inside
+    an address.
+
+
+    Proof: the new tests fail on main and pass here, the full archi suite and python/tests/snapshot
+    pass, and a run over the cms-kb TWiki snapshot on a dev host shows the counts before and
+    after.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.email-rule-gaps.main
+  status: pass
+  command: python -m pytest python/tests -q; python -m pytest python/tests/snapshot -q
+  head: 2df81977f3464ba8996f64f3c085735eb1e3ccb0
+  at: '2026-09-29T00:34:31+00:00'
+  note: '1291 passed at 2df8197 (was 1060 on main e63fc466a1; okg editable from a local checkout
+    at aadbd66668, Python 3.12.11); python/tests/snapshot 380 passed. Fail-before: the final
+    test_anonymizer.py and test_snapshot_builder.py run against main''s code give 212 failed,
+    609 passed: invisible characters in the @ pass (168 rows of 8 shapes x 21 characters,
+    the seeded property test, the Cf/control table test), quoted local part after a match
+    (10 rows, plus the 5 updated #13 git@ rows that recorded the leak), invisible characters
+    in the spelled-out pass (10), site names, wiki names, code and bare NOSPAM kept (12 of
+    14; T2_US_MIT (at) CERN and Run2 [at] 13.6TeV pass on both), jdoe@cernNOSPAMch removed
+    (1), the differential test against #13''s bracketed pattern (1), and 3 snapshot rows whose
+    expectation changed (a C1 note now fails the plain redaction check; the backspace display
+    trick now loses its address). The new anonymizer with main''s builder fails test_an_address_split_by_a_c1_fallback_byte_is_removed
+    (the group is refused), which the builder change fixes. Property tests also passed over
+    20 extra seeds (git@ invariant: 21,908 inputs per seed, 438,160 total; differential and
+    invisible-character properties), 0 violations. Linear-time tests under 1 s.'
+- kind: manual
+  requirement: req.email-rule-gaps.main
+  status: pass
+  command: taskset -c 32-63 nice -n 19 python measure14.py <twiki mirror>
+    (a dev host, <scratch>/arch14; anonymizer.py from e63fc466a1 as before
+    and from 2df8197 as after; Python 3.12.13)
+  head: 2df81977f346
+  at: '2026-09-29T00:45:40+00:00'
+  note: 'cms-kb TWiki snapshot, all 44,734 files read as the EOS reader reads them (UTF-8,
+    errors=replace), raw file text through the @ pass then the spelled-out pass, as the TWiki
+    source does. Before -> after: addresses removed by the @ pass 63,289 -> 63,291; spelled-out
+    tokens removed 609 -> 609; git@ tokens spared 1,306 -> 1,306; spaced free-prose ''name
+    at domain'' forms kept 7,598 -> 7,598; files with any removal 5,179 -> 5,179. Changed
+    decisions: 10 in 7 files, all removing more: 4 addresses with a U+FFFD from an unreadable
+    byte (main kept 2 whole, one name part before the U+FFFD, and the U+FFFD before a removed
+    address), 2 list addresses name@cernNOSPAMch (main left name@), 4 quoted strings before
+    an @ in code or prose that main already removed from the quote and that now also lose
+    the word before the quote (accepted over-removal). No bracketed decision changed: none
+    of lane B''s site-name, wiki or code shapes occurs in this snapshot. A first run before
+    2df8197 found the NOSPAM case as a regression (the new NOSPAM rule kept cernNOSPAMch after
+    main had removed it), fixed in 2df8197. CPU time 1,558 s before, 1,623 s after (+4%).
+    No address printed; samples shown as shapes only.'
+decisions: []

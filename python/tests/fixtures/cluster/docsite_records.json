@@ -1,0 +1,34 @@
+[
+  {
+    "title": "Draining a node for maintenance",
+    "url": "https://docs.example.org/cluster/drain-a-node.html",
+    "body": "Before any hardware or kernel work on a compute node, drain it so the scheduler stops placing new jobs there while running jobs finish. Use `scontrol update nodename=<node> state=drain reason=\"<why>\"` and always give a reason: the reason is shown to users in sinfo and is the only record of why the node is out. A drained node shows the state DRAIN while jobs are still running and DRAINED once it is empty. Wait for DRAINED before rebooting. To return the node to service, run `scontrol update nodename=<node> state=resume`. Nodes drained for more than 72 hours must have a ticket in the Cluster Ops tracker naming the node.",
+    "site_name": "example-cluster-docs",
+    "source_repo": "example/cluster-docs",
+    "path": "drain-a-node.md"
+  },
+  {
+    "title": "Scratch space policy",
+    "url": "https://docs.example.org/cluster/scratch-policy.html",
+    "body": "Every compute node has a local scratch filesystem mounted at /scratch. Jobs write their temporary files to a per-job directory under /scratch, which the job epilog removes when the job ends. Files under /scratch that are older than 14 days are deleted by a nightly cleanup. Scratch is not backed up. When a job is killed before its epilog runs, its directory can be left behind; stale job directories are the most common reason a node's scratch fills up. A full scratch filesystem makes new jobs on that node fail with ENOSPC (No space left on device).",
+    "site_name": "example-cluster-docs",
+    "source_repo": "example/cluster-docs",
+    "path": "scratch-policy.md"
+  },
+  {
+    "title": "Running GPU jobs",
+    "url": "https://docs.example.org/cluster/gpu-jobs.html",
+    "body": "GPU nodes are in the partition named gpu. Request GPUs with `--gres=gpu:<count>`; a job that asks for no GPU is not scheduled on the gpu partition. Each job may use at most 4 GPUs and a wall time of at most 48 hours. Containers on the GPU nodes run with apptainer; pass `--nv` so the container sees the GPU driver. Report a GPU that shows Xid errors in the node's kernel log to the Cluster Ops tracker so the node can be drained and checked.",
+    "site_name": "example-cluster-docs",
+    "source_repo": "example/cluster-docs",
+    "path": "gpu-jobs.md"
+  },
+  {
+    "title": "Planned maintenance windows",
+    "url": "https://docs.example.org/cluster/maintenance.html",
+    "body": "The cluster has a planned maintenance window on the first Tuesday of every month, from 08:00 to 12:00 local time. A scheduler reservation named maint covers all nodes during the window, so jobs whose wall time would run into the window wait until it is over. Users are told at least five working days before each window. Emergency maintenance outside the window is announced on the status page.",
+    "site_name": "example-cluster-docs",
+    "source_repo": "example/cluster-docs",
+    "path": "maintenance.md"
+  }
+]

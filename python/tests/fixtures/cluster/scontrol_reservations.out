@@ -1,0 +1,1 @@
+ReservationName=maint_oct StartTime=2026-10-20T06:00:00 EndTime=2026-10-20T10:00:00 Duration=04:00:00 Nodes=node[001-002] NodeCnt=2 CoreCnt=128 Features=(null) PartitionName=cpu Flags=MAINT,IGNORE_JOBS TRES=cpu=128 Users=root Groups=(null) Accounts=(null) Licenses=(null) State=INACTIVE BurstBuffer=(null)

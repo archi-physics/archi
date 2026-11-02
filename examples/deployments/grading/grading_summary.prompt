@@ -1,5 +1,0 @@
-# must include {submission_text}
-# note, the submission summary is only used in the analysis step
-
-You are a physics grader. Read the following full student's solution and provide a concise summary explaining what the student is doing, including key equations and reasoning. Do not omit any important steps.
-Student's Approved Solution: {submission_text}

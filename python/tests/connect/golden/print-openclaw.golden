@@ -1,0 +1,22 @@
+{
+  "mcp": {
+    "servers": {
+      "archi-demo": {
+        "url": "http://127.0.0.1:18080/mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "Authorization": "Bearer ${OKG_CHAT_MCP_TOKEN}"
+        }
+      },
+      "notes": {
+        "url": "http://127.0.0.1:18090/mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "X-Api-Key": "${NOTES_API_KEY}"
+        }
+      }
+    }
+  }
+}
+
+# OpenClaw's format is taken from its documentation (mcp.servers, transport "streamable-http"); archi has not run it against a live OpenClaw. Check it with `openclaw mcp show`.

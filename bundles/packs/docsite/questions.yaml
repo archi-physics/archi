@@ -1,0 +1,15 @@
+init_questions:
+  - id: urls
+    prompt: Documentation pages to cache, comma-separated public URLs
+    type: string
+    required: false
+    default: "https://fts3-docs.web.cern.ch/fts3-docs/,https://rucio.readthedocs.io/en/latest/"
+    description: |
+      The public documentation pages `archi init` downloads into the records
+      cache before the first ingest (one record per page; links are not
+      followed). The default is two small public CERN-developed sites, the
+      FTS3 and Rucio documentation, so a bare install has something to
+      answer from. Replace it with your own pages; every one must be
+      reachable, or the install stops with the page named. To cache the
+      packaged manifest's other targets, or to refresh later, run
+      `python -m archi.downloaders.static_docs`.

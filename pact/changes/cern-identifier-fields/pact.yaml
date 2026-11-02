@@ -1,0 +1,94 @@
+pact_version: 5
+id: cern-identifier-fields
+title: CERN record types declare the fields that hold an id a person types
+tier: 2
+why: 'okg now ranks the record that bears an exact id first (okg#3959, mitdbg/okg
+  PR 4020). It needs each record type to name the fields that hold its ids, with
+  the class annotation `okg_identifier_fields`. Without it a search for `SUS-29-991`
+  lists a page that only mentions the id ahead of the page named for it, and a search
+  for a JIRA key lists a duplicate issue that quotes the key ahead of the issue itself.
+
+
+  Measured on a small synthetic deployment (invented ids, the cern-team profile, the
+  real TWiki, JIRA, CDS and CMSSW readers over synthetic caches, okg at the PR 4020
+  head): before the declarations the named TWiki page ranks second and the named JIRA
+  issue second, both marked lexical; after, each ranks first and is marked exact_name.'
+affected_code:
+- bundles/cern-team/schemas/sources.yaml
+- bundles/cern-team/schemas/operations.yaml
+- python/archi/schemas/sources.yaml
+- python/archi/schemas/operations.yaml
+- python/tests/test_identifier_field_declarations.py
+requirements:
+- id: req.cern-identifier-fields.declarations
+  statement: 'Four record types declare `okg_identifier_fields`: jira_issue
+    (issue_key), documentation_page (analysis_id), cds_record (report_number,
+    analysis_code) and cmssw_release (release). Every identifier field is also in
+    that type''s `okg_searchable_text_fields`, is an attribute of the type, and is
+    not `text` or an `okg_*` name. cds_record gains analysis_code in its searchable
+    fields, because okg refuses an identifier field that is not searchable. Both
+    copies of the schemas (package and bundle) stay byte-identical.
+
+
+    Not declared: titles (a TWiki title is a WikiWord with no separators; okg already
+    matches it by name), free text, other_report_numbers (joined with a semicolon
+    and a space, which okg does not split).
+
+
+    Costs: once any type declares identifier fields, a plain digit token also runs the
+    exact-id step (without declarations it runs none). Measured on a 250,000-record
+    copy: amd64 adds 122 ms, python3 19 ms, sha256 2 ms. Adding analysis_code to the
+    searchable fields changed no cds_record text (0 records updated on the staging
+    copy), because the report number in the text already holds the analysis code, so
+    title and abstract ranking cannot change.
+
+
+    The compose test skips until the okg in CI includes okg#4020. Check that it runs once CI
+    moves to a release that does.
+
+
+    Acceptance:
+
+    - acc.cern-identifier-fields.declarations: The schema tests pass on both copies. On
+    a synthetic deployment built with the declarations, a hyphenated id ranks the
+    record that bears it first and marks it exact_name (a case-variant query marks it
+    exact_name_variant); built without them, the same queries rank it second or lower and
+    mark it lexical. [evidence: executed_test]'
+tasks:
+- id: task.cern-identifier-fields.declare
+  requirement: req.cern-identifier-fields.declarations
+  verification: 'Add the annotations to both schema copies and the tests.
+
+
+    Proof: the new tests pass; an end-to-end run on a throwaway Postgres with okg at
+    the PR 4020 head shows before and after ranks.
+
+
+    Test plan:
+
+    - python/tests/test_identifier_field_declarations.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.cern-identifier-fields.declarations
+  status: pass
+  command: pytest python/tests/test_identifier_field_declarations.py python/tests/test_bundle_cern_team.py
+    python/tests/test_passage_rollup_declarations.py -> 30 passed (the new file fails 3 of
+    8 on the schemas before the change)
+  artifact: pact/changes/cern-identifier-fields/evidence/identifier_fields.junit.xml
+  sha256: a8da09db2ad9362642ead1c4d11e17578351c791a6e2124b4d8bdef4ef024e75
+  head: 8896f7f41b1e00f929f3546ba80fef408a42636b
+  at: '2026-10-21T22:29:20+00:00'
+  note: okg at 88e06a5f2a3 (PR 4020 head), editable install.
+- kind: executed_test
+  requirement: req.cern-identifier-fields.declarations
+  status: pass
+  command: okg search over synthetic cern-team deployments built before and after the declarations
+    (see artifact)
+  artifact: pact/changes/cern-identifier-fields/evidence/exact-id-before-after.md
+  sha256: 8bc61801d25e569e9c4fc449c9fe59d695fc1b536ac48e96f3b75080509b2019
+  head: 8896f7f41b1e00f929f3546ba80fef408a42636b
+  at: '2026-10-21T22:29:21+00:00'
+  note: TWiki page, JIRA issue and CDS record bearing the id rank first with marker exact_name
+    after; second or lower, lexical, before. Real readers over invented caches; throwaway
+    Postgres.
+decisions: []

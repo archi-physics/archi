@@ -1,0 +1,64 @@
+pact_version: 5
+id: ws-git-history-default
+title: cern-team bundle offers git history (commits, tags, diffs) as an optional source
+tier: 2
+why: 'A cern-team deployment can read the current files of its GitHub repository, but not its
+  history. A staging run added full history for a mid-size repository (1,928 commits, 403 tags,
+  3,309 per-file diffs, 41 authors; ingest and publish 78 s, 15,686 new links) and four
+  history questions were answered correctly from graph calls. That entry only existed in the
+  staging deployment''s own registry, so a clean install could not reproduce it.
+
+
+  This change ships the entry as source-defaults/git_history.yaml.example, off by default like
+  the other optional sources. Renaming it to git_history.yaml enables it next to github_repo.
+  It reads the same repo name and checkout as github_repo, keeps diffs, and carries the strict
+  admission block. The header states what it emits, the measured cost, what it needs and the
+  known caveats. The quickstart gains a short subsection on enabling it.
+
+
+  NOT CHANGED: the default source set (still only the CMSSW catalog), the module list
+  (git_graph is already composed), any connector code, the okg pin. A full install with the
+  file renamed was not run here; the same entry was run on a staging deployment.'
+affected_code:
+- bundles/cern-team/source-defaults/git_history.yaml.example
+- docs/cern-team-quickstart.md
+- python/tests/test_bundle_cern_team.py
+requirements:
+- id: req.ws-git-history-default.main
+  statement: "The cern-team bundle ships git_history.yaml.example, an opt-in source for commits, tags, authors and per-file diffs of the github_repo checkout.\n\nAcceptance:\n- acc.ws-git-history-default.example: the example parses, is not selected by default, carries the strict admission block and sync block, names github_repo as its predecessor, uses a resolvable okg source module, and takes repo and repo_root from the same answers as github_repo. [evidence: pytest]\n- acc.ws-git-history-default.docs: the quickstart says how to enable it and gives the measured cost; the example header gives what it emits, cost, needs and caveats. [evidence: manual]\n\nScenarios:\n- scn.ws-git-history-default.fast-path Fast-path work is verified\n  Given a small nontrivial change fits one requirement\n  When the declared verification runs\n  Then the requirement has executed proof before completion"
+tasks:
+- id: task.ws-git-history-default
+  requirement: req.ws-git-history-default.main
+  verification: 'pytest python/tests/test_bundle_cern_team.py python/tests/test_bundle_source_adapters.py -q, then the full suite.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.ws-git-history-default.main
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests/test_bundle_cern_team.py tests/test_bundle_source_adapters.py --junitxml=pact/changes/ws-git-history-default/evidence/targeted.xml
+  artifact: pact/changes/ws-git-history-default/evidence/targeted.xml
+  sha256: b8c13a589726055c91c5cc06a03f131fa5132098e3922ba8e298ced150ed75ce
+  head: 65ee4bd8dc09dd959f05196da2a448b90c136e3a
+  at: '2026-10-21T17:56:45+00:00'
+  note: '74 passed, including the git_history example test with the full output set. Host name and interpreter path in the XML were replaced by generic text.'
+- kind: executed_test
+  requirement: req.ws-git-history-default.main
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests --ignore=tests/test_artifact_payload.py --junitxml=pact/changes/ws-git-history-default/evidence/full.xml
+  artifact: pact/changes/ws-git-history-default/evidence/full.xml
+  sha256: b9c08976992b7560f6dfb8a760a1dcaf4f6e3373c343e08d845cf0a40f860b1d
+  head: 65ee4bd8dc09dd959f05196da2a448b90c136e3a
+  at: '2026-10-21T17:57:50+00:00'
+  note: '1879 passed, 2 failed. The failures are outside this change and the same two as on the previous bundle change: test_redact_email_addresses_quoted_local_part_is_linear (a timing test) and test_wheel_builds (hatchling is not installed in the test environment). test_artifact_payload.py was skipped for the same reason.'
+- kind: manual
+  requirement: req.ws-git-history-default.main
+  status: pass
+  command: git diff --stat main...HEAD -- docs/cern-team-quickstart.md bundles/cern-team/source-defaults/git_history.yaml.example
+  head: 65ee4bd8dc09dd959f05196da2a448b90c136e3a
+  at: '2026-10-21T17:58:00+00:00'
+  note: 'Read-through: the example header lists what it emits, the measured cost (1,928 commits ingested, 1,675 on main, 403 tags: 78 s, 15,686 links), the github_repo requirement and the two known caveats; the quickstart subsection says how to enable it. The entry matches the one run on a staging deployment; an independent review ran a fresh install with the file renamed and it published.'
+decisions: []

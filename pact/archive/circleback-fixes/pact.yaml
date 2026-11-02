@@ -1,0 +1,67 @@
+pact_version: 5
+id: circleback-fixes
+title: 'Circle-back review fixes: scope-claim, anonymizer, and hygiene waves'
+tier: 1
+why: 'The deferred whole-package adversarial review (4 domain reviewers on archi_v3@728739e6)
+  confirmed 3 blockers / 15 majors, dominated by one class: connectors claiming completed_scope
+  after silently losing input, which under missing_from_completed_scope means mass retraction
+  of good records; plus PII leak paths in the anonymizer (the v2 anonymize_data cutover gate).
+  Fixes are deliberate deviations from the frozen canonical okg-deployments/cms copies (~85%
+  of findings are shared), recorded in per-domain notes files in this change dir. Out of scope
+  by design: enricher dedupe/retraction lifecycle and SourceRun.record_set plumbing (substrate-side
+  contracts, routed to okg#1178).
+
+
+  Small nontrivial change whose intent, task, acceptance, and proof fit the PACT fast path.'
+affected_code: []
+requirements:
+- id: req.circleback-fixes
+  statement: "Circle-back review fixes: scope-claim, anonymizer, and hygiene waves\n\nEvery\
+    \ confirmed blocker/major finding from the circle-back review is either fixed with a regression\
+    \ test reproducing its failure scenario, or explicitly routed upstream (okg#1178) with\
+    \ the reason recorded. No connector claims completed_scope when any enumerated input failed,\
+    \ was truncated, or parsed to nothing from non-empty input; no anonymizer leak case in\
+    \ the review corpus survives; the full v3 suite passes with zero regressions; every behavioral\
+    \ deviation from canonical cms code is recorded in notes-{catalogs,live,enrichment}.md\
+    \ in this change dir.\n\nAcceptance:\n- acc.circleback-fixes: Full suite green including\
+    \ new regression tests for each fixed finding (scope-claim class, anonymizer leak corpus,\
+    \ tools error contract); notes files present for all three domains. [evidence: executed_test]\n\
+    \nScenarios:\n- scn.circleback-fixes.fast-path Fast-path work is verified\n  Given a small\
+    \ nontrivial change fits one requirement\n  When the declared verification runs\n  Then\
+    \ the requirement has executed proof before completion"
+tasks:
+- id: task.circleback-fixes
+  requirement: req.circleback-fixes
+  verification: 'Circle-back review fixes: scope-claim, anonymizer, and hygiene waves
+
+
+    <okg-venv>/bin/python -m pytest python/tests -q (full suite, zero failures;
+    includes new regression tests per fixed finding)
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.circleback-fixes
+  status: pass
+  command: <okg-venv>/bin/python -m pytest python/tests -q
+  at: '2026-08-24T14:10:31.575851+00:00'
+  note: Full suite 320 passed (254 baseline + 66 new regression tests across catalogs/live/enrichment/hygiene
+    waves); junit report ingested.
+- kind: executed_test
+  requirement: req.circleback-fixes
+  status: pass
+  at: '2026-08-24T14:10:33.150802+00:00'
+  note: 'Acceptance: suite green incl. leak-corpus, scope-claim, and tools-error regression
+    tests; notes files present for catalogs/live/enrichment/hygiene.'
+- kind: executed_test
+  requirement: req.circleback-fixes
+  status: pass
+  command: <okg-venv>/bin/python -m pytest python/tests -q
+  at: '2026-08-24T14:34:54.559492+00:00'
+  note: 'Final suite after adversarial-review deltas: 326 passed (72 new regression tests
+    over the 254 baseline). Independent adversarial diff review: branch holds; its one major
+    escape (cmssw map-path zero-parse) and all prescriptions fixed or documented.'
+decisions: []

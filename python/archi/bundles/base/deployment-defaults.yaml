@@ -1,0 +1,92 @@
+# deployment.yaml defaults every rendered profile starts from. The renderer
+# fills the parts packs and bundles decide: the `content` search subtypes,
+# the chat suggestions and description, and the Nomos owner name. The values
+# come from the cern-team profile proven on 2026-08-11/12.
+#
+# The profile installer merges these top-level keys into the scaffolded
+# deployment.yaml. Scaffolder-owned keys (name, description, profile,
+# modules, source_registry, schema_dir, postgres) are reserved and may not
+# appear here.
+
+# No always-on runtime worker on a fresh instance; ingest is driven by hand
+# (okg ingest) until the operator opts in.
+runtime:
+  enabled: false
+
+# A rendered profile installs outside a Git checkout. Declaring that release
+# authority makes the first publish record unavailable repository provenance
+# instead of trying, and failing, to resolve Git state.
+release:
+  kind: standalone
+
+# Nomos rollout deferred with a structured owner and a review date. The
+# rollout audit requires owner.name, owner.contact and review_by; edit the
+# contact to your team's list after install.
+nomos:
+  rollout:
+    status: deferred
+    owner:
+      name: null            # archi-<profile name>, set by the renderer
+      contact: replace-with-team-contact@example.org
+    review_by: "2026-12-01"
+
+# The installer copies the profile's skills/ into <deployment>/skills/
+# verbatim; these keys wire the playbooks into the instance manifest.
+skills_dir: skills
+skill_triggers: skills/skill-triggers.yaml
+
+# A graph holds content (documents, code files, catalog entries) alongside
+# bookkeeping (change records, session logs, run metadata). Search ranks
+# within a fixed budget, so without a declared scope the bookkeeping competes
+# with the content and can evict the row that answers the question. okg
+# refuses a profile naming a subtype the catalog lacks, which is why the list
+# is the union of the selected packs' own subtypes.
+search:
+  default_profile: content
+  profiles:
+    content:
+      description: Documents, code files and catalog entries — what a question is asked about.
+      subtypes: []          # union of the selected packs' search_subtypes
+
+# The instance's chat site, so every install gets the same one. It carries no
+# credentials: the model provider is configured inside Open WebUI with the
+# operator's own key. All five sub-blocks are required when chat is enabled.
+# Declaring this starts nothing; `okg chat-instance up` is a separate step.
+chat:
+  enabled: true
+  ui:
+    site_name: ${chat_site_name}
+    features:
+      # Off by design: the assistant answers from the graph. Web search and
+      # image generation invite answers with no provenance in it, and the
+      # code interpreter is a sandbox an instance does not want to own.
+      web_search: false
+      image_generation: false
+      code_interpreter: false
+  models:
+    builtin:
+      - ${chat_model}
+    default: ${chat_model}
+  preset:
+    display_name: ${chat_site_name}
+    # Required: `okg chat sync` refuses a deployment that declares neither
+    # mcp_instructions nor a system_prompt_ref, because Open WebUI never shows
+    # the model the MCP server's own instructions. The renderer writes the
+    # file into the profile's skills/.
+    system_prompt_ref: skills/chat-system-prompt.md
+    description: >-
+      Answers from this instance's knowledge graph with the sources it used.
+    suggestions: []         # union of the bundles' chat suggestions
+  search_profile: content
+  mcp:
+    # The AKMON read operators. `query`, the raw escape hatch, is not exposed
+    # to chat users: it belongs to an operator surface, not a team chat.
+    port: 8765
+    tools:
+      - inspect
+      - search
+      - expand
+      - filter
+      - map
+      - aggregate
+    auth_token_env: OKG_CHAT_MCP_TOKEN

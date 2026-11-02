@@ -1,0 +1,69 @@
+# Smoke questions for the cluster-manager bundle (PACT r3-bundle-evals).
+#
+# Every question is answerable from the synthetic fixture corpus of an invented
+# cluster, never from a real site: python/tests/fixtures/cluster/ holds four
+# documentation pages (docsite_records.json), three Redmine tickets
+# (redmine_issues_page*.json) and the ops records of two incidents
+# (ops_records.jsonl). None of it names a particular lab or experiment: the bundle
+# is for any cluster operator. python/tests/evaluation/bundle_lab.py
+# --bundle cluster-manager installs that corpus into a scratch database and
+# writes a script that serves its MCP endpoint; then
+# `archi eval --bundle cluster-manager --mcp-url <that endpoint> --model <m>`
+# runs this file. On a real instance the set passes only to the extent that
+# instance holds that corpus: it checks that the bundle installs and answers.
+#
+# A question passes when the answer names a node a tool returned from the right
+# source or of the right subtype and holds the required strings. No LLM judge.
+#
+# This is the stop-gap harness. The eval framework tracked in #619 replaces it.
+#
+# pass_threshold starts at 7 of 10, as for the other bundles. It is a starting
+# value, not tuned to a model.
+bundle: cluster-manager
+pass_threshold: 7
+corpus: >-
+  docsite: four pages of an invented cluster's documentation (draining a node,
+  scratch space, GPU jobs, maintenance windows); tickets: Redmine issues 4750,
+  4799 and 4812; ops-record: incident inc-20260915-node017-scratch with its
+  proposal, decision, action and outcome, and open incident inc-20261002-gpu03-xid.
+questions:
+  - id: docs-drain-command
+    question: Which command drains a compute node before maintenance, according to the cluster documentation?
+    must_cite: {sources: [docsite]}
+    must_contain: [scontrol]
+  - id: docs-drained-state
+    question: After draining a node, which state shows that it is empty and safe to reboot?
+    must_cite: {sources: [docsite]}
+    must_contain_any: [DRAINED state, state DRAINED, state is DRAINED, shows DRAINED]
+  - id: docs-scratch-cleanup
+    question: How old must files under /scratch be before the nightly cleanup deletes them?
+    must_cite: {sources: [docsite]}
+    must_contain_any: [14 days, 14-day, fourteen days, two weeks]
+  - id: docs-gpu-walltime
+    question: What is the longest wall time a job on the GPU partition may ask for?
+    must_cite: {sources: [docsite]}
+    must_contain_any: [48 hours, 48h, 48 hrs, 48 hour]
+  - id: docs-maintenance-window
+    question: When is the cluster's planned monthly maintenance window?
+    must_cite: {sources: [docsite]}
+    must_contain: [first Tuesday]
+  - id: ticket-node042
+    question: Is there a ticket about the scratch filesystem on node042, and what is its status?
+    must_cite: {sources: [tickets]}
+    must_contain: [In Progress]
+  - id: ticket-apptainer
+    question: What happened to the request to install apptainer on the new GPU nodes?
+    must_cite: {sources: [tickets]}
+    must_contain: [Closed]
+  - id: precedent-scratch-full
+    question: Is there a past incident where a node's scratch filesystem filled up, and which node was it?
+    must_cite: {subtypes: [ops_incident, ops_proposal, ops_action, ops_outcome]}
+    must_contain: [node017]
+  - id: precedent-space-freed
+    question: How much space was freed when the stale job directories were cleaned on node017?
+    must_cite: {subtypes: [ops_action, ops_outcome]}
+    must_contain_any: [1.6 TB, 1.6TB, 1.6 terabytes]
+  - id: open-incident-gpu03
+    question: Is there an open incident on gpu03, and which error was seen?
+    must_cite: {subtypes: [ops_incident]}
+    must_contain: [Xid]

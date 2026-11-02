@@ -1,0 +1,44 @@
+# CRIC core (cache-backed): infrastructure services and WLCG federations,
+# linked to the sites the cric source emits. Reads the JSON caches under
+# ${archi_data_root}/cric-core/.
+cric_core:
+  module: archi.sources.cric
+  class: CRICCoreAdapter
+  ownership_id: ${deployment_name}.cric-core
+  admission_policy:
+    producer_id: ${deployment_name}.cric-core
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: cric_core
+    output_signature:
+      nodes:
+        - {subtype: infrastructure_service}
+        - {subtype: federation}
+      edges:
+        - {src_subtype: site, edge_type: contains, dst_subtype: infrastructure_service}
+        - {src_subtype: site, edge_type: member_of, dst_subtype: federation}
+    output_scope_summary:
+      summary: CRIC core infrastructure services and WLCG federations
+      nodes: [infrastructure_service, federation]
+      edges:
+        - site contains infrastructure_service
+        - site member_of federation
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [name, kind]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    # cms defaults; the cms deployment used data/cms/cric-core/*.json
+    services_path: ${archi_data_root}/cric-core/services.json
+    rcsites_path: ${archi_data_root}/cric-core/rcsites.json
+    federations_path: ${archi_data_root}/cric-core/federations.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,36 @@
+# Edge narrowings for the htcondor pack's source emissions.
+#
+# The composer honours narrowings only under schemas/bridges/. A narrowing
+# anywhere else is silently ignored and fails at ingest with
+# ProducerPolicyViolation. Person is okg's (person module); the other classes
+# are in ../htcondor.yaml.
+id: https://archi-physics.org/okg/archi/bridges/htcondor
+name: archi_htcondor_narrowings
+title: Archi htcondor bridge narrowings
+description: Narrowings for archi.sources.htcondor emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for archi.sources.htcondor emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      condor_pool_contains_machine:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: CondorPool
+          dst_subtypes: CondorMachine
+      condor_pool_contains_schedd:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: CondorPool
+          dst_subtypes: CondorSchedd

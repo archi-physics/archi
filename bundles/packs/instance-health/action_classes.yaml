@@ -1,0 +1,90 @@
+action_classes:
+  draft_issue:
+    description: Open, update or resolve the instance's health issues as Markdown files in the instance repository.
+    payload_schema:
+      type: object
+      required: [tracker, observed_at, problems, scope, skipped]
+      additionalProperties: false
+      properties:
+        tracker:
+          type: object
+          required: [kind]
+          additionalProperties: false
+          properties:
+            kind: {const: local}
+        observed_at: {type: string}
+        problems:
+          type: array
+          items:
+            type: object
+            required: [key, family, title, detail, severity]
+            additionalProperties: false
+            properties:
+              key: {type: string, pattern: "^[a-z0-9][a-z0-9._-]*/[a-z0-9._-]+$"}
+              family: {enum: [doctor, ingest, automation-errors, eval, monitor]}
+              title: {type: string, minLength: 1}
+              detail: {type: string}
+              severity: {enum: [error, warning]}
+        scope:
+          type: array
+          items: {enum: [doctor, ingest, automation-errors, eval, monitor]}
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [signal, reason]
+            additionalProperties: false
+            properties:
+              signal: {type: string}
+              reason: {type: string}
+    mediator: draft_issue
+    reversible: true
+    blast_radius: Files under .archi/issues/ in the instance repository and one commit there; nothing outside it.
+    max_level: L1
+  sync_forge_issues:
+    description: Open, update or resolve the same issues on a GitLab or GitHub project.
+    payload_schema:
+      type: object
+      required: [tracker, observed_at, problems, scope, skipped]
+      additionalProperties: false
+      properties:
+        tracker:
+          type: object
+          required: [kind, token_env]
+          additionalProperties: false
+          properties:
+            kind: {enum: [gitlab, github]}
+            url: {type: string}
+            project: {type: string}
+            repo: {type: string}
+            token_env: {type: string, pattern: "^[A-Z_][A-Z0-9_]*$"}
+            api_url: {type: string}
+        observed_at: {type: string}
+        problems:
+          type: array
+          items:
+            type: object
+            required: [key, family, title, detail, severity]
+            additionalProperties: false
+            properties:
+              key: {type: string, pattern: "^[a-z0-9][a-z0-9._-]*/[a-z0-9._-]+$"}
+              family: {enum: [doctor, ingest, automation-errors, eval, monitor]}
+              title: {type: string, minLength: 1}
+              detail: {type: string}
+              severity: {enum: [error, warning]}
+        scope:
+          type: array
+          items: {enum: [doctor, ingest, automation-errors, eval, monitor]}
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [signal, reason]
+            additionalProperties: false
+            properties:
+              signal: {type: string}
+              reason: {type: string}
+    mediator: archi.tools.instance_health:sync_forge_issues
+    reversible: true
+    blast_radius: Issues labelled archi-health on one GitLab or GitHub project; each is found by its key and can be closed again.
+    max_level: L2

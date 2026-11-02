@@ -1,0 +1,34 @@
+init_questions:
+  - id: base_url
+    prompt: Indico server URL
+    type: string
+    required: false
+    default: https://indico.cern.ch
+    description: |
+      The Indico instance to read. Use the server's root URL, with no
+      trailing path.
+
+  - id: event_ids
+    prompt: Indico event ids to read, as a YAML list (for example '["1716863"]')
+    type: string
+    required: false
+    default: "[]"
+    description: |
+      Events read directly, by the numeric id in their URL
+      (indico.cern.ch/event/<id>/). Give event ids, category ids or both.
+      With neither, the source reads one public event, 1716863 ("Knowledge
+      Bases and Agents for CERN"), so a bare install has a scope. That is
+      the source's `default_event_ids` parameter: any event or category id
+      you give replaces it, so answering only categories does not also read
+      this event. It is one named event, not a bounded walk, so its scope is
+      complete: if it cannot be read the run claims no complete scope and
+      nothing is retracted.
+
+  - id: category_ids
+    prompt: Indico category ids to read, as a YAML list (for example '["100"]')
+    type: string
+    required: false
+    default: "[]"
+    description: |
+      Categories walked for the events they hold, by the numeric id in
+      their URL (indico.cern.ch/category/<id>/).

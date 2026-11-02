@@ -1,0 +1,81 @@
+pact_version: 5
+id: cern-team-code-text
+title: 'cern-team: optional source that stores function bodies as searchable chunks'
+tier: 2
+why: 'On a CMS team-graph baseline (2026-10-21, 44 questions) two CRABClient questions (c11,
+  c14) were partial for one reason: the graph holds each function''s name, signature,
+  docstring and line numbers, but not its body. "What happens if the request name
+  contains a slash" needs the body; inspecting the file node returned `no_text_chunks`.
+  okg already has the reader for this: `DocCorpusSource` with `PythonSymbolChunker`
+  stores code as one chunk per function or class with its line range, links the
+  document to the `file:` node, and points a text read of the file node to it. The
+  cern-team bundle never configured it, so this change adds it as an opt-in example
+  for the GitHub and GitLab repositories, plus the extractors.yaml it reads. Tracked
+  upstream as mitdbg/okg#3982.'
+affected_code:
+- bundles/cern-team/extractors.yaml
+- bundles/cern-team/profile.yaml
+- bundles/cern-team/source-defaults/code_text.yaml.example
+- bundles/cern-team/source-defaults/code_text_gitlab.yaml.example
+- docs/cern-team-quickstart.md
+- python/tests/test_bundle_code_text.py
+requirements:
+- id: req.cern-team-code-text.source
+  statement: 'The cern-team bundle ships `code_text.yaml.example` and
+    `code_text_gitlab.yaml.example`, opt-in sources that run okg''s `DocCorpusSource`
+    over the checkout the matching repository source makes. The profile installs an
+    extractors.yaml at the deployment root (`files:`) that routes Python to
+    `PythonSymbolChunker` (4000 characters, 400 overlap) and other code to text
+    windows, and asks `code_extractors_dir`, whose default is the literal
+    `${deployment_dir}` that okg expands when it reads the registry. No new Python
+    code and no CERN names in the bundle or tests.
+
+
+    Acceptance:
+
+    - acc.cern-team-code-text.install: an install plan with the example enabled
+    keeps `${deployment_dir}` in the written registry, okg''s registry loader expands
+    it to the deployment directory, the plan writes extractors.yaml there, and the
+    entry binds against `DocCorpusSource`. [evidence: executed_test]
+
+    - acc.cern-team-code-text.body: on a synthetic git repository, the source built
+    from the shipped parameters emits a `document_chunk` that holds a function''s
+    body with its `start_line`, `end_line` and `symbol`, and stores no code file whose name the shipped excludes mark as a credential (a control run without the excludes stores them). [evidence: executed_test]
+
+    - acc.cern-team-code-text.live: a throwaway install of the bundle with the
+    example enabled publishes; search finds a word that occurs only inside a function
+    body, and reading the text of the `file:` node points to the document that holds
+    it. Size on a real 77-file Python repository is reported (documents, chunks,
+    bytes). [evidence: manual]'
+tasks:
+- id: task.cern-team-code-text.bundle
+  requirement: req.cern-team-code-text.source
+  verification: 'Add the two examples, extractors.yaml, the profile question and
+    `files:` entry, a quickstart paragraph, and offline tests.
+
+
+    Proof: bundle tests and the full suite pass on the lab host; a throwaway install
+    against a throwaway Postgres publishes and answers a body-only search.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.cern-team-code-text.source
+  status: pass
+  command: "cd python && PYTHONPATH=. pytest tests/test_bundle_code_text.py tests/test_bundle_cern_team.py tests/test_bundle_source_adapters.py tests/test_packaging.py tests/test_artifact_payload.py -> 96 passed (9 new)"
+  artifact: pact/changes/cern-team-code-text/evidence/bundle_code_text.junit.xml
+  sha256: c6f3b3b235f7fcaa7a2a259592869034fd6559f13824ec565335b207ab6a7adc
+  head: beb6eef158ad85530c97792fc8e10557ff725069
+  at: "2026-10-21T22:44:46+00:00"
+  note: "AKMON v0.2.0 (e2c618010b) on the lab host; the junit hostname is replaced with lab-host. Full python/tests at the same commit: 1895 passed, 1 failed (test_anonymizer git_scan_is_linear, a 1-second timing check, at load average 17); the five anonymizer timing tests then passed alone. The change does not touch python/archi or that test."
+- kind: manual
+  requirement: req.cern-team-code-text.source
+  status: pass
+  command: "okg install --profile cern-team (github_repo + code_structure + code_text enabled, cmssw_releases removed and its floor pointed at source_file: no network) against a throwaway Postgres; commit; okg run --once --apply; read-only MCP calls"
+  head: beb6eef158ad85530c97792fc8e10557ff725069
+  at: "2026-10-21T18:05:00+00:00"
+  note: "Run on an earlier, since-squashed revision whose code_text, extractors.yaml and profile changes differ from this commit only in comments. Synthetic repo: published 24 records; grep 'zanzibar' (a word only inside a function body) -> 1 chunk, symbol bucket_label, lines 5-14; inspect text of the file: node -> no_text_chunks with next_move to its doc: node; expand in -> doc via derived_from; inspect text of the doc -> 3 segments, coverage complete. Real 99-file Python repository (local clone, read only): with the source 6,440 records / 8,155 links / 134.5 MB database; without it 5,750 / 6,842 / 120.0 MB. The source adds 77 documents, 613 chunk records (618 occurrences, 704,606 characters, largest 4,000), 1,313 links. Both installs ended `install failed at stage ingest` and published after commit + run, so the red ingest is not caused by this source. An independent review reproduced the result with a fresh install that only renamed github_repo and code_text (no module change, cmssw_releases kept)."
+decisions: []

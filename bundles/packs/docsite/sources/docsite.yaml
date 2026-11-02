@@ -1,0 +1,61 @@
+# Documentation-site connector (cache-backed). Reads a records cache that
+# `python -m archi.downloaders.static_docs` writes under
+# ${archi_data_root}/docsite/. `archi init` and `archi add` write it first
+# (the pack's `prepare` step, from the `urls` answer); refresh it by running
+# the module again (more targets: the packaged source-download-manifest.yaml).
+# A configured cache that is missing fails the run loudly; it never
+# publishes an empty, "complete" scope.
+#
+# The reader can also link page text to other packs' records (JIRA issues,
+# CMSSW releases, sites; docs/docs/reference/connector-caches.md "Reference caches"). Those
+# caches belong to other packs, and a configured reference cache that is
+# missing fails the run, so this template configures none: the pack
+# installs and publishes alone. To link pages to JIRA issues on an instance
+# that also has the jira pack, add under params
+#     jira_records_path: ${archi_data_root}/jira/records.json
+# and the edge `{src_subtype: document_chunk, edge_type: references,
+# dst_subtype: jira_issue}` to output_signature (and its line to
+# output_scope_summary).
+docsite:
+  module: archi.sources.docs
+  class: DocumentationAdapter
+  ownership_id: ${deployment_name}.docsite
+  admission_policy:
+    producer_id: ${deployment_name}.docsite
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: docsite
+      source_name: docsite
+    output_signature:
+      nodes:
+        - {subtype: documentation_page}
+        - {subtype: software_repository}
+        - {subtype: document_chunk}
+      edges:
+        - {src_subtype: software_repository, edge_type: contains, dst_subtype: documentation_page}
+        - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+    output_scope_summary:
+      summary: documentation pages, their repos, and text chunks from the records cache
+      nodes: [documentation_page, software_repository, document_chunk]
+      edges:
+        - software_repository contains documentation_page
+        - documentation_page contains document_chunk
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [url]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  # No `source_name` param: okg reserves it (lint blocker
+  # deployment.source_registry.param_reserved) and the reader's default is
+  # already `docsite`.
+  params:
+    required: true
+    records_path: ${archi_data_root}/docsite/records.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

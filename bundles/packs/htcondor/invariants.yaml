@@ -1,0 +1,22 @@
+# Coverage for the subtypes this pack emits. It leaves with the pack.
+invariants:
+  - name: htcondor_coverage
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The HTCondor source must have a live pool and machines. Required live subtypes: condor_pool, condor_machine. A missing one means the input
+      was empty or the connector regressed.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES ('condor_pool'), ('condor_machine')
+      ),
+      counts AS (
+        SELECT subtype, count(*) AS n
+          FROM okg.v_nodes
+         GROUP BY subtype
+      )
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r
+        LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0

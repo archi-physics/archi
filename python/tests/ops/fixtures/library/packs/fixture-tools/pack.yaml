@@ -1,0 +1,9 @@
+name: fixture-tools
+kind: tool
+version: 0.1.0
+description: Test tool pack whose live tool is the mediator of the fixture automation.
+live_tools:
+  - archi.tools.fixture:set_ticket_status
+idempotent_tools:
+  - archi.tools.fixture:set_ticket_status
+needs_credentials: false

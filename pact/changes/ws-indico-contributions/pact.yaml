@@ -1,0 +1,113 @@
+pact_version: 5
+id: ws-indico-contributions
+title: One searchable record per Indico talk, linked to its event
+tier: 2
+why: 'The live Indico source turns an event into ONE meeting_minutes record. For the public
+  workshop event 1716863 that is a single ~56 KB record with no links: every talk, speaker
+  and session is flattened into its text, so an agent can cite the meeting but not a
+  talk, a speaker or a session.
+
+
+  The data is already read. The source calls /export/event/<id>.json?detail=contributions
+  (and the timetable export when that is empty) and then throws the structure away.
+  The anonymous export carries, per talk: title, abstract, speakers with affiliations,
+  session name, start and end time, its own URL, and attachment names and URLs.
+
+
+  Reuses the existing meeting_minutes subtype (described as "Indico meeting/event notes")
+  for a talk, with event_type "contribution". The only new schema item is one narrowing,
+  meeting_minutes_contains_meeting_minutes, declared the way the other meeting_minutes
+  edges are (bridges/operations.yaml, mirrored in the cern-team bundle). The cache-backed
+  source (indico.py) has no contribution record shape, so nothing existing is reused or
+  duplicated there.
+
+
+  OPTION, OFF BY DEFAULT: `contributions: true`. Turning it on adds records and shortens
+  the event record (it stops repeating every talk), so a current user''s graph would change
+  without it. Off, the output is byte-for-byte what it was.
+
+
+  Interaction with archi-okg#29 (token + since): that PR edits __init__, _session,
+  preflight and _event_ids_in_scope; this one edits __init__ (one new keyword and one
+  probe-config key), the harvest, the facts generator and the record builder. Different
+  hunks; the only textual neighbours are the __init__ signature and the change_probe
+  config dict, which merge by keeping both lines. The two features are independent: a
+  token or date window decides WHICH events are read, this decides how each is emitted.'
+affected_code:
+- python/archi/sources/indico_live.py
+- python/tests/sources/test_indico_live.py
+- python/tests/fixtures/indico/
+- python/archi/schemas/bridges/operations.yaml
+- bundles/cern-team/schemas/bridges/operations.yaml
+- bundles/cern-team/source-defaults/indico_live.yaml.example
+- skills/indico.md
+requirements:
+- id: req.ws-indico-contributions.records
+  statement: 'With `contributions: true`, every contribution of an event is its own
+    meeting_minutes record, linked from the event by a contains edge.
+
+
+    A record carries title, speakers (with affiliations in its text), session, start and
+    end time, abstract, its own Indico URL, and attachment names and URLs. Attachment text
+    is not fetched. The timetable fallback produces the same records. The event record no
+    longer repeats the talks'' text.
+
+
+    Acceptance:
+
+    - acc.ws-indico-contributions.records: Against saved export fixtures for event 1716863,
+    the contributions endpoint turns four talks into four linked records with the fields
+    above, and the timetable fixture (two scheduled talks) turns into two. A failed
+    contributions or timetable request makes the event a failed event with no complete
+    scope. [evidence: executed_test]'
+- id: req.ws-indico-contributions.off
+  statement: 'With the option off (the default) the connector emits exactly what it did
+    before: one record per event, talks inline in its text, no edges.
+
+
+    Acceptance:
+
+    - acc.ws-indico-contributions.off: The existing suite passes unchanged and a new test
+    shows no edges and talk text still inline. [evidence: executed_test]'
+tasks:
+- id: task.ws-indico-contributions.records
+  requirement: req.ws-indico-contributions.records
+  verification: 'Add the option, the per-talk record and the contains edge; declare the
+    narrowing in both schema copies.
+
+
+    Proof: fixture tests, and a live run against event 1716863 that reports the talk count.
+
+
+    Test plan:
+
+    - python/tests/sources/test_indico_live.py [evidence: pytest]'
+- id: task.ws-indico-contributions.off
+  requirement: req.ws-indico-contributions.off
+  verification: 'Keep the default path untouched.
+
+
+    Proof: full python/tests suite.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.ws-indico-contributions.records
+  status: pass
+  artifact: pact/changes/ws-indico-contributions/evidence/indico-live.xml
+  sha256: 6cb709dce7d22fabbaac61d14ec7b99478e45680f8fae998a44898e48579a55e
+  command: cd python && python -m pytest tests/sources/test_indico_live.py tests/sources/test_indico.py tests/test_bundle_cern_team.py tests/test_bridge_portability.py tests/test_bundle_source_adapters.py tests/test_catalog_handle_fields.py tests/test_alignment_page.py --junitxml=../pact/changes/ws-indico-contributions/evidence/indico-live.xml; live run against indico.cern.ch event 1716863
+  head: 7b15bf69d2a8613fef3af4799fb903061b82111b
+  at: '2026-10-20T16:17:52+00:00'
+  note: '115 passed (31 in test_indico_live.py, 15 new). Result file: pact/changes/ws-indico-contributions/evidence/indico-live.xml. Live, option on: 52 talk records and 52 contains edges, completed_scope true.'
+- kind: executed_test
+  requirement: req.ws-indico-contributions.off
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 7b15bf69d2a8613fef3af4799fb903061b82111b
+  at: '2026-10-20T16:17:52+00:00'
+  note: '1803 passed, 3 failed, 4 errors. The failures are in files this change does not touch and fail the same way on origin/main: test_packaging and test_artifact_payload (no hatchling in the venv) and two timing checks in test_anonymizer. Option off emits the same facts as origin/main (new test plus the unchanged existing tests).'
+decisions: []

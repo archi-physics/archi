@@ -1,0 +1,11 @@
+init_questions:
+  - id: cluster_name
+    prompt: Cluster name
+    type: string
+    required: false
+    default: cluster
+    description: |
+      Names the cluster in every record id when a report does not.
+      The exporter writes `records.json` under the data root's `node-health/`
+      directory: a JSON list with one report per node (see
+      `archi.sources.node_health` for the shape). Write it before the first ingest.

@@ -1,0 +1,118 @@
+pact_version: 5
+id: reference-targets-hep
+title: Dataset and conditions matchers for the chunk reference scanner
+tier: 2
+why: 'archi''s chunk emission already turns text into edges for four kinds of identifier:
+  CMS site names, CMSSW releases, JIRA keys and service hostnames. It scans a chunk''s text,
+  intersects the matches with a known-target set loaded from a cache, and emits a `references`
+  edge only where the target exists. That last part is what makes it safe -- a mention of
+  something the graph does not have produces nothing, rather than an edge into the void.
+
+
+  Two identifiers a physics deployment needs are missing from that list, and they are the
+  two that carry the questions a knowledge base of analyses exists to answer: WHICH DATASET
+  and WHICH CONDITIONS. A dataset path (/Primary/Campaign/TIER) and a conditions global tag
+  (106X_dataRun2_v32) both appear verbatim in TWiki recipes and analysis-note prose, and both
+  are already emitted as nodes by archi''s own connectors -- dbs.py as dataset:<name>, conddb.py
+  as global_tag:<name>.
+
+
+  So this is two more matchers of a shape that already exists and is already proven, not a
+  new mechanism. It lands in archi rather than cms-kb because a dataset path is generic HEP
+  metadata: any deployment carrying DBS and a documentation corpus wants these edges.
+
+
+  THEY WILL EMIT NOTHING AT FIRST, and that is correct. cms-kb has deferred the DBS and CondDB
+  sources (their readers are cache-backed and no cache producer exists; the upstream APIs
+  need a VOMS proxy). With no target set configured the matchers are inert, exactly as the
+  site and JIRA matchers are inert in a deployment without those sources. The work lands now
+  so the spines light up the day the targets arrive, rather than becoming the thing that blocks
+  them.'
+affected_code:
+- python/archi/sources/docs.py
+- python/tests/sources/test_docs.py
+requirements:
+- id: req.reference-targets-hep.matchers
+  statement: 'Chunk text that names a dataset or a conditions global tag links to it, when
+    the graph has it.
+
+
+    Two matchers join the existing four, using the same rule: extract candidates by pattern,
+    intersect with a known-target set loaded from a configured cache, emit `references` edges
+    carrying a match_type that names which matcher fired. A mention with no corresponding
+    node emits nothing.
+
+
+    Dataset paths are the harder pattern and the one worth stating: /Primary/Campaign/TIER,
+    three segments, where the tier is drawn from the known CMS set. Prose is full of slashes
+    -- file paths, URLs, fractions -- so the pattern must not turn every one of them into
+    a candidate.
+
+
+    Acceptance:
+
+    - acc.reference-targets-hep.matchers: Chunk text naming a known dataset and a known global
+    tag yields one edge each with the right match_type; text naming an unknown one yields
+    none; and file paths, URLs and other slash-bearing prose yield no dataset candidates.
+    [evidence: executed_test]'
+- id: req.reference-targets-hep.inert
+  statement: 'An unconfigured matcher is silent, and a configured-but-missing cache is loud.
+
+
+    A deployment that installs neither DBS nor CondDB must see no behaviour change at all:
+    no edges, no warnings, no cost. A deployment that CONFIGURES a cache path that does not
+    exist must fail rather than quietly emitting zero edges -- that is the existing `_configured_json`
+    contract, and the difference between ''this deployment has no datasets'' and ''this deployment
+    lost its dataset cache'' has to stay visible.
+
+
+    Acceptance:
+
+    - acc.reference-targets-hep.inert: With no paths configured the existing suite passes
+    unchanged and no dataset or tag edge is emitted; with a configured path that is absent,
+    the run raises. [evidence: executed_test]'
+tasks:
+- id: task.reference-targets-hep.matchers
+  requirement: req.reference-targets-hep.matchers
+  verification: 'Add the dataset and global-tag patterns, target loaders and edge emission
+    alongside the existing four in archi/sources/docs.py.
+
+
+    Proof: tests for a hit, a miss, and the slash-bearing-prose false positives.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.reference-targets-hep.inert
+  requirement: req.reference-targets-hep.inert
+  verification: 'Route both through the existing configured/optional cache contract.
+
+
+    Proof: the full archi suite unchanged, plus a test that a configured-but-absent cache
+    raises.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.reference-targets-hep.matchers
+  status: pass
+  command: python -m pytest tests -q
+  head: af4eb2693dd1e5bc2c976028648bae20f6776c98
+  at: '2026-09-25T21:01:28+00:00'
+  note: 499 passed, 23 new. Known dataset and global tag each link with the right match_type;
+    unknown ones emit nothing; /afs paths, URLs, /store file paths and fractions produce no
+    dataset candidates; unconfigured caches are silent and configured-but-missing raises.
+- kind: executed_test
+  requirement: req.reference-targets-hep.inert
+  status: pass
+  command: python -m pytest tests -q
+  head: af4eb2693dd1e5bc2c976028648bae20f6776c98
+  at: '2026-09-25T21:01:31+00:00'
+  note: 499 passed, 23 new. Known dataset and global tag each link with the right match_type;
+    unknown ones emit nothing; /afs paths, URLs, /store file paths and fractions produce no
+    dataset candidates; unconfigured caches are silent and configured-but-missing raises.
+decisions: []

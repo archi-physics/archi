@@ -1,0 +1,17 @@
+name: alpha
+kind: context
+version: 0.1.0
+description: Fixture documentation pack; needs no credential.
+requires:
+  modules: [document_starter, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+freshness:
+  alpha.pages: {max_staleness: 24h}
+playbooks: playbooks/
+skill_triggers: playbooks/skill-triggers.yaml
+search_subtypes: [document_chunk]
+prompt_fragment: prompt.md
+needs_credentials: false

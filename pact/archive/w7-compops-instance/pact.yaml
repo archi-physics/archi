@@ -1,0 +1,60 @@
+pact_version: 5
+id: w7-compops-instance
+title: 'W7: cms-compops v3 instance + parity gate'
+tier: 1
+why: 'ADR 0001 W7, model corrected 2026-08-21: gitlab.cern.ch/archi/cms-compops (branch archi_v3)
+  is THE comp-ops instance repo; it gains a v3 instance definition built on the archi distribution,
+  replacing its v2 A2rchi configs at cutover. okg-deployments/cms is the frozen prototype/parity
+  reference and retires at parity. Local half: author + fixture-validate the instance from
+  a dev host. Credentialed half (live bring-up + strict parity vs the v2 corpus) runs on a CERN
+  host per docs/bring-up.md and is the W7 exit gate.
+
+
+  Small nontrivial change whose intent, task, acceptance, and proof fit the PACT fast path.'
+affected_code: []
+requirements:
+- id: req.w7-compops-instance
+  statement: "W7: cms-compops v3 instance + parity gate\n\ncms-compops@archi_v3 carries the\
+    \ full v3 instance definition (versions pins, deployment.yaml, complete connector registry\
+    \ mirroring the canonical selection, materialized schemas/playbooks, relocated parity\
+    \ harness, credentialed runbook); it lints with zero blocker/warning, fixture-backed connectors\
+    \ ingest and publish locally, and credentialed connectors fail clean (no crash, no false\
+    \ complete scope).\n\nAcceptance:\n- acc.w7-compops-instance: okg deployment lint cms-compops\
+    \ zero blocker/warning + local validation table (per-connector ingest status, generation\
+    \ id) recorded as evidence; live parity audit deferred to the credentialed half, tracked\
+    \ in this change until run. [evidence: graph_report]\n\nScenarios:\n- scn.w7-compops-instance.fast-path\
+    \ Fast-path work is verified\n  Given a small nontrivial change fits one requirement\n\
+    \  When the declared verification runs\n  Then the requirement has executed proof before\
+    \ completion"
+tasks:
+- id: task.w7-compops-instance
+  requirement: req.w7-compops-instance
+  verification: 'W7: cms-compops v3 instance + parity gate
+
+
+    okg deployment lint cms-compops --json (zero blocker/warning) + docs/w7-local-validation.md
+    in cms-compops@archi_v3
+
+
+    Test plan:
+
+    - cms-compops@archi_v3:docs/w7-local-validation.md [evidence: graph_report]'
+evidence:
+- kind: published_generation
+  requirement: req.w7-compops-instance
+  status: pass
+  command: OKG_DEPLOYMENTS_DIR=cms-compops/okg okg deployment lint cms-compops --json; full
+    cycle in docs/w7-local-validation.md (cms-compops@archi_v3)
+  at: '2026-08-21T18:34:15.802628+00:00'
+  note: 'cms-compops v3 instance: lint ok zero blocker/warning (independently re-run); 13
+    connectors ingest OK, 8 credential-gated fail clean (completed_scope=false, 0 facts);
+    generation published, idempotent re-run 0 retractions; read-back verified via okg search.'
+- kind: published_generation
+  requirement: req.w7-compops-instance
+  status: pass
+  at: '2026-08-21T18:34:18.114284+00:00'
+  note: 'Acceptance: full instance definition authored (deployment.yaml, 21-connector registry,
+    schemas incl. pruned operations bridge, 20 playbooks, invariants, relocated parity harness,
+    bring-up runbook, versions.lock pinning okg f5ec3b58d + archi 728739e6); local validation
+    green; credentialed half documented for CERN host in docs/bring-up.md.'
+decisions: []

@@ -1,0 +1,27 @@
+action_classes:
+  draft_reply:
+    description: Draft a reply for a person to send.
+    payload_schema:
+      type: object
+      required: [ticket_key, body]
+      additionalProperties: false
+      properties:
+        ticket_key: {type: string}
+        body: {type: string}
+    mediator: draft_reply
+    reversible: true
+    blast_radius: Writes a draft; nothing is sent.
+    max_level: L1
+  write_marker:
+    description: Write a marker row to the scratch table.
+    payload_schema:
+      type: object
+      required: [entity, note]
+      additionalProperties: false
+      properties:
+        entity: {type: string}
+        note: {type: string}
+    mediator: archi.ops.stubs:write_marker
+    reversible: true
+    blast_radius: One row in archi_scratch.marker.
+    max_level: L2

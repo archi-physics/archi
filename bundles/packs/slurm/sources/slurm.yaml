@@ -1,0 +1,52 @@
+# Slurm connector (cache-backed). Reads the snapshot that `python -m archi.downloaders.slurm`
+# writes under ${archi_data_root}/slurm/ from sinfo, scontrol show reservation and sacct output.
+# The source never runs a Slurm command; it names no credential.
+#
+# The parsed item count is cross-checked against meta.json's record_count; a mismatch
+# withholds the completed-scope claim.
+slurm:
+  module: archi.sources.slurm
+  class: SlurmAdapter
+  ownership_id: ${deployment_name}.slurm
+  admission_policy:
+    producer_id: ${deployment_name}.slurm
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: slurm
+      source_name: slurm
+    output_signature:
+      nodes:
+        - {subtype: slurm_partition}
+        - {subtype: slurm_node}
+        - {subtype: slurm_reservation}
+        - {subtype: slurm_job}
+      edges:
+        - {src_subtype: slurm_partition, edge_type: contains, dst_subtype: slurm_node}
+        - {src_subtype: slurm_node, edge_type: executes, dst_subtype: slurm_job}
+        - {src_subtype: slurm_job, edge_type: member_of, dst_subtype: slurm_partition}
+        - {src_subtype: slurm_reservation, edge_type: references, dst_subtype: slurm_node}
+    output_scope_summary:
+      summary: Slurm partitions, nodes, reservations and job summaries from the exported snapshot
+      nodes: [slurm_partition, slurm_node, slurm_reservation, slurm_job]
+      edges:
+        - slurm_partition contains slurm_node
+        - slurm_node executes slurm_job
+        - slurm_job member_of slurm_partition
+        - slurm_reservation references slurm_node
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [cluster, kind, name]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/slurm/records.json
+    meta_path: ${archi_data_root}/slurm/meta.json
+    cluster_name: ${cluster_name}
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

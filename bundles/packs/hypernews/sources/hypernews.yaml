@@ -1,0 +1,62 @@
+# HyperNews forum threads and their text chunks. With a records cache at
+# ${archi_data_root}/hypernews/records.json the source reads it; without
+# one it crawls the forums live through an SSO cookie jar whose PATH is in
+# HYPERNEWS_COOKIE_FILE (`python -m archi.downloaders.sso_login` makes it;
+# it is interactive and needs a TOTP code).
+hypernews:
+  module: archi.sources.hypernews
+  class: HyperNewsAdapter
+  ownership_id: ${deployment_name}.hypernews
+  admission_policy:
+    producer_id: ${deployment_name}.hypernews
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: hypernews
+      source_name: hypernews
+    output_signature:
+      nodes:
+        - {subtype: forum_thread}
+        - {subtype: document_chunk}
+      edges:
+        - {src_subtype: forum_thread, edge_type: contains, dst_subtype: document_chunk}
+        # Uncomment together with the matching params below:
+        # - {src_subtype: document_chunk, edge_type: references, dst_subtype: site}
+        # - {src_subtype: document_chunk, edge_type: references, dst_subtype: cmssw_release}
+        # - {src_subtype: document_chunk, edge_type: references, dst_subtype: jira_issue}
+        # - {src_subtype: document_chunk, edge_type: references, dst_subtype: infrastructure_service}
+    output_scope_summary:
+      summary: HyperNews forum threads and their text chunks
+      nodes: [forum_thread, document_chunk]
+      edges:
+        - forum_thread contains document_chunk
+        # Uncomment together with the matching params below:
+        # - document_chunk references site
+        # - document_chunk references cmssw_release
+        # - document_chunk references jira_issue
+        # - document_chunk references infrastructure_service
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [thread_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [HYPERNEWS_COOKIE_FILE]
+  required_for_baseline: false
+  params:
+    base_url: https://hypernews.cern.ch
+    forums: [comp-ops, mcOps]
+    records_path: ${archi_data_root}/hypernews/records.json
+    cookie_file_env: HYPERNEWS_COOKIE_FILE
+    # Optional reference-target caches (cms deployment values) —
+    # enabling any requires the matching references edges above
+    # and the target subtype in the deployment schema:
+    # sites_path: ${archi_data_root}/cric/sites.json
+    # releases_path: ${archi_data_root}/cmssw-releases/records.json
+    # jira_records_path: ${archi_data_root}/jira/records.json
+    # services_path: ${archi_data_root}/cric-core/services.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

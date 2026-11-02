@@ -1,0 +1,26 @@
+name: git-code
+kind: context
+version: 0.1.0
+description: One Git repository's tracked files and history (commits, tags, authors, per-file diffs).
+requires:
+  modules: [document_starter, person, extraction, git_graph]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# The sources are reconciled by hand, and a week-old checkout still answers
+# most questions about the code: 7d. Tighten it on an instance that ingests on
+# a schedule.
+freshness:
+  git-code.git_history: {max_staleness: 7d}
+  git-code.repo: {max_staleness: 7d}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant git_code_link_<name>.
+link_coverage:
+  # A tag names a release by the commit it points at.
+  - {name: tag_commit, from: git_tag, edge: references, to: git_commit, direction: out, min_fraction: 0.95}
+search_subtypes: [source_file, git_commit, git_file_diff, git_tag]
+prompt_fragment: prompt.md
+# The connector clones with the operator's own git credentials; a public
+# repository needs none.
+needs_credentials: false

@@ -1,0 +1,11 @@
+version: 1
+intents:
+  ops_precedents:
+    skill: ops_precedents
+    description: Retrieve past incidents on the same entity with what was proposed, decided, run and the outcome, before proposing an action.
+    subtypes:
+      - ops_incident
+      - ops_proposal
+      - ops_decision
+      - ops_action
+      - ops_outcome

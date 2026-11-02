@@ -1,0 +1,118 @@
+pact_version: 5
+id: twiki-page-index
+title: TwikiEOSSource can write the page ids it emitted, for same-run consumers
+tier: 2
+why: >-
+  A downstream source that links INTO TWiki pages has to know which
+  pages the TWiki ingest actually kept. The physics filter drops most of
+  a CMS snapshot, so the kept set is not the snapshot listing, and an
+  edge to a dropped page is an unresolvable endpoint. okg refuses the
+  WHOLE emission for one bad endpoint, not just the bad edge: measured
+  in cms-kb, 1,804 stale endpoints discarded 868,044 admissible records.
+
+  cms-kb answers this today with a file exported out of band
+  (`scripts/export-twiki-pages.py`, 15,866 entries). The export is
+  correct -- it drives this connector through its public API rather than
+  re-implementing the filter -- but it is a SEPARATE run, so the file
+  describes whichever snapshot it was run against. The moment the mirror
+  refreshes, the list is stale and the next analysis-note ingest fails
+  admission. That is the blocker under cms-kb#37: a nightly TWiki
+  refresh breaks the note ingest within a day.
+
+  The connector already has the answer in hand. `run()` computes the
+  kept `records` before it yields anything, and `record.node_id` is the
+  page node id. Writing that list costs one file write and makes the
+  index a by-product of the run that produced the pages, so it cannot
+  describe a different snapshot than the one just ingested.
+
+  Off by default: a deployment that says nothing behaves exactly as
+  before, which is how `physics_filter` was added for the same consumer.
+affected_code:
+- python/archi/sources/twiki.py
+- python/tests/sources/test_twiki_page_index.py
+requirements:
+- id: req.twiki-page-index.writes
+  statement: >-
+    With `page_index_path` set, a run that emits facts writes a JSON
+    list of the `documentation_page` node ids it emitted, and that list
+    equals the page ids actually present in the run's facts.
+- id: req.twiki-page-index.off-by-default
+  statement: >-
+    With `page_index_path` unset, no file is written and the run's
+    facts, health and content hash are byte-for-byte what they were
+    before the option existed.
+- id: req.twiki-page-index.respects-the-filter
+  statement: >-
+    The index contains only kept pages: with `physics_filter` on, a
+    topic the filter drops is absent from the index as it is absent
+    from the facts.
+- id: req.twiki-page-index.no-partial-file
+  statement: >-
+    A run that refuses its scope -- unreadable root, or a physics filter
+    that kept nothing -- does not overwrite an existing index, so a
+    failed run cannot leave a consumer a truncated list.
+tasks:
+- id: task.twiki-page-index.option
+  requirement: req.twiki-page-index.writes
+  verification: >-
+    A fixture run with `page_index_path` set writes the file, and its
+    contents equal the sorted page ids in the run's facts.
+- id: task.twiki-page-index.default
+  requirement: req.twiki-page-index.off-by-default
+  verification: >-
+    A fixture run without the option writes nothing to the directory,
+    and the existing twiki suite passes unchanged.
+- id: task.twiki-page-index.filter
+  requirement: req.twiki-page-index.respects-the-filter
+  verification: >-
+    A fixture with one physics topic and one blacklisted topic, run with
+    `physics_filter=True`, indexes only the physics one.
+- id: task.twiki-page-index.refusal
+  requirement: req.twiki-page-index.no-partial-file
+  verification: >-
+    A run whose physics filter keeps nothing leaves a pre-existing index
+    file untouched.
+evidence:
+- kind: executed_test
+  requirement: req.twiki-page-index.writes
+  status: pass
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
+  at: '2026-10-01T20:50:41+00:00'
+  note: >-
+    8 passed. The index equals the page ids in the run's own facts, and
+    is written into a directory that does not exist yet.
+- kind: executed_test
+  requirement: req.twiki-page-index.off-by-default
+  status: pass
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests
+  head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
+  at: '2026-10-01T20:50:41+00:00'
+  note: >-
+    1673 passed, the whole archi suite, with 138 of those the existing
+    twiki, twiki-physics and chunk-char-end suites unchanged. Unset,
+    nothing is written and the content hash is identical to a run
+    without the option -- asserted directly, so turning the index on
+    cannot look like a corpus change and force a re-ingest.
+- kind: executed_test
+  requirement: req.twiki-page-index.respects-the-filter
+  status: pass
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
+  at: '2026-10-01T20:50:41+00:00'
+  note: >-
+    With physics_filter on, a snapshot of three topics indexes only the
+    kept one; CompOpsTransferTeam is absent from the index exactly as it
+    is absent from the facts.
+- kind: executed_test
+  requirement: req.twiki-page-index.no-partial-file
+  status: pass
+  command: PYTHONPATH=. <cms-kb-venv>/bin/python -m pytest -q tests/sources/test_twiki_page_index.py
+  head: 3349beb21f39d8b2416afc175679d8c5ead2eaf4
+  at: '2026-10-01T20:50:41+00:00'
+  note: >-
+    A physics filter that keeps nothing, and a missing snapshot root,
+    both leave a pre-existing index byte-identical. The write is atomic
+    through a sibling temp file and os.replace, and no .tmp is left
+    behind.
+decisions: []

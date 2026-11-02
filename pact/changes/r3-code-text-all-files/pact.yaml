@@ -1,0 +1,224 @@
+pact_version: 5
+id: r3-code-text-all-files
+title: 'code-text stores every text file and leaves out files holding a literal secret'
+tier: 2
+why: 'On the comp-ops instance (CompOps-42, 2026-10-30) the agent with the graph''s MCP tools found
+  0.259 of the gold evidence against 0.747 for an agent with bash over the raw files. The cause was
+  the graph''s surface: git-code stores each repository file as a name with no text, and 44 of the
+  66 gold records are git files, most of them YAML, shell scripts and Markdown. The code-text pack
+  reads only code extensions and would have covered 19 of those 44. On
+  that instance code-text was configured by hand to read every text file, with 303 files excluded
+  after two secret scans; the graph agent then found 0.729 (bash 0.725) and scored 0.702 against
+  0.571 with the LLM judge (evidence of r3-context-quality, compops42-agent-arms.md). Jason decided
+  on 2026-10-31 (13:42Z, decision d716) that this becomes the default in 3.0: code-text reads all
+  text files, with a secret screen. This change is that pack change. Turning code-text on in
+  cms-comp-ops whenever git-code is selected needs a bundle-format rule (companion packs) and is a
+  separate change, so this one leaves every bundle''s pack selection as it was.
+
+
+  A hand-made exclusion list does not survive the next commit, so the screen is code that runs on
+  every listing: archi''s SecretScreenedDocCorpusSource is okg''s DocCorpusSource with
+  `_walk_files` overridden. okg''s change probe and its read both list files through that method,
+  so they agree, and a file that gains a secret is not emitted by the next run (okg''s
+  completed-scope deletion should then retract it; the tests prove the run, not the retraction). The rules are archi''s own regular expressions, not an
+  import of okg''s private transcript-redaction module.
+
+
+  Known lint finding. `okg lint deployments` reports DEPLOYMENT-001 ("a connector may not import
+  okg.substrate") for `archi.sources.code_text`, which subclasses okg''s DocCorpusSource. It is the
+  one recorded connector-side exception (docs/okg-alignment.md), accepted on 2026-10-31 because
+  okg''s public SDK has no per-file content hook; runtime does not enforce the lint. Removal path:
+  a public content-screen hook on DocCorpusSource in okg, requested through the coordinator.
+
+
+  Known limits. okg''s `search(view="windows")` trusts stored character positions only from
+  registry entries naming okg''s own DocCorpusSource, so a phrase, NEAR or regex window search
+  inside code-text documents may answer `window_continuity_unknown`; plain search and text reads
+  are unaffected (an okg-side hook would remove this). The screen is pattern matching: values
+  under 8 characters and plain words are kept, and so are passwords under a key with no secret
+  word (a Kubernetes `name:` / `value:` pair), values that start like a template (`$2b$` bcrypt
+  hashes, `{...}`), keys over 64 characters and .netrc `default` lines; URLs to documentation
+  or placeholder hosts (loopback, `example.com/.org/.net`, `*.example`, `*.invalid`, `*.test`,
+  `host`, `server`) are not counted, whatever their password. It covers code-text documents only: git-code''s
+  history source stores per-file diffs, which okg redacts by its own patterns, so a secret removed
+  from the current files can still be read in the diff that removed it. The file cap is okg''s
+  default (25,000), since every text file now counts. The pack takes one repository per install; the
+  comp-ops instance wires more by hand.'
+affected_code:
+- python/archi/sources/code_text.py
+- bundles/packs/code-text/pack.yaml
+- bundles/packs/code-text/sources/code_text.yaml
+- bundles/packs/code-text/extractors.yaml
+- bundles/packs/code-text/prompt.md
+- python/tests/sources/test_code_text_screen.py
+- python/tests/test_bundle_code_text.py
+- python/tests/test_bundle_source_adapters.py
+- python/tests/packs/pack_support.py
+- python/tests/packs/test_pack_isolation.py
+- python/tests/evaluation/test_raw_corpus.py
+- docs/cern-team-quickstart.md
+- docs/okg-alignment.md
+- docs/release-notes-3.0.0.md
+- docs/docs/library/index.md
+- docs/docs/library/packs/code-text.md
+- pact/plan/archi-3.0.yaml
+requirements:
+- id: req.r3-code-text-all-files.all-text
+  statement: 'The code-text source selects every tracked file (`include_globs: ["**/*"]`) except
+    credential-named paths, the paths git-code skips and binary types (images, archives, compiled
+    objects, office documents, fonts, PDFs). Every extension okg would route to a parser the pack''s
+    extractors.yaml does not declare (Markdown, YAML, JSON, TOML, HTML, CSV, notebooks, LaTeX, mail)
+    and the code extensions are routed to `text`; Python keeps okg''s PythonSymbolChunker; a file
+    with no route is read as text when it reads as UTF-8 (`text_fallback: true`). `max_files` is
+    25,000. The pack is
+    version 0.2.0 and its description, prompt fragment and docs say what it now stores.
+
+
+    Acceptance:
+
+    - acc.r3-code-text-all-files.formats: every format a selected file can be routed to has a
+    parser and a chunker in the pack''s extractors.yaml. [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.store: over a synthetic git repository, the shipped parameters
+    store Markdown, a templated YAML file, JSON, a shell script, an extensionless script, a
+    Makefile, a .cfg file and HTML as documents whose chunks hold each file''s text, store no
+    document for a PNG or a JAR, and still cut Python per function. [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.install: against a fresh Postgres with okg''s extensions, the
+    code-text pack alone (with git-code, which it requires) and the cern-team bundle with every
+    optional pack each install with okg, ingest their fixture inputs and publish.
+    [evidence: executed_test]'
+- id: req.r3-code-text-all-files.secret-screen
+  statement: 'The code-text registry entry names `archi.sources.code_text.SecretScreenedDocCorpusSource`,
+    a DocCorpusSource subclass taking the same parameters. On every file listing it reads each
+    selected file up to `max_bytes_per_file` and leaves out any file whose text holds a private key
+    block (PGP blocks included), a vendor token (GitHub, GitLab, OpenAI-style, AWS key id, Slack,
+    Google API key), a JWT, a non-hexadecimal base64 run of 80 or more characters that is not
+    public material (SSH public key, package integrity hash, inline image, cluster CA), a URL with
+    a password that is not a template (plain-word, URL-encoded and empty-user forms included), an
+    Authorization or Bearer header or `curl -u` with a literal value, a key ending in a secret word
+    (password, passwd, passphrase, pwd, pass, secret, token, credential(s), api/access/secret/
+    private/auth key) assigned a literal value on the same line with `=`, `=>` or `:`, a bare
+    `auth` key with a literal of 16 or more characters, a quoted multi-word passphrase, or a flag
+    ending in a secret word (`--password`, `--client-secret`, `--access-token`), `mysql -p`, a
+    .netrc `password` line or an XML secret element with a literal value. An identifier-shaped
+    value with a digit is a literal (`archi_Xk9..._db`); one without is a variable name. Templates, environment lookups, YAML aliases, expressions, paths,
+    prose and plain words are references and are kept; a URL to a documentation or placeholder
+    host is not counted, and any other URL password that is not a template is, even `password`. Every pattern is bounded, so a 1 MB line
+    screens in linear time. The verdict cache is keyed by the content''s SHA-256. A left-out file gets no document and no chunk; the
+    source records the left-out paths (never values) in `screened_paths` and logs them.
+
+
+    Acceptance:
+
+    - acc.r3-code-text-all-files.rules: each literal-secret shape above is found and each reference
+    shape is not, public base64 is not, and a 1 MB worst-case line screens in under 2 seconds.
+    [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.leave-out: over a synthetic git repository, files holding a
+    literal secret get no document and none of their secret text is stored, files that only
+    reference a secret are kept, and okg''s own DocCorpusSource with the same parameters stores the
+    secret files (control). A file that gains a secret in a later commit drops out of the next run
+    of the same source object and comes back when the secret is removed, and a same-size rewrite
+    with the old modification time is still left out. [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.planted: in the pack-isolation install (fresh Postgres, okg
+    install, ingest, publish), git-code''s fixture repository holds a file with a planted, invented
+    password; the published graph has a code-text document for the clean README and none for the
+    planted file, and okg''s grep search for the password finds no record anywhere in the graph.
+    [evidence: executed_test]
+
+    - acc.r3-code-text-all-files.real-repos: run over the 18 repositories of the comp-ops instance
+    with the shipped globs, the screen''s exclusions are reported (files selected, files left out,
+    by class) and compared with the instance''s hand-made exclusion list and with the gold files
+    of CompOps-42; no gold file is left out. [evidence: manual]'
+tasks:
+- id: task.r3-code-text-all-files.pack
+  requirement: req.r3-code-text-all-files.all-text
+  verification: 'Widen the code-text source to every text file and route each text format to the
+    text parser; test it on a synthetic repository.
+
+
+    Proof: the changed pack tests pass; the full python/tests suite passes; the generated docs
+    check passes; the pack-isolation install tests for code-text and cern-team publish against a
+    fresh Postgres.
+
+
+    Test plan:
+
+    - python/tests/test_bundle_code_text.py [evidence: pytest]
+
+    - python/tests/packs/test_pack_isolation.py [evidence: pytest]'
+- id: task.r3-code-text-all-files.screen
+  requirement: req.r3-code-text-all-files.secret-screen
+  verification: 'Add SecretScreenedDocCorpusSource and its rules, point the pack at it, and test
+    the rules and the end-to-end leave-out on synthetic repositories.
+
+
+    Proof: the rule and leave-out tests pass; a measurement over the comp-ops repositories reports
+    the screen''s exclusions against the hand-made list and loses no gold file.
+
+
+    Test plan:
+
+    - python/tests/sources/test_code_text_screen.py [evidence: pytest]
+
+    - python/tests/test_bundle_code_text.py [evidence: pytest]
+
+    - python/tests/packs/test_pack_isolation.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.all-text
+  status: fail
+  command: "cd python && python -m pytest tests -q --junitxml=full_suite.junit.xml -> 3925 passed, 28 skipped, 1 failed"
+  artifact: pact/changes/r3-code-text-all-files/evidence/full_suite.junit.xml
+  sha256: dd68c831e09e762f4d11f53dad9f9cead96df4a8f4f8699f21388705eb30d529
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:06:41+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The one failure is tests/enrichment/test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear, a wall-clock check, with other lanes' test suites running on the host (load average 7-8). Recorded as fail because the artifact holds a failure; the next row is that file rerun alone. The change does not touch the anonymizer."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.all-text
+  status: pass
+  command: "cd python && python -m pytest tests/enrichment/test_anonymizer.py -q --junitxml=anonymizer_rerun.junit.xml -> 441 passed"
+  artifact: pact/changes/r3-code-text-all-files/evidence/anonymizer_rerun.junit.xml
+  sha256: 52ae40d8c3f023a985e177c570e9db2e6788d56ced3d6408d83f5191b996d049
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:23:39+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. The full suite's only failure, rerun alone at the same head: it passes."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.all-text
+  status: pass
+  command: "cd python && python -m pytest tests/packs/test_pack_isolation.py, four tests by node id (code-text alone, git-code alone, cern-team with every optional pack, cms-comp-ops) -> 4 passed"
+  artifact: pact/changes/r3-code-text-all-files/evidence/pack_isolation.junit.xml
+  sha256: be0cd6ddad4a0887adc977e0a1de592f0382082286243df4746fbcab87f432c1
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:12:32+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. ARCHI_PACK_ISOLATION_DSN set to a throwaway akmon-postgres v0.2.0 container. Each test renders, runs okg install, ingest and publish, and checks published status and zero lint blockers."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.secret-screen
+  status: pass
+  command: "same pack-isolation run -> 4 passed; with code-text selected (code-text alone, cern-team) it checks the planted secret is absent from the published graph"
+  artifact: pact/changes/r3-code-text-all-files/evidence/pack_isolation.junit.xml
+  sha256: be0cd6ddad4a0887adc977e0a1de592f0382082286243df4746fbcab87f432c1
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:12:32+00:00"
+  note: "git-code's fixture repository holds a file with an invented password. After publish, okg filter lists the README's code-text document and not the planted file's; okg grep search finds the README's own text (positive control) and nothing for the password."
+- kind: executed_test
+  requirement: req.r3-code-text-all-files.secret-screen
+  status: pass
+  command: "rule and end-to-end screen tests inside the full-suite run: tests/sources/test_code_text_screen.py and tests/test_bundle_code_text.py, all passed (see full_suite.junit.xml)"
+  artifact: pact/changes/r3-code-text-all-files/evidence/full_suite.junit.xml
+  sha256: dd68c831e09e762f4d11f53dad9f9cead96df4a8f4f8699f21388705eb30d529
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:06:41+00:00"
+  note: "Lab host, venv with the AKMON v0.2.0 wheel CI pins (same URL and sha256) plus archi installed editable from this commit; lab paths and the host name in the junit are replaced by placeholders. Every testcase of these two files passed; the suite's one failure is the anonymizer timing check (rows above)."
+- kind: manual
+  requirement: req.r3-code-text-all-files.secret-screen
+  status: pass
+  command: "lane script: secret_classes over git ls-files of the comp-ops instance's 18 checkouts, filtered by the shipped globs and 1 MB cap; compared with the instance's hand-made exclusion list and the CompOps-42 gold"
+  artifact: pact/changes/r3-code-text-all-files/evidence/compops-repos-screen.md
+  sha256: 0fb6a9e9d7af9a205cf35b1539a19dcf561510f2f45fdb2a28ff2fc31cb4197b
+  head: df897812bf55acb7eef2a95b561b28dd6ed5d530
+  at: "2026-10-31T15:23:25+00:00"
+  note: "9,008 files screened, 168 left out (162 also on the hand list of 303), 0 of 44 gold git files left out. Counts only; no path or value of the private instance is in the repository."
+decisions: []

@@ -1,54 +1,84 @@
-# Archi
+# What Archi is
 
-Archi (AI Augmented Research Chat Intelligence) is a retrieval-augmented generation (RAG) framework designed to be a low-barrier, open-source, private, and customizable AI solution for research and educational support.
+Archi automates operations for scientific computing: experiment computing
+operations, analysis user support, data quality and cluster management.
+Agents watch the system and propose actions. Once a person approves a
+proposal, a separate component carries it out; in 3.0 no automation acts on
+its own. Every step is grounded in your facility's own knowledge, and its
+result is written back into that knowledge.
 
-Archi makes it easy to deploy AI assistants with a suite of tools that connect to
+Archi 3.0 ships the context layer, the automation runtime and two
+automations. [`ticket-triage`](library/packs/ticket-triage.md) triages new and
+updated Redmine, JIRA and ServiceNow tickets: it drafts a cited reply for a
+person to send, or proposes a status change, assignment or reply that runs
+only after a person approves it.
+[`instance-health`](library/packs/instance-health.md) watches the Archi
+instance itself.
 
-- knowledge bases such as web links, files, JIRA tickets, and documentation
-- communication platforms such as Piazza, Slack, Mattermost, and email
+Archi is built on OKG, a knowledge graph with a publish step, a set of read
+tools and a review ledger. You do not need to know OKG to start. This site
+explains each OKG idea where Archi uses it.
 
-It is modular and extensible, allowing users to add connectors and customize pipeline behavior for a wide range of tasks—from answering simple questions to delivering detailed explanations.
+!!! note
+    This is the 3.0 documentation. The earlier chatbot is documented under
+    [v2 (legacy)](v2/index.md). See [Moving from v2 to 3.0](migration-from-v2.md).
 
-## Start Here
+## Two layers
 
-If you are new to Archi, follow this path:
+Automation is only as good as what the agent knows. So Archi has two layers.
 
-1. [Install](install.md)
-2. [Quickstart](quickstart.md)
-3. [User Guide](user_guide.md)
+1. **The [context layer](context-layer.md)** holds what your facility knows:
+   documentation, tickets, catalogs, monitoring, code and the record of past
+   operations. It has to be solid. That means current, complete for the
+   questions automations depend on, linked across sources, cited on every
+   read, and measured.
+2. **The [operations layer](operations-layer.md)** runs automations over that
+   context. Each one follows the same loop: signal, context, proposal,
+   decision, action, outcome. Actions run under explicit autonomy levels, up
+   to L2 in 3.0. Outcomes go back into the context layer, so the next triage
+   can see what happened last time.
 
-## About
+The working rule is: **algorithmic first, agents for judgment.** Fixed checks
+(invariants, freshness, thresholds, evals) decide everything they can. Agents
+handle what needs reading and judgment.
 
-Archi is developed by Prof. Paus (MIT Physics), Prof. Kraska (MIT EECS), and their students. It has already been successfully deployed as a user chatbot and technical assistant at SubMIT (the MIT Physics Department's computing cluster) and as an educational assistant for several MIT courses, including 8.01 and 8.511.
+## What you install
 
-What sets Archi apart is that it is fully open source, configurable across foundational models and LLM libraries, and designed for private deployment. Under the hood, Archi is a highly configurable RAG system tailored for educational and scientific support. Given its success, the scope now spans additional MIT classes, CERN, Harvard, and internal deployments such as CSAIL's support staff.
+You install a [bundle](bundles-and-packs.md): a named selection of packs. A
+pack is the smallest installable piece, such as one source family or one
+automation. Four bundles ship today:
 
-### Research Resource Support
+| Bundle | For |
+|---|---|
+| `cern-team` | Any CERN team: documentation and meetings, with no credentials needed to start. |
+| `cms-physics` | CMS physics: analysis notes, published summaries, physics TWiki pages and the analyses that link them. |
+| `cms-comp-ops` | CMS computing operations: sites, storage, datasets, workflows, site status and past incidents. |
+| `cluster-manager` | Any cluster operator, at any site: documentation, tickets, operational memory, and optionally Slurm, HTCondor, ServiceNow and node health. |
 
-Archi serves technical support teams and end users. At SubMIT, it functions both as a user-facing chatbot and as a ticket assistant. Integration with Redmine enables Archi to prepare draft responses to support tickets that staff can review before sending. In both roles, Archi accesses the corpus of tickets and documentation, citing relevant sources in its answers.
+The [library](library/index.md) lists every bundle and pack with what it
+reads. Your own sources and automations can ship as packs from your own
+package. Start with the [quickstart](quickstart.md): it takes an empty machine
+to a cited answer with the `cern-team` bundle.
 
-### Educational Support
+## Parts you can replace
 
-Archi assists TAs, lecturers, and support staff—or students directly—by preparing answers based on curated class resources. In MIT course deployments, Archi leverages Piazza posts, documentation, and other class-specific materials. The Piazza integration can draft answers for staff to review or send, while the system continuously learns from revisions and new posts, improving over time.
+Most parts can be replaced, and the defaults work out of the box. The
+knowledge graph and the automation runtime cannot be replaced in 3.0.
 
----
+| Part | Default in 3.0 | How you replace it |
+|---|---|---|
+| Knowledge graph | OKG (AKMON) | Not replaceable in 3.0. The MCP tool surface (`search`, `expand`, `inspect`, `filter`, `map`, `aggregate`) is the contract another store would have to meet. |
+| Ingestion | Archi connectors | Any pip package that registers packs through the `archi.packs` entry point. See [Contributing a pack](contributing-a-pack.md). |
+| Tools | The instance's OKG MCP server plus Archi live tools | Any MCP server declared in the instance. See [Connecting an agent](connecting-an-agent.md). |
+| Automation runtime | OKG deployment workflows | An external runner using the proposal API. This waits on an upstream OKG change. |
+| Agent and chat | Open WebUI, built in | Anything that speaks MCP: Claude Code, Codex, OpenClaw, your own. |
+| Language model | Chat: a local ollama model (default `llama3.1:8b`). Agents over MCP: the agent's own model. | Chat: `--answer chat_model=`, `--ollama-url`, or a connection added in Open WebUI. Agents: their own configuration. Archi stores no model API key. |
 
-## Documentation
+## Who it is for
 
-| Section | Description |
-|---------|-------------|
-| [Install](install.md) | System requirements and installation |
-| [Quickstart](quickstart.md) | Deploy your first instance in minutes |
-| [User Guide](user_guide.md) | Overview of all capabilities |
-| [Data Sources](data_sources.md) | Configure web links, git, JIRA, Redmine, and more |
-| [Services](services.md) | Chat, uploader, data manager, Piazza, Mattermost, and other interfaces |
-| [Models & Providers](models_providers.md) | LLM providers (OpenAI, Anthropic, Gemini, OpenRouter, Local), embeddings, BYOK |
-| [Agents & Tools](agents_tools.md) | Agent specs, tools, MCP integration, pipelines |
-| [Configuration](configuration.md) | Full YAML config schema reference |
-| [CLI Reference](cli_reference.md) | All CLI commands and options |
-| [API Reference](api_reference.md) | REST API endpoints |
-| [Benchmarking](benchmarking.md) | Evaluate retrieval and response quality |
-| [Evaluation Guide](evaluation.md) | Evaluate complete agent answers against reviewed gold atoms |
-| [Developer Guide](developer_guide.md) | Architecture, contributing, extending the stack |
-| [Advanced Setup](advanced_setup_deploy.md) | GPU setup, multi-node, production deployment |
-| [Troubleshooting](troubleshooting.md) | Common issues and fixes |
+First, operations teams: CMS computing operations, CRAB support, WisDQM and
+cluster managers at any site. Second, a team that only wants the context
+layer and an agent over it in an afternoon. That team installs the same
+bundles with no automation selected.
+
+The design is in [ADR 0002](reference/adr.md).

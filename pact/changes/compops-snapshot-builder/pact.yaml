@@ -1,0 +1,556 @@
+pact_version: 5
+id: compops-snapshot-builder
+title: Move the cms cache downloaders into archi and add a cache snapshot builder
+tier: 2
+why: 'Row 6 ("A4") of the comp-ops design that Jason approved on 2026-09-28 (okg branch claude/lane-b,
+  pact/changes/epoch-lane-b-comp-ops/evidence/compops-inventory-design.md, sections 1d, 6.4
+  and 7). Two gaps block a comp-ops install that needs no CERN credentials.
+
+
+  First, the only cache downloaders (download_jira.py, download_static_docs.py, sso-login.py
+  and their source-download-manifest.yaml) live in okg-deployments cms/scripts, which the
+  comp-ops rewrite deletes. The design moves them to archi-okg, where docs/connector-caches.md
+  already names them. They import nothing from okg; their defaults assumed the okg-deployments
+  layout (data/cms/..., <repo>/.cookies).
+
+
+  Second, six of the ten required source groups have no downloader and two need CERN tokens,
+  so the design ships one private, checksummed cache snapshot. Nothing can build or check
+  one today. The builder must validate each group the way its archi reader reads it, remove
+  every email address, drop fields the readers never read, and write deterministic archives
+  with a lock file a fresh machine can verify.
+
+
+  Jason''s answers, relayed by the lane B lead on 2026-09-28: (1) the first snapshot mixes
+  collection dates (Aug 31 for cric, cric-core, jira, gitlab-docs and twiki-eos; June 12-16
+  for indico, dqm, gocdb-downtimes, cmssw-releases and conddb-global-tags), so each group''s
+  collection date is a required config field carried into the lock; (2) WMStats drops RequestorDN
+  and keeps Requestor by default. This change builds no real snapshot and reads no real cache;
+  that is design row 12, after this merges.'
+affected_code:
+- python/archi/downloaders/__init__.py
+- python/archi/downloaders/jira.py
+- python/archi/downloaders/static_docs.py
+- python/archi/downloaders/sso_login.py
+- python/archi/downloaders/source-download-manifest.yaml
+- python/archi/snapshot/__init__.py
+- python/archi/snapshot/__main__.py
+- python/archi/snapshot/builder.py
+- python/archi/snapshot/groups.py
+- python/archi/auth/cookies.py
+- python/archi/enrichment/anonymizer.py
+- .gitignore
+- docs/cache-snapshot.md
+- docs/docs/reference/connector-caches.md
+- docs/okg-alignment.md
+- python/tests/downloaders/test_downloader_jira.py
+- python/tests/downloaders/test_downloader_static_docs.py
+- python/tests/downloaders/test_downloader_sso_login.py
+- python/tests/snapshot/test_snapshot_builder.py
+requirements:
+- id: req.compops-snapshot-builder.downloaders
+  statement: 'The JIRA, static-docs and SSO-login downloaders and the source download manifest
+    run from archi-okg as python -m archi.downloaders.{jira,static_docs,sso_login}, import
+    nothing from okg, and write caches the archi readers accept. Default output paths follow
+    ARCHI_DATA_ROOT (data/jira, data/gitlab-docs, data/docsite) and cookie files go to --cookie-dir,
+    else ARCHI_COOKIE_DIR, else ./.cookies. Record shapes and the login flow are unchanged
+    from okg-deployments main 32f2b4e3c2.
+
+
+    Acceptance:
+
+    - acc.compops-snapshot-builder.jira-download: with a fake jira client, the downloader
+    pages through issues, writes records.json and meta.json, and the archi JIRA reader reads
+    the cache with a completed scope; a missing token or a missing jira package stops with
+    a named message. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.docs-download: with a fake HTTP session, the static-docs
+    downloader writes GitLab and public-page caches that the archi documentation reader reads
+    with a completed scope, merges by URL, and tries a GitLab token before anonymous access.
+    [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.sso: cookie files keep only service and SSO-domain cookies,
+    are mode 0600 and readable by archi.auth.cookies; --check without cookie files exits 1.
+    [evidence: executed_test]'
+- id: req.compops-snapshot-builder.snapshot
+  statement: 'python -m archi.snapshot build takes a config mapping each group to its cache
+    directory and a required collection date (YYYY-MM-DD or a YYYY-MM-DD..YYYY-MM-DD range),
+    so one snapshot can mix collection dates. For each group it refuses, with an error naming
+    the group, file and record, any missing file, invalid JSON, wrong shape or record the
+    reader would skip or drop; any symbolic link, dot-named path or path resolving outside
+    the group directory; any text file that holds a NUL byte, is more than 1% control characters,
+    or is not UTF-8 (TWiki pages alone decode each invalid byte run as cp1252, Latin-1 for
+    its undefined bytes, keep valid UTF-8 intact, are stored as UTF-8 and are redacted after
+    decoding, with page and fallback-byte counts in the lock); any string where a control
+    character splits an address; any file path containing an address; and any unreadable file
+    or too-deeply nested JSON (a named refusal, not a traceback). It removes every email address
+    from every string with redact_email_addresses and records the count removed; drops every
+    field the reader does not read plus the configured drop_fields (WMStats keeps Requestor
+    and removes every RequestorDN and DN key at any depth, which no keep_fields entry can
+    undo); and runs the group''s archi reader, which must report health ok, a completed scope,
+    and the same facts as from the unpruned cache. If any group is refused nothing is written.
+    Otherwise it writes one deterministic tar.zst per group and snapshot.lock.yaml with each
+    group''s collection date, SHA-256, size, file count, record count, addresses removed and
+    contents digest. docs/cache-snapshot.md states that snapshots are private okg-deployments
+    assets never committed to or published from this public repository, and .gitignore ignores
+    them. python -m archi.snapshot verify checks archives against a lock.
+
+
+    Acceptance:
+
+    - acc.compops-snapshot-builder.malformed: a malformed record in any of 11 JSON groups
+    refuses exactly that group and writes nothing. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.addresses: a planted address in each of the 12 text-bearing
+    groups is absent from every archive; so is a spelled-out address (jdoe[AT]cern(dot)ch),
+    removed with archi-okg #13''s redact_obfuscated_email_addresses and counted as obfuscated_addresses_removed,
+    while free prose (john.doe at cern.ch) is kept; a git@ host remote is kept in JIRA and
+    TWiki and an address after it is removed; after merging main (#13), redact_email_addresses
+    and redact_obfuscated_email_addresses equal main 6193edd0ca on random strings including
+    git@ variants; the final review''s gaps are closed for spelled-out forms too: a control
+    character inside one (jdoe<DEL>[at]cern.ch) refuses the group, a stray byte next to or
+    inside one (jdoe<0x93>[at]cern.ch, jdoe[at]<0x93>cern.ch, jdoe<0x93>(at)cern(dot)ch, john.doe<0x93>_at_cern.ch)
+    stores the page without its invalid bytes, and ANSI sequences are stripped from JSON strings
+    as well as text files. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.jira-facts: the archi JIRA reader emits the same facts
+    from a raw JIRA fixture and from the snapshot''s redacted copy. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.deterministic: two builds give byte-identical archives.
+    [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.verify: verify fails, naming the group, on one flipped
+    byte. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.requestor-dn: the WMStats DN never appears in the output,
+    even when a config asks to keep it or the field that holds it; Requestor is kept. [evidence:
+    executed_test]
+
+    - acc.compops-snapshot-builder.transcode: on the second review''s mixed page (three addresses
+    in valid UTF-8 plus one stray 0x93 byte) all three addresses are removed and the valid
+    UTF-8 is kept; a Latin-1 page with an accented-local-part address loses the address; a
+    cp1252 page keeps its smart quotes as UTF-8; the third review''s four examples (a stray
+    0x93 before the @, 0x96 or 0xA0 inside the domain, an overlong 0xC0 0x80 next to the @)
+    and an address split by a C1 fallback byte are removed whole, by storing that page without
+    its invalid bytes (pages_bytes_dropped); 2,000 fuzzed pages leave no address found in
+    the dropped reading in the output; ANSI colour sequences are stripped before redaction;
+    a page is binary only with more than 1% and at least 16 control characters, \f and \v
+    not counted; the lock counts pages, fallback bytes and dropped-byte pages; the CMSSW group
+    reads records.json when releases.map is absent and prefers the map when both exist. [evidence:
+    executed_test]
+
+    - acc.compops-snapshot-builder.wrong-export: a CRIC responsibilities.json shaped like
+    the sites-compat export (other column names, or five fields per row), each of the 42 ways
+    to swap a CRIC or CRIC-core file for a sibling export, and JIRA, Indico, CondDB, DBS or
+    CMSSW records from another export each refuse the group by name; signature keys need 95%
+    of records (19 of 20 passes, 18 of 20 and an empty file are refused); --tmp-dir, or the
+    system temp dir by default, receives every reader-check copy and is empty after a build,
+    a refusal and a SIGTERM (which also removes the output staging directory); a full --tmp-dir
+    is reported as a write failure. [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.file-dates: an optional per-group file_dates map is carried
+    into the lock and must name a file the group archives; an optional per-group note (at
+    most 300 characters, refused if it holds an address) is carried into the lock, so the
+    June CRIC group records collected: 2026-04-09 with the note "files written 2026-06-12;
+    fetched 2026-04-09" (lead decision, 2026-09-28). [evidence: executed_test]
+
+    - acc.compops-snapshot-builder.unsafe-input: a symlinked file or directory, a dot path,
+    UTF-16 or NUL-bearing text, non-UTF-8 text outside TWiki, an address in a file name, an
+    unreadable file and deeply nested JSON each refuse the group by name. [evidence: executed_test]'
+tasks:
+- id: task.compops-snapshot-builder.downloaders
+  requirement: req.compops-snapshot-builder.downloaders
+  verification: 'Copy the three scripts and the manifest verbatim in one commit, adapt them
+    in the next, and test them offline.
+
+
+    Proof: the downloader tests fail against the verbatim copies and pass with the change.
+
+
+    Test plan:
+
+    - python/tests/downloaders [evidence: pytest]'
+- id: task.compops-snapshot-builder.snapshot
+  requirement: req.compops-snapshot-builder.snapshot
+  verification: 'Add archi.snapshot and its tests on synthetic fixtures only.
+
+
+    Proof: every snapshot test passes; disabling each safeguard in turn (redaction, pruning,
+    the record check, the fixed mtime, member sorting, the verify SHA-256 check, the reader
+    fact comparison, the WMStats DN drop) makes at least one test fail; the full archi suite
+    passes.
+
+
+    Test plan:
+
+    - python/tests/snapshot [evidence: pytest]
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 96a34d62f89c90748340c43d8a0c02d4779b16d8
+  at: '2026-09-28T06:14:54+00:00'
+  note: '13 passed at this head (okg origin/dev ef4121e62f exported source, Python 3.12, no
+    network: fake jira client, fake requests.Session). The same 13 tests against the verbatim
+    okg-deployments copies (commit c87fc27): 9 failed (ARCHI_DATA_ROOT default, named missing-jira
+    error, cookie-dir precedence and the three sso tests that pass --cookie-dir or directory=,
+    both static-docs runs that rely on the ARCHI_DATA_ROOT outputs and main(argv), and the
+    manifest paths); the 4 that already passed are the unchanged JIRA record/cache shape,
+    probe-only, missing token, and GitLab token fallback.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 96a34d62f89c90748340c43d8a0c02d4779b16d8
+  at: '2026-09-28T06:14:54+00:00'
+  note: '582 passed at this head (okg origin/dev ef4121e62f exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path for the wheel tests), including 59 snapshot tests on
+    synthetic fixtures: 11 malformed-record cases each refuse only their group and write nothing;
+    a planted address in each of 12 text-bearing groups is absent from every archive; JIRA
+    reader facts from the raw fixture equal those from the snapshot copy; archives byte-identical
+    across two builds; verify fails naming dqm on one flipped byte. Before this change the
+    snapshot tests fail at import (no archi.snapshot). Mutation sweep, each safeguard disabled
+    in turn against the 59 tests: no redaction 14 failed, no pruning 4, no record check 12,
+    clock mtime 2, shuffled members 1, verify without SHA-256 1, no reader fact comparison
+    2, no WMStats DN default drop 3. No real cache was read.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 7fe37db049ad7cebdb6d0e130211d5e8e384d105
+  at: '2026-09-28T06:40:06+00:00'
+  note: '600 passed at this head (okg origin/dev 9ad926c3d1 exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path for the wheel tests), 77 snapshot tests. Review fixes
+    for f5264a7b2e, each safeguard disabled in turn against the snapshot tests: link check
+    on read files 3 failed, link check in the tree walk 2, dot check in the tree walk 1 (the
+    per-file dot check still catches .txt under a dot dir), NUL check 2, decoding with replacement
+    1, address-in-path check 1, deep DN drop 1, OSError catch 1, RecursionError catch 1, address
+    count 1. No real cache was read by these tests.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 7fe37db049ad7cebdb6d0e130211d5e8e384d105
+  at: '2026-09-28T06:40:07+00:00'
+  note: 13 passed at this head (downloaders unchanged since 96a34d6; rerun inside the 600-test
+    suite).
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: be4bc38a1061e344d481df529d4c060fda14c513
+  at: '2026-09-28T07:04:51+00:00'
+  note: '607 passed at this head (okg origin/dev 9ad926c3d1 exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path), 84 snapshot tests. New: a Latin-1-only TWiki page
+    (0x81 undefined in cp1252) holding j\xe9r\xf4me.dupont@cern.ch loses the whole address;
+    a cp1252 page keeps smart quotes and an en dash as UTF-8; the lock counts {cp1252: 1,
+    latin-1: 1}; NUL still refuses, including in a Latin-1 page; releases.map that is not
+    UTF-8 still refuses; CMSSW reads records.json when the map is absent, prefers the map
+    when both exist, refuses when neither exists. Mutations: no fallback decoding 1 failed,
+    no variant selection 19 failed + 24 errors, no transcode count 1 failed.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: be4bc38a1061e344d481df529d4c060fda14c513
+  at: '2026-09-28T07:04:51+00:00'
+  note: 13 passed at this head inside the 607-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: cde0859d64cb80cc0dbfef3525399f0925d863cb
+  at: '2026-09-28T12:04:18+00:00'
+  note: '630 passed at this head (okg origin/dev 9ad926c3d1 exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path), 107 snapshot tests. New: a sites-compat-shaped responsibilities.json
+    (its real column header, 5 fields per row) refuses cric by name; header-less rows of 5,
+    2 or dict fields, a numeric site or a null username refuse it; a null site title is accepted
+    (51 real June rows have one); 7 CRIC/CRIC-core files swapped for a sibling export, and
+    JIRA, Indico, CondDB, DBS and CMSSW records from another export, each refuse their group;
+    --tmp-dir receives every reader-check copy and it and the system temp dir are empty after
+    a build and after a refusal. Signatures checked against the real Aug 31 and June caches
+    (key names and counts only): every record carries them; DBS not checked. Mutations: no
+    column-header check 1 failed, no row field-count check 2, no key signatures 9, no pattern
+    signatures 4, tmp_dir ignored 1.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: cde0859d64cb80cc0dbfef3525399f0925d863cb
+  at: '2026-09-28T12:04:18+00:00'
+  note: 13 passed at this head inside the 630-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 22ce5d0ae36a47ba67fad6ce697be28cc1580fc1
+  at: '2026-09-28T13:36:24+00:00'
+  note: '682 passed at this head (okg origin/dev 435ab285ac exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path), 159 snapshot tests. Second-review fixes: the reviewer''s
+    mixed page (three addresses in valid UTF-8 plus a stray 0x93) loses all three and keeps
+    its valid UTF-8; only invalid byte runs fall back (cp1252, Latin-1 for undefined bytes);
+    an address split by a C1 or C0 control refuses the group; a page over 1% control characters
+    is refused as binary; signatures need 95% of records and at least one; all 42 sibling
+    swaps refused; SIGTERM cleans --tmp-dir and output staging; a full --tmp-dir reads as
+    a write failure; per-file dates carried into the lock. Mutations: whole-page cp1252 4
+    failed, no control-split check 2, no binary guard 2, signature in every record 43, share
+    0 49, empty file allowed 1, no disk-full wording 1; without the SIGTERM handler the signal
+    killed the test run. Real-cache dry run (/var/tmp on a dev host, counts only): all 10 required
+    groups pass with cric from the June set.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 22ce5d0ae36a47ba67fad6ce697be28cc1580fc1
+  at: '2026-09-28T13:36:24+00:00'
+  note: 13 passed at this head inside the 682-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: a9df45561705c51ff539721e973fbdf6513214a8
+  at: '2026-09-28T14:23:15+00:00'
+  note: '702 passed at this head (okg origin/dev 435ab285ac exported source, Python 3.12,
+    zstd v1.5.7, hatchling on the path), 179 snapshot tests. Third-review fixes: the four
+    examples (stray 0x93 before the @, 0x96 and 0xA0 inside the domain, overlong 0xC0 0x80
+    next to the @) lose the whole address and count as pages_bytes_dropped; a stray byte away
+    from an address keeps its cp1252 character; 2,000 fuzzed pages leave no address found
+    in the dropped reading (local part or domain) in the output; ANSI CSI sequences are stripped
+    before redaction; binary needs >1% and >=16 controls, \f and \v not counted; SIGTERM restores
+    SIG_DFL when none was set and ignores a second SIGTERM during cleanup; file_dates errors
+    name the entry; per-group note (<=300 chars, address-checked) carried into the lock. Mutations:
+    always the fallback reading 6 failed, no CSI strip 1, no 16-control minimum 1, counting
+    \f/\v 1, second SIGTERM not ignored 1, restoring None 1, no note address check 2. redact_email_addresses
+    output unchanged: 127 enrichment and JIRA tests pass on the span refactor.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: a9df45561705c51ff539721e973fbdf6513214a8
+  at: '2026-09-28T14:23:15+00:00'
+  note: 13 passed at this head inside the 702-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 092cca7d9c66d569d6943fe01bfe09a7728cdf81
+  at: '2026-09-28T15:29:54+00:00'
+  note: '875 passed at this head (main 6193edd0ca merged in; okg origin/dev 435ab285ac exported
+    source, Python 3.12, zstd v1.5.7, hatchling on the path), 196 snapshot tests, all of #13''s
+    enrichment and source tests unchanged. The anonymizer merge keeps main''s redact_email_addresses
+    loop, with its git@ exemption, forward scan, layered entities and quoted local parts,
+    in email_address_spans; redact_email_addresses equals main''s on 30,000 random strings
+    with git@ variants (17,593 changed by redaction), and both it and redact_obfuscated_email_addresses
+    equal main''s on a further 20,000 (1,610 changed by the spelled-out redactor), 0 differences.
+    New tests: JIRA and TWiki keep git@gitlab.cern.ch:cmsdmops/Documentation.git and lose
+    only jdoe@cern.ch after git@github.com:org/tools.git; a spelled-out address is removed
+    in each of the 12 text-bearing groups (counted as obfuscated_addresses_removed) while
+    john.doe at cern.ch is kept; glued and NOSPAM forms are removed; a spelled-out address
+    in a note refuses the group. Mutations: spelled-out redaction not wired 13 failed, no
+    spelled-out post-check 1.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 092cca7d9c66d569d6943fe01bfe09a7728cdf81
+  at: '2026-09-28T15:29:54+00:00'
+  note: 13 passed at this head inside the 875-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 6cfeca4dabd2fb27ea6bec34e376187d954b1db4
+  at: '2026-09-28T16:22:13+00:00'
+  note: '884 passed at this head (main 6193edd0ca merged in; okg origin/dev 435ab285ac exported
+    source, Python 3.12, zstd v1.5.7, hatchling on the path), 205 snapshot tests, #13''s tests
+    unchanged. Final-review fixes: jdoe<DEL>[at]cern.ch ok and jdoe[at]cern<DEL>.ch refuse
+    the group in JSON and TWiki; jdoe<0x93>[at]cern.ch, jdoe[at]<0x93>cern.ch, jdoe<0x93>(at)cern(dot)ch
+    and john.doe<0x93>_at_cern.ch lose the whole address via the dropped-byte reading; a 2,000-page
+    fuzz of spelled-out forms with stray bytes leaves no local part in the output; ANSI sequences
+    in a JSON string are stripped and counted. obfuscated_email_address_spans rebuilds redact_obfuscated_email_addresses,
+    and both redactors equal main 6193edd on 40,000 random strings (2,578 changed by the spelled-out
+    redactor), 0 differences. Mutations: split check without the spelled-out redactor 3 failed,
+    page choice seeing only @ addresses 5, no ANSI strip in JSON 1.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 6cfeca4dabd2fb27ea6bec34e376187d954b1db4
+  at: '2026-09-28T16:22:13+00:00'
+  note: 13 passed at this head inside the 884-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 63160e5020ba6461e431c5c91d2b188fdfa505fd
+  at: '2026-09-28T20:59:31+00:00'
+  note: '896 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 217 snapshot tests. Fifth-review fixes: a control character inside the local
+    part (jdoe<DEL>x@example.org, jdoe<0x01>.x@example.org, jdoe<DEL>x[at]example.org, j<DEL>doe.x(at)example(dot)org)
+    refuses the group in JSON and TWiki; jdoe<ESC>(B@example.org after a CSI and jdoe<U+009B>32m@example.org
+    lose the whole address, the sequences stripped and counted. At 51bb241 the same 12 tests
+    failed: 8 did not refuse, 4 stored jdoe<ESC>( or jdoe<U+009B>.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 63160e5020ba6461e431c5c91d2b188fdfa505fd
+  at: '2026-09-28T20:59:31+00:00'
+  note: 13 passed at this head inside the 896-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 17ffb2824b386935c987c1ac724cd769ef14f07a
+  at: '2026-09-28T21:17:37+00:00'
+  note: '947 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 268 snapshot tests. Sixth-review fixes: hidden characters (C0/C1 controls,
+    Cf format characters) are detected on the raw value before any strip; jdoe@example<ESC>.org,
+    jdoe@example<U+009B>.org, jdoe<U+009B>@example.org, jdoe<ESC>[@example.org, <U+2068>jdoe<U+2069>@example.org,
+    jdoe<U+200E>x@example.org, a colour-wrapped address and the six fifth-review inputs refuse
+    in JSON and TWiki; 23 Cf characters refuse in jdoe<ch>x@example.org; a JSON key with U+200E
+    refuses; price <ESC> 5 x, Home <U+009B> Projects and <U+009B>2023 jdoe are stored unchanged.
+    The same test file on d45838f: 49 failed, 219 passed. A 120,000-case fuzz of addresses
+    with hidden characters and terminal sequences inserted left no local-part letter of a
+    terminal-visible address in any accepted output.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 17ffb2824b386935c987c1ac724cd769ef14f07a
+  at: '2026-09-28T21:17:37+00:00'
+  note: 13 passed at this head inside the 947-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 040d5f9627020aca8d4a3b1941c8d1d8f205ec3d
+  at: '2026-09-28T21:31:07+00:00'
+  note: '961 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 282 snapshot tests. Seventh-review fixes: jdoe<ESC>\@example.org, jdoe@example<ESC>\.org,
+    jdoe<ESC>Pq<ESC>\@example.org, jdoe<ESC>>@example.org and the word-rule-only forms jdoe<ESC>(<e-acute>@example.org
+    and jdoe[<U+200E>at]laptop refuse in JSON and TWiki; a TWiki file named jdoe<U+200E>@example.org.txt
+    refuses; a hidden character in a word with no @ or bracketed at/dot is kept or stripped
+    as before. The same test file on 6adb358: 13 failed, 269 passed (the no-separator regression
+    passes there by design). A 120,000-case fuzz including the new escape forms left no local-part
+    letter of a terminal-visible address in any accepted output.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 040d5f9627020aca8d4a3b1941c8d1d8f205ec3d
+  at: '2026-09-28T21:31:07+00:00'
+  note: 13 passed at this head inside the 961-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: a3a3e650198a69aef689486bd5c177208695941c
+  at: '2026-09-28T21:36:08+00:00'
+  note: '974 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 295 snapshot tests. Seventh-review fixes plus issue #17 forms: short escapes
+    (ESC \, ESC >), DCS strings, jdoe<ESC>(<e-acute>@example.org, jdoe[<U+200E>at]laptop,
+    jdoe<U+200B>[at]example.org, jdoe(<U+200B>at)example(dot)org, full-width [at], @ and (dot),
+    and a TWiki file named jdoe<U+200E>@example.org.txt refuse; the five redactor-read invisible
+    characters next to an @ now refuse; words without an @ or separator and decomposed accents
+    are kept or redacted as before. The same test file on 6adb358: 28 failed, 267 passed.
+    A 180,000-case fuzz left no local-part letter of a terminal-visible address in any accepted
+    output.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: a3a3e650198a69aef689486bd5c177208695941c
+  at: '2026-09-28T21:36:08+00:00'
+  note: 13 passed at this head inside the 974-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 85883cf414723d5f9c1fa3d4a9bfe58f71d9d4e4
+  at: '2026-09-28T22:12:01+00:00'
+  note: '1017 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 338 snapshot tests. Eighth-review fixes: one rule over the real redactors
+    on a terminal reading and a controls-ignored reading of each value. The reviewer''s 17
+    leak inputs, the five invisible characters and the full-width forms are removed whole
+    in JSON and TWiki; control characters, ESC, sequence characters and other Cf characters
+    in or next to an address still refuse; ellipsis, CJK colon, trademark and superscript
+    next to or outside an address are stored with normal redaction. The same test file on
+    2ed4537: 85 failed, 253 passed. Reviewer fuzz.py 56,252 cases 0 leaks, fuzzfw.py 257 cases
+    0 leaks, test_e2e_leak.py 10 inputs all fully removed; own fuzz 240,000 cases 0 leaks.
+    Unterminated U+009D/U+0090 200 kB: 60-64 s at 2ed4537, 0.34 s here.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 85883cf414723d5f9c1fa3d4a9bfe58f71d9d4e4
+  at: '2026-09-28T22:12:01+00:00'
+  note: 13 passed at this head inside the 1017-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 95e240a5e15857752310b16d5090bd3280c7726d
+  at: '2026-09-28T22:32:26+00:00'
+  note: '1048 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 369 snapshot tests. Ninth-review fixes: RLO, backspace, ESC 7/ESC 8, two
+    lone-CR overwrites and &lrm; next to an address refuse in JSON and TWiki; &#8203;, &#x200B;,
+    &shy;, &#65312;, &#8203;&#64; and U+3002/U+FF61 dots are removed whole; ESC 7/ESC 8 are
+    stripped; a lone surrogate in JSON refuses; CRLF pages redact normally. The same test
+    file on 8e96908: 33 failed, 336 passed. Reviewer fuzz.py 56,252 cases 0 leaks, fuzzfw.py
+    257 cases 0 leaks, test_e2e_leak.py 10 inputs fully removed; own fuzz 240,000 cases and
+    180,000 cases with the ninth-review forms, 0 leaks. Line-rule refusals over the repository''s
+    5,376 strings: 1, the test source''s own &lrm; example.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 95e240a5e15857752310b16d5090bd3280c7726d
+  at: '2026-09-28T22:32:26+00:00'
+  note: 13 passed at this head inside the 1048-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 8c2fdd819be290d7190f6b2bba3114b21dc1043c
+  at: '2026-09-28T22:51:27+00:00'
+  note: '1059 passed at this head (okg 608fa2fa7e editable, Python 3.12.11, zstd v1.5.7, hatchling
+    on the path), 380 snapshot tests. Tenth-review fixes: Perl, Doxygen and shell backslash-escaped
+    addresses (jdoe\@example.org, jdoe\@example\.org) are removed in JSON and TWiki; a coloured
+    line with PR #642 is stored with the colour stripped; refusals name file, line, rule.
+    The same test file on cd0404b: 97 failed, 283 passed (11 for the new behaviour, the rest
+    because refusal wording changed). Reviewer fuzz.py 56,252 cases and fuzzfw.py 257 cases,
+    0 leaks; own fuzz 240,000 cases, 0 leaks.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 8c2fdd819be290d7190f6b2bba3114b21dc1043c
+  at: '2026-09-28T22:51:27+00:00'
+  note: 13 passed at this head inside the 1059-test suite; downloaders unchanged since 96a34d6.
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.snapshot
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 3f7a02657bc2afe9e627d2425ba6d238f26f8d8e
+  at: '2026-09-28T23:15:08+00:00'
+  note: '1059 passed at this head (Python 3.12, okg editable), 380 snapshot tests. Eleventh
+    round: the line rule is removed (Jason''s decision); span rule, remove-whole, backslash-escaped
+    @, surrogate refusal, ESC 7/8 stripping, ideographic dots and file/line/rule messages
+    kept. Display tricks (RLO, backspace, lone CR overwrite) are stored and pinned as a known
+    limit; a colour code on an address line, CR CR LF, and the round-9 not-an-address values
+    are stored again. The same test file on 53a57df: 92 failed, 288 passed (refusal wording
+    and the restored stored cases). Reviewer fuzz.py 56,252 cases and fuzzfw.py 257 cases,
+    0 leaks; own reading fuzz 120,000 cases, 0 leaks; display fuzz 40,000 cases, 0 reading
+    leaks, 12,459 display-only leaks (RLO, backspace, CR; expected by design), 0 via ESC 7/8.'
+- kind: executed_test
+  requirement: req.compops-snapshot-builder.downloaders
+  status: pass
+  command: python -m pytest python/tests/downloaders -q
+  head: 3f7a02657bc2afe9e627d2425ba6d238f26f8d8e
+  at: '2026-09-28T23:15:08+00:00'
+  note: 13 passed at this head inside the 1059-test suite; downloaders unchanged since 96a34d6.
+decisions: []

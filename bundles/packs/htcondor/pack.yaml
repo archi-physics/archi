@@ -1,0 +1,30 @@
+name: htcondor
+kind: context
+version: 0.1.0
+description: An HTCondor pool snapshot (machines, schedds and CPU totals) with live condor_status and condor_q tools.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# The exporter runs on a schedule; 12h is the age at which slot states have changed under the snapshot.
+freshness:
+  htcondor.htcondor: {max_staleness: 12h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant htcondor_link_<name>.
+link_coverage:
+  # Every machine belongs to the pool snapshot it came from.
+  - {name: machine_pool, from: condor_machine, edge: contains, to: condor_pool, direction: in, min_fraction: 0.99}
+search_subtypes: [condor_pool, condor_machine, condor_schedd]
+live_tools:
+  - archi.tools.htcondor:archi_condor_status
+  - archi.tools.htcondor:archi_condor_q
+# Both tools only read; a repeat has the same effect (none).
+idempotent_tools:
+  - archi.tools.htcondor:archi_condor_status
+  - archi.tools.htcondor:archi_condor_q
+prompt_fragment: prompt.md
+# archi names no credential. The exporter and the live tools run condor_status and
+# condor_q as the account the instance gives them; the snapshot publishes from a cache with none.
+needs_credentials: false

@@ -1,0 +1,41 @@
+name: slurm
+kind: context
+version: 0.1.0
+description: Slurm partitions, nodes, reservations and job summaries from an exported snapshot, with live squeue and sinfo tools and gated drain, resume and requeue actions.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# The exporter runs on a schedule (hourly is typical); 12h is the age at which
+# a node state or a drain reason is likely to have changed under the snapshot.
+freshness:
+  slurm.slurm: {max_staleness: 12h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant slurm_link_<name>.
+link_coverage:
+  # A node belongs to a partition; nodes in no partition are rare.
+  - {name: node_partition, from: slurm_node, edge: contains, to: slurm_partition, direction: in, min_fraction: 0.9}
+search_subtypes: [slurm_node, slurm_partition, slurm_job]
+live_tools:
+  - archi.tools.slurm:archi_slurm_squeue
+  - archi.tools.slurm:archi_slurm_sinfo
+  - archi.tools.slurm:drain_node
+  - archi.tools.slurm:resume_node
+  - archi.tools.slurm:requeue_job
+# Every tool is safe to repeat with the same idempotency key: the reads change
+# nothing, and each act tool reads the node or job first and does nothing when
+# it is already in the requested state.
+idempotent_tools:
+  - archi.tools.slurm:archi_slurm_squeue
+  - archi.tools.slurm:archi_slurm_sinfo
+  - archi.tools.slurm:drain_node
+  - archi.tools.slurm:resume_node
+  - archi.tools.slurm:requeue_job
+# drain_node, resume_node and requeue_job: each runs only as a mediator at L2.
+action_classes: action_classes.yaml
+prompt_fragment: prompt.md
+# archi names no credential. The exporter and the live tools run Slurm's own
+# commands as the account the instance gives them; the snapshot publishes from a cache with none.
+needs_credentials: false

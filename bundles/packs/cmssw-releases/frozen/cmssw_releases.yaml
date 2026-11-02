@@ -1,0 +1,67 @@
+# Frozen CMSSW release catalog: read a reviewed, immutable releases.map and
+# verify its sha256 before parsing a byte of it, instead of fetching cms-bot.
+#
+# This file is not installed. After installing the cmssw-releases pack,
+# replace the `cmssw-releases.cmssw_releases` entry in the deployment's
+# source_registry.yaml with the entry below, fill the three placeholders,
+# commit, and run `okg catalog ownership claim` and `okg catalog load
+# --apply` before the next ingest. docs/frozen-cmssw-input.md has the steps.
+#
+# `map_cache_digest` is `sha256:` plus 64 lowercase hex characters:
+#     sha256:$(shasum -a 256 <file> | cut -d' ' -f1)
+# A blank digest is refused rather than skipping verification. Verify it
+# independently of whoever handed you the file: a digest taken from the
+# same source proves nothing.
+
+cmssw-releases.cmssw_releases:
+  module: archi.sources.cmssw
+  class: CMSSWReleaseAdapter
+  ownership_id: <deployment>.cmssw-releases
+  admission_policy:
+    producer_id: <deployment>.cmssw-releases
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cmssw-releases
+      source_name: cmssw_releases
+    output_signature:
+      nodes:
+        - {subtype: cmssw_release}
+      edges:
+        - {src_subtype: cmssw_release, edge_type: supersedes, dst_subtype: cmssw_release}
+    output_scope_summary:
+      summary: CMSSW releases, release families, and supersedes chains
+      nodes: [cmssw_release]
+      edges:
+        - cmssw_release supersedes cmssw_release
+  source_class: reference_catalog
+  # NOTE: the substrate's reference_catalog profile only admits
+  # `domain_key` (deployment lint blocker
+  # deployment.source_registry.profile_invalid otherwise); the
+  # cmssw.py docstring template and the w1-scratch proven registry
+  # both use it.
+  record_identity_kind: domain_key
+  record_identity_fields: [release]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    # Reviewed immutable bytes and their independently verified raw SHA256.
+    # SINGLE-quoted, and that matters. Install answers are substituted into
+    # this file as TEXT and the result is then parsed as YAML, so the quoting
+    # style decides how the answer is read. In a double-quoted scalar YAML
+    # would apply backslash escapes: `C:\reviewed\releases.map` would become
+    # `C:` + a carriage return + `eviewed...`, and the only symptom would be a
+    # puzzling cache_missing. Single quotes take backslashes literally.
+    # (Trade-off: an answer containing an apostrophe breaks the parse. That is
+    # a loud YAML error naming this file, which beats a silently wrong path.)
+    # The quotes also keep an unanswered question as "" rather than a null.
+    map_cache_path: '<absolute path to the reviewed releases.map>'
+    map_cache_digest: 'sha256:<64 lowercase hex of that file>'
+    fetch: false
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

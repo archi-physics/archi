@@ -1,0 +1,19 @@
+name: cds
+kind: context
+version: 0.1.0
+description: CERN Document Server records, harvested over the public OAI-PMH endpoint.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# CDS records change slowly and the OAI harvest takes minutes; the source
+# is reconciled by hand, so a week is the age at which a new PAS or note
+# is likely to be missing.
+freshness:
+  cds.cds: {max_staleness: 7d}
+search_subtypes: [cds_record]
+prompt_fragment: prompt.md
+# The OAI-PMH endpoint is public.
+needs_credentials: false

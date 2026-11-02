@@ -1,0 +1,54 @@
+{
+  "expand": "schema,names",
+  "startAt": 0,
+  "maxResults": 2,
+  "total": 3,
+  "issues": [
+    {
+      "id": "10012",
+      "self": "https://jira.example.org/rest/api/2/issue/10012",
+      "key": "OPS-12",
+      "fields": {
+        "summary": "GPU node gpu07 drops out of the pool",
+        "description": "gpu07 goes unhealthy every few hours. Logs from katherine.johnson@example.org on request.",
+        "project": {"id": "10000", "key": "OPS", "name": "Cluster Operations"},
+        "issuetype": {"id": "10004", "name": "Incident"},
+        "status": {"id": "3", "name": "In Progress"},
+        "priority": {"id": "2", "name": "High"},
+        "reporter": {"name": "kjohnson", "key": "kjohnson", "emailAddress": "katherine.johnson@example.org", "displayName": "Katherine Johnson"},
+        "assignee": {"name": "dvaughan", "key": "dvaughan", "emailAddress": "dorothy.vaughan@example.org", "displayName": "Dorothy Vaughan"},
+        "created": "2026-10-14T07:02:11.000+0000",
+        "updated": "2026-10-14T11:20:45.000+0000",
+        "resolutiondate": null,
+        "comment": {
+          "startAt": 0,
+          "maxResults": 2,
+          "total": 2,
+          "comments": [
+            {"id": "20001", "author": {"name": "dvaughan", "emailAddress": "dorothy.vaughan@example.org", "displayName": "Dorothy Vaughan"}, "body": "Reseated the GPU; watching it overnight.", "created": "2026-10-14T11:20:45.000+0000"},
+            {"id": "20002", "author": {"name": "kjohnson", "displayName": "Katherine Johnson"}, "body": "", "created": "2026-10-14T11:25:00.000+0000"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "10009",
+      "self": "https://jira.example.org/rest/api/2/issue/10009",
+      "key": "OPS-9",
+      "fields": {
+        "summary": "Add a debug partition",
+        "description": null,
+        "project": {"id": "10000", "key": "OPS", "name": "Cluster Operations"},
+        "issuetype": {"id": "10002", "name": "Task"},
+        "status": {"id": "6", "name": "Closed"},
+        "priority": {"id": "3", "name": "Medium"},
+        "reporter": {"name": "mhamilton", "displayName": "Margaret Hamilton"},
+        "assignee": null,
+        "created": "2026-10-02T09:00:00.000+0000",
+        "updated": "2026-10-06T16:45:00.000+0000",
+        "resolutiondate": "2026-10-06T16:45:00.000+0000",
+        "comment": {"startAt": 0, "maxResults": 0, "total": 0, "comments": []}
+      }
+    }
+  ]
+}

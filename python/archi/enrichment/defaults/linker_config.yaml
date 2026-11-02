@@ -1,0 +1,59 @@
+# Projection linker routes: extracted identifier -> references edge.
+#
+# Provenance: okg-deployments main@f33a9c4, cms/linker_config.yaml
+# (verbatim; this header added).
+routes:
+  cms_site:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.95
+
+  cms_jira_key:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.95
+    # A Jira key in a commit message (subject or body) links the commit
+    # to the ticket. Exact match only; a missing ticket makes
+    # no edge and is kept as an unresolved link_retry row.
+    git_commit:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.95
+
+  cmssw_release:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.95
+
+  cms_hostname:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.85
+
+  global_tag:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.9
+
+  cms_dataset:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.95
+
+  cms_run_number:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.85
+
+  cms_workflow:
+    document_chunk:
+      edge_type: references
+      dst_template: "{resolved}"
+      confidence: 0.75

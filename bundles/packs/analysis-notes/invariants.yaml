@@ -1,0 +1,30 @@
+# Coverage for the subtypes this pack emits. It leaves with the pack.
+#
+# The pack-level floor is one note, the one count that is wrong for every
+# mirror. The real note-count floor is the `min_notes` install answer, which
+# the source enforces at preflight (a static invariant cannot read an
+# answer); the cms-physics bundle sets it for production. `reference` is not
+# required: a mirror with no .bib files must still publish.
+invariants:
+  - name: analysis_notes_coverage
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The analysis-note source must have live notes with sections.
+      Required live subtypes: analysis_note, section. A missing one means
+      the mirror was empty, the walker stopped matching its directories,
+      or the connector regressed.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES ('analysis_note'), ('section')
+      ),
+      counts AS (
+        SELECT subtype, count(*) AS n
+          FROM okg.v_nodes
+         GROUP BY subtype
+      )
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r
+        LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) < 1

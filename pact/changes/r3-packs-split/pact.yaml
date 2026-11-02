@@ -1,0 +1,97 @@
+pact_version: 5
+id: r3-packs-split
+title: Split the connectors, schemas, invariants and playbooks into packs
+tier: 2
+why: The four bundles share sources (docsite, indico, twiki, jira, git-code) and differ in
+  the CMS and cluster ones. Each source family becomes one pack carrying its own source templates,
+  schema slice, invariant, playbooks and init questions, so a bundle is a list and not a copy.
+  ADR 0002 §3.1, §5.
+affected_code:
+- bundles/packs/
+- bundles/cern-team/
+- python/archi/schemas/
+- skills/
+requirements:
+- id: req.r3-packs-split.packs
+  statement: 'Packs exist for docsite, indico, twiki, cds, jira, git-code, code-text, code-symbols,
+    cms-catalogs, cmssst, cmssw-releases, dqm, hypernews and monit-live, each declaring needs_credentials
+    honestly and owning one coverage invariant for the subtypes it emits.
+
+
+    Acceptance:
+
+    - acc.r3-packs-split.validate: archi bundles validate passes on every pack. [evidence:
+    pytest]'
+- id: req.r3-packs-split.isolation
+  statement: 'Each pack, installed alone on the base with fixture inputs, reaches a published
+    generation with lint showing zero blockers; each schema path is owned by exactly one pack
+    or byte-identical across packs.
+
+
+    Acceptance:
+
+    - acc.r3-packs-split.matrix: parametrised install test over every pack. [evidence: executed_test]'
+tasks:
+- id: task.r3-packs-split.doc-packs
+  requirement: req.r3-packs-split.packs
+  verification: 'Move document-source templates and slices.
+
+
+    Test plan:
+
+    - python/tests/packs/ [evidence: pytest]'
+- id: task.r3-packs-split.code-packs
+  requirement: req.r3-packs-split.packs
+  verification: 'Move repository/code-source templates and extractors.yaml.
+
+
+    Test plan:
+
+    - python/tests/packs/ [evidence: pytest]'
+- id: task.r3-packs-split.cms-packs
+  requirement: req.r3-packs-split.packs
+  verification: 'Move CMS catalog, monitoring and live-tool sources.
+
+
+    Test plan:
+
+    - python/tests/packs/ [evidence: pytest]'
+- id: task.r3-packs-split.isolation
+  requirement: req.r3-packs-split.isolation
+  verification: 'One install per pack against fixture caches.
+
+
+    Test plan:
+
+    - python/tests/packs/test_pack_isolation.py [evidence: executed_test]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-packs-split.packs
+  status: pass
+  command: python -m pytest python/tests/packs/test_packs.py -q (a dev host, okg 0.2.0 wheel, Python
+    3.12)
+  head: 1fdc5e8771ff0504a46c534e71b2b000322e69c6
+  at: '2026-10-25T15:49:37+00:00'
+  note: 'acc.r3-packs-split.validate, re-run at the PR head (the earlier heads were lost in a rebase):
+    65 passed. An independent review found these limits, left as they are and disclosed: each
+    coverage invariant requires a pack''s primary subtypes, not every subtype it emits (git_tag,
+    code_import and similar can be legitimately empty); the invariants count subtypes over the
+    whole graph, so they are only discriminating in a solo install; git-code indexes one repository
+    where the old templates allowed a GitHub and a GitLab one side by side; cms-catalogs and
+    cmssw-releases both emit cmssw_release; the five comp-ops playbooks (rucio_*, site_profile,
+    incident_root_cause, monitoring_condor_snapshot) are not in any pack yet, which is task
+    playbooks of r3-bundle-cms-comp-ops.'
+- kind: executed_test
+  requirement: req.r3-packs-split.isolation
+  status: pass
+  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:okg@127.0.0.1:<port>/packtest python
+    -m pytest python/tests/packs/test_pack_isolation.py -v (a dev host)
+  head: 1fdc5e8771ff0504a46c534e71b2b000322e69c6
+  at: '2026-10-25T15:49:37+00:00'
+  note: 'acc.r3-packs-split.matrix, re-run at the PR head: 16 passed in 12m33s, against
+    ghcr.io/mitdbg/akmon-postgres:v0.2.0 in a container of its own, okg 0.2.0. All 14 context
+    packs installed alone and published with lint zero blockers, and cern-team with every optional
+    pack published. The install tests skip without ARCHI_PACK_ISOLATION_DSN, so hosted CI runs
+    only the fixture-coverage test; this run is the proof. The test checks that each pack''s
+    invariants are installed and relies on okg refusing to publish when an error invariant fails.'
+decisions: []

@@ -1,0 +1,36 @@
+# Edge narrowings for the tickets pack's source emissions.
+#
+# The composer honours narrowings only under schemas/bridges/. A narrowing
+# anywhere else is silently ignored and fails at ingest with
+# ProducerPolicyViolation. Person is okg's (person module); the other classes
+# are in ../tickets.yaml.
+id: https://archi-physics.org/okg/archi/bridges/tickets
+name: archi_tickets_narrowings
+title: Archi tickets bridge narrowings
+description: Narrowings for archi.sources.tickets emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for archi.sources.tickets emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      tracker_ticket_reported_by_person:
+        annotations:
+          edge_archetype: reported_by
+          src_subtypes: TrackerTicket
+          dst_subtypes: Person
+      tracker_ticket_assigned_to_person:
+        annotations:
+          edge_archetype: assigned_to
+          src_subtypes: TrackerTicket
+          dst_subtypes: Person

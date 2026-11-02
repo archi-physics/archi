@@ -1,0 +1,91 @@
+pact_version: 5
+id: wmstats-collection-shape
+title: The WMStats reader and snapshot read the collector's status_payloads file
+tier: 2
+why: 'The comp-ops release snapshot refused its wmstats group: "records.json: expected a JSON
+  list". The Aug 31 collector does not write a list. It writes one object, {cutoff_utc, status_payloads},
+  where status_payloads maps each workflow status to that status''s WMStats API answer, {"result":
+  [{<workflow name>: <record>}]}, and it writes authority.json beside it with the record_count
+  it collected. The reader (archi.sources.wmstats) and the snapshot group spec (archi.snapshot.groups)
+  only accepted a list, so the real collection could not be read or archived. This is the
+  real collection format, so archi reads it (lead decision, 2026-09-28).
+
+
+  Kept minimal (Jason: no edge-case hardening): only what the real file needs.
+
+
+  DECISION, duplicates: a workflow name seen twice (for example under two statuses) is emitted
+  once, from its first place in the file, and counted as skipped, so the run claims no complete
+  scope. The collector already merges duplicates (authority.json deliberate_merge_count),
+  so a repeat means the export contradicts itself; keeping the facts but not the scope claim
+  retracts nothing on a bad export. The real file has none. The same rule now applies to the
+  plain list.
+
+
+  DECISION, authority.json: when it sits beside records.json, the number of records in the
+  file must equal its record_count, else endpoint_failed with no facts and no scope claim.
+  The snapshot archives authority.json pruned to record_count, so the builder''s reader check
+  enforces the same count.
+
+
+  NOT CHANGED: the plain-list cache still reads as before; RequestorDN and every DN key are
+  still dropped at any depth by the snapshot and Requestor is still kept (Jason, 2026-09-28);
+  the reader reads neither field.'
+affected_code:
+- python/archi/sources/wmstats.py
+- python/archi/sources/_cache_report.py
+- python/archi/snapshot/builder.py
+- python/archi/snapshot/groups.py
+- python/tests/sources/test_wmstats.py
+- python/tests/snapshot/test_snapshot_builder.py
+requirements:
+- id: req.wmstats-collection-shape.main
+  statement: 'The WMStats reader and the snapshot builder read the collector''s status_payloads
+    object as well as a plain list.
+
+
+    Acceptance:
+
+    - acc.wmstats-collection-shape.reader: a records.json of shape {cutoff_utc, status_payloads:
+    {status: {result: [{name: record}]}}} yields the same facts as the same records in a plain
+    list, health ok and a complete scope; empty status_payloads, or statuses whose results
+    are all empty, is cache_missing with no facts and no scope claim in run() and preflight();
+    an object without status_payloads or a status without a result list is endpoint_failed;
+    a workflow name under two statuses is emitted once and stops the scope claim; an authority.json
+    whose record_count differs from the file is endpoint_failed. [evidence: executed_test]
+
+    - acc.wmstats-collection-shape.snapshot: the snapshot builder accepts the wmstats group
+    in that shape, archives records.json with only the containers and fields the reader reads
+    (no cutoff_utc, no RequestorDN or DN, Requestor kept) and authority.json pruned to record_count,
+    and verifies; a count mismatch, no workflow, a malformed record inside a status, or a
+    status without a result list refuses the group. [evidence: executed_test]'
+tasks:
+- id: task.wmstats-collection-shape.deliver
+  requirement: req.wmstats-collection-shape.main
+  verification: 'Flatten status_payloads in the reader and the builder, check authority.json''s
+    count, cover each rule with fake data in the real structure.
+
+
+    Proof: the new tests fail on main and pass on the branch; the full archi suite passes;
+    the patched reader, run read-only on the real Aug 31 file, yields authority.json''s record
+    count.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.wmstats-collection-shape.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: f10385b6acc8416f71bd127415069e3e815dbc1d
+  at: '2026-09-29T02:19:33+00:00'
+  note: '1321 passed at this commit. The 10 new tests use fake data in the real structure;
+    9 fail on main a1544047 and pass here (reader: collection shape reads like the list, no-workflow
+    cache_missing, duplicate stops scope, authority count; snapshot: builds and checks count,
+    4 refusal cases); the drift test (endpoint_failed) passes on both as a control. Real-data
+    check, read-only on a dev host: the patched reader yields 4231 records from the Aug 31 file,
+    equal to its authority.json record_count, health ok, scope claimed; a wmstats-only scratch
+    build archives 4231 records with no RequestorDN or DN key.'
+decisions: []

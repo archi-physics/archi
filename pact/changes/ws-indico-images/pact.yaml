@@ -1,0 +1,124 @@
+pact_version: 5
+id: ws-indico-images
+title: Indico talk attachments that okg can render become viewable images
+tier: 2
+why: 'With `contributions: true` each Indico talk is its own record and lists its
+  attachment names and URLs, but an agent can only read those names. It cannot look
+  at a talk''s slides.
+
+
+  okg already has the whole image path: a node attr tagged `okg_image` (kind `url`)
+  is fetched when an agent calls `inspect(kind="image")`, rendered (a PDF shows page
+  1) and returned as an image. No source emitted such a value. This change makes the
+  live Indico source emit one for each PDF, PNG or JPEG attachment of a talk. Nothing
+  is downloaded or stored at ingest, and no model is called.
+
+
+  OPTION, OFF BY DEFAULT: `attachment_images: true`, which needs `contributions: true`
+  (the images sit on the talk records). `max_images_per_talk` (default 3) and
+  `max_image_bytes` (default 10 MiB, okg''s own URL limit) bound it. Slide decks
+  (pptx), links, protected attachments and oversized files get no image value and
+  stay names and URLs.
+
+
+  The deployment must also allow the host: okg fetches nothing unless
+  `agent_surface.images.url.prefixes` lists it, and serves the image kind only when
+  an `agent_surface` block exists. A bundle default cannot be switched on by a source
+  option, and an `agent_surface` block needs a `served` list that would redefine the
+  tool surface of every install, so the bundle documents the block in
+  indico_live.yaml.example and the quickstart instead of shipping it.'
+affected_code:
+- python/archi/sources/indico_live.py
+- python/tests/sources/test_indico_live.py
+- bundles/cern-team/source-defaults/indico_live.yaml.example
+- docs/cern-team-quickstart.md
+- docs/okg-alignment.md
+- skills/indico.md
+requirements:
+- id: req.ws-indico-images.values
+  statement: 'With `contributions: true` and `attachment_images: true`, a talk record
+    carries attr `attachment_images`: one `{"okg_image": "url", "url": ...}` value
+    (built with okg''s `ImageRef.url`) per PDF, PNG or JPEG attachment, at most
+    `max_images_per_talk`.
+
+
+    Attachments of type pptx or any other type, link entries, protected attachments
+    and files larger than `max_image_bytes` get none; they stay in `attachment_names`
+    and `attachment_urls`. The timetable export names no content type, so the file
+    extension decides there.
+
+
+    Acceptance:
+
+    - acc.ws-indico-images.values: Against the saved export fixture for event
+    1716863 with png, jpg, pdf and pptx attachments added, the talk carries image
+    values for the pdf, png and jpg and none for the pptx; the cap is respected;
+    protected (attachment or folder), oversized and non-file entries are skipped; a URL
+    okg refuses (`..`, `%5c`, `@` in the host) is skipped and counted, and the run still
+    completes. [evidence: executed_test]
+
+    - acc.ws-indico-images.read: After a publish, `inspect` with kind `image` on a
+    talk with a PDF attachment returns an image block. [evidence: executed_test]'
+- id: req.ws-indico-images.off
+  statement: 'With the option off (the default) the output is what it was: no
+    `attachment_images` attr, the same change-probe configuration and the same content
+    hash.
+
+
+    Acceptance:
+
+    - acc.ws-indico-images.off: A new test shows no attr, an unchanged hash with the
+    image limit at 0, and a changed hash when images are found. [evidence:
+    executed_test]'
+tasks:
+- id: task.ws-indico-images.values
+  requirement: req.ws-indico-images.values
+  verification: 'Add the option and the value emission; document the deployment
+    block.
+
+
+    Proof: fixture tests, then a publish of event 1716863 and an `inspect` image read
+    through the MCP server.
+
+
+    Test plan:
+
+    - python/tests/sources/test_indico_live.py [evidence: pytest]'
+- id: task.ws-indico-images.off
+  requirement: req.ws-indico-images.off
+  verification: 'Keep the default path untouched.
+
+
+    Proof: full python/tests suite.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.ws-indico-images.values
+  status: pass
+  artifact: pact/changes/ws-indico-images/evidence/indico-live.xml
+  sha256: 2aa9e601696650e082bf6f61844981788e9cecefa787bfd897b9ef736b317886
+  command: cd python && python -m pytest tests/sources/test_indico_live.py tests/sources/test_indico.py tests/test_bundle_cern_team.py tests/test_bridge_portability.py tests/test_bundle_source_adapters.py tests/test_alignment_page.py --junitxml=../pact/changes/ws-indico-images/evidence/indico-live.xml
+  head: 3b5cfd90aa0a0169da4f35a257c0c840641a73e9
+  at: '2026-10-21T01:00:00+00:00'
+  note: '124 passed (44 in test_indico_live.py, 13 new). Run on the tree of commit 68662e46 (the head field names the earlier code commit the live read used).'
+- kind: executed_test
+  requirement: req.ws-indico-images.read
+  status: pass
+  artifact: pact/changes/ws-indico-images/evidence/mcp-image-read.txt
+  sha256: b82dfe1a031986490a14bced4191b19a268166adb024b801776377baeb424bdf
+  command: inspect with kind image over the okg MCP server (stdio) on meeting_minutes:1716863:contribution:7317484, after publishing event 1716863 with attachment_images on
+  head: 3b5cfd90aa0a0169da4f35a257c0c840641a73e9
+  at: '2026-10-20T22:05:00+00:00'
+  note: 'One image/png block, 76,215 bytes, 1334x750 (page 1 of the talk PDF), fetched anonymously. Transcript in the artifact.'
+- kind: executed_test
+  requirement: req.ws-indico-images.off
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 3b5cfd90aa0a0169da4f35a257c0c840641a73e9
+  at: '2026-10-20T22:03:00+00:00'
+  note: '1812 passed, 1 failed, 4 errors. The failure and errors are in test_packaging and test_artifact_payload (no wheel builder in the test environment), files this change does not touch; the same ones fail without it.'
+decisions: []

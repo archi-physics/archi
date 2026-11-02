@@ -1,0 +1,100 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+# The distribution is `archi-kb` (ADR 0002 D2): the name `archi` on PyPI
+# belongs to an unrelated package. The import name stays `archi`.
+name = "archi-kb"
+version = "3.0.1"
+description = "Operations automation for scientific computing: agents propose actions, people approve them, and every step cites the facility's own knowledge"
+requires-python = ">=3.12"
+# The PyPI project page shows this file. Its links point at this version's tag,
+# because a published version's page cannot be changed afterwards.
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "requests>=2.31",
+    "pyyaml>=6.0",
+    "jsonschema>=4.18",
+    "packaging>=23.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/archi-physics/archi"
+Documentation = "https://github.com/archi-physics/archi/tree/v3.0.1/docs/docs"
+"Release notes" = "https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md"
+Issues = "https://github.com/archi-physics/archi/issues"
+
+[project.scripts]
+archi = "archi.bundles.cli:main"
+archi-profiles-dir = "archi.paths:main"
+
+# Where `archi bundles list` finds packs and bundles (ADR 0002 3.4). A
+# third-party package registers its own roots in these same groups.
+[project.entry-points."archi.packs"]
+archi = "archi.paths:packs_dir"
+
+[project.entry-points."archi.bundles"]
+archi = "archi.paths:profiles_dir"
+
+[project.optional-dependencies]
+# ADR SS10's definition of done mandates `black --check .` and `isort --check .`;
+# without this extra neither tool (nor pytest) is declared anywhere, so the DoD
+# was unrunnable. okg itself is NOT declared: it is the host environment archi is
+# installed into, not a dependency of the distribution.
+dev = [
+    "pytest>=8.0",
+    "black>=24.0",
+    "isort>=5.13",
+    "hatchling>=1.27",
+]
+# The JIRA downloader (archi.downloaders.jira) needs the `jira` client. It is
+# optional: only operators who run that downloader install it
+# (`pip install jira`, or the `jira` extra: `archi-kb[jira]`). Never run
+# `pip install archi[jira]`: the name `archi` on PyPI is an unrelated package.
+# The readers never import it.
+jira = [
+    "jira>=3.8",
+]
+# The SSO cookie helper (archi.downloaders.sso_login) checks a Kerberos ticket
+# with `requests-kerberos`. Operators used to get it from okg's own `cern` extra,
+# which okg core removed (it keeps no CERN-specific install option). Install it
+# with `pip install -e "./python[cern]"` from a checkout (`archi-kb[cern]`); never
+# run `pip install archi[cern]`: the name `archi` on PyPI is an unrelated package.
+# `requests-kerberos` builds `gssapi` and `krb5` from source on Linux, which needs
+# the Kerberos development headers (`libkrb5-dev` / `krb5-devel`). The readers
+# never import it. The JIRA downloader's `jira` client is the separate `jira` extra.
+cern = [
+    "requests-kerberos>=0.15",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["archi"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["archi"]
+
+# The distribution must be installable *as an artifact*: `archi render
+# --bundle cern-team` and the okg install after it have to work from the
+# wheel alone, with no authoring checkout of this repo. bundles/ and skills/
+# live at the repo root (outside python/), so force-include maps them into
+# the package, under archi/_payload/ (archi/bundles/ is the archi.bundles
+# code package).
+#
+# The packs' playbooks and schema slices are relative symlinks escaping
+# bundles/ (into skills/ and python/archi/schemas/); hatchling reads file
+# *contents*, so they land in the wheel dereferenced — which is what a
+# materialised payload requires and what a plain directory copy would get
+# wrong. tests/test_artifact_payload.py asserts that on the built wheel, not
+# on the working tree.
+[tool.hatch.build.targets.wheel.force-include]
+"../bundles" = "archi/_payload/bundles"
+"../skills" = "archi/_payload/skills"

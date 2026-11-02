@@ -1,0 +1,166 @@
+pact_version: 5
+id: indico-live-connector
+title: A live Indico connector, ported from archi v2's scraper
+tier: 2
+why: 'archi''s Indico source reads a records.json that nothing anywhere produces. Not archi,
+  not mitdbg/okg-deployments/cms (whose scripts/ has downloaders for JIRA and static docs
+  and nothing for Indico), not cms_tools (monit_live.py only). So the connector cannot ingest,
+  and cms-kb ships it as an example with a note saying why.
+
+
+  The logic is not missing, though -- it is in archi v2. archi-physics/archi at dev carries
+  src/data_manager/collectors/scrapers/integrations/indico_scraper.py, 1,287 lines: Indico''s
+  REST API for event and contribution metadata, a timetable fallback when the contributions
+  endpoint is empty, category walks, attachment download, and slide-to-markdown conversion.
+  That is the expensive part and it exists.
+
+
+  WHAT CANNOT COME ACROSS is its authentication. v2 logs in with Playwright, driving a browser
+  through CERN SSO and harvesting cookies. archi v3 refuses interactive login in-process by
+  design -- archi/auth/cookies.py states it plainly -- and instead reads a Netscape cookie
+  file produced out of band by CERN''s Kerberos-backed auth-get-sso-cookie. The TWiki crawl
+  and the SSO docs source already work this way. This port adopts that, which also means the
+  connector never holds a credential: only the PATH to a cookie file travels through configuration.
+
+
+  MEASURED: auth-get-sso-cookie is NOT installed on the submit host and there is no Kerberos
+  ticket, so producing the cookie file is an operator step this change documents rather than
+  performs.
+
+
+  WHY LIVE RATHER THAN A CACHE BUILDER: a cache builder in cms-kb would be faster and would
+  leave cms-kb owning a fetcher whose output only archi''s connector understands -- a split
+  across two repositories with a JSON contract between them and no test holding it. Indico
+  is CERN infrastructure, not CMS physics, so the connector belongs here and every HEP deployment
+  gets it.'
+affected_code:
+- python/archi/sources/indico_live.py
+- python/tests/sources/test_indico_live.py
+- bundles/cern-team/source-defaults/indico_live.yaml.example
+requirements:
+- id: req.indico-live-connector.harvest
+  statement: 'archi can read Indico events directly, with no pre-built cache.
+
+
+    A reader on the current SDK walks the configured events or category, reads each event''s
+    metadata and contributions through Indico''s REST API, and emits the same subtypes archi''s
+    cache-backed Indico source emits -- meeting_minutes, document, document_chunk -- so a
+    deployment can swap one for the other without a schema change.
+
+
+    The contributions endpoint returns empty for some events where the timetable holds the
+    real programme; v2 handles this with a fallback and this port keeps it, because losing
+    a meeting''s contributions silently is indistinguishable from a meeting having none.
+
+
+    Acceptance:
+
+    - acc.indico-live-connector.harvest: Against recorded API fixtures, an event with contributions
+    and an event whose contributions arrive only in the timetable both emit their full programme.
+    [evidence: executed_test]'
+- id: req.indico-live-connector.auth
+  statement: 'Authentication is a cookie file path, never a credential, and its absence is
+    loud.
+
+
+    The connector loads a Netscape cookie jar by the path named in configuration, exactly
+    as archi''s TWiki crawl and SSO docs sources do. It never launches a browser and never
+    performs a login: v2''s Playwright provider does not come across.
+
+
+    A missing, expired, or login-redirecting session fails preflight with a reason naming
+    auth-get-sso-cookie, rather than harvesting the login page and publishing it as meeting
+    minutes. Public events must still work with no cookie file at all -- an Indico instance
+    with open categories should not require a credential to read them.
+
+
+    Acceptance:
+
+    - acc.indico-live-connector.auth: A login-page response fails the run loudly; a public
+    event harvests with no cookie file configured. [evidence: executed_test]'
+- id: req.indico-live-connector.scope
+  statement: 'A partial harvest never claims a complete scope.
+
+
+    Indico is paginated, rate-limited and occasionally slow. An event that fails to read,
+    a category walk that stops early, or a configured bound that truncates all mean the run
+    saw less than its declared scope, and each reports completed_scope false -- otherwise
+    missing_from_completed_scope deletion semantics retract every event the run did not reach.
+
+
+    Acceptance:
+
+    - acc.indico-live-connector.scope: A failed event fetch mid-walk yields completed_scope
+    false with the failure named in the run''s health. [evidence: executed_test]'
+tasks:
+- id: task.indico-live-connector.port
+  requirement: req.indico-live-connector.harvest
+  verification: 'Port v2''s REST/timetable logic onto the v3 SDK as archi/sources/indico_live.py,
+    emitting the cache-backed source''s subtypes.
+
+
+    Proof: fixture tests for both event shapes.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.indico-live-connector.auth
+  requirement: req.indico-live-connector.auth
+  verification: 'Wire archi.auth.cookies for the session; drop v2''s Playwright provider;
+    detect login-page responses.
+
+
+    Proof: tests for the login-page refusal and the public-event path.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.indico-live-connector.scope
+  requirement: req.indico-live-connector.scope
+  verification: 'Report incomplete scope on any failed or truncated walk, and ship a bundle
+    example plus the operator note on producing a cookie file.
+
+
+    Proof: tests, and the full archi suite green.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.indico-live-connector.harvest
+  status: pass
+  command: python -m pytest tests -q; live smoke against indico.cern.ch event 2
+  head: 61ccbf519cc2860e9f48cf73ceb4173bff467e46
+  at: '2026-09-25T19:28:40+00:00'
+  note: '476 passed. Live: event 2 read end to end unauthenticated -- title, date, category,
+    3 speakers from contributions, 13 attachment URLs, completed_scope true. Fixtures cover
+    the contributions path, the timetable fallback (breaks skipped, ids deduped), a login
+    page refused at preflight with auth-get-sso-cookie named, a failed event forfeiting complete
+    scope, max_events truncation, and the category walk.'
+- kind: executed_test
+  requirement: req.indico-live-connector.auth
+  status: pass
+  command: python -m pytest tests -q; live smoke against indico.cern.ch event 2
+  head: 61ccbf519cc2860e9f48cf73ceb4173bff467e46
+  at: '2026-09-25T19:28:42+00:00'
+  note: '476 passed. Live: event 2 read end to end unauthenticated -- title, date, category,
+    3 speakers from contributions, 13 attachment URLs, completed_scope true. Fixtures cover
+    the contributions path, the timetable fallback (breaks skipped, ids deduped), a login
+    page refused at preflight with auth-get-sso-cookie named, a failed event forfeiting complete
+    scope, max_events truncation, and the category walk.'
+- kind: executed_test
+  requirement: req.indico-live-connector.scope
+  status: pass
+  command: python -m pytest tests -q; live smoke against indico.cern.ch event 2
+  head: 61ccbf519cc2860e9f48cf73ceb4173bff467e46
+  at: '2026-09-25T19:28:44+00:00'
+  note: '476 passed. Live: event 2 read end to end unauthenticated -- title, date, category,
+    3 speakers from contributions, 13 attachment URLs, completed_scope true. Fixtures cover
+    the contributions path, the timetable fallback (breaks skipped, ids deduped), a login
+    page refused at preflight with auth-get-sso-cookie named, a failed event forfeiting complete
+    scope, max_events truncation, and the category walk.'
+decisions: []

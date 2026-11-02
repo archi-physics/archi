@@ -1,0 +1,30 @@
+init_questions:
+  - id: mirror_root
+    prompt: directory holding your analysis-note mirror (absolute path)
+    type: string
+    required: true
+    description: |
+      The local clone of gitlab.cern.ch/tdr/notes: a directory of
+      `<PAG>-YY-NNN/` and legacy `AN-YY-NNN/` note trees, each with a main
+      `<note id>.tex`, its section files and usually a `.bib`. Other
+      directories are ignored.
+
+      The mirror needs CERN credentials to clone and refresh; the pack
+      README gives the commands. This pack never fetches it. A missing
+      mirror blocks the publish rather than shrinking the graph quietly.
+
+      Give an absolute path. A relative one is read from the directory okg
+      runs from, not from the deployment directory, and does not follow
+      `archi_data_root`.
+
+  - id: min_notes
+    prompt: fewest note directories the mirror may hold
+    type: integer
+    required: false
+    default: 1
+    description: |
+      The note-count floor. A mirror with fewer `<PAG>-YY-NNN` and `AN-YY-NNN`
+      directories than this fails preflight and publishes nothing, instead of
+      publishing a fraction of the corpus. The default of 1 only catches an
+      empty mirror; set it to a little under the size of a complete mirror
+      (the cms-physics bundle sets its own).

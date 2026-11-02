@@ -1,0 +1,40 @@
+# Node-health connector (cache-backed). Reads the per-node check results that a site's
+# health exporter writes to ${archi_data_root}/node-health/records.json. Nothing in
+# archi runs a check or reaches a node; the source names no credential.
+node_health:
+  module: archi.sources.node_health
+  class: NodeHealthAdapter
+  ownership_id: ${deployment_name}.node_health
+  admission_policy:
+    producer_id: ${deployment_name}.node_health
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: node-health
+      source_name: node_health
+    output_signature:
+      nodes:
+        - {subtype: compute_node}
+        - {subtype: node_health_check}
+      edges:
+        - {src_subtype: compute_node, edge_type: contains, dst_subtype: node_health_check}
+    output_scope_summary:
+      summary: Compute nodes and their health checks, from the exporter's cache
+      nodes: [compute_node, node_health_check]
+      edges:
+        - compute_node contains node_health_check
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [cluster, kind, name]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/node-health/records.json
+    cluster_name: ${cluster_name}
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,172 @@
+{
+  "count": 1,
+  "results": {
+    "1716863": {
+      "20261019": {
+        "s8045851": {
+          "startDate": {
+            "date": "2026-10-19",
+            "time": "14:00:00",
+            "tz": "Europe/Zurich"
+          },
+          "endDate": {
+            "date": "2026-10-19",
+            "time": "15:00:00",
+            "tz": "Europe/Zurich"
+          },
+          "id": "s8045851",
+          "uniqueId": "s8045851",
+          "conferenceId": 1716863,
+          "color": "#ecc495",
+          "textColor": "#1f1100",
+          "location": "CERN",
+          "room": "40/S2-C01 - Salle Marie Sklodowska-Curie",
+          "inheritLoc": false,
+          "inheritRoom": false,
+          "entryType": "Session",
+          "sessionSlotId": 693369,
+          "sessionId": 676837,
+          "sessionCode": "",
+          "title": "Security and AI tools for exploration and development",
+          "slotTitle": "",
+          "attachments": {
+            "files": null,
+            "folders": []
+          },
+          "code": "",
+          "contribDuration": 30.0,
+          "description": "",
+          "duration": 60.0,
+          "isPoster": false,
+          "entries": {
+            "c8049281": {
+              "startDate": {
+                "date": "2026-10-19",
+                "time": "14:30:00",
+                "tz": "Europe/Zurich"
+              },
+              "endDate": {
+                "date": "2026-10-19",
+                "time": "15:00:00",
+                "tz": "Europe/Zurich"
+              },
+              "id": "c8049281",
+              "uniqueId": "c8049281",
+              "conferenceId": 1716863,
+              "color": "#ecc495",
+              "textColor": "#1f1100",
+              "location": "CERN",
+              "room": "40/S2-C01 - Salle Marie Sklodowska-Curie",
+              "inheritLoc": false,
+              "inheritRoom": false,
+              "entryType": "Contribution",
+              "_type": "ContribSchEntry",
+              "_fossil": "contribSchEntryDisplay",
+              "contributionId": 7322581,
+              "attachments": {
+                "files": [
+                  {
+                    "id": 6037238,
+                    "_type": "Attachment",
+                    "_fossil": "attachment",
+                    "title": "aiPhysicsAgentsWorkshop-Oct19-2026.pdf",
+                    "download_url": "/event/1716863/contributions/7322581/attachments/3364638/6037238/aiPhysicsAgentsWorkshop-Oct19-2026.pdf"
+                  }
+                ],
+                "folders": []
+              },
+              "description": "",
+              "duration": 30.0,
+              "pdf": "/event/1716863/contributions/7322581/contribution.pdf",
+              "presenters": [
+                {
+                  "firstName": "Josh",
+                  "familyName": "Bendavid",
+                  "affiliation": "CERN",
+                  "name": "Josh Bendavid",
+                  "displayOrderKey": [
+                    0,
+                    "Josh Bendavid"
+                  ]
+                }
+              ],
+              "code": "",
+              "sessionCode": "",
+              "sessionId": 676837,
+              "sessionSlotId": 693369,
+              "sessionSlotEntryId": 8045851,
+              "title": "AI tools for exploration and development",
+              "url": "/event/1716863/contributions/7322581/",
+              "friendlyId": 60,
+              "board_number": ""
+            },
+            "c8045943": {
+              "startDate": {
+                "date": "2026-10-19",
+                "time": "14:00:00",
+                "tz": "Europe/Zurich"
+              },
+              "endDate": {
+                "date": "2026-10-19",
+                "time": "14:30:00",
+                "tz": "Europe/Zurich"
+              },
+              "id": "c8045943",
+              "uniqueId": "c8045943",
+              "conferenceId": 1716863,
+              "color": "#ecc495",
+              "textColor": "#1f1100",
+              "location": "CERN",
+              "room": "40/S2-C01 - Salle Marie Sklodowska-Curie",
+              "inheritLoc": false,
+              "inheritRoom": false,
+              "entryType": "Contribution",
+              "_type": "ContribSchEntry",
+              "_fossil": "contribSchEntryDisplay",
+              "contributionId": 7317486,
+              "attachments": {
+                "files": [
+                  {
+                    "id": 6036476,
+                    "_type": "Attachment",
+                    "_fossil": "attachment",
+                    "title": "AgentsGoneWild-KnowledgeAgentsV2.pdf",
+                    "download_url": "/event/1716863/contributions/7317486/attachments/3364242/6036476/AgentsGoneWild-KnowledgeAgentsV2.pdf"
+                  }
+                ],
+                "folders": []
+              },
+              "description": "Agents gone wild: You said what, somebody else said how, nobody said stop",
+              "duration": 30.0,
+              "pdf": "/event/1716863/contributions/7317486/contribution.pdf",
+              "presenters": [
+                {
+                  "firstName": "Jose Carlos",
+                  "familyName": "Luna Duran",
+                  "affiliation": "CERN",
+                  "name": "Jose Carlos Luna Duran",
+                  "displayOrderKey": [
+                    0,
+                    "Jose Carlos Luna Duran"
+                  ]
+                }
+              ],
+              "code": "",
+              "sessionCode": "",
+              "sessionId": 676837,
+              "sessionSlotId": 693369,
+              "sessionSlotEntryId": 8045851,
+              "title": "Agents gone wild: You said what, somebody else said how, nobody said stop",
+              "url": "/event/1716863/contributions/7317486/",
+              "friendlyId": 42,
+              "board_number": ""
+            }
+          },
+          "pdf": "/event/1716863/sessions/676837/session-timetable.pdf",
+          "url": "/event/1716863/sessions/676837/",
+          "friendlyId": 1
+        }
+      }
+    }
+  }
+}

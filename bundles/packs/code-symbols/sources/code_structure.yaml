@@ -1,0 +1,74 @@
+# Code symbols (functions, classes, imports, calls) in the repository the
+# git-code pack clones. Without this a repository gives file paths and text
+# only; with it an agent can find what is defined where and who calls it.
+# It reads git-code's checkout and clones nothing itself.
+#
+# `repo` and `repo_root` are git-code's own answers, so symbols attach to
+# the file nodes `file:<repo>:<path>` that git-code emits.
+# `predecessor_source` orders this source after git-code's repo source, so
+# the checkout exists before the first run reads it.
+#
+# Needs okg's `code_graph` module and the four it composes with
+# (agent_sessions, ci, compute_env, openspec); pack.yaml requires them.
+# Without them the code_symbol / code_import / code_reference subtypes do
+# not resolve and the catalog fails to load.
+code_structure:
+  predecessor_source: ${deployment_name}.git-repo
+  module: okg.substrate.library.sources.code_graph
+  class: CodeStructureSource
+  ownership_id: ${deployment_name}.code-structure
+  admission_policy:
+    producer_id: ${deployment_name}.code-structure
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: code-symbols
+      source_name: code_structure
+    output_signature:
+      nodes:
+        - {subtype: code_symbol}
+        - {subtype: code_import}
+        - {subtype: code_reference}
+      edges:
+        - {src_subtype: source_file, edge_type: contains, dst_subtype: code_symbol}
+        - {src_subtype: source_file, edge_type: contains, dst_subtype: code_import}
+        - {src_subtype: source_file, edge_type: contains, dst_subtype: code_reference}
+        - {src_subtype: code_symbol, edge_type: member_of, dst_subtype: code_symbol}
+        - {src_subtype: code_reference, edge_type: references, dst_subtype: code_symbol}
+        - {src_subtype: code_symbol, edge_type: calls, dst_subtype: code_symbol}
+    output_scope_summary:
+      summary: functions, classes, imports and calls found in the configured repository
+      nodes: [code_symbol, code_import, code_reference]
+      edges:
+        - source_file contains code_symbol
+        - source_file contains code_import
+        - source_file contains code_reference
+        - code_symbol member_of code_symbol
+        - code_reference references code_symbol
+        - code_symbol calls code_symbol
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [repo, path]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    repo: '${git_code_repo_name}'
+    # SINGLE-quoted, as in git-code's repo.yaml (answers are substituted
+    # as text, then parsed as YAML).
+    repo_root: '${archi_data_root}/repos/${git_code_repo_name}'
+    include_exts: [".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"]
+    exclude_globs:
+      - "**/__pycache__/**"
+      - "**/.venv/**"
+      - "**/node_modules/**"
+      - "**/.git/**"
+      - "**/*.pyc"
+    max_files: 5000
+    max_bytes_per_file: 1000000
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

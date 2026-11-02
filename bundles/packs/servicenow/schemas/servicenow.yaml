@@ -1,0 +1,158 @@
+# ServiceNow subtypes: incident, request and knowledge-base article.
+#
+# Owned by the servicenow pack. Classes live in this file; their edge narrowings
+# are in bridges/servicenow.yaml (okg's composer honours narrowings only under
+# schemas/bridges/). Person and DocumentChunk come from okg's person and
+# extraction modules.
+id: https://archi-physics.org/okg/archi/servicenow
+name: archi_servicenow
+title: Archi - ServiceNow subtypes
+description: Node subtypes emitted by archi.sources.servicenow.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  ServicenowIncident:
+    description: >-
+      A ServiceNow incident mirrored from the records cache.
+    class_uri: archi:ServicenowIncident
+    attributes:
+      number:
+        required: true
+      title:
+      description:
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      priority:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      category:
+      assignment_group:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      assignee:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      reporter:
+      config_item:
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      updated:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      resolved:
+      resolution:
+      url:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: number
+      okg_identifier_fields: number
+      okg_searchable_text_fields: number,title,description,state,priority,category,assignment_group,config_item,resolution,text
+      okg_title_from: title
+      okg_created_at_from: created
+      okg_last_modified_at_from: updated
+
+  ServicenowRequest:
+    description: >-
+      A ServiceNow service request (sc_request) mirrored from the records cache.
+    class_uri: archi:ServicenowRequest
+    attributes:
+      number:
+        required: true
+      title:
+      description:
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      priority:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      category:
+      assignment_group:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      assignee:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      reporter:
+      config_item:
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      updated:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      resolved:
+      resolution:
+      url:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: number
+      okg_identifier_fields: number
+      okg_searchable_text_fields: number,title,description,state,priority,category,assignment_group,config_item,resolution,text
+      okg_title_from: title
+      okg_created_at_from: created
+      okg_last_modified_at_from: updated
+
+  ServicenowKbArticle:
+    description: >-
+      A ServiceNow knowledge-base article (kb_knowledge) mirrored from the records cache.
+    class_uri: archi:ServicenowKbArticle
+    attributes:
+      number:
+        required: true
+      title:
+      description:
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      knowledge_base:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      author:
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      updated:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      url:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: number
+      okg_identifier_fields: number
+      okg_searchable_text_fields: number,title,description,state,knowledge_base,text
+      okg_title_from: title
+      okg_created_at_from: created
+      okg_last_modified_at_from: updated

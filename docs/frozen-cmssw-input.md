@@ -1,0 +1,56 @@
+# Use a frozen CMSSW release catalog
+
+A frozen binding reads a selected `releases.map` file and verifies its raw SHA256 before parsing. It never downloads replacement bytes. Use it when a deployment must consume a reviewed catalog snapshot instead of the current public catalog.
+
+Configure the existing CMSSWReleaseSource with:
+
+```yaml
+params:
+  map_cache_path: /owned/catalog/releases.map
+  map_cache_digest: sha256:<64 lowercase hexadecimal digits>
+  fetch: false
+```
+
+Replace the path and digest with the actual authorized snapshot and independently verified hash. Relative paths resolve against the source's existing `base` or `ARCHI_DATA_ROOT`; the existing `cache_path` alias also works.
+
+## Enabling it in the cmssw-releases pack
+
+The cmssw-releases pack installs the live fetch. The frozen entry ships next to
+it, not as a pack source (two templates for one source would install twice):
+`bundles/packs/cmssw-releases/frozen/cmssw_releases.yaml`, in the wheel under
+`archi/_payload/bundles/packs/cmssw-releases/frozen/`. It is a ready registry
+entry keyed `cmssw-releases.cmssw_releases`, the id the pack's live entry has.
+
+**It replaces the live entry; it does not add to it.** After installing an
+instance that selects the pack (`archi render --bundle <bundle> --with
+cmssw-releases`, then `okg install`), open the deployment's
+`source_registry.yaml`, replace the `cmssw-releases.cmssw_releases` entry with
+the frozen one, and fill its three placeholders: the deployment name, the
+absolute path of the reviewed map, and its digest,
+`sha256:$(shasum -a 256 /owned/catalog/releases.map | cut -d' ' -f1)`. Then,
+from the deployment directory:
+
+```bash
+git add -A && git commit -m "pin the CMSSW release catalog"
+okg catalog ownership claim --deployment . --json
+okg catalog load --deployment . --apply --json
+okg ingest --deployment <slug> --include cmssw-releases.cmssw_releases
+okg run --once --deployment <slug> --apply
+```
+
+An empty or placeholder digest is not "unpinned": the source refuses to
+construct with `map_cache_digest must be sha256:<64 lowercase hex>`, so
+forgetting it fails loudly rather than quietly reading unverified bytes. Take
+the digest from your own reading of the file, not from whoever supplied it.
+
+A digest without a map path, a malformed digest, or `fetch: true` is rejected. A missing file yields `cache_missing` during preflight and refuses ingestion. A digest mismatch refuses both preflight and ingestion; neither path contacts the network. Frozen files must be valid UTF-8. Unpinned live/cache behavior retains its existing decoding and fetching rules.
+
+Each preflight and ingestion reads and verifies independently. Verification, parsing and revision hashing use the same buffer, so a later filesystem write cannot change the bytes represented by already-emitted facts. Source revision exposes `map_cache_digest` (the raw file pin) separately from `content_hash` (the existing path-aware hash). The change probe includes the frozen binding; it selects whether ingestion should run and does not itself certify the digest. Unchanged verified inputs can still use the existing probe optimization.
+
+Malformed catalog lines and truncated limits retain the existing incomplete-scope behavior. A valid digest proves byte identity, not that every row parses or that a limited selection covers the whole catalog. Keep the real input's origin, capture time, hash and permitted scope with the deployment evidence.
+
+## Packaged installer handoff
+
+This consumer contract is not a claim that the existing OKG packaged entry accepts a frozen CMSSW snapshot. Its retained Archi translation pins the old consumer wheel, fixes the live CMSSW parameters, accepts only four documentation/Jira snapshot files, and excludes other `.example` files from its translated package. The installer owner must review the new wheel identity, frozen parameters and asset inventory through its existing workflow. Do not alter installed framework files or intercept networking to make an old release appear to support this contract.
+
+The historical CMSSW map/cache was not present in the recovered handoff and could not be found in the available files. The doc/Jira snapshot is available, but its four-file manifest does not identify the CMSSW catalog. Real historical replay remains blocked on that artifact and supported installer binding; fixture-based consumer tests do not satisfy the real baseline. These dependencies remain tracked on the OKG side.

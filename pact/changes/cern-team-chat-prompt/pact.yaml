@@ -1,0 +1,60 @@
+pact_version: 5
+id: cern-team-chat-prompt
+title: The cern-team chat prompt teaches a mid-size model how to search CMS sources
+tier: 2
+why: 'A chat test of Qwen 3.6 35B in Open WebUI on the cms-kb graph (2026-10-21, 12
+  questions) scored 10 correct, 1 wrong, 1 unanswered. The misses and the wasted calls
+  trace to the prompt: a look-alike release was read instead of the exact node
+  (q08), the tool name was retyped with a hyphen three times (q07), `inspect` got
+  `kind` and `node_id` outside `target` in 7 of 11 refusals, a report-number search
+  needed `grep` (q01), and narration landed in the final answer. A Claude agent run
+  on 44 questions (baseline-a) also missed TWiki pages that ranked below look-alikes
+  or were found but never opened, and searched a hyphenated analysis id where the
+  topic name holds the joined form. The old prompt said none of this and did not
+  say what the graph lacks.'
+affected_code:
+- bundles/cern-team/skills/chat-system-prompt.md
+- python/tests/test_bundle_cern_team.py
+requirements:
+- id: req.cern-team-chat-prompt.guidance
+  statement: 'The shipped chat prompt (under 650 words) is deployment-neutral. It
+    names typical source kinds, and tells the model to check what the graph holds
+    with `inspect(target={"kind":"graph"})` before saying "not in the graph". It
+    tells the model to inspect a node id when the form is known (`twiki:<Web>:<Topic>`,
+    `cds:<recid>`, `cmssw_release:<name>`), else search with grep; to try the joined
+    analysis id and other wordings; to read a page with `inspect` kind `text` (kind
+    `node` for attributes), and not to combine `next` with a target; to copy tool
+    names exactly and avoid `search_chats` and `search_notes`; to write no text
+    between tool calls; and to give the answer first with sources. It uses
+    placeholder examples only, and names no deployment and no `query` tool.
+
+
+    Acceptance:
+
+    - acc.cern-team-chat-prompt.guidance: Bundle tests assert the prompt names no
+    deployment and no `query`; every `inspect(target=...)` example parses and fits
+    the inspect input schema (graph, node and text kinds shown); and the operators
+    it names equal the bundle''s declared chat tools. [evidence: executed_test]'
+tasks:
+- id: task.cern-team-chat-prompt.rewrite
+  requirement: req.cern-team-chat-prompt.guidance
+  verification: 'Rewrite the prompt, add two bundle tests.
+
+
+    Proof: bundle tests and the full suite pass on the lab host.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.cern-team-chat-prompt.guidance
+  status: pass
+  command: "cd python && PYTHONPATH=. pytest tests/test_bundle_cern_team.py -> 14 passed (3 new)"
+  artifact: pact/changes/cern-team-chat-prompt/evidence/bundle_cern_team.junit.xml
+  sha256: a950d4173651ebfae86859e511534d0407bd83e771ed68957da3c8ed295e4cc8
+  head: eb4114210a7a17368fb0c70a3d0789a81cbac859
+  at: "2026-10-21T13:21:40+00:00"
+  note: "Full python/tests on the lab host: 1845 passed. One timing test (test_anonymizer linear-time check) failed in the first full run and passed alone and in a rerun of its file (441 passed)."
+decisions: []

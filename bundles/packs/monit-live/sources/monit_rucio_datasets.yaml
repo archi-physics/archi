@@ -1,0 +1,63 @@
+# MONIT (monit_rucio_datasets): a daily monitoring snapshot from CERN MONIT (Grafana /
+# OpenSearch). With a cache at the records_path below the source reads it;
+# without one it queries MONIT live with the token in MONIT_GRAFANA_TOKEN
+# (read by environment-variable reference only). Its edges start at the
+# site and storage_endpoint nodes of the cms-catalogs pack, which this pack
+# requires.
+monit_rucio_datasets:
+  module: archi.sources.monit
+  class: MONITRucioDatasetAdapter
+  ownership_id: ${deployment_name}.monit-rucio-datasets
+  admission_policy:
+    producer_id: ${deployment_name}.monit-rucio-datasets
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: monit-live
+      source_name: monit_rucio_datasets
+    output_signature:
+      nodes:
+        - {subtype: dataset}
+      edges:
+        - {src_subtype: site, edge_type: hosts, dst_subtype: dataset}
+        - {src_subtype: storage_endpoint, edge_type: hosts, dst_subtype: dataset}
+    output_scope_summary:
+      summary: dataset replica overlays from MONIT Rucio daily stats
+      nodes: [dataset]
+      edges:
+        - site hosts dataset
+        - storage_endpoint hosts dataset
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [dataset]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [MONIT_GRAFANA_TOKEN]
+  required_for_baseline: false
+  params:
+    records_path: ${archi_data_root}/monit-rucio-datasets/records.json
+    token_env: MONIT_GRAFANA_TOKEN
+    from_time: now-24h
+    to_time: now
+    page_size: 250
+    max_replica_rses: 250
+    page_cache_dir: ${archi_data_root}/monit-rucio-datasets/pages
+    # cache_live_pages stays true on purpose (2026-08 review): the
+    # page-cache fingerprint includes the resolved snapshot date and
+    # entries expire after page_cache_ttl_hours (same UTC day only),
+    # so the cache can only replay the current day's pages — its
+    # crash/resume role — never yesterday's datasets stamped with
+    # today's date.
+    cache_live_pages: true
+    page_cache_ttl_hours: 24.0
+    # CMS defaults, shown for overriding on another instance:
+    # grafana_base_url: https://monit-grafana.cern.ch
+    # datasource_id: 10151
+    # index: monit_prod_cms_rucio_raw_daily_stats-*
+    # exclude_dataset_patterns: [GenericTTbar, SAM-CMSSW, HC-CMSSW, /store/test/]
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,47 @@
+# CMS Site Support Team site status (cache-backed): one documentation page
+# per CMS site with its current status, alert and metrics, and text chunks.
+# Reads the cache `python -m archi.downloaders.cmssst` writes from the
+# public CMS SST data (no auth) under ${archi_data_root}/cmssst-site-status/.
+# The downloader is all or nothing: one failed site fetch writes no cache.
+cmssst_site_status:
+  module: archi.sources.cmssst
+  class: CMSSSTSiteStatusAdapter
+  ownership_id: ${deployment_name}.cmssst-site-status
+  admission_policy:
+    producer_id: ${deployment_name}.cmssst-site-status
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cmssst
+      source_name: cmssst_site_status
+    output_signature:
+      nodes:
+        - {subtype: documentation_page}
+        - {subtype: document_chunk}
+      edges:
+        - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+        # Uncomment together with sites_path below:
+        # - {src_subtype: documentation_page, edge_type: references, dst_subtype: site}
+    output_scope_summary:
+      summary: CMS SST current site status, one page per site, with text chunks
+      nodes: [documentation_page, document_chunk]
+      edges:
+        - documentation_page contains document_chunk
+        # Uncomment together with sites_path below:
+        # - documentation_page references site
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [site]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    records_path: ${archi_data_root}/cmssst-site-status/records.json
+    # Optional, with the cms-catalogs pack: link each page to its CRIC site.
+    # sites_path: ${archi_data_root}/cric/sites.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

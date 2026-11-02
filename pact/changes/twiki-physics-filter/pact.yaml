@@ -1,0 +1,86 @@
+pact_version: 5
+id: twiki-physics-filter
+title: Opt-in physics scoping for the TWiki EOS connector
+tier: 2
+why: 'cms-kb forked the whole twiki_eos connector (982 lines, src/cms_kb/twiki.py at okg d259d0df)
+  to add four physics filter stages on top of it. archi ships the maintained descendant of that same
+  connector. Two readers of one corpus is the duplication the cms-kb composition-root restructure
+  (cms-kb pact cms-kb-composition-root) exists to remove, and the fork is pinned to an okg API that
+  no longer exists on dev, so it cannot simply be carried forward.
+
+
+  This lands the four stages here as an OPT-IN, NON-DEFAULT option on TwikiEOSSource, so the fork
+  can be deleted. Off is the default and off is a no-op: every existing archi consumer, cern-team
+  bundle included, ingests exactly what it ingested before.
+
+
+  SCOPE: selection only. The filter never adds, renames or narrows a subtype, so it carries no ontology
+  risk. CMS-physics vocabulary -- the PAG/POG hub nodes and their subtypes -- stays in cms-kb, which
+  is the deployment that wants it.
+
+
+  CARRIED LIMITATION, asserted in a test rather than silently fixed: the parent-topic closure matches
+  bare topic names, so a web-qualified TOPICPARENT (CMS.HiggsPhysics) does not close a chain. The
+  production CMS snapshot records bare names. Fixing it would change which pages a cms-kb build ingests,
+  which belongs in its own change with a diffed page count, not in a port whose point is parity.
+
+
+  MEASURED COST, recorded rather than left for the next operator to discover: the filter runs over
+  already-parsed records, so a physics-scoped run reads and parses the entire snapshot before discarding
+  most of it. On the CMS mirror (43.5k topics on Ceph) that read is the whole cost of the ingest
+  -- hours, unchanged from an unfiltered run. The stages cannot simply move to path level: stage
+  3 needs each topic''s %META:TOPICPARENT to know whether its chain reaches a seed, which means opening
+  the file. What WOULD work is a two-pass read -- header bytes only for the closure, full body only
+  for keepers -- and that is its own change, with its own before/after timing, not a silent tweak
+  to this one.'
+affected_code:
+- python/archi/sources/_twiki_physics.py
+- python/archi/sources/twiki.py
+- python/tests/sources/test_twiki_physics.py
+- bundles/cern-team/source-defaults/twiki_eos.yaml.example
+requirements:
+- id: req.twiki-physics-filter.main
+  statement: 'TwikiEOSSource can scope a CMS snapshot to physics on request, and behaves identically
+    to before when not asked.
+
+
+    The four stages are allow-list (PAG codes, POG/DPG name roots, physics workbook roots), computing-operations
+    blacklist, parent-topic transitive closure, and page-type keep. They apply to whole-snapshot
+    walks, seeded walks and fixture records alike, so a test corpus is scoped the same way a snapshot
+    is. The flag participates in the change probe''s config hash, because a run that changes scope
+    must not report the corpus unchanged. Stage counts land on last_physics_report; this module logs
+    nothing, matching the rest of archi.sources.
+
+
+    Acceptance:
+
+    - acc.twiki-physics-filter.default: With physics_filter unset, the existing twiki suite passes
+    unchanged and a mixed snapshot yields every record. [evidence: executed_test]
+
+    - acc.twiki-physics-filter.optin: With physics_filter=True, a mixed snapshot yields the seed,
+    its closure children and the kept page types, and drops the CompOps root and the unqualified
+    page. [evidence: executed_test]'
+tasks:
+- id: task.twiki-physics-filter.deliver
+  requirement: req.twiki-physics-filter.main
+  verification: 'Add archi/sources/_twiki_physics.py with the four stages, wire physics_filter through
+    TwikiEOSSource.run() so fixture and snapshot records take the same path, and cover both states.
+
+
+    Proof: the full archi suite, which contains the pre-existing twiki tests as the default-path
+    regression.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.twiki-physics-filter.main
+  status: pass
+  command: python -m pytest tests -q
+  head: cb4236c9f9c1c6dc07f7a74df39e517b0d5486bb
+  at: '2026-09-24T21:10:25+00:00'
+  note: 434 passed, including the pre-existing twiki suite as the default-path regression and 9 new
+    tests covering both states of the flag.
+decisions: []

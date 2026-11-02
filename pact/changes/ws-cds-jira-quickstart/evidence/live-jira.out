@@ -1,0 +1,5 @@
+no JIRA token set (checked: CERN_JIRA_TOKEN, JIRA_CERN_TOKEN); reading anonymously, so only public projects are visible
+{"fetched": 43, "last_batch": 43, "project": "ADAPTYST"}
+{"content_hash": "20f1b05bffae0edfa2b771fa7d1aa98b84eb9ab63365538afbfb3a997afc9d33", "elapsed_s": 0.0, "output_dir": "<scratch>/jira2", "record_count": 43}
+no JIRA token set (checked: CERN_JIRA_TOKEN, JIRA_CERN_TOKEN); reading anonymously, so only public projects are visible
+JIRA project CMSCOMPPR is not visible without a token (HTTP 400): it is either not public or does not exist. Set CERN_JIRA_TOKEN to a personal access token that can read it, or pass --project with a public project key. JIRA said: The value 'CMSCOMPPR' does not exist for the field 'project'.

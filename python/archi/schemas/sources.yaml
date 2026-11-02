@@ -1,0 +1,343 @@
+# Archi W2 — deployment-scoped schema slice for the ported jira/docs
+# sources (acc.w2.sources). Subtypes no substrate library module
+# declares: jira_issue, jira_comment, documentation_page,
+# software_repository, monitoring_snapshot, transfer_job.
+# person and document_chunk come from the `person` and `extraction`
+# modules composed in deployment.yaml; dataset (emitted by
+# archi.sources.monit MONITRucioDatasetSource) comes from the
+# substrate `dataset` module; site and storage_endpoint (edge
+# endpoints of the monit sources) ship in the catalogs port's
+# archi/schemas/operations.yaml. monitoring_snapshot and transfer_job
+# live ONLY here — archi/schemas/operations.yaml (the cms nodes.yaml
+# copy) deliberately omits them.
+id: https://archi-physics.org/okg/archi/w2-sources
+name: archi_w2_sources
+title: Archi W2 — ported source subtypes
+description: Deployment-scoped slice for JiraIssueSource / DocumentationSource / MONIT source emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  JiraIssue:
+    description: A JIRA issue mirrored from a records cache.
+    class_uri: archi:JiraIssue
+    attributes:
+      issue_key:
+        required: true
+      summary:
+      description:
+      project:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      status:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      priority:
+      issue_type:
+      assignee:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      reporter:
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      updated:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      resolution:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      # Lists of names as JIRA records them; okg filters cannot match
+      # one element of a list, so these are for display and text search.
+      labels:
+        multivalued: true
+      components:
+        multivalued: true
+      # Before 2026-10 these were in the chunk text only.
+      environment:
+      fix_versions:
+        multivalued: true
+      parent_key:
+      # Issue keys this issue links to, and its sub-task keys.
+      issue_links:
+        multivalued: true
+      subtasks:
+        multivalued: true
+      # How many jira_comment records the source wrote for this issue.
+      # Present only when the source runs with comment_records on; an
+      # issue without it is read from its chunks (okg_record_parts).
+      comment_count:
+        range: integer
+      url:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: issue_key
+      okg_searchable_text_fields: issue_key,summary,description,status,priority,text
+      # The issue key (ABC-123) is the id a person types; okg ranks the
+      # record that bears it first. Every identifier field must
+      # also be a searchable text field.
+      okg_identifier_fields: issue_key
+      # An issue's body lives on its chunks (jira_issue contains
+      # document_chunk, archi.sources.jira). Declaring the relation lets
+      # a passage name this issue as its parent and lets passage-ranked
+      # search roll chunk scores up to the issue.
+      okg_passage_rollup:
+        edge_type: contains
+        child_subtype: DocumentChunk
+      # A text read of an issue that carries comment_count is built from
+      # its own fields, its description and its jira_comment records in
+      # order, never from its chunks. Chunks stay the search
+      # index. An okg without this annotation ignores it.
+      okg_record_parts:
+        edge_type: has_comment
+        child_subtype: JiraComment
+        text_attr: body
+        order_by: [created, position]
+        label_attrs: [author, created]
+        header_attrs: [issue_key, summary, project, issue_type, status, priority, resolution, assignee, reporter, created, updated, labels, components, fix_versions, environment, parent_key, issue_links, subtasks]
+        body_attr: description
+        count_attr: comment_count
+      okg_title_from: summary
+      okg_created_at_from: created
+      okg_last_modified_at_from: updated
+
+  JiraComment:
+    description: >-
+      One comment on a JIRA issue (JiraIssueSource with comment_records
+      on). The records cache keeps no JIRA comment id, so the id is
+      jira:<KEY>#c-<first 12 hex of sha256(created|author|body)>, with
+      created as its UTC instant (id_basis content; the raw string when
+      it does not parse, id_basis content_raw_created), and -1, -2, ...
+      on an exact repeat inside the same issue. The comment carries the
+      issue key and the issue's project and comes from the same source,
+      so an access rule on the project or the source matches it; a rule
+      on the issue's own record does not. The comment has no text
+      attribute and is not in the full-text index: the issue's chunks
+      stay the search unit for comment text.
+    class_uri: archi:JiraComment
+    attributes:
+      issue_key:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      project:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      position:
+        description: 0-based place among the issue's comments, in source order.
+        range: integer
+      author:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      body:
+      id_basis:
+        description: >-
+          How the id was made. content is a hash of created (as a UTC
+          instant), author and body; content_raw_created uses the raw
+          created string because it did not parse.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_created_at_from: created
+
+  DocumentationPage:
+    description: A documentation page from a docs-site records cache.
+    class_uri: archi:DocumentationPage
+    attributes:
+      title:
+      url:
+        required: true
+      body:
+      source_repo:
+      site_name:
+      path:
+      analysis_id:
+        description: The CMS analysis id(s) in the topic name, hyphenated (topic HIG29991 gives HIG-29-991). Comma-separated when the name holds more than one. TWiki topics only; absent when the name carries no id. The page text also holds the CMS- prefixed form so search finds either spelling.
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: url
+      okg_searchable_text_fields: title,body,url,analysis_id,text
+      # analysis_id holds the hyphenated id(s) of the topic name, comma
+      # separated; it is the form a person types (ABC-29-991). The title is
+      # a WikiWord with no separators and is not declared.
+      okg_identifier_fields: analysis_id
+      # TWiki titles are WikiWords (CMSDataTransfers) and docs-site titles
+      # often paths; the BM25 index lexes either as one token. Declaring
+      # `title` here adds its component words (separators on current okg;
+      # CamelCase too on a newer okg).
+      okg_searchable_text_path_fields: title
+      # A page's body lives on its chunks (documentation_page contains
+      # document_chunk, archi.sources.twiki / archi.sources.docs).
+      # Declaring the relation lets a passage name this page as its
+      # parent and lets passage-ranked search roll chunk scores up to
+      # the page.
+      okg_passage_rollup:
+        edge_type: contains
+        child_subtype: DocumentChunk
+      okg_title_from: title
+
+  SoftwareRepository:
+    # The cms deployment's nodes.yaml carried a second SoftwareRepository
+    # definition; this one stays canonical (one definition per class).
+    # The repo-metadata attributes below (description..last_commit_date)
+    # are merged in from that cms class because
+    # archi.sources.github_repos emits them.
+    description: A source repository that documentation pages belong to.
+    class_uri: archi:SoftwareRepository
+    attributes:
+      name:
+      full_name:
+      url:
+      description:
+      language:
+      stars:
+        range: integer
+      topics:
+      default_branch:
+      last_commit_date:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: full_name
+      okg_searchable_text_fields: name,full_name,url,description,text
+      okg_title_from: full_name
+
+  # MONIT sources (archi.sources.monit). Shapes match the cms
+  # deployment's schemas/nodes.yaml classes of the same names so the
+  # cms parity corpus does not churn at cutover.
+
+  MonitoringSnapshot:
+    description: Point-in-time monitoring snapshot for a site/service/dataset.
+    class_uri: archi:MonitoringSnapshot
+    attributes:
+      snapshot_id:
+        required: true
+      subject:
+      metric:
+      value:
+        range: float
+      unit:
+      observed_at:
+      text:
+    annotations:
+      archetype: process
+      transient: "true"
+      okg_alias_fields: snapshot_id
+      okg_searchable_text_fields: subject,metric,text
+      okg_title_from: subject
+
+  TransferJob:
+    description: Data transfer job or transfer aggregation.
+    class_uri: archi:TransferJob
+    attributes:
+      transfer_id:
+        required: true
+      src_site:
+      dst_site:
+      state:
+      dataset:
+      num_files:
+        range: integer
+      total_bytes:
+        range: integer
+      submitted_at:
+      completed_at:
+      text:
+    annotations:
+      archetype: process
+      transient: "true"
+      okg_alias_fields: transfer_id
+      okg_searchable_text_fields: transfer_id,src_site,dst_site,dataset,text
+      okg_title_from: transfer_id
+
+# EdgeNarrowings live in archi/schemas/bridges/sources.yaml — the
+# catalog composer only extracts subtypes from deployment
+# schemas/*.yaml; deployment-owned narrowings must come from
+# schemas/bridges/. Copy both packaged files into the deployment:
+# archi/schemas/sources.yaml -> <deployment>/schemas/sources.yaml and
+# archi/schemas/bridges/sources.yaml ->
+# <deployment>/schemas/bridges/sources.yaml.
+
+  CDSRecord:
+    description: >-
+      One record from the CERN Document Server, harvested over OAI-PMH:
+      a CMS Physics Analysis Summary, a CMS Note, or a paper. The
+      substrate's literature.Paper was considered and not reused -- it
+      is shaped for a frozen abstract corpus with a required doc_id and
+      sentence_count and per-sentence children, and fitting CDS records
+      to it would mean inventing values for fields that mean something
+      else.
+    class_uri: archi:CDSRecord
+    attributes:
+      recid:
+        required: true
+        description: Numeric CDS record id, from the OAI identifier.
+      title:
+      abstract:
+        description: dc:description — the record's abstract.
+      authors:
+        description: dc:creator values, joined with "; ".
+      subjects:
+        description: dc:subject values, joined with "; ".
+      date:
+      url:
+        description: The cds.cern.ch record URL.
+      oai_id:
+        description: Full OAI identifier, e.g. oai:cds.cern.ch:1149915.
+      sets:
+        description: OAI sets the record belongs to, joined with "; ".
+      report_number:
+        description: e.g. CMS-PAS-SUS-08-005.
+      report_kind:
+        description: PAS, NOTE, AN, IN, DP, PAPER or CR.
+      pag_code:
+        description: Three-letter PAG token from the report number.
+      analysis_code:
+        description: >-
+          PAG-YY-NNN as an analysis note is named, e.g. SUS-08-005. This
+          is the join key between a published summary and the internal
+          note behind it. Empty when the report number carries no PAG
+          token, so a consumer joining on it cannot match the wrong
+          thing.
+      other_report_numbers:
+        description: >-
+          Remaining report numbers when a record carries several, so the
+          extra identifiers are visible rather than silently dropped.
+      text:
+        description: Report number, title and abstract joined, for search.
+      label:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: report_number
+      okg_searchable_text_fields: title,abstract,report_number,analysis_code,text
+      # Both hold ids a person types (CMS-PAS-ABC-29-991, ABC-29-991).
+      # other_report_numbers is joined with "; " and is not declared.
+      okg_identifier_fields: report_number,analysis_code
+      okg_title_from: title

@@ -1,0 +1,142 @@
+pact_version: 5
+id: jira-comment-records
+title: JIRA comments as jira_comment records with content-hash ids; issue chunks unchanged
+tier: 2
+why: 'JiraIssueSource keeps a ticket''s comments only inside its document_chunk text, as
+  "author created: body" lines. An agent reading a ticket gets the description and a notice that N
+  passages are not in the read; it cannot list, filter or order a ticket''s comments (mitdbg/okg#3666).
+
+
+  Decision (Jason, relayed by the orchestrator, 2026-10-14): each comment becomes a typed record
+  linked to its ticket, and okg reads a ticket as its fields, its description and then its comments
+  in order. Comment ids are made from a hash of the comment''s content, because the records cache
+  keeps no JIRA comment id.
+
+
+  The new outputs follow the standing rule that a consumer''s variant is an option, off by default:
+  comment_records=True emits one jira_comment per comment, jira_issue has_comment jira_comment
+  (attrs.position) and jira_comment authored_by person, and comment_count on each issue. The id is
+  jira:<KEY>#c-<first 12 hex of sha256(created|author|body)>, over the same cleaned strings the
+  chunk text uses (_pg_text, body stripped), with -1, -2, ... on an exact repeat inside one issue.
+  created enters the hash as its UTC instant in one fixed format, because JIRA renders times in the
+  fetching account''s zone (the comp-ops snapshot holds +0200 and +0100 offsets): a refetch in
+  another zone keeps every id. A time that does not parse, or has no zone, is hashed as the raw
+  string and the comment says so (id_basis content_raw_created instead of content). The raw string
+  stays the created attribute. An edited body or a renamed author re-keys that comment (one
+  removal, one addition), and deleting an earlier repeat shifts the suffix of the later copies.
+
+
+  Access rules (review M2). Each comment carries the issue key and the issue''s project and comes
+  from the same source, so a rule on the project or on the source matches its comments. A rule on
+  the issue''s own record does not: okg builds a record ref from the whole source record id, and the
+  comment''s ({issue_key, comment}) differs from the issue''s ({issue_key}). Chunks behave the same
+  way today. okg''s test_comment_lineage_filter.py (design section 6) is the gate before any
+  deployment turns the option on; the bundle example says so.
+
+
+  Search (review M3). A comment has no text attribute and declares no searchable fields, so okg''s
+  full-text index (built on attrs.text) does not hold it; the issue''s chunks stay the one search
+  unit for comment text, and body holds the comment for reads. issue_key, project, author and
+  created are filterable.
+
+
+  Two parts are not behind the option, on purpose. The issue node now also carries environment,
+  fix_versions, parent_key, issue_links and subtasks, which were chunk-only; like resolution,
+  labels and components in compops-data-links, a deployment''s next JIRA ingest rewrites each issue
+  node once with them (missing values are empty strings or lists). And JiraIssue declares
+  okg_record_parts (has_comment, JiraComment, count_attr comment_count). An okg that does not know
+  the annotation ignores it; one that does reads an issue from its comment records only when the
+  issue carries comment_count, so a deployment that leaves the option off is read from its chunks.
+  The probe fingerprint now also covers the module functions that make comment ids, so a later
+  change to the id scheme re-runs a cursor ingest over an unchanged cache; that, and the changed
+  class, change every deployment''s probe token once.
+
+
+  The chunks are byte-identical with the option on or off and against main''s adapter: chunk ids
+  hash the chunk text, and a changed chunk would re-key every JIRA chunk in a graph.
+
+
+  Known limits, disclosed: an edited comment''s old record is retracted only by a complete-scope run
+  (scope_complete or reconcile; the example config uses scope_complete), so after a cursor run both
+  versions stay linked and comment_count undercounts the links. JiraComment is its own class, apart
+  from the okg ticket module''s generic Comment, so a query for comment finds no JIRA comments.
+  Authors are matched to person records by display name, as assignees and reporters already are:
+  two people with one name merge and a renamed person splits.
+
+
+  OUT OF SCOPE: keeping JIRA''s own comment id, updated time and visibility in the downloader (a new
+  fetch; the id scheme would then move to jira_id once, before a real publish), the okg read side
+  (record_parts read, view, activation refusal, test_comment_lineage_filter.py), and the lab source
+  registry entry.'
+affected_code:
+- python/archi/sources/jira.py
+- python/archi/schemas/sources.yaml
+- python/archi/schemas/bridges/sources.yaml
+- bundles/packs/jira/sources/jira.yaml
+- python/tests/sources/test_jira_comments.py
+- python/tests/test_catalog_handle_fields.py
+requirements:
+- id: req.jira-comment-records.main
+  statement: 'With comment_records on, JiraIssueSource emits each comment of an issue as a
+    jira_comment record with a content-hash id that does not depend on the fetch''s time zone,
+    linked to its issue and its author and carrying the issue key and project; comments stay out
+    of the full-text index; the issue chunks stay byte-identical; with the option off the source
+    emits no comment record, edge or count.
+
+
+    Acceptance:
+
+    - acc.jira-comment-records.records: An issue with three comments, two of them identical, gives
+    three jira_comment ids with -1 on the repeat, three has_comment edges in source order and
+    three authored_by edges; each id is the hash of the UTC created, author and the stripped body;
+    the same instant written in any zone gives the same id; an unparseable time hashes the raw
+    string with id_basis content_raw_created; two ingests of the same data give the same ids and
+    one edited comment changes only its own id; each comment''s source record id names its issue
+    key and its project is the issue''s; a comment has no text attribute; comment_count counts the
+    records; the probe fingerprint names the id functions; with the option off none of this is
+    emitted. [evidence: executed_test]
+
+    - acc.jira-comment-records.schema: okg composes JiraComment, jira_issue has_comment
+    jira_comment and jira_comment authored_by person from both schema copies; every emitted
+    attribute is declared; JiraComment declares no searchable fields; okg_record_parts names only
+    declared attributes. [evidence: executed_test]
+
+    - acc.jira-comment-records.chunks-identical: Over a real JIRA records snapshot, every
+    document_chunk, contains and references fact from this branch, with comment_records off and on,
+    equals main''s adapter''s, in the same order, and the jira_comment count equals the number of
+    non-empty comments in the snapshot. [evidence: executed_test]'
+tasks:
+- id: task.jira-comment-records.deliver
+  requirement: req.jira-comment-records.main
+  verification: 'Parse comments once into (author, created, body) for both the chunk lines and the
+    records; emit the records behind comment_records with UTC-normalised ids; declare JiraComment,
+    the moved issue attributes, comment_count, okg_record_parts and the two narrowings in both
+    schema copies; add tests that fail on main; run the old and new adapters over a real records
+    snapshot and compare chunk facts byte for byte.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.jira-comment-records.main
+  status: pass
+  command: python -m pytest tests -q; python -m pytest tests/sources/test_jira_comments.py
+    tests/test_catalog_handle_fields.py tests/packs -q (python/, a dev host, okg 0.2.0 wheel, Python
+    3.12)
+  head: 4f8c4856140ea331923c930b90786e3814238a3b
+  at: '2026-10-25T15:57:45+00:00'
+  note: 'Re-run after the port onto the packs layout (r3-packs-split, #789): the cern-team schema
+    copies are gone because the jira pack links the package schemas; the template hunks moved
+    with jira.yaml.example to bundles/packs/jira/sources/jira.yaml; the bundle half of the tests
+    now reads bundles/packs/jira/schemas. Focused set 106 passed, 16 skipped (the pack install
+    tests, which need a database). Full suite 2230 passed, 17 skipped, 2 failed: the two
+    anonymizer *_is_linear wall-clock tests, with the host at load average 38; they passed alone
+    on another machine, and this change does not touch the anonymizer. The chunk comparison above
+    still describes this code: python/archi/sources/jira.py is byte-identical between its head
+    98d426a2 (kept in archi-okg) and this one. An independent review found no blocker. Disclosed:
+    an edited comment gets a new id and a cursor run keeps the old copy until a full-scope run
+    (now said in the template); commenters become person nodes (650 to 949 in the snapshot); with
+    the option on or off, issue nodes gain the new attributes once.'
+decisions: []

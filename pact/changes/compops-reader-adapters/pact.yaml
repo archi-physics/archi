@@ -1,0 +1,81 @@
+pact_version: 5
+id: compops-reader-adapters
+title: Registry adapters for the comp-ops readers
+tier: 2
+why: 'Comp-ops needs CRIC, CRIC core, DQM, GOCDB downtimes and CondDB global tags in a graph,
+  and none of them can run under okg today. Each reader module documents a registry-entry
+  template, and that template names the bare reader class. okg''s runner reads next_cursor
+  off every run result (okg dev src/okg/substrate/ingest/runner.py); a reader returns the
+  public SDK''s ConnectorRun, which has no such field, so every run fails with AttributeError.
+  The bundle''s own sources hit the same failure and were fixed by ReaderAdapter subclasses
+  (JiraIssueAdapter and five others); these readers were never given one.
+
+
+  This adds one ReaderAdapter subclass per reader, copying JiraIssueAdapter exactly, and points
+  each docstring template at it. DBS datasets, WMStats workflows and GitHub repositories take
+  the same mechanical fix in the same change. Reader behavior is unchanged.
+
+
+  NOT FIXED, and pinned in a test rather than hidden: all eight templates also declare a profile
+  combination the substrate refuses at install (record_identity_kind remote_id under discovery_crawl
+  or reference_catalog; content_hash revisions under mutable_api for WMStats). Fixing that
+  changes which record key or revision each reader emits, so it needs its own change. HyperNews,
+  SITECONF, the four MONIT readers and CERNPreflightSource are not covered: MONIT readers
+  take a run cursor the adapter does not forward, and CERNPreflightSource authors the substrate-reserved
+  source_name parameter.'
+affected_code:
+- python/archi/sources/cric.py
+- python/archi/sources/dqm.py
+- python/archi/sources/gocdb.py
+- python/archi/sources/conddb.py
+- python/archi/sources/dbs.py
+- python/archi/sources/wmstats.py
+- python/archi/sources/github_repos.py
+- python/tests/test_bundle_source_adapters.py
+- docs/okg-alignment.md
+requirements:
+- id: req.compops-reader-adapters.main
+  statement: 'Each comp-ops reader''s docstring registry template names a ConnectorAdapter
+    that okg''s runner can drive.
+
+
+    For CRIC, CRIC core, DQM, GOCDB downtimes, CondDB global tags, DBS datasets, WMStats workflows
+    and GitHub repositories, the class the template names is a ConnectorAdapter whose profile
+    and change_probe_kind are string literals equal to the reader''s own values and to the
+    template''s source_class; the template''s params bind against the adapter''s signature;
+    and the adapter, run on a small cache at the template''s paths, returns a result carrying
+    next_cursor and emits the reader''s primary node subtype.
+
+
+    Acceptance:
+
+    - acc.compops-reader-adapters.runs: test_compops_template_names_an_adapter_that_runs fails
+    on main for all eight readers and passes after. [evidence: executed_test]
+
+    - acc.compops-reader-adapters.refusals-pinned: the templates the substrate still refuses
+    at install are listed with the rejected clause, and the test fails when one is fixed.
+    [evidence: executed_test]'
+tasks:
+- id: task.compops-reader-adapters.deliver
+  requirement: req.compops-reader-adapters.main
+  verification: 'Add the adapters, point each template at its adapter, and extend test_bundle_source_adapters.py
+    with a test that reads each template out of the module docstring.
+
+
+    Proof: the new tests fail on main (8 failed) and pass after; the full archi suite passes.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.compops-reader-adapters.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 9dbf79a3c036a2f6504c0547624bfa8e8cf709a3
+  at: '2026-09-28T02:35:00+00:00'
+  note: '444 passed against okg 5b2fd076cc (main baseline 434). The 10 new tests: test_compops_template_names_an_adapter_that_runs
+    x8 failed on main source (template names the bare reader) and pass here; the refusal pin
+    and the bare-reader next_cursor test pass on both.'
+decisions: []

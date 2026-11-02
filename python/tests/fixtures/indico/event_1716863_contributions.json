@@ -1,0 +1,371 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "_type": "Conference",
+      "id": "1716863",
+      "title": "Knowledge Bases and Agents for CERN",
+      "description": "<p><strong>Welcome to the Indico page for the Knowledge Bases and Agents workshop! </strong>Organized by members from different experiments and CERN, both from the management and technical side, for a complete perspective on this matter and to move forward on the same page.</p>\r\n<p>The goal of this ",
+      "startDate": {
+        "date": "2026-10-19",
+        "time": "09:00:00",
+        "tz": "Europe/Zurich"
+      },
+      "endDate": {
+        "date": "2026-10-23",
+        "time": "21:00:00",
+        "tz": "Europe/Zurich"
+      },
+      "timezone": "Europe/Zurich",
+      "type": "conference",
+      "categoryId": 21810,
+      "category": "Archi",
+      "url": "https://indico.cern.ch/event/1716863/",
+      "chairs": [
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Jason",
+          "last_name": "Oliver",
+          "fullName": "Oliver, Jason",
+          "id": "1634171",
+          "affiliation": "Adelaide University (AU)",
+          "db_id": 1634171,
+          "person_id": 10703379
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Joaquin",
+          "last_name": "Hoya",
+          "fullName": "Hoya, Joaquin",
+          "id": "1632956",
+          "affiliation": "Argonne National Laboratory (US)",
+          "db_id": 1632956,
+          "person_id": 10694224
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Ben",
+          "last_name": "Couturier",
+          "fullName": "Couturier, Ben",
+          "id": "1632559",
+          "affiliation": "CERN",
+          "db_id": 1632559,
+          "person_id": 10691878
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Josh",
+          "last_name": "Bendavid",
+          "fullName": "Bendavid, Josh",
+          "id": "1632558",
+          "affiliation": "CERN",
+          "db_id": 1632558,
+          "person_id": 10691877
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Dmytro",
+          "last_name": "Kovalskyi",
+          "fullName": "Kovalskyi, Dmytro",
+          "id": "1617561",
+          "affiliation": "Massachusetts Inst. of Technology (US)",
+          "db_id": 1617561,
+          "person_id": 10581707
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Pietro",
+          "last_name": "Lugato",
+          "fullName": "Lugato, Pietro",
+          "id": "1617560",
+          "affiliation": "Massachusetts Inst. of Technology (US)",
+          "db_id": 1617560,
+          "person_id": 10581618
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Mariarosaria",
+          "last_name": "D'Alfonso",
+          "fullName": "D'Alfonso, Mariarosaria",
+          "id": "1617559",
+          "affiliation": "Massachusetts Inst. of Technology (US)",
+          "db_id": 1617559,
+          "person_id": 10581706
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Luca",
+          "last_name": "Lavezzo",
+          "fullName": "Lavezzo, Luca",
+          "id": "1617558",
+          "affiliation": "MIT",
+          "db_id": 1617558,
+          "person_id": 10581705
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Jason",
+          "last_name": "Mohoney",
+          "fullName": "Mohoney, Jason",
+          "id": "1617557",
+          "affiliation": "Massachusetts Inst. of Technology (US)",
+          "db_id": 1617557,
+          "person_id": 10581620
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Hasan",
+          "last_name": "Ozturk",
+          "fullName": "Ozturk, Hasan",
+          "id": "1617556",
+          "affiliation": "CERN",
+          "db_id": 1617556,
+          "person_id": 10581704
+        },
+        {
+          "_type": "ConferenceChair",
+          "_fossil": "conferenceChairMetadata",
+          "first_name": "Christoph",
+          "last_name": "Paus",
+          "fullName": "Paus, Christoph",
+          "id": "1617555",
+          "affiliation": "Massachusetts Inst. of Technology (US)",
+          "db_id": 1617555,
+          "person_id": 10581703
+        }
+      ],
+      "contributions": [
+        {
+          "_type": "Contribution",
+          "_fossil": "contributionMetadata",
+          "id": "35",
+          "db_id": 7317468,
+          "friendly_id": 35,
+          "title": "Towards a Standardized Benchmark for Vision-Language Models in CMS Data Quality Monitoring",
+          "startDate": {
+            "date": "2026-10-21",
+            "time": "15:10:00",
+            "tz": "Europe/Zurich"
+          },
+          "endDate": {
+            "date": "2026-10-21",
+            "time": "15:30:00",
+            "tz": "Europe/Zurich"
+          },
+          "duration": 20,
+          "roomFullname": "TBD",
+          "room": "TBD",
+          "location": "CERN",
+          "type": null,
+          "description": "The Compact Muon Solenoid (CMS) experiment at the Large Hadron Collider generates a large volume of complex data, making manual inspection of Data Quality Monitoring (DQM) plots by shift takers increasingly difficult. Agentic AI systems built on vision-language models (VLMs) are rapidly being developed to address this, as they can interpret DQM plots against shift instructions and deliver actionable diagnostic guidance. Their growing role in detector operations makes rigorous benchmarking essential, yet no common evaluation standard exists to compare such systems or to quantify their reliability. We present ongoing work toward a benchmark framework for VLM-based DQM assistance in CMS. The framework combines a curated dataset of DQM plots from multiple subsystems, the associated shift instructions as a knowledge base, and human-written reference assessments. Model outputs are scored against these references for plot interpretation, reasoning, and the final diagnostic decision, together with operational metrics such as latency. We evaluated several VLMs within the framework and recorded the best score obtained for each. The benchmark follows community standards for scientific machine learning benchmarks. We provide this benchmark, with these best scores as reference baselines, for agentic systems under development for CMS such as Archi, to be compared against.",
+          "folders": [],
+          "url": "https://indico.cern.ch/event/1716863/contributions/7317468/",
+          "speakers": [
+            {
+              "_type": "ContributionParticipation",
+              "_fossil": "contributionParticipationMetadata",
+              "first_name": "Aron",
+              "last_name": "Soha",
+              "fullName": "Soha, Aron",
+              "id": "11106845",
+              "affiliation": "Fermi National Accelerator Lab. (US)",
+              "db_id": 11106845,
+              "person_id": 10732686
+            },
+            {
+              "_type": "ContributionParticipation",
+              "_fossil": "contributionParticipationMetadata",
+              "first_name": "David",
+              "last_name": "Yu",
+              "fullName": "Yu, David",
+              "id": "11106844",
+              "affiliation": "University at Buffalo (US)",
+              "db_id": 11106844,
+              "person_id": 10732688
+            }
+          ],
+          "session": "Ongoing efforts: AI+autonomous ops"
+        },
+        {
+          "_type": "Contribution",
+          "_fossil": "contributionMetadata",
+          "id": "76",
+          "db_id": 7332585,
+          "friendly_id": 76,
+          "title": "Benchmarking and validation for physics analysis with AI",
+          "startDate": {
+            "date": "2026-10-22",
+            "time": "14:00:00",
+            "tz": "Europe/Zurich"
+          },
+          "endDate": {
+            "date": "2026-10-22",
+            "time": "15:30:00",
+            "tz": "Europe/Zurich"
+          },
+          "duration": 90,
+          "roomFullname": "TBD",
+          "room": "TBD",
+          "location": "CERN",
+          "type": null,
+          "description": "",
+          "folders": [],
+          "url": "https://indico.cern.ch/event/1716863/contributions/7332585/",
+          "speakers": [],
+          "session": null
+        },
+        {
+          "_type": "Contribution",
+          "_fossil": "contributionMetadata",
+          "id": "38",
+          "db_id": 7317484,
+          "friendly_id": 38,
+          "title": "What OpenSearch offers & how CERN runs it",
+          "startDate": {
+            "date": "2026-10-20",
+            "time": "11:30:00",
+            "tz": "Europe/Zurich"
+          },
+          "endDate": {
+            "date": "2026-10-20",
+            "time": "12:00:00",
+            "tz": "Europe/Zurich"
+          },
+          "duration": 30,
+          "roomFullname": "40/S2-A01 - Salle Anderson",
+          "room": "40/S2-A01",
+          "location": "CERN",
+          "type": null,
+          "description": "Behind most knowledge bases and LLM agents there is a retrieval problem: finding the right information quickly, and only what the user is allowed to see. OpenSearch, an open-source (Apache 2.0) search and analytics engine, has grown from a scalable full-text engine into a platform that covers this ground in one place. This talk gives an overview of what OpenSearch offers for knowledge bases and agents. We start from keyword search and its limits, then cover dense and sparse vector search with several engines and compression options, hybrid search, and models hosted in the cluster or reached through external connectors such as the CERN AI Gateway. We show how ingest and search pipelines extract, chunk and embed documents, and then rewrite queries, fuse scores and re-rank results, without application code. On the agent side we present the available agent types, agentic search that turns natural-language questions into queries, built-in and external MCP servers, agentic memory, and Agent Health for observing and evaluating agents.\r\n\r\nWe then present the CERN OpenSearch service: over a hundred clusters and more than a petabyte of data, run as a service for the CERN and WLCG communities, with single sign-on, e-group-based access control and a support model for users. We close with why OpenSearch is a good fit for knowledge bases and agents.",
+          "folders": [
+            {
+              "_type": "folder",
+              "id": 3365174,
+              "title": null,
+              "description": "",
+              "attachments": [
+                {
+                  "_type": "attachment",
+                  "id": 6038338,
+                  "download_url": "https://indico.cern.ch/event/1716863/contributions/7317484/attachments/3365174/6038338/What%20OpenSearch%20offers%20and%20how%20CERN%20runs%20it.pdf",
+                  "title": "What OpenSearch offers and how CERN runs it.pdf",
+                  "description": "",
+                  "modified_dt": "2026-10-20T06:59:29.311880+00:00",
+                  "type": "file",
+                  "is_protected": false,
+                  "filename": "What OpenSearch offers and how CERN runs it.pdf",
+                  "content_type": "application/pdf",
+                  "size": 991928
+                },
+                {
+                  "_type": "attachment",
+                  "id": 6038349,
+                  "download_url": "https://indico.cern.ch/event/1716863/contributions/7317484/attachments/3365174/6038349/What%20OpenSearch%20offers%20and%20how%20CERN%20runs%20it.pptx",
+                  "title": "What OpenSearch offers and how CERN runs it.pptx",
+                  "description": "",
+                  "modified_dt": "2026-10-20T07:00:29.064873+00:00",
+                  "type": "file",
+                  "is_protected": false,
+                  "filename": "What OpenSearch offers and how CERN runs it.pptx",
+                  "content_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                  "size": 2242454
+                }
+              ],
+              "default_folder": true,
+              "is_protected": false
+            }
+          ],
+          "url": "https://indico.cern.ch/event/1716863/contributions/7317484/",
+          "speakers": [
+            {
+              "_type": "ContributionParticipation",
+              "_fossil": "contributionParticipationMetadata",
+              "first_name": "Sokratis",
+              "last_name": "Papadopoulos",
+              "fullName": "Papadopoulos, Sokratis",
+              "id": "11122054",
+              "affiliation": "CERN",
+              "db_id": 11122054,
+              "person_id": 10753392
+            }
+          ],
+          "session": "Ongoing efforts in knowledge bases"
+        },
+        {
+          "_type": "Contribution",
+          "_fossil": "contributionMetadata",
+          "id": "60",
+          "db_id": 7322581,
+          "friendly_id": 60,
+          "title": "AI tools for exploration and development",
+          "startDate": {
+            "date": "2026-10-19",
+            "time": "14:30:00",
+            "tz": "Europe/Zurich"
+          },
+          "endDate": {
+            "date": "2026-10-19",
+            "time": "15:00:00",
+            "tz": "Europe/Zurich"
+          },
+          "duration": 30,
+          "roomFullname": "40/S2-C01 - Salle Marie Sklodowska-Curie",
+          "room": "40/S2-C01",
+          "location": "CERN",
+          "type": null,
+          "description": "",
+          "folders": [
+            {
+              "_type": "folder",
+              "id": 3364638,
+              "title": null,
+              "description": "",
+              "attachments": [
+                {
+                  "_type": "attachment",
+                  "id": 6037238,
+                  "download_url": "https://indico.cern.ch/event/1716863/contributions/7322581/attachments/3364638/6037238/aiPhysicsAgentsWorkshop-Oct19-2026.pdf",
+                  "title": "aiPhysicsAgentsWorkshop-Oct19-2026.pdf",
+                  "description": "",
+                  "modified_dt": "2026-10-19T12:03:57.919539+00:00",
+                  "type": "file",
+                  "is_protected": false,
+                  "filename": "aiPhysicsAgentsWorkshop-Oct19-2026.pdf",
+                  "content_type": "application/pdf",
+                  "size": 3319360
+                }
+              ],
+              "default_folder": true,
+              "is_protected": false
+            }
+          ],
+          "url": "https://indico.cern.ch/event/1716863/contributions/7322581/",
+          "speakers": [
+            {
+              "_type": "ContributionParticipation",
+              "_fossil": "contributionParticipationMetadata",
+              "first_name": "Josh",
+              "last_name": "Bendavid",
+              "fullName": "Bendavid, Josh",
+              "id": "11115817",
+              "affiliation": "CERN",
+              "db_id": 11115817,
+              "person_id": 10691877
+            }
+          ],
+          "session": "Security and AI tools for exploration and development"
+        }
+      ]
+    }
+  ]
+}

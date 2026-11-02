@@ -1,0 +1,9 @@
+name: child-bundle
+version: 0.1.0
+description: Fixture bundle extending base-bundle; adds the credentialed pack.
+extends: [base-bundle]
+packs:
+  default: [beta]
+chat:
+  site_name: Child chat
+okg: ">=0.4.0"

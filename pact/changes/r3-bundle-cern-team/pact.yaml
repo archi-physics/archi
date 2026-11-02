@@ -1,0 +1,98 @@
+pact_version: 5
+id: r3-bundle-cern-team
+title: cern-team bundle on packs, with a credential-free default
+tier: 2
+why: cern-team is the generic bundle every other CERN bundle extends. Its only default source
+  is cmssw_releases, chosen because it needs no credential, which makes the generic CERN bundle
+  CMS-specific. ADR 0002 §5.
+affected_code:
+- bundles/cern-team/
+requirements:
+- id: req.r3-bundle-cern-team.bundle
+  statement: 'bundles/cern-team/bundle.yaml defaults to docsite and public indico, offers
+    twiki, cds, jira, git-code, code-text and code-symbols as optional, and no longer includes
+    cmssw-releases; a bare install publishes with no credential.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cern-team.bare: archi init --bundle cern-team with no answers publishes.
+    [evidence: executed_test]
+
+    - acc.r3-bundle-cern-team.smoke: its smoke eval passes. [evidence: executed_test]'
+- id: req.r3-bundle-cern-team.migrate
+  statement: 'Existing cern-team instances have a written route to the new layout (what changes
+    in the registry, how to keep cmssw-releases).
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cern-team.doc: migration note reviewed. [evidence: manual]'
+tasks:
+- id: task.r3-bundle-cern-team.rebuild
+  requirement: req.r3-bundle-cern-team.bundle
+  verification: 'Write bundle.yaml; retire the old profile.yaml.
+
+
+    Test plan:
+
+    - bundle CI job [evidence: executed_test]'
+- id: task.r3-bundle-cern-team.migrate
+  requirement: req.r3-bundle-cern-team.migrate
+  verification: 'Write the migration note.
+
+
+    Test plan:
+
+    - review [evidence: manual]'
+evidence:
+- kind: manual
+  requirement: req.r3-bundle-cern-team.migrate
+  status: pass
+  command: docs/cern-team-migration.md (since 0462c86a at docs/docs/operating/upgrade-and-migration.md),
+    reviewed by an independent agent review of the branch
+  head: cd1e35af2b7e914c7e5444c6ba05292ef9172c3d
+  at: '2026-10-26T01:52:20+00:00'
+  note: 'acc.r3-bundle-cern-team.doc: docs/cern-team-migration.md (moved by 0462c86a to
+    docs/docs/operating/upgrade-and-migration.md) gives existing cern-team instances a written
+    route to the pack layout: what changes in the source registry (cmssw_releases leaves the defaults; docsite
+    and indico become defaults, with docsite''s prepare step and indico''s default event), how to keep the
+    CMSSW release catalog (archi add cmssw-releases), that archi add --no-okg skips prepare steps, that
+    instances without an archi.lock have no in-place route, and that instances created before 2026-10-26
+    kept their graph only in the container and should be re-initialised. The review found the commands
+    correct and asked for the --no-okg and podman-compose caveats, both added.'
+- kind: executed_test
+  requirement: req.r3-bundle-cern-team.bundle
+  status: pass
+  command: 'GitHub Actions nightly-e2e run 40413427254 (push, archi_v3 at 36b2825e), step "user
+    command 2: archi init", which runs `archi init gp --bundle cern-team`; python -m pytest
+    tests/test_bundle_cern_team.py tests/test_bundle_cms_comp_ops.py -q and
+    tests/packs/test_pack_isolation.py -q -k "cms_physics or cern_team or every_pack_with_sources"
+    (from python/, a dev host) at this head'
+  head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
+  at: '2026-10-27T03:49:42+00:00'
+  note: 'acc.r3-bundle-cern-team.bare: the nightly ran archi init gp --bundle cern-team with no answers
+    and no credential on an empty ubuntu-latest runner; it published
+    gen:20261026T223753146103Z:768cb923418e (6 nodes, defaults docsite and indico), answered over MCP
+    citing meeting_minutes:1716863, and the generation survived archi down + archi up. Between 36b2825e
+    and this head only a test file and a PACT file changed, nothing under bundles/, python/archi/ or
+    .github/. Re-run here: test_bundle_cern_team.py and test_bundle_cms_comp_ops.py 22 passed (13 are
+    cern-team: a bare render selects only the default packs, and no default source needs a credential
+    or a blank answer); the isolation run 3 passed, including cern-team with every optional pack
+    installing and publishing from fixtures. The golden-path nightlies recorded in r3-golden-path
+    (40209703610, 40210961246, 40212289435, at 32e70609 and 3d35f9e3) are green runs of the same job but
+    do NOT prove the bare default: they selected cmssw-releases in place of docsite and indico. Not
+    proven: a bundle CI job (none exists; d332 deferred the gate to #619).'
+- kind: executed_test
+  requirement: req.r3-bundle-cern-team.bundle
+  status: pass
+  command: archi eval --bundle cern-team on a dev-host lab instance with GPT-6 Luna (lab-only ledgered
+    wrapper), cited from r3-bundle-evals (acc.r3-bundle-evals.sets row, head 5105bfdd)
+  head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
+  at: '2026-10-27T03:49:42+00:00'
+  note: 'acc.r3-bundle-cern-team.smoke: the cern-team smoke set (10 questions, threshold 7/10) scored
+    7/10 at ed895186 and 8/10 at 5105bfdd with GPT-6 Luna, which Jason accepted as the bundle''s
+    smoke proof on board d366. This row cites that run; it is not a new run. bundles/ and python/archi/
+    are unchanged from 5105bfdd to 79c60bbb; head/at date this citation, not the run. Not proven: a pass with a
+    local model (best 4/10), and the nightly''s CPU-model eval is report-only (0/10).'
+decisions: []

@@ -1,0 +1,87 @@
+# Skill triggers for the core playbooks, copied from skills/skill-triggers.yaml.
+# The comp-ops intents (rucio, site profile, incident, condor monitoring)
+# are left for the cms-comp-ops bundle's packs (PACT r3-bundle-cms-comp-ops).
+# test_packs.py holds each intent here equal to the library's.
+version: 1
+intents:
+  sealed_benchmark:
+    skill: sealed_benchmark
+    description: Answer benchmark questions from sanitized question text only.
+    subtypes:
+    - '*'
+  cms_agentic_benchmark:
+    skill: agentic_benchmark
+    description: Run a real CLI agent against CMS OKG MCP with canonical evidence IDs.
+    subtypes:
+    - '*'
+  cms_operator_knowledge:
+    skill: operator_knowledge
+    description: Classify operator question types and assemble typed evidence before answer
+      synthesis.
+    subtypes:
+    - documentation_page
+    - document_chunk
+    - jira_issue
+    - site
+    - storage_endpoint
+    - dataset
+    - workflow
+    - monitoring_snapshot
+  cms_evidence_retrieval:
+    skill: evidence_retrieval
+    description: Search, inspect canonical parents, and cite OKG evidence IDs.
+    subtypes:
+    - document_chunk
+    - documentation_page
+    - jira_issue
+    - site
+    - storage_endpoint
+    - dataset
+    - workflow
+    - monitoring_snapshot
+  cms_source_document_exploration:
+    skill: source_document_exploration
+    description: Expand good chunks into parent/ordered document context and inspect source
+      metadata with bounded OKG SQL.
+    subtypes:
+    - documentation_page
+    - document
+    - document_chunk
+    - jira_issue
+  cms_migration_summary:
+    skill: migration_summary
+    description: Expand migration questions through related tickets, endpoints, and cleanup
+      evidence.
+    subtypes:
+    - jira_issue
+    - documentation_page
+    - document_chunk
+    - storage_endpoint
+    - site
+  cms_date_lookup:
+    skill: date_lookup
+    description: Find operational dates using aliases, historical endpoint names, and ticket
+      families.
+    subtypes:
+    - jira_issue
+    - documentation_page
+    - document_chunk
+    - site
+    - storage_endpoint
+  cms_procedure_extraction:
+    skill: procedure_extraction
+    description: Extract canonical procedures, commands, placeholders, and policy-dependent
+      flags.
+    subtypes:
+    - documentation_page
+    - document_chunk
+    - jira_issue
+  cms_policy_exception_arbitration:
+    skill: policy_exception_arbitration
+    description: Separate general policy, exception tickets, and graph state when sources
+      disagree.
+    subtypes:
+    - documentation_page
+    - jira_issue
+    - dataset
+    - storage_endpoint

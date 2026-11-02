@@ -1,0 +1,9 @@
+name: scratch-tools
+kind: tool
+version: 0.1.0
+description: Scratch-run tool pack; its live tool writes a marker row to a scratch table so a run can show whether the mediator ran. Not shipped.
+live_tools:
+  - archi.ops.stubs:write_marker
+idempotent_tools:
+  - archi.ops.stubs:write_marker
+needs_credentials: false

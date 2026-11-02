@@ -1,0 +1,102 @@
+# Git history (commits, tags, authors, per-file diffs) of the repository the
+# `repo` source in this pack clones. With it an agent can answer "who changed
+# this and when", "what changed between two tags" and "which commit added
+# this line". It reads that source's checkout and clones nothing itself
+# (`predecessor_source`, by ownership id).
+#
+# What it emits:
+#   git_commit    sha, author, committed_at, parent count, message
+#   git_tag       name, target commit, annotated or lightweight
+#   git_author    one node per author e-mail
+#   git_file_diff one redacted, size-capped unified diff per file changed in
+#                 a non-merge commit (`store_diffs: true`; text is searchable
+#                 when the search is typed, see the first caveat)
+#   (plus the branch node and the links between them, and an `affects` link
+#   from each commit to the source_file nodes the repo source emits)
+#
+# Measured cost, one mid-size repository: 1,928 commits ingested (1,675 on
+# the main branch, the rest reachable only from tags), 403 tags, 3,309 diffs.
+# Ingest and publish together took 78 s and added 5,870 records and 15,686
+# links. Cost grows with the number of commits and with diff volume. For a
+# very large repository set `diffs_since` (a date) under params to bound the
+# diffs, or `history_since` to bound the commits read on the first run.
+#
+# Known caveats:
+#   * The pack adds git_commit, git_file_diff and git_tag to the `content`
+#     search profile (pack.yaml `search_subtypes`), so plain search and the
+#     chat find git records.
+#   * `committed_at` is stored as text, so filtering or sorting on it is a
+#     string comparison (the tool warns "sorted as text"). Correct when all
+#     commits share a time zone; mixed offsets can misorder commits within
+#     a day.
+#   * `expand` on a file's incoming links returns the file's per-file diffs
+#     as well as its commits, and the commits include merge commits (the
+#     `affects` link from a merge carries `via_merge: true`). On one file
+#     that gave 521 results: 217 commits, 87 merge commits and 217 diffs.
+#     To list commits only, follow `affects` and skip `via_merge`.
+#   * Tags are matched to commits by `references`. "Which tag first contains
+#     this commit" needs a recursive walk over parent links, which only the
+#     SQL `query` tool can do. The chat tool list does not include
+#     `query` (deployment-defaults.yaml, `chat: mcp: tools:`), so chat users
+#     cannot run it; use `okg query` or an agent connected to the MCP server
+#     with `query` enabled.
+#   * Remote branches and rename detection are off (`include_remotes`,
+#     `detect_renames`); turn them on in params only if a question needs them.
+
+git_history:
+  predecessor_source: ${deployment_name}.git-repo
+  module: okg.substrate.library.sources.git_graph_history
+  class: GitHistorySource
+  ownership_id: ${deployment_name}.git-history
+  admission_policy:
+    producer_id: ${deployment_name}.git-history
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: git-code
+      source_name: git_history
+    output_signature:
+      nodes:
+        - {subtype: git_commit}
+        - {subtype: git_author}
+        - {subtype: git_tag}
+        - {subtype: git_branch}
+        - {subtype: git_file_diff}
+        - {subtype: source_file}
+      edges:
+        - {src_subtype: git_author, edge_type: assigned_to, dst_subtype: git_commit}
+        - {src_subtype: git_commit, edge_type: derives_from, dst_subtype: git_commit}
+        - {src_subtype: git_commit, edge_type: affects, dst_subtype: source_file}
+        - {src_subtype: git_commit, edge_type: contains, dst_subtype: git_file_diff}
+        - {src_subtype: git_file_diff, edge_type: references, dst_subtype: source_file}
+        - {src_subtype: git_branch, edge_type: references, dst_subtype: git_commit}
+        - {src_subtype: git_tag, edge_type: references, dst_subtype: git_commit}
+    output_scope_summary:
+      summary: commit history, authors, tags and per-file diffs of the configured repository
+      nodes: [git_commit, git_author, git_tag, git_branch, git_file_diff, source_file]
+      edges:
+        - git_author assigned_to git_commit
+        - git_commit derives_from git_commit
+        - git_commit affects source_file
+        - git_commit contains git_file_diff
+        - git_file_diff references source_file
+        - git_branch references git_commit
+        - git_tag references git_commit
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [repo, commit_sha]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    repo: '${repo_name}'
+    # SINGLE-quoted, as in repo.yaml (answers are substituted as text, then
+    # parsed as YAML).
+    repo_root: '${archi_data_root}/repos/${repo_name}'
+    store_diffs: true
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,209 @@
+pact_version: 5
+id: compops-data-links
+title: Commit-to-ticket links, TWiki link URLs, and JIRA fields and typed links
+tier: 2
+why: 'A review of the CMS comp-ops graph (mitdbg/okg#3649) found three facts the sources already
+  hold that never reach the graph as structure.
+
+
+  1. A commit message that names a JIRA key makes no edge: the cms_jira_key linker route reads only
+  document_chunk. 86 (commit, key) pairs in 18 repositories, 0 edges.
+
+
+  2. strip_twiki writes a labelled link [[URL][label]] as its label alone, so a JIRA key that sits
+  only in the URL never reaches chunk text. The comp-ops TWiki snapshot (637 pages) holds 749 page-ticket
+  pairs whose ticket is in the graph; 266 of them are linked.
+
+
+  3. JiraIssueSource keeps issue links, sub-task parents, resolution, labels and components only as
+  chunk text, and no JiraIssue attribute is filterable, so created and updated cannot be range-filtered
+  or sorted.
+
+
+  The two reader changes follow the standing rule that a consumer''s variant is an option, off by
+  default. Two parts are not behind an option, on purpose. The commit route adds an edge only where
+  a deployment already ingests git commits AND JIRA issues, and its narrowing is optional when either
+  subtype is missing. The three new issue attributes (resolution, labels, components) are plain additions
+  to the node: a deployment''s next JIRA ingest rewrites each issue node once with them, and nothing
+  else changes.
+
+
+  OUT OF SCOPE: a resolved date (the downloader never fetched resolutiondate; that needs a live JIRA
+  refetch), label or component nodes, and lowercase keys in commit messages (the extractor pattern
+  is case-sensitive and stays so).'
+affected_code:
+- python/archi/enrichment/defaults/linker_config.yaml
+- python/archi/schemas/bridges/operations.yaml
+- python/archi/schemas/bridges/sources.yaml
+- python/archi/schemas/sources.yaml
+- python/archi/sources/_twiki_parse.py
+- python/archi/sources/twiki.py
+- python/archi/sources/jira.py
+- python/tests/enrichment/test_defaults.py
+- python/tests/sources/test_twiki.py
+- python/tests/sources/test_jira.py
+- bundles/cern-team/schemas/sources.yaml
+- bundles/cern-team/schemas/bridges/operations.yaml
+- bundles/cern-team/schemas/bridges/sources.yaml
+- bundles/cern-team/source-defaults/jira.yaml.example
+- bundles/cern-team/source-defaults/twiki_eos.yaml.example
+requirements:
+- id: req.compops-data-links.commit-ticket
+  statement: 'A JIRA key in a commit message links the commit to the ticket.
+
+
+    The cms_jira_key route also reads git_commit and makes a references edge at confidence 0.95;
+    the narrowing git_commit references jira_issue allows it and is optional when either subtype
+    is missing. The target is matched exactly by the existing alias backend: a key with no ticket
+    in the graph makes no edge and stays an unresolved link_retry row.
+
+
+    Acceptance:
+
+    - acc.compops-data-links.commit-ticket.config: The shipped linker config routes cms_jira_key
+    from git_commit and the shipped bridge carries the optional narrowing. [evidence: executed_test]
+
+    - acc.compops-data-links.commit-ticket.publish: On a copy of the comp-ops pilot graph, a publish
+    makes one git_commit references jira_issue edge per resolvable (commit, key) pair and none for
+    a key with no ticket. [evidence: published_generation]'
+- id: req.compops-data-links.twiki-link-urls
+  statement: 'TwikiEOSSource can keep the URL of a labelled web link, and behaves identically to
+    before when not asked.
+
+
+    link_urls="keep" writes [[URL][label]] as "label (URL)" for http and https targets. Topic links
+    and mailto links keep the label alone in both modes. The default "drop" leaves strip_twiki output
+    and the change probe''s config hash unchanged, so a deployment that never sets the option does
+    not re-ingest.
+
+
+    Acceptance:
+
+    - acc.compops-data-links.twiki-link-urls.default: With link_urls unset the existing twiki suite,
+    including the cms byte-parity test, passes unchanged. [evidence: executed_test]
+
+    - acc.compops-data-links.twiki-link-urls.keep: With link_urls="keep" a key that sits only in
+    a link URL reaches chunk text. [evidence: executed_test]
+
+    - acc.compops-data-links.twiki-link-urls.publish: On a copy of the comp-ops pilot graph, re-ingesting
+    the TWiki snapshot with link_urls="keep" raises documentation_page-to-jira_issue reach to the
+    corpus count of resolvable pairs. [evidence: published_generation]'
+- id: req.compops-data-links.jira-fields-links
+  statement: 'JIRA issues carry filterable fields and, on request, typed link edges.
+
+
+    JiraIssue declares project, status, assignee and resolution as filterable text and created and
+    updated as filterable timestamps; the issue node also carries resolution, labels and components
+    (lists, display only). With issue_link_edges=True the source emits one jira_issue linked_to
+    jira_issue edge per ordered pair of linked issues (issue links and sub-task parents), from the
+    link''s outward side (the parent, for a child), with attrs link_kind (child, blocks, duplicates,
+    clones, gantt or relates; the most specific when a pair is linked by several types) and link_type
+    (the exact JIRA names, joined with "; "). The graph holds one edge per ordered pair, which is
+    why several link types share one edge. A link is cached on both of its issues and is emitted
+    once; a link to an issue outside the cache is not emitted. The cache keeps a link type''s name,
+    not its outward wording, so the outward side of an instance-defined parent/child type is taken
+    to be the parent; that holds for CERN JIRA''s Child-Issue and is stated in the reader. The option is off by default because the
+    edge is a new output a strict output_signature must list.
+
+
+    Acceptance:
+
+    - acc.compops-data-links.jira-fields-links.default: With issue_link_edges unset no linked_to
+    edge is emitted and the existing jira suite passes unchanged. [evidence: executed_test]
+
+    - acc.compops-data-links.jira-fields-links.edges: With the option on, each linked pair becomes
+    one directed edge with link_kind and link_type, in both cache shapes. [evidence:
+    executed_test]
+
+    - acc.compops-data-links.jira-fields-links.publish: On a copy of the comp-ops pilot graph, a
+    re-ingest publishes the link edges and a created-date range filter returns issues. [evidence:
+    published_generation]'
+tasks:
+- id: task.compops-data-links.commit-ticket
+  requirement: req.compops-data-links.commit-ticket
+  verification: 'Add the git_commit route and its narrowing; cover both in tests/enrichment/test_defaults.py;
+    publish on a copy of the pilot graph and count edges and unresolved keys.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.compops-data-links.twiki-link-urls
+  requirement: req.compops-data-links.twiki-link-urls
+  verification: 'Add link_urls to strip_twiki and TwikiEOSSource; cover default and keep in tests/sources/test_twiki.py;
+    re-ingest the snapshot on the copy and count page-ticket pairs.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.compops-data-links.jira-fields-links
+  requirement: req.compops-data-links.jira-fields-links
+  verification: 'Annotate the JiraIssue attributes, add issue_link_edges and link_kind, and cover
+    them in tests/sources/test_jira.py; re-ingest JIRA on the copy and count edges by kind.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.compops-data-links.commit-ticket
+  status: pass
+  command: python -m pytest tests -q
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T21:10:44+00:00'
+  note: 1790 passed (1757 before this change), including the route and narrowing tests in tests/enrichment/test_defaults.py
+    and the bridge portability suite.
+- kind: published_generation
+  requirement: req.compops-data-links.commit-ticket
+  status: pass
+  command: okg catalog load --apply; okg run --once --apply (copy of the comp-ops graph, okg b1f1b6fcc6)
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T18:01:31+00:00'
+  note: 'Before: 0 git_commit references jira_issue edges among 81,446 commits. After one publish: 66 edges
+    (66 commits, 26 tickets, 7 repositories); 20 citations of 8 keys with no ticket in the graph made
+    no edge and are link_retry rows. Records unchanged at 633,112. Publish lock held 1,782 s: a linker
+    config change makes okg re-scan every record once (the previous publish of that graph, with no
+    such change, held it 2,148 s).'
+- kind: executed_test
+  requirement: req.compops-data-links.twiki-link-urls
+  status: pass
+  command: python -m pytest tests -q
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T21:10:44+00:00'
+  note: 1790 passed, including the unchanged cms byte-parity test and the new default/keep tests in
+    tests/sources/test_twiki.py.
+- kind: published_generation
+  requirement: req.compops-data-links.twiki-link-urls
+  status: pass
+  command: okg ingest --include twiki_eos; okg run --once --apply (same copy, link_urls keep)
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T18:43:58+00:00'
+  note: 'The 637-page snapshot holds 749 page-ticket pairs whose ticket is in the graph. Linked before: 266.
+    After re-ingest and publish: 748 (one ticket cited on 19 pages went from 2 pages to 19). The
+    one pair still missing is a bare link glued to the next word, which the option does not touch.
+    documentation_page references jira_issue edges 278 to 760; 104 more chunks. Keeping URLs also
+    adds about 14,000 unresolved link_retry rows (host names and other identifiers inside URLs that
+    name nothing in the graph).'
+- kind: executed_test
+  requirement: req.compops-data-links.jira-fields-links
+  status: pass
+  command: python -m pytest tests -q
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T21:10:44+00:00'
+  note: 1790 passed, including the link, link-kind, sub-task, probe and off-by-default tests in tests/sources/test_jira.py.
+- kind: published_generation
+  requirement: req.compops-data-links.jira-fields-links
+  status: pass
+  command: okg ingest --include jira,twiki_eos; okg run --once --apply (same copy, issue_link_edges on)
+  head: 05ea756f776625143dc0f7dc824a9b6348c5f48d
+  at: '2026-10-11T21:03:05+00:00'
+  note: 'Before: 0 linked_to edges; no jira_issue carried resolution, labels or components. After: 955
+    jira_issue linked_to jira_issue edges (child 379, relates 223, gantt 199, clones 91, blocks 49,
+    duplicates 14; 6 pairs carry two or three link types on one edge); all 76,662 issues carry the
+    three attributes. One parent issue with 7 Child-Issue links has 7 outgoing child edges, which
+    confirms the direction. Through the read server, a filter on project plus a created range returns
+    the 16 issues of one project and month in created order. Issue, chunk and record counts equal
+    the starting graph plus the TWiki change. Publish lock held 2,100 s for the full JIRA rewrite.'
+decisions: []

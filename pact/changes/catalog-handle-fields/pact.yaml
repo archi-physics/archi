@@ -1,0 +1,64 @@
+pact_version: 5
+id: catalog-handle-fields
+title: Archi types declare their catalog title and date fields
+tier: 2
+why: 'okg read model slice 1 (mitdbg/okg#3192) shows each record with a title and its creation
+  and last-modified dates, read from the attribute a class names in `okg_title_from`, `okg_created_at_from`
+  and `okg_last_modified_at_from`. No archi type declared them, so comp-ops records had no
+  title or dates in that view. This change declares a title on 23 archi types and three dates
+  (JiraIssue created and updated, Workflow created_at), each an attribute that a read-only
+  check found 100% populated on the comp-ops graph. The dates are internal, unmasked creation
+  and update dates: no archi type declares pii_classes and every cms source is classified
+  internal.'
+affected_code:
+- python/archi/schemas/operations.yaml
+- python/archi/schemas/sources.yaml
+- bundles/cern-team/schemas/operations.yaml
+- bundles/cern-team/schemas/sources.yaml
+- python/tests/test_catalog_handle_fields.py
+requirements:
+- id: req.catalog-handle-fields.declared
+  statement: Exactly 26 declarations are present (23 okg_title_from, two okg_created_at_from,
+    one okg_last_modified_at_from), each naming an attribute of its own class, in both the
+    package schemas and the byte-identical cern-team bundle copy.
+- id: req.catalog-handle-fields.composes
+  statement: The installed cms deployment with these schemas composes with no refusal under
+    okg a8fcfca0fe and 360a1724e4, and the composed catalog carries every declaration as subtype
+    metadata.
+tasks:
+- id: task.catalog-handle-fields.declared
+  requirement: req.catalog-handle-fields.declared
+  verification: python/tests/test_catalog_handle_fields.py pins the exact set, checks every
+    name against its class's attributes and shows a misspelt name is caught; test_bundle_cern_team.py
+    keeps the bundle copy byte-identical; the full suite passes.
+- id: task.catalog-handle-fields.composes
+  requirement: req.catalog-handle-fields.composes
+  verification: test_composer_reads_every_declaration passes under okg a8fcfca0fe and 360a1724e4,
+    and compose_catalog on a copy of the installed cms deployment with the branch schemas
+    returns every declaration under both.
+evidence:
+- kind: executed_test
+  requirement: req.catalog-handle-fields.declared
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q
+  head: 8d40c576cbbb504cb333891d47c6256e7b85ba4c
+  at: '2026-10-05T06:42:20+00:00'
+  note: 'a dev host at this commit. okg a8fcfca0fe venv: 1707 passed; 1 failed and 4 errors,
+    all because hatchling is not installed in that venv (test_packaging, test_artifact_payload).
+    okg 360a1724e4 venv with pytest and hatchling added: 1711 passed, 1 failed = test_redact_email_addresses_quoted_local_part_is_linear,
+    a 1.0 s wall-clock bound that also fails on main 2476956a on this host. test_catalog_handle_fields.py
+    4 passed under both, including test_a_misspelt_attribute_is_caught; test_bundle_ships_schema_slices_matching_the_package
+    passes.'
+- kind: executed_test
+  requirement: req.catalog-handle-fields.composes
+  status: pass
+  command: compose_catalog on a copy of the installed cms deployment with this commit's operations.yaml
+    and sources.yaml
+  head: 8d40c576cbbb504cb333891d47c6256e7b85ba4c
+  at: '2026-10-05T06:42:20+00:00'
+  note: 'a dev host. okg a8fcfca0fe and 360a1724e4: no refusal, 135 subtypes, 23 cms subtypes
+    carry 26 declarations (23 title_from, jira_issue and workflow created_at_from, jira_issue
+    last_modified_at_from); main 2476956a composes to 0. Negative: Workflow okg_created_at_from:
+    created_atx is refused with CatalogFieldDeclarationInvalid under 360a1724e4. test_composer_reads_every_declaration
+    passed under both.'
+decisions: []

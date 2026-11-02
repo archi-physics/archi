@@ -1,0 +1,88 @@
+pact_version: 5
+id: twiki-web-qualified-parent
+title: The TWiki physics filter follows web-qualified parent topics
+tier: 2
+why: 'Issue #15. The physics filter''s parent-topic closure (stage 3 in archi.sources._twiki_physics)
+  looked up %META:TOPICPARENT by the raw string, while topics are keyed by bare name. A parent
+  written web-qualified (CMS.<topic>) therefore matched nothing, the chain stopped, and an
+  in-scope subtree was dropped. The twiki-physics-filter port carried this on purpose and
+  asserted it in a test, deferring the fix to a change with a diffed page count.
+
+
+  Measured read-only on the Aug 31 twiki-eos stage on a dev host (43,744 topics, 51 web names):
+  119 topics have a <Web>. parent and 152 a URL parent; the change follows 119 + 142 = 261
+  of them. With the physics filter on, the kept count goes from 15,655 to 15,757 (+102, none
+  lost); seeds are unchanged at 6,627 and the closure grows from 13,194 to 13,307.
+
+
+  DECISION, which prefixes are stripped: only a prefix whose every dotted part is a web the
+  snapshot has (its web root, or a directory a page sits under). A parent in another web (TWiki.,
+  Main., CMSPublic., ...) names a different topic and is left alone, as is any other dotted
+  string.
+
+
+  DECISION, view URLs (lead, 2026-09-28): a parent that is a TWiki view URL, path .../twiki/bin/view/<Web>[/<SubWeb>]/<Topic>
+  (viewauth too), is read as <Web>[.<SubWeb>].<Topic> under the same known-web rule. TWiki
+  often stores such a value rewritten, with the dots before the last slash turned into slashes
+  and that slash into a dot; both forms are read. Every other URL (another web, oops, a query
+  string, a trailing slash, another path) is left alone.'
+affected_code:
+- python/archi/sources/_twiki_physics.py
+- python/tests/sources/test_twiki_physics.py
+requirements:
+- id: req.twiki-web-qualified-parent.main
+  statement: 'The closure resolves a web-qualified parent to its bare topic when the qualifier
+    is a web the snapshot has, and leaves every other parent as is.
+
+
+    Acceptance:
+
+    - acc.twiki-web-qualified-parent.closure: a child whose parent is <Web>.<seed> or <Web>.<SubWeb>.<topic>
+    joins the closure; a parent qualified by an unknown web, with any unknown part, or with
+    nothing after the dot does not; a view URL into a known web (raw or TWiki-rewritten, view
+    or viewauth) joins the closure, and a view URL into another web, an oops URL, or a URL
+    with a query does not; through the connector, the webs come from the snapshot''s web root
+    and web directories. [evidence: executed_test]'
+tasks:
+- id: task.twiki-web-qualified-parent.deliver
+  requirement: req.twiki-web-qualified-parent.main
+  verification: 'Strip a known-web prefix before the parent lookup; replace the limitation
+    test; cover the chain and the left-alone cases with fake data.
+
+
+    Proof: the new tests fail on main and pass on the branch; the full archi suite passes;
+    the patched filter, run read-only on the real Aug 31 snapshot, keeps more topics and loses
+    none.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.twiki-web-qualified-parent.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: ad1f02b8b1ec608cc2d1fc103b9832cad4576e1d
+  at: '2026-09-29T03:20:13+00:00'
+  note: '1556 passed at this commit. The 5 new test cases use fake data; all fail on main
+    46551d1e (2 by assertion: the direct chain and the connector snapshot chain; 3 left-alone
+    controls because main''s compute_keep_set takes no web names) and pass here. Real-data
+    check, read-only on a dev host, Aug 31 twiki-eos stage: 43,744 topics, 51 web names, 5,896
+    dotted parents, 119 qualified by a snapshot web; physics filter kept 15,655 before and
+    15,738 after (+83, 0 lost), seeds 6,627 both, closure 13,194 -> 13,287.'
+- kind: executed_test
+  requirement: req.twiki-web-qualified-parent.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: ad10e1d76393d7791cf8a5839e0df31d604bffa6
+  at: '2026-09-29T03:31:59+00:00'
+  note: '1563 passed at this commit. 7 new view-URL cases use fake data: the 3 known-web URL
+    cases and the extended connector snapshot test fail at the previous head e73b66b7 and
+    pass here; the 4 stay-out cases (another web raw and rewritten, oops, query string) pass
+    on both as controls. Real-data check, read-only on a dev host, Aug 31 twiki-eos stage: 43,744
+    topics, 51 web names; 152 URL parents, 142 now followed (the other 10 point at other webs,
+    an oops page, a query, a trailing slash or a non-TWiki path); 261 parents followed in
+    all; physics filter kept 15,655 on main and 15,757 here (+102, 0 lost), seeds 6,627 both,
+    closure 13,194 -> 13,307.'
+decisions: []

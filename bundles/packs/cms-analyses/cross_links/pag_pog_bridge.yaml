@@ -1,0 +1,28 @@
+# The same physics group, reached by two names.
+#
+# Six groups are declared in BOTH vocabularies, because CMS uses two
+# naming systems for them. An analysis is coded BTV-99-002 and lands on
+# the PAG hub; its documentation is titled BTagRecipes and lands on the
+# POG hub. Neither name is wrong and neither is the other's alias, so
+# collapsing them would lose a real distinction -- but leaving them
+# unjoined splits the group's neighbourhood in two: an agent expanding
+# from either hub sees about half the material and nothing tells it the
+# other half exists.
+#
+# The join is an exact match on a token both hubs carry: physics_vocabulary
+# gives each paired POG hub the `pag_code` its twin uses. No regex, no
+# inference -- the same shape as every other rule here.
+rules:
+  - id: cms_analyses_pag_pog_same_group
+    src:
+      subtype: physics_analysis_group
+      field: code
+    dst:
+      subtype: physics_object_group
+      field: pag_code
+    matcher: exact
+    edge: references
+    # Bidirectional: both hubs are small (17 and 8 nodes), so neither
+    # neighbourhood is swamped, and the question runs both ways -- "what
+    # else is this group called" has no primary direction.
+    bidirectional: true

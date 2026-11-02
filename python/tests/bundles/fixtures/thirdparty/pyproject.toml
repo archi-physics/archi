@@ -1,0 +1,20 @@
+# A third-party package that registers one pack and one bundle with archi,
+# the way an external group would (ADR 0002 section 3.4). Built by
+# python/tests/bundles/test_packaging.py; never installed into the suite's env.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archi-fixture-packs"
+version = "0.0.1"
+requires-python = ">=3.12"
+
+[project.entry-points."archi.packs"]
+fixture = "archi_fixture_packs:packs_dir"
+
+[project.entry-points."archi.bundles"]
+fixture = "archi_fixture_packs:bundles_dir"
+
+[tool.hatch.build.targets.wheel]
+packages = ["archi_fixture_packs"]

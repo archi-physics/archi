@@ -1,0 +1,183 @@
+pact_version: 5
+id: r3-bundle-cms-physics
+title: 'cms-physics bundle: analyses, notes, publications'
+tier: 2
+why: Physics knowledge (analysis notes, publications, physics TWikis, analysis code) is a
+  different audience from operations. archi-physics/cms-kb has run this as a prototype, with
+  archi's twiki (physics filter), cds and cmssw-releases sources plus its own analysis-note,
+  physics-vocabulary, physics-entity and cross-link code. r3-bundle-cms-kb decided that cms-kb
+  is this bundle, not a second one, so this PACT lifts that code into archi packs and validates
+  the bundle on a cms-physics instance built from it as shipped (board d380 Q5). ADR 0002 §5.
+affected_code:
+- bundles/cms-physics/
+- bundles/packs/cms-analyses/
+- bundles/packs/analysis-notes/
+- python/archi/sources/
+requirements:
+- id: req.r3-bundle-cms-physics.pack
+  statement: 'A cms-analyses pack links analysis ids across CDS records, TWiki pages, analysis
+    notes and code, with a schema slice and playbook for analysis lookup. It carries the PAG/POG
+    vocabulary, the alias-matched physics entities and the declarative cross-link rules lifted
+    from cms-kb (cms_kb.physics_vocabulary, cms_kb.physics_entities, cms_kb.cross_links and
+    their cms_kb_* schema slices).
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-physics.links: fixture corpus yields linked analysis records. [evidence:
+    pytest]'
+- id: req.r3-bundle-cms-physics.notes
+  statement: 'An analysis-notes pack ingests CMS analysis notes from a mirror of gitlab.cern.ch/tdr/notes:
+    notes, sections, figures, bibliography and the bibliography-to-TWiki bridge, lifted from
+    cms-kb''s cms_kb.analysis_notes, with its note-count floor as a pack invariant and the
+    mirror fetch documented with the pack.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-physics.notes: fixture note trees yield notes, sections, figures and
+    references. [evidence: pytest]'
+- id: req.r3-bundle-cms-physics.bundle
+  statement: 'bundles/cms-physics extends cern-team, defaults to twiki (physics filter), cds,
+    cmssw-releases, analysis-notes and cms-analyses, and installs green with a passing smoke
+    eval seeded from cms-kb''s reviewed golden set.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-physics.install: an install-and-publish test (test_pack_isolation)
+    plus a lab smoke run, in place of a bundle CI job (board d380 Q7; the CI gate is deferred
+    to #619 by d332). [evidence: executed_test]'
+- id: req.r3-bundle-cms-physics.instance
+  statement: 'A cms-physics lab instance, the validation instance of cms-physics, is built
+    from the cms-physics bundle as shipped (docsite and indico included, board d369 = D), with
+    no local copy of an archi connector and no cms_kb source package. It replaces the earlier
+    target, a rebuild of the cms-kb deployment (board d380 Q5).
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-physics.rebuild: the cms-physics lab instance is built from the bundle as
+    shipped and publishes; its page and note floors pass. [evidence: executed_test]'
+tasks:
+- id: task.r3-bundle-cms-physics.analyses-pack
+  requirement: req.r3-bundle-cms-physics.pack
+  verification: 'Write the cms-analyses pack.
+
+
+    Test plan:
+
+    - python/tests/packs/test_cms_analyses.py [evidence: pytest]'
+- id: task.r3-bundle-cms-physics.notes-pack
+  requirement: req.r3-bundle-cms-physics.notes
+  verification: 'Lift the analysis-note source into the analysis-notes pack.
+
+
+    Test plan:
+
+    - python/tests/packs/test_analysis_notes.py [evidence: pytest]'
+- id: task.r3-bundle-cms-physics.bundle
+  requirement: req.r3-bundle-cms-physics.bundle
+  verification: 'Write the bundle.
+
+
+    Test plan:
+
+    - python/tests/packs/test_pack_isolation.py (cms-physics case) and a lab smoke run [evidence:
+    executed_test]'
+- id: task.r3-bundle-cms-physics.instance
+  requirement: req.r3-bundle-cms-physics.instance
+  verification: 'Build a cms-physics lab instance from the bundle as shipped.
+
+
+    Test plan:
+
+    - first sync and publish of that instance [evidence: executed_test]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-bundle-cms-physics.pack
+  status: pass
+  command: python -m pytest python/tests/packs/test_cms_analyses.py python/tests/packs/test_cms_analyses_edges.py
+    -q; python -m pytest python/tests -q -k "not is_linear"
+  head: 6cd7918b33730fae7400e7e75a6aa747d70d610f
+  at: '2026-10-26T02:49:39+00:00'
+  note: 'acc.r3-bundle-cms-physics.links: the cms-analyses pack (PAG/POG vocabulary, 180 public physics
+    entities with alias matching, the declarative cross-link rules and the analysis-lookup playbook,
+    lifted from cms-kb with cms_kb_* renamed cms_analyses_*) runs its real sources over a synthetic fixture
+    corpus, and each cross-link rule through the linker''s matcher: it asserts concrete linked pairs
+    (CDS record to analysis note, PAG to POG, the two-hop legacy-note path). A warn invariant flags an
+    instance where the hand-wired enricher produced no derived edges. Full suite 2905 passed, 19 skipped
+    at 06a507d9; this head only rewords two comments. Two independent reviews: publication-safe, with
+    their findings fixed.'
+- kind: executed_test
+  requirement: req.r3-bundle-cms-physics.notes
+  status: pass
+  command: python -m pytest python/tests/packs/test_analysis_notes.py python/tests/packs/test_analysis_notes_walk.py
+    -q
+  head: 6cd7918b33730fae7400e7e75a6aa747d70d610f
+  at: '2026-10-26T02:49:39+00:00'
+  note: 'acc.r3-bundle-cms-physics.notes: the analysis-notes source and parser (lifted from cms_kb.analysis_notes)
+    walk synthetic note trees and yield notes, sections, figures (caption, label, panels on disk) and
+    references, plus the bibliography-to-TWiki bridge; cms-kb''s walker, chunking, figure, import and
+    match-cache tests are ported with synthetic fixtures. The note floor is an init question enforced at
+    preflight (default 1; cms-physics sets 2500 through the new bundle answers key). The mirror fetch
+    needs CERN credentials and is documented in the pack README.'
+- kind: executed_test
+  requirement: req.r3-bundle-cms-physics.bundle
+  status: pass
+  command: python -m pytest tests/packs/test_pack_isolation.py -q -k "cms_physics or cern_team or
+    every_pack_with_sources" (from python/, a dev host, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0
+    via ARCHI_PACK_ISOLATION_DSN); smoke runs cited from r3-bundle-evals
+  head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
+  at: '2026-10-27T02:46:37+00:00'
+  note: 'acc.r3-bundle-cms-physics.install, as reworded by board d380 Q7 (an install-and-publish test
+    plus a lab smoke run). 3 passed, 24 deselected. test_cms_physics_installs_from_packs_and_publishes
+    renders the cms-physics bundle (its five default packs over cern-team''s), installs it with okg into
+    a fresh database, ingests fixture inputs and publishes a generation; lint has no blockers and every
+    selected pack''s invariants are installed. The physics filter stays on (the bundle answer); two
+    inputs differ from a real instance: the TWiki root is the physics fixture dump, and the note floor
+    is lowered from 2500 to 1 for the fixture mirror, so the 2500 floor itself is not exercised here.
+    Lab smoke run: r3-bundle-evals, acc.r3-bundle-evals.sets row (head 5105bfdd), cms-physics 10/10
+    twice with GPT-6 Luna, accepted by Jason on board d366; bundles/ and python/archi/ are unchanged
+    from 5105bfdd to 79c60bbb, and head/at date this citation, not that run. Not proven: a bundle CI job, which does not
+    exist (d332 deferred the gate to #619); d380 Q7 replaced that wording, and whether this pair is
+    enough was board d379. Not proven either: a real-data install (that is req.instance).'
+- kind: executed_test
+  requirement: req.r3-bundle-cms-physics.instance
+  status: pass
+  command: archi init cms-physics --bundle cms-physics (okg 0.2.0, podman), then okg status, okg deployment
+    lint, the floor and subtype checks over an MCP aggregate, and five MCP search questions (no model);
+    on a dev host
+  head: 66eb3b24476dacc434947af6e7be06b66697f4b4
+  at: '2026-10-29T17:45:00+00:00'
+  note: 'acc.r3-bundle-cms-physics.rebuild (board d320, d369 = D). A cms-physics lab instance was built
+    from the cms-physics bundle as shipped, docsite and indico included, from an export of archi_v3 at
+    a7575a81 with no local copy of an archi connector and no cms_kb source package, over the real TWiki
+    and analysis-note mirrors, CDS and the CMSSW release map; the run finished 2026-10-29T11:40:32Z.
+    head/at date this citation, not that run: head 66eb3b24 is archi_v3 6dd8f7a2 plus this PACT row, and
+    from a7575a81 to 6dd8f7a2 the affected code changes only a comment in
+    bundles/cms-physics/eval/smoke.yaml and python/archi/sources/tickets.py (the tickets pack''s JIRA
+    reader, which this bundle does not install). Its first generation published with 685,198
+    nodes and 1,379,406 edges in 14 subtypes; okg deployment lint has 0 blockers. Floors: 5,314 analysis
+    notes (floor 2,500) and 15,868 TWiki pages (floor 10,000). Every expected subtype has rows, and the
+    cross-link enricher added 11,678 edges. All eight sources ended OK. Five MCP search questions each
+    returned rows that cite a source; their evidence names were not checked (the questions carry none).
+    Indico read one meeting: the bundle ships no event or category ids, so the source falls back to its
+    one default event. The run took about 60 hours, 57 of them the analysis-note walk. Not proven here:
+    a rebuild of the live cms-kb deployment, which board d380 Q5 replaced with this instance.'
+decisions:
+- digest: sha256:8fb0282d3c208b2080c4862915039377cafd79252e78e59dc4419f101e116920
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'req.r3-bundle-cms-physics.instance retargeted. Board d369, Jason: D. Board d380 Q5,
+    Jason: "Yes". The validation instance is now a cms-physics lab instance, built from the
+    cms-physics bundle as shipped (docsite and indico included, board d369 = D), in place of a
+    rebuild of the cms-kb deployment. No evidence is
+    recorded for it yet: that instance''s first sync is still running.'
+- digest: sha256:8fb0282d3c208b2080c4862915039377cafd79252e78e59dc4419f101e116920
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'acc.r3-bundle-cms-physics.install reworded. Board d380 Q7, Jason: "Yes". "Bundle CI
+    job green" becomes an install-and-publish test (test_pack_isolation) plus a lab smoke run.
+    No bundle CI job exists because board d332 deferred the CI gate on bundle changes to the
+    #619 eval framework.'

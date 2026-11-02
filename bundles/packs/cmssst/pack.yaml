@@ -1,0 +1,17 @@
+name: cmssst
+kind: context
+version: 0.1.0
+description: CMS Site Support Team site status, from the cache the cmssst downloader writes.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+invariants: invariants.yaml
+# The downloader rewrites the site-status cache; status flips are what
+# operators ask about, so a day is the longest age that is still current.
+freshness:
+  cmssst.cmssst_site_status: {max_staleness: 24h}
+search_subtypes: [documentation_page, document_chunk]
+prompt_fragment: prompt.md
+# The SST data is public; the downloader needs no credential.
+needs_credentials: false

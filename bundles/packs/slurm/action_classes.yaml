@@ -1,0 +1,56 @@
+# Slurm action classes (ADR 0002 section 7.2). Each one is carried out by a live tool of
+# this pack (boundary external_live) and may run at L2 at most: it runs only after a
+# person approves the escalation, and the tool checks the approval again before it
+# builds a command (archi.tools._live.require_approval). An automation pack lists the
+# ids it may propose in `automation.action_classes`. The payload schemas below are the
+# ones the tools validate against (archi.tools.slurm.PAYLOAD_SCHEMAS); a test holds them equal.
+action_classes:
+  drain_node:
+    description: Drain one node, so its running jobs finish and no new job starts on it.
+    payload_schema:
+      type: object
+      required: [node, reason]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          pattern: "^[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127}$"
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 200
+          pattern: "^[^\\x00-\\x1f\\x7f]+$"
+    mediator: archi.tools.slurm:drain_node
+    reversible: true
+    blast_radius: One Slurm node's state (DRAIN) and its reason string, external_live. Running jobs are not killed; resume_node undoes it.
+    max_level: L2
+  resume_node:
+    description: Return one node that archi drained to service; force true also resumes a node someone else drained or that is down.
+    payload_schema:
+      type: object
+      required: [node]
+      additionalProperties: false
+      properties:
+        node:
+          type: string
+          pattern: "^[A-Za-z0-9_][A-Za-z0-9_.:@-]{0,127}$"
+        force:
+          type: boolean
+    mediator: archi.tools.slurm:resume_node
+    reversible: true
+    blast_radius: One Slurm node's state (RESUME), external_live. New jobs may start on it at once; drain_node undoes it.
+    max_level: L2
+  requeue_job:
+    description: Requeue one running job so it starts again from the queue.
+    payload_schema:
+      type: object
+      required: [job_id]
+      additionalProperties: false
+      properties:
+        job_id:
+          type: string
+          pattern: "^[0-9]{1,12}([_+][0-9]{1,9})?$"
+    mediator: archi.tools.slurm:requeue_job
+    reversible: false
+    blast_radius: One running job, external_live. Its run so far is lost; the job restarts from the queue and cannot be put back.
+    max_level: L2

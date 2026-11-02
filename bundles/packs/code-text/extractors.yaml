@@ -1,0 +1,47 @@
+# Parsers and chunkers for the code-text pack's source (sources/code_text.yaml).
+#
+# The pack installs this file at the deployment root (`files:` in pack.yaml).
+# okg's DocCorpusSource reads it from the directory its `extractors_dir`
+# parameter names; nothing else in an instance reads it unless the instance
+# turns on chat uploads.
+#
+# Two side effects:
+#   - `okg install --force` rewrites this file from the pack, so it
+#     replaces an operator's own extractors.yaml in the deployment directory.
+#     Keep local edits in a copy outside it, or re-apply them after a reinstall.
+#   - It declares only the `code` and `text` parsers. okg's chat-upload source
+#     reads the deployment's extractors.yaml by default, so an instance that
+#     turns on chat uploads would refuse PDF and Markdown uploads until it adds
+#     parsers for them. (Without this file, uploads fail outright because no
+#     extractors.yaml exists, so nothing worked before that works less now.)
+#
+# Python goes to okg's PythonSymbolChunker: one chunk per top-level function,
+# per class (or per method of a class too large for one chunk) and per run of
+# module-level code, holding the code itself, with `start_line`, `end_line`
+# and `symbol` on each chunk. Without it the graph has a function's signature
+# and docstring but never its body, so "what does X do with input Y" cannot be
+# answered from the graph.
+#
+# Every other text file (other code, Markdown, YAML, JSON, shell scripts,
+# configuration, templates, files with no extension) is routed to `text` by
+# the source's `extension_to_format` or `text_fallback` and split into plain
+# windows.
+
+parser:
+  - format: code
+    class: okg.substrate.library.extraction.parse.code_python.PythonAstParser
+  - format: text
+    class: okg.substrate.library.extraction.parse.text.TextParser
+
+chunker:
+  # 4000 characters with 400 of overlap: on a 77-file, 528-function Python
+  # client this gives 618 chunks holding 1.03x the source text; 25 symbols
+  # are longer and are split into overlapping windows that keep their name.
+  # (2000/200 gives 787 chunks and splits 82 symbols; 8000/400 gives 494 and
+  # splits 8.)
+  - format: code
+    class: okg.substrate.library.extraction.chunk.python_symbols.PythonSymbolChunker
+    config: {max_chars: 4000, overlap: 400}
+  - format: default
+    class: okg.substrate.library.extraction.chunk.window.WindowChunker
+    config: {max_chars: 1500, overlap: 200}

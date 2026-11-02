@@ -1,0 +1,2 @@
+health ok completed_scope False records 50 facts 50
+reason: bounded by max_records=50: harvested 50 records of cerncds:cms-pas, cerncds:cms-notes; the rest of the set was not fetched, so no complete scope is claimed

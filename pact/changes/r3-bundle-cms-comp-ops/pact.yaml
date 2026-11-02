@@ -1,0 +1,102 @@
+pact_version: 5
+id: r3-bundle-cms-comp-ops
+title: cms-comp-ops bundle; rebuild the comp-ops instance from it
+tier: 2
+why: ADR 0001 kept comp-ops an instance until a second ops team appeared. CRAB and WisDQM
+  now reuse the same CMS catalogs and monitoring, so the shape recurs. The comp-ops instance
+  (gitlab.cern.ch/archi/cms-compops) stays the standing validation target (ADR 0001 D10).
+affected_code:
+- bundles/cms-comp-ops/
+- skills/
+requirements:
+- id: req.r3-bundle-cms-comp-ops.bundle
+  statement: 'bundles/cms-comp-ops extends cern-team, defaults to cms-catalogs, cmssst and
+    cmssw-releases, offers monit-live, dqm, hypernews and jira, and carries the comp-ops playbooks
+    (rucio_*, site_profile, incident_root_cause, monitoring_condor_snapshot) in its packs,
+    plus ops-record by default and the ticket-triage automation pack as optional. No smoke eval
+    in 3.0 (board d380 Q6).
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-comp-ops.install: an install-and-publish test (test_pack_isolation)
+    installs the bundle green with fixture caches, in place of a bundle CI job (board d380 Q7;
+    the CI gate is deferred to #619 by d332). The lab smoke run Q7 pairs with it is moot here:
+    under d380 Q6 this bundle has no smoke-eval set in 3.0. [evidence: executed_test]'
+- id: req.r3-bundle-cms-comp-ops.instance
+  statement: 'The cms-compops instance is regenerated from `archi init --bundle cms-comp-ops`
+    plus instance-local config, with the parity auditor green.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-comp-ops.parity: audit_a2rchi_source_parity.py --fail-on-non-parity
+    green. [evidence: executed_test]'
+tasks:
+- id: task.r3-bundle-cms-comp-ops.bundle
+  requirement: req.r3-bundle-cms-comp-ops.bundle
+  verification: 'Write the bundle.
+
+
+    Test plan:
+
+    - python/tests/packs/test_pack_isolation.py (cms-comp-ops case) [evidence: executed_test]'
+- id: task.r3-bundle-cms-comp-ops.playbooks
+  requirement: req.r3-bundle-cms-comp-ops.bundle
+  verification: 'Assign playbooks and triggers to packs.
+
+
+    Test plan:
+
+    - python/tests/test_bundle_cms_comp_ops.py [evidence: executed_test]'
+- id: task.r3-bundle-cms-comp-ops.instance
+  requirement: req.r3-bundle-cms-comp-ops.instance
+  verification: 'Rebuild the instance; run parity.
+
+
+    Test plan:
+
+    - parity run on the instance [evidence: executed_test]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-bundle-cms-comp-ops.bundle
+  status: pass
+  command: python -m pytest tests/test_bundle_cern_team.py tests/test_bundle_cms_comp_ops.py -q (from
+    python/, a dev host)
+  head: 79c60bbbde118748c795b7cc636b339fbdcdb81d
+  at: '2026-10-27T03:49:42+00:00'
+  note: 'task.r3-bundle-cms-comp-ops.playbooks only: 22 passed, 9 of them in test_bundle_cms_comp_ops.py.
+    The comp-ops playbooks render with their packs (rucio_command, rucio_dataset_hosting, site_profile
+    and incident_root_cause from cms-catalogs; monitoring_condor_snapshot from monit-live), each with its
+    library trigger; a playbook is absent when its pack is not selected; incident_root_cause is not in the
+    generic ops-record pack. The pack entries are symlinks to the files in top-level skills/, which stay
+    the single source. Not proven by this row: acc.r3-bundle-cms-comp-ops.install or .parity.'
+- kind: executed_test
+  requirement: req.r3-bundle-cms-comp-ops.bundle
+  status: pass
+  command: python -m pytest tests/packs/test_pack_isolation.py -q -k cms_comp_ops (from python/,
+    a dev host, okg 0.2.0 wheel, AKMON akmon-postgres:v0.2.0 via ARCHI_PACK_ISOLATION_DSN)
+  head: ad2565b3b69eccf65be9a9137f9b172ff32d0cbc
+  at: '2026-10-27T03:59:23+00:00'
+  note: 'acc.r3-bundle-cms-comp-ops.install, as reworded by board d380 Q7: 1 passed, 26 deselected.
+    test_cms_comp_ops_installs_from_packs_and_publishes renders the cms-comp-ops bundle with every
+    default and optional pack selected, installs it with okg into a fresh database, ingests the
+    fixture caches and publishes a generation; lint has no blockers and every selected pack''s
+    invariants are installed. No lab smoke run: under d380 Q6 this bundle has no smoke eval in 3.0.
+    Not proven: a bundle CI job (none exists; d332 deferred the gate to #619), real-data ingest, or
+    acc.r3-bundle-cms-comp-ops.parity.'
+decisions:
+- digest: sha256:a173ac394caa47c8ccd6025a46760c8ec2d1b3c60056526a48f5a5678474a91b
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Jason, board d380 Q6: ''Record it; drop #748 from 3.0''. #748 (the four-week comp-ops
+    shadow) leaves 3.0; the comp-ops bundle itself merged in #849 and stays.'
+- digest: sha256:a173ac394caa47c8ccd6025a46760c8ec2d1b3c60056526a48f5a5678474a91b
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'acc.r3-bundle-cms-comp-ops.install reworded. Board d380 Q7, Jason: "Yes", relayed as
+    covering #733, #739 and #724 (this bundle is #724). A
+    bundle CI job becomes an install-and-publish test (test_pack_isolation) plus a lab smoke
+    run. No bundle CI job exists because board d332 deferred the CI gate on bundle changes to
+    the #619 eval framework. The lab smoke run is moot for this bundle under d380 Q6, which
+    leaves it no smoke-eval set in 3.0, so the install-and-publish test alone applies.'

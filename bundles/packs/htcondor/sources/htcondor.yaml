@@ -1,0 +1,47 @@
+# HTCondor connector (cache-backed). Reads the pool snapshot that `python -m archi.downloaders.htcondor`
+# writes under ${archi_data_root}/htcondor/ from condor_status output. The source never runs an
+# HTCondor command; it names no credential.
+#
+# The parsed item count is cross-checked against meta.json's record_count; a mismatch
+# withholds the completed-scope claim.
+htcondor:
+  module: archi.sources.htcondor
+  class: HTCondorAdapter
+  ownership_id: ${deployment_name}.htcondor
+  admission_policy:
+    producer_id: ${deployment_name}.htcondor
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: htcondor
+      source_name: htcondor
+    output_signature:
+      nodes:
+        - {subtype: condor_pool}
+        - {subtype: condor_machine}
+        - {subtype: condor_schedd}
+      edges:
+        - {src_subtype: condor_pool, edge_type: contains, dst_subtype: condor_machine}
+        - {src_subtype: condor_pool, edge_type: contains, dst_subtype: condor_schedd}
+    output_scope_summary:
+      summary: An HTCondor pool with its machines and schedds, from the exported snapshot
+      nodes: [condor_pool, condor_machine, condor_schedd]
+      edges:
+        - condor_pool contains condor_machine
+        - condor_pool contains condor_schedd
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [pool, kind, name]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/htcondor/records.json
+    meta_path: ${archi_data_root}/htcondor/meta.json
+    pool_name: ${pool_name}
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

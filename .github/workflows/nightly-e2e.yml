@@ -1,0 +1,196 @@
+# The golden path, end to end (PACT r3-golden-path, req.r3-golden-path.nightly;
+# ADR 0002 section 8): an empty runner to a cited answer over MCP with the
+# cern-team bundle, in at most 5 user commands and 15 minutes.
+#
+# The five steps named "user command N" are exactly what an operator types.
+# Everything else here is runner housekeeping (disk space, timing, logs,
+# teardown), not part of the path.
+#
+# No secret is involved: cern-team's defaults (docsite, which downloads two
+# small public CERN documentation sites, and indico, which reads one public
+# event) publish with no answer and no credential (PACT r3-bundle-cern-team).
+# The answer is read over MCP, so no model provider is needed. After the timed
+# user commands, the run also checks that `archi down` + `archi up` keeps the
+# same published graph. It also runs on pushes and pull requests that touch the
+# stack, so a change to it is proven the same way before it merges.
+name: nightly-e2e
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "python/archi/cli/**"
+      - "python/archi/stack/**"
+      - "python/archi/bundles/**"
+      - "bundles/**"
+      - "python/tests/cli/golden_path_run.sh"
+      - "python/tests/cli/mcp_cited_answer.py"
+      - "python/archi/evaluation/**"
+      - "python/archi/cli/evaluate.py"
+      - ".github/workflows/nightly-e2e.yml"
+  push:
+    branches: [archi_v3]
+    paths:
+      - "python/archi/cli/**"
+      - "python/archi/stack/**"
+      - "python/archi/bundles/**"
+      - "bundles/**"
+      - "python/tests/cli/golden_path_run.sh"
+      - "python/tests/cli/mcp_cited_answer.py"
+      - "python/archi/evaluation/**"
+      - "python/archi/cli/evaluate.py"
+      - ".github/workflows/nightly-e2e.yml"
+
+concurrency:
+  group: nightly-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+# The job only reads the repository; the token it holds can do nothing else.
+permissions:
+  contents: read
+
+jobs:
+  golden-path:
+    name: empty runner to a cited answer
+    runs-on: ubuntu-latest
+    # 40 minutes for the golden path and the down/up check, plus room for the
+    # report-only eval step's own 25-minute limit, so a slow eval ends that
+    # step and never the job.
+    timeout-minutes: 70
+    env:
+      OKG_WHEEL: "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
+      QUESTION: "What is the Knowledge Bases and Agents for CERN workshop?"
+    steps:
+      # The AKMON Postgres image is 6.3 GB and Open WebUI about 4 GB; the
+      # runner's free disk does not hold both without this.
+      - name: Free disk space (housekeeping)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Start the clock (housekeeping)
+        run: echo "STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: "user command 1: install okg and archi"
+        run: pip install "$OKG_WHEEL" ./python
+
+      - name: "user command 2: archi init"
+        working-directory: ${{ runner.temp }}
+        run: archi init gp --bundle cern-team
+
+      - name: "user command 3: archi up"
+        working-directory: ${{ runner.temp }}/gp
+        run: archi up
+
+      - name: "user command 4: archi doctor"
+        working-directory: ${{ runner.temp }}/gp
+        run: archi doctor --json | tee "$RUNNER_TEMP/doctor.json"
+
+      - name: "user command 5: ask over MCP"
+        working-directory: ${{ runner.temp }}/gp
+        run: python "$GITHUB_WORKSPACE/python/tests/cli/mcp_cited_answer.py" "$QUESTION" | tee "$RUNNER_TEMP/answer.json"
+
+      - name: Within 15 minutes (housekeeping)
+        run: |
+          elapsed=$(( $(date +%s) - STARTED ))
+          echo "user commands took ${elapsed}s"
+          echo "### golden path: ${elapsed}s, 5 user commands" >> "$GITHUB_STEP_SUMMARY"
+          python - "$RUNNER_TEMP/answer.json" >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          import json, sys
+          a = json.load(open(sys.argv[1]))
+          print(f"\n**{a['question']}** (source `{a['source']}`)\n")
+          for c in a["citations"][:5]:
+              print(f"- `{c['node_id']}` ({c['subtype']})")
+          EOF
+          test "$elapsed" -le 900
+
+      # The bundle smoke eval (PACT r3-bundle-evals, acc.nightly): `archi eval` over
+      # the same instance with a small local model on the CPU runner. It sits after
+      # the 15-minute measure above, so the golden path's clock never includes the
+      # model download or the eval. It REPORTS and does not gate: a 1.5B model on
+      # four cores scores low and slowly, so a failure here says nothing about the
+      # bundle. The #619 framework replaces this harness and owns any gate.
+      - name: "bundle smoke eval: archi eval --bundle cern-team (report only, not part of the 15 minutes)"
+        continue-on-error: true
+        timeout-minutes: 25
+        working-directory: ${{ runner.temp }}/gp
+        env:
+          OLLAMA_HOST: "127.0.0.1:11500"
+          OLLAMA_MODELS: ${{ runner.temp }}/ollama-models
+          # Ollama's default 4096-token window cuts off the graph tools' descriptions.
+          OLLAMA_CONTEXT_LENGTH: "16384"
+          EVAL_MODEL: "qwen2.5:1.5b-instruct"
+          # The installer fetches exactly this release, not the latest one.
+          OLLAMA_VERSION: "0.32.13"
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          sudo systemctl stop ollama || true
+          nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS "http://$OLLAMA_HOST/api/tags" >/dev/null && break; sleep 1; done
+          ollama pull "$EVAL_MODEL"
+          started=$(date +%s)
+          set +e
+          archi eval --bundle cern-team --model "$EVAL_MODEL" --model-url "http://$OLLAMA_HOST/v1" \
+            --out "$RUNNER_TEMP/eval-report"
+          rc=$?
+          set -e
+          echo "### bundle smoke eval: exit $rc, $(( $(date +%s) - started ))s with $EVAL_MODEL on CPU (report only)" >> "$GITHUB_STEP_SUMMARY"
+          python - "$RUNNER_TEMP/eval-report/report.json" >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          print(f"\n{r['status']}: {r['passed']} of {r['total']} passed (threshold {r['pass_threshold']}); "
+                f"tokens {r['prompt_tokens']} in / {r['completion_tokens']} out\n")
+          for q in r["questions"]:
+              print(f"- `{q['id']}`: {q['status']} ({q['seconds']} s)")
+          EOF
+          exit "$rc"
+
+      - name: Keep the eval report (housekeeping)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-smoke-eval-report
+          path: ${{ runner.temp }}/eval-report
+          if-no-files-found: ignore
+
+      - name: The graph survives archi down + archi up (housekeeping)
+        working-directory: ${{ runner.temp }}/gp
+        run: |
+          published() {
+            archi doctor --json | python -c '
+          import json, sys
+          c = next(c for c in json.load(sys.stdin)["checks"] if c["id"] == "published")
+          print(c["message"], (c.get("data") or {}).get("nodes"))'
+          }
+          before="$(published)"
+          archi down
+          archi up
+          after="$(published)"
+          echo "before: $before"
+          echo "after:  $after"
+          echo "durability: \`$before\` before and after archi down + archi up" >> "$GITHUB_STEP_SUMMARY"
+          [ "$before" = "$after" ] && [ "${before#published }" != "$before" ]
+
+      - name: Diagnostics on failure (housekeeping)
+        if: failure()
+        working-directory: ${{ runner.temp }}
+        run: |
+          [ -d gp ] || exit 0
+          archi doctor --instance gp || true
+          docker compose -p archi-gp -f gp/compose.yaml --env-file gp/.env logs --tail 200 || true
+
+      - name: Tear down (housekeeping)
+        if: always()
+        working-directory: ${{ runner.temp }}
+        run: |
+          [ -f gp/archi.yaml ] && archi down --instance gp --purge --yes || true

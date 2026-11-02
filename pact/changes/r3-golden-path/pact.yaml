@@ -1,0 +1,233 @@
+pact_version: 5
+id: r3-golden-path
+title: 'One-command setup: archi init / up / doctor / connect'
+tier: 2
+why: 'docs/cern-team-quickstart.md is 1,016 lines, mostly traps: okg -e from a clone, OKG_PROFILES_DIR,
+  git-init the deployments dir, Postgres preload flags and shm-size, role passwords after
+  migrate, data root outside the deployment (--force deletes it), relative paths that ignore
+  ARCHI_DATA_ROOT, a separate chat Postgres on the container gateway, --ready-timeout 300,
+  a separate long-running MCP process. A team operator with no OKG background cannot get through
+  it. ADR 0002 §8.'
+affected_code:
+- python/archi/cli/
+- python/archi/stack/
+- docs/quickstart.md
+- .github/workflows/nightly-e2e.yml
+requirements:
+- id: req.r3-golden-path.init
+  statement: '`archi init <name> --bundle ...` creates the instance directory as a git repo
+    with a baseline commit, renders the composed profile, writes .env with generated secrets
+    (never committed), makes every data path absolute with the data root outside the deployment
+    dir, and runs okg install/migrate/catalog load/ingest/publish.
+
+
+    Acceptance:
+
+    - acc.r3-golden-path.fresh: init on an empty dir publishes cern-team defaults. [evidence:
+    executed_test]
+
+    - acc.r3-golden-path.secrets: .env is gitignored and no secret appears in the committed
+    tree. [evidence: pytest]'
+- id: req.r3-golden-path.up
+  statement: '`archi up` starts one compose project (podman or docker): AKMON Postgres with
+    the required preload libraries, chat Postgres, Open WebUI, and the instance MCP server,
+    on one network; `archi down` stops it without data loss.
+
+
+    Acceptance:
+
+    - acc.r3-golden-path.up: archi up then archi doctor green; Open WebUI answers with a graph
+    citation. [evidence: executed_test]'
+- id: req.r3-golden-path.doctor
+  statement: '`archi doctor [--json]` runs okg deployment lint and doctor plus archi''s checks
+    for each absorbed footgun, with one remediation line per failure.
+
+
+    Acceptance:
+
+    - acc.r3-golden-path.checks: each footgun check has a failing fixture. [evidence: pytest]'
+- id: req.r3-golden-path.footguns
+  statement: 'Every trap in the current quickstart is listed in this PACT''s evidence as absorbed
+    (archi handles it, with the test) or filed (AKMON issue link).
+
+
+    Acceptance:
+
+    - acc.r3-golden-path.ledger: footgun ledger attached, no entry unresolved. [evidence:
+    manual]'
+- id: req.r3-golden-path.nightly
+  statement: 'A nightly workflow goes from an empty runner to a cited answer over MCP with
+    the cern-team defaults in at most 5 user commands and 15 minutes.
+
+
+    Acceptance:
+
+    - acc.r3-golden-path.green: three consecutive green nightly runs. [evidence: executed_test]'
+tasks:
+- id: task.r3-golden-path.init
+  requirement: req.r3-golden-path.init
+  verification: 'Implement archi init on top of okg install.
+
+
+    Test plan:
+
+    - python/tests/cli/test_init.py [evidence: executed_test]'
+- id: task.r3-golden-path.up
+  requirement: req.r3-golden-path.up
+  verification: 'Compose file template and up/down.
+
+
+    Test plan:
+
+    - scratch run [evidence: executed_test]'
+- id: task.r3-golden-path.doctor
+  requirement: req.r3-golden-path.doctor
+  verification: 'Doctor with JSON output for agents.
+
+
+    Test plan:
+
+    - python/tests/cli/test_doctor.py [evidence: pytest]'
+- id: task.r3-golden-path.footguns
+  requirement: req.r3-golden-path.footguns
+  verification: 'Walk the quickstart; classify each trap.
+
+
+    Test plan:
+
+    - ledger [evidence: manual]'
+- id: task.r3-golden-path.nightly
+  requirement: req.r3-golden-path.nightly
+  verification: 'Nightly e2e workflow.
+
+
+    Test plan:
+
+    - .github/workflows/nightly-e2e.yml runs [evidence: executed_test]'
+- id: task.r3-golden-path.upstream
+  requirement: req.r3-golden-path.footguns
+  verification: 'File the AKMON asks from ADR 0002 §9 items 1, 4, 5, 6.
+
+
+    Test plan:
+
+    - links [evidence: manual]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-golden-path.init
+  status: pass
+  command: 'archi init myteam --data-root <scratch>/data --answer chat_model=qwen3:4b (local, Docker 20.10,
+    okg 0.2.0 wheel); and nightly-e2e on PR #786: archi init gp --bundle cern-team on a fresh ubuntu-latest
+    runner'
+  head: 9f6845f92d42763601043751971fe5160693eedd
+  at: '2026-10-25T15:40:00+00:00'
+  note: 'acc.r3-golden-path.fresh: on an empty directory, archi init made the instance a git repo with
+    a baseline commit, rendered cern-team, wrote .env (0600, git-ignored), started graph-db from compose,
+    ran okg install --no-publish with --postgres-dsn ''${OKG_DSN}'' and every path answer absolute (--archi-data-root
+    and --twiki-eos-root under the data root, outside the instance), committed the deployment, ran okg
+    provision and okg db role-passwords --apply (secrets file in the instance''s .secrets/). Locally:
+    27 s from empty dir to generation okg:myteam:branch:default:gen:20261025T143228160844Z:d206a16b91ef
+    (2481 nodes / 2117 edges, the cern-team default CMSSW release catalog); git log: baseline, render,
+    okg deployment; tree clean. On GitHub (https://github.com/archi-physics/archi/actions/runs/40205607160,
+    user command 2): published okg:gp:branch:default:gen:20261025T151333723968Z:4df364e151c5 from an empty
+    runner.'
+- kind: executed_test
+  requirement: req.r3-golden-path.init
+  status: pass
+  command: python -m pytest python/tests/cli/test_init.py -q
+  head: 9f6845f92d42763601043751971fe5160693eedd
+  at: '2026-10-25T15:40:00+00:00'
+  note: 'acc.r3-golden-path.secrets: 9 passed. .env holds every generated secret, mode 0600, git-ignored
+    (check-ignore), untracked; no secret value (the five generated ones and the okg_mcp role password)
+    appears in any file of the committed tree; the graph password reaches okg only through OKG_DSN in
+    the environment, never argv. Also: relative path defaults anchored on the data root, given relative
+    paths resolved against the caller''s cwd, a data root inside the instance refused, a non-empty dir
+    refused, a composed bundle writes archi.lock with the deployment recorded, the okg sequence is install
+    --no-publish -> commit -> provision -> role-passwords with the tree committed before provision, and
+    provision exit 8 is a published capacity warning. Full suite 2100 passed, 1 skipped, 2 anonymizer
+    *_is_linear timing tests failed under load and pass alone; CI tests job green on PR #786.'
+- kind: executed_test
+  requirement: req.r3-golden-path.up
+  status: pass
+  command: archi up; archi doctor (local instance above); Open WebUI in a browser, preset okg-myteam,
+    model qwen3:4b via local ollama
+  head: 9f6845f92d42763601043751971fe5160693eedd
+  at: '2026-10-25T15:40:00+00:00'
+  note: 'acc.r3-golden-path.up: archi up started one compose project archi-myteam (graph-db akmon-postgres:v0.2.0
+    with timescaledb,pg_cron,pg_textsearch preloaded and shm 2g; chat-db postgres:16, unpublished; mcp
+    = okg 0.2.0 mcp-serve image built by archi; webui open-webui:v0.11.4), all on one network, ports on
+    127.0.0.1 only; signed up the admin from .env, pointed the site at host.docker.internal:11434, and
+    okg chat sync passed (probe 127.0.0.1:<mcp>, instance http://mcp:8765/mcp). First up 3:00 (image build),
+    second 9 s. archi doctor: all 21 checks pass (okg lint, okg doctor, and 19 footgun checks). In the
+    browser the preset bound server:mcp:okg-myteam; asked ''Which architectures does the CMSSW_14_0_14
+    release support? Search the graph and cite the node id.'', the model called inspect, search and expand
+    through MCP and answered citing node cmssw_release_family:CMSSW_14_0 from the search rows (source
+    myteam.cmssw-releases). The answer''s content was weak: the 4B model missed that cmssw_release:CMSSW_14_0_14
+    lists its architectures. It needed num_ctx 16384 and think off in the chat controls: ollama''s default
+    4096-token window truncated the prompt (logged ''truncating input prompt'' 4227->4096), recorded in
+    docs/quickstart.md. On GitHub (https://github.com/archi-physics/archi/actions/runs/40205607160) archi
+    up and archi doctor --json (ok: true) also passed with no model server configured. archi down --purge
+    --yes removed containers, volumes and network.'
+- kind: executed_test
+  requirement: req.r3-golden-path.doctor
+  status: pass
+  command: python -m pytest python/tests/cli/test_doctor.py -q
+  head: 9f6845f92d42763601043751971fe5160693eedd
+  at: '2026-10-25T15:40:00+00:00'
+  note: 'acc.r3-golden-path.checks: 26 passed. A healthy instance passes all 21 checks with fake probes;
+    21 parametrized fixtures each break one thing and assert that check fails (profiles-env warns) with
+    a one-line remediation: instance-git, deployment-committed, env-secrets, secrets-not-committed, data-root,
+    absolute-paths, profiles-env, okg-version, graph-db-shm, ports-loopback, chat-db-distinct, mcp-port,
+    selected-sources-fed, graph-db-preload, role-passwords, published, services, mcp-answers, webui-up,
+    okg-lint, okg-doctor. A test keeps the registered checks equal to the fixtures; another ties each
+    check to its ledger entry; --json output is one serialisable object.'
+- kind: executed_test
+  requirement: req.r3-golden-path.nightly
+  status: pass
+  command: .github/workflows/nightly-e2e.yml on archi_v3 (push runs and one workflow_dispatch)
+  head: 3d35f9e3125e0ece205839b9bfad03c2abf8418e
+  at: '2026-10-25T16:40:26+00:00'
+  note: 'acc.r3-golden-path.green: three consecutive green runs on archi_v3, counted from the first push
+    after r3-packs-split changed what the run installs: https://github.com/archi-physics/archi/actions/runs/40209703610
+    (push, 32e70609), https://github.com/archi-physics/archi/actions/runs/40210961246 (push, 3d35f9e3)
+    and https://github.com/archi-physics/archi/actions/runs/40212289435 (workflow_dispatch, 3d35f9e3).
+    Each went from an empty ubuntu-latest runner to a cited answer over MCP in exactly 5 user commands,
+    taking 5.1, 6.0 and 4.4 minutes across those five steps (limit 15). GitHub runs a scheduled workflow
+    only from the default branch, which is still v2 main, so the 03:17 schedule cannot fire on archi_v3
+    until cutover; Jason decided (2026-10-25, d269 A) that pushes and manual dispatches count until then.
+    The run uses the cern-team bundle with cmssw-releases selected in place of docsite and indico, which
+    need input a bare runner lacks; a cern-team default that publishes bare is PACT r3-bundle-cern-team
+    (Jason, d268 A).'
+- kind: manual
+  requirement: req.r3-golden-path.footguns
+  status: pass
+  command: docs/golden-path-footguns.md; gh issue view 3..13 --repo mitdbg/akmon; gh issue view 798..808
+    --repo archi-physics/archi
+  head: 338f391e5f81fe1908699b26087b3e1a3e96b821
+  at: '2026-10-25T17:02:28+00:00'
+  note: 'acc.r3-golden-path.ledger: the ledger lists 50 traps, from the old quickstart and found while building init, up and doctor; each is absorbed
+    (archi handles it, with the test or doctor check that fails if it returns) or filed, and none is unresolved.
+    The 11 golden-path asks were filed on mitdbg/akmon on 2026-10-25 as #3-#13 (ask 1 #3, 4 #4, 5 #5, 6 #6,
+    A #7, B #8, C #9, D #10, F #11, G #12, H #13) and are tracked here by upstream-ask issues #798-#808;
+    the two bundle-format asks are mitdbg/akmon#1 and #2 (#792, #793). Ask E was withdrawn: FG-39 is fixed
+    in okg v0.2.0 (remove-source proven on a scratch instance). Task upstream (ADR 0002 section 9 items 1,
+    4, 5, 6) is covered by asks 1, 4, 5 and 6.'
+- kind: executed_test
+  requirement: req.r3-golden-path.up
+  status: pass
+  command: python/tests/cli/golden_path_run.sh on a dev host (podman-compose 1.4.0, no shim), from a clean clone
+    of 74d81925; python -m pytest python/tests -q at c22aed61 (network off)
+  head: c22aed61784233007264fa3539b09685308f98e6
+  at: '2026-10-26T01:22:27+00:00'
+  note: 'Correction to the earlier acc.r3-golden-path.up entry: before this fix, "archi down stops it without
+    data loss" was not true. The compose file mounted the graph-db volume at /var/lib/postgresql/data, while
+    the AKMON image (akmon-postgres v0.2.0) keeps PGDATA at /home/postgres/pgdata/data, so the published
+    graph lived in the container layer and was lost whenever the container was recreated (podman-compose
+    recreates it on archi up). Also, podman-compose 1.4 rejected --project-directory, so archi init and up
+    failed there, and doctor''s services check read nothing. Fixed: the volume covers the image''s PGDATA
+    parent (a unit test pins it), compose runs without --project-directory, and services falls back to the
+    runtime''s ps by compose label. Proof: the golden-path script, which now runs archi down + archi up
+    after the first up and compares the published graph, gave the same generation
+    (gen:20261026T011532794261Z:8c3c3ba940b0) and node count (2481) before and after, then doctor, the
+    cited MCP answer and the purge, 179 s in all. Full suite 2723 passed, 29 skipped, network off.'
+decisions: []

@@ -1,0 +1,9 @@
+init_questions:
+  - id: releases_map_url
+    prompt: URL of the CMSSW releases.map to fetch
+    type: string
+    required: false
+    default: https://raw.githubusercontent.com/cms-sw/cms-bot/master/releases.map
+    description: |
+      The public cms-bot release map. Leave the default unless you mirror
+      it.

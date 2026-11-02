@@ -1,0 +1,148 @@
+pact_version: 5
+id: r3-ops-record
+title: 'Operational memory: incidents, proposals, decisions, actions and outcomes in the graph'
+tier: 2
+why: An automation that cannot see what happened last time repeats mistakes, and one whose
+  actions are not recorded cannot be evaluated or trusted. The record of operations belongs
+  in the context layer next to the docs and tickets it cites. ADR 0002 §6.2.
+affected_code:
+- bundles/packs/ops-record/
+- python/archi/schemas/
+- python/archi/ops/
+requirements:
+- id: req.r3-ops-record.schema
+  statement: 'An ops-record pack adds incident, proposal, decision, action and outcome subtypes
+    with links to the evidence cited, the actor (automation or person), the escalation id
+    and the generation read.
+
+
+    Acceptance:
+
+    - acc.r3-ops-record.load: catalog loads with the slice composed on cern-team and cluster-manager.
+    [evidence: executed_test]'
+- id: req.r3-ops-record.write
+  statement: 'Automations write ops records through okg admission as a declared producer;
+    no direct SQL. Ticket resolutions from ticket connectors link to the matching incidents.
+
+
+    Acceptance:
+
+    - acc.r3-ops-record.admit: a workflow run''s records are admitted and searchable in the
+    next generation. [evidence: executed_test]'
+- id: req.r3-ops-record.recall
+  statement: 'A playbook and search profile let an agent retrieve precedents: past incidents
+    on the same entity with their actions and outcomes.
+
+
+    Acceptance:
+
+    - acc.r3-ops-record.precedent: a fixture incident retrieves its precedent with outcome.
+    [evidence: pytest]'
+tasks:
+- id: task.r3-ops-record.schema
+  requirement: req.r3-ops-record.schema
+  verification: 'Write the ops-record schema slice and pack.
+
+
+    Test plan:
+
+    - python/tests/packs/test_ops_record.py [evidence: pytest]'
+- id: task.r3-ops-record.write
+  requirement: req.r3-ops-record.write
+  verification: 'Producer path from workflows; ticket-resolution linking.
+
+
+    Test plan:
+
+    - scratch run [evidence: executed_test]'
+- id: task.r3-ops-record.recall
+  requirement: req.r3-ops-record.recall
+  verification: 'Precedent playbook and search profile.
+
+
+    Test plan:
+
+    - python/tests/test_skills.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-ops-record.schema
+  status: pass
+  command: python -m pytest python/tests/packs/test_ops_record.py -q
+  head: aa307e134281da0a4b146e557b1a6608807adf71
+  at: '2026-10-25T14:32:56+00:00'
+  note: 'acc.r3-ops-record.load: 6 passed. bundles/packs/ops-record validates and adds ops_incident,
+    ops_proposal, ops_decision, ops_action and ops_outcome, each with record_id, actor_kind,
+    actor and generation_read; proposals require evidence_ids (the cited okg node ids) and
+    the generation read; decisions carry the okg escalation id. Its 7 narrowings join ops
+    records only: okg 0.2.0 admission cannot admit an edge to a node outside the payload, so
+    tickets, evidence and the entity that broke are attributes. On cern-team (the shipped
+    profile regrouped into packs) with --with ops-record, and on cluster-manager (docsite +
+    ops-record default, jira optional; the ADR 0002 section 5 shape with the packs that exist
+    today), okg''s planner scaffolds the rendered profile and okg catalog load composes it:
+    five more subtypes than the same selection without ops-record, and all 7 narrowings. Full
+    suite 2056 passed, 1 skipped.'
+- kind: executed_test
+  requirement: req.r3-ops-record.write
+  status: pass
+  command: ARCHI_SCRATCH_DSN=postgresql://...@127.0.0.1:<port>/r3ops python/tests/packs/scratch_ops_record_run.sh
+    <empty dir>
+  head: 8aea6e855d350b04993d942bc07b1e19051984e2
+  at: '2026-10-25T15:12:13+00:00'
+  note: 'acc.r3-ops-record.admit: scratch instance on AKMON v0.2.0, a fresh database in its
+    own akmon-postgres:v0.2.0 container, run from this commit''s tree. archi render --bundle
+    cern-team --with ops-record,jira, then okg install, published generation ...gen:20261025T150957530683Z
+    with catalog version 2 holding the 5 ops_* subtypes and 7 ops-record narrowings (catalog
+    load --apply). A workflow run (fixtures/ops_record/run1.jsonl: an incident with its proposal,
+    approved decision carrying an escalation id, action and outcome, plus an unrelated incident)
+    went through python -m archi.ops.record submit, i.e. okg admission submit as producer workflow:archi-ops
+    (kind workflow, fast_track, output signature of exactly 5 subtypes and 6 edge triples):
+    accepted with 6 nodes and 6 edges, every edge matched to a catalog narrowing. okg run --once
+    published it in the next generation, ...gen:20261025T151033664250Z (admission status published,
+    target_generation_ref set); okg search ''SRM timeout T2_US_MIT'' returns the incident and
+    its outcome, and expand shows the proposal (addresses) and outcome (outcome_of). A second
+    run opened an incident tracked in OPS-12; the jira connector''s cache then reported OPS-12
+    Resolved/Fixed, okg ingest + run published it, and python -m archi.ops.record link-tickets
+    admitted the incident''s outcome (check_method ticket_resolution, ticket_key OPS-12, actor_kind
+    person, actor the assignee) with an outcome_of edge, and the incident again as resolved;
+    a second link-tickets found nothing to link. No direct SQL: every write is an admission
+    envelope. Unit tests python/tests/packs/test_ops_record_write.py 12 passed. Full suite
+    on this tree 2068 passed, 1 skipped (one timing test, test_redact_email_addresses_git_scan_is_linear,
+    failed under load and passed alone). okg gaps found are drafted in pact/changes/r3-ops-record/okg-asks.md.'
+- kind: executed_test
+  requirement: req.r3-ops-record.recall
+  status: pass
+  command: python -m pytest python/tests/packs/test_ops_record_recall.py python/tests/test_skills.py
+    python/tests/packs/test_ops_record.py -q
+  head: 61faadbaf817ab3a49d41b94093ea063349d6274
+  at: '2026-10-25T15:17:51+00:00'
+  note: 'acc.r3-ops-record.precedent: the fixture incident inc-20261003-t2usmit-srm (SRM_TIMEOUT
+    at T2_US_MIT) retrieves exactly one precedent, inc-20260914-t2usmit-srm, flagged same_error_signature,
+    with its proposal (restart_storage_door), the approved decision and its escalation id, the
+    succeeded action and the resolved outcome; the unrelated T1_DE_KIT incident is not returned;
+    a same-signature precedent outranks a newer one that differs; an entity with no history
+    returns none. test_skills.py checks the pack''s ops_precedents playbook and trigger (filter
+    incidents by entity, the precedents profile, expand direction in, only an outcome says a
+    fix worked, cite the precedent in the proposal''s evidence) and that the precedents search
+    profile covers the five ops subtypes; test_ops_record.py checks the rendered profile carries
+    the profile, playbook and trigger. 21 passed. Live counterpart: scratch_ops_record_run.sh
+    run from this commit''s tree on a fresh database passed all 16 checks, including python
+    -m archi.ops.precedents --incident inc-20261003-t2usmit-srm returning the precedent with
+    proposal, approved decision, succeeded action and resolved outcome from the published graph,
+    and okg search --scope precedents ranking ops records only. Full suite on this tree 2079
+    passed, 1 skipped; after rebasing onto archi_v3 with r3-golden-path merged, 2132 passed,
+    1 skipped.'
+- kind: executed_test
+  requirement: req.r3-ops-record.recall
+  status: pass
+  command: python -m pytest python/tests/packs/test_ops_record_recall.py python/tests/test_skills.py
+    python/tests/packs/test_ops_record.py -q; python -m pytest python/tests -q (a dev host, okg 0.2.0)
+  head: 94597b2ebb3975b7fc76adbab843520b9e4094fc
+  at: '2026-10-25T15:37:29+00:00'
+  note: 'acc.r3-ops-record.precedent, after the independent review of #790: a precedent''s
+    outcomes are now listed oldest first by checked_at, so a later ticket resolution (result
+    unknown) follows the outcome check it comes after, and the playbook says the last one is
+    the latest. test_outcomes_are_listed_oldest_first covers two outcomes inserted out of order.
+    22 passed; full suite 2133 passed, 1 skipped. Review notes left as they are: entity matching
+    is exact and case-sensitive (the playbook says to use the name as operators write it), the
+    limit of 5 ranks by signature then recency, and each precedent costs a few okg filter calls.'
+decisions: []

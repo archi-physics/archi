@@ -1,0 +1,130 @@
+pact_version: 5
+id: twiki-eos-only
+title: The cern-team bundle reads TWiki from an EOS dump only
+tier: 2
+why: >-
+  The bundle shipped two TWiki readers: the EOS-dump reader and a live
+  crawl. The crawl needs a CERN login even for public pages, because
+  the topic source (`?raw=all`) redirects to the login. A short-lived
+  branch tried an anonymous HTML fallback to get around that; it needed
+  a second parser, and the two parsers would drift.
+
+  Decision (Jason, maintainer, 2026-10-20): keep one
+  TWiki parser and no anonymous HTML fallback. His words: "there is a
+  twiki EOS dump we can use. we should only pull from this EOS dump".
+  The anonymous branch is abandoned and none of its code is reused.
+
+  So the cern-team bundle now has one TWiki path. The `twiki_crawl`
+  source default and the questions that only it used (`twiki_base_url`,
+  `twiki_seed_topic`, `twiki_max_depth`) are removed. One question,
+  `twiki_eos_root`, names the dump directory and feeds the
+  `twiki_eos` source's `eos_root`. `TwikiCrawlSource` stays in
+  `python/archi/sources/twiki.py`: other repositories may use it, and
+  connectors are kept line-comparable with the frozen canonical copies,
+  so this change removes the bundle's use of it and not the class.
+affected_code:
+- bundles/cern-team/profile.yaml
+- bundles/cern-team/README.md
+- bundles/cern-team/source-defaults/twiki_eos.yaml.example
+- bundles/cern-team/source-defaults/twiki_crawl.yaml.example
+- docs/cern-team-quickstart.md
+- python/tests/test_bundle_source_adapters.py
+requirements:
+- id: req.twiki-eos-only.single-path
+  statement: >-
+    Every TWiki source the cern-team bundle ships is `twiki_eos`. The
+    bundle has no `twiki_crawl` default and its profile has no
+    `twiki_base_url`, `twiki_seed_topic` or `twiki_max_depth`
+    question.
+- id: req.twiki-eos-only.root-answer
+  statement: >-
+    The `twiki_eos_root` install answer reaches the source byte for
+    byte as `eos_root`, including a path with spaces, and the reader
+    built from the resolved parameters emits the topics of the dump.
+- id: req.twiki-eos-only.no-silent-shrink
+  statement: >-
+    A missing dump directory yields no facts and no completed-scope
+    claim, so it cannot retract pages already ingested.
+- id: req.twiki-eos-only.docs
+  statement: >-
+    Quickstart step 8 tells the reader to point `eos_root` at their
+    dump, gives a count check and a search check, and no longer mentions
+    a cookie, a login or a live crawl for TWiki, and it gives both the
+    first-install route and the route for a deployment that already
+    exists.
+tasks:
+- id: task.twiki-eos-only.bundle
+  requirement: req.twiki-eos-only.single-path
+  verification: >-
+    test_twiki_in_the_bundle_is_the_eos_dump_reader_and_nothing_else
+    passes, and the existing placeholder test confirms every `${...}`
+    in source-defaults has an install question.
+- id: task.twiki-eos-only.answer
+  requirement: req.twiki-eos-only.root-answer
+  verification: >-
+    The parametrised test builds an install plan with okg's own
+    build_plan, renames the example, answers twiki_eos_root, and runs
+    the adapter over a synthetic two-topic dump; it expects exactly
+    twiki:CMS:DemoHome and twiki:CMS:DemoTransfers.
+- id: task.twiki-eos-only.missing
+  requirement: req.twiki-eos-only.no-silent-shrink
+  verification: >-
+    test_the_twiki_eos_reader_refuses_a_missing_dump_instead_of_shrinking
+    passes.
+- id: task.twiki-eos-only.docs
+  requirement: req.twiki-eos-only.docs
+  verification: >-
+    `grep -n -i -E "CERN_TWIKI_COOKIE|twiki_crawl|raw=all|TwikiCrawl|SSO"`
+    on docs/cern-team-quickstart.md finds nothing, and step 8 gives the
+    first-install route, the reinstall route, then ingest and run --once.
+evidence:
+- kind: executed_test
+  requirement: req.twiki-eos-only.single-path
+  status: pass
+  command: PYTHONPATH=python python -m pytest -q python/tests/test_bundle_source_adapters.py python/tests/test_bundle_cern_team.py
+  head: 81fc7bf6253d8ad70b6693fd92d86ab0b712b2de
+  at: '2026-10-20T21:23:31+00:00'
+  note: >-
+    Bundle tests, run with the twiki, twiki-physics and twiki-page-index
+    suites: 210 passed.
+- kind: executed_test
+  requirement: req.twiki-eos-only.root-answer
+  status: pass
+  command: PYTHONPATH=python python -m pytest -q python/tests/test_bundle_source_adapters.py -k twiki
+  head: 81fc7bf6253d8ad70b6693fd92d86ab0b712b2de
+  at: '2026-10-20T21:23:31+00:00'
+  note: >-
+    7 passed (4 are the new tests plus the existing placeholder and
+    TWiki entry checks). Fixtures are invented text; no real wiki
+    content is used.
+- kind: executed_test
+  requirement: req.twiki-eos-only.no-silent-shrink
+  status: pass
+  command: PYTHONPATH=python python -m pytest -q python/tests/test_bundle_source_adapters.py -k missing_dump
+  head: 81fc7bf6253d8ad70b6693fd92d86ab0b712b2de
+  at: '2026-10-20T21:23:31+00:00'
+  note: A missing dump yields no facts and completed_scope false.
+- kind: executed_test
+  requirement: req.twiki-eos-only.docs
+  status: pass
+  command: PYTHONPATH=python python -m pytest -q python/tests
+  head: 81fc7bf6253d8ad70b6693fd92d86ab0b712b2de
+  at: '2026-10-20T21:23:31+00:00'
+  note: >-
+    Full suite: 1789 passed, 1 failed, 7 deselected. The failure is
+    test_redact_email_addresses_quoted_local_part_is_linear, a timing
+    test that also fails on unmodified main. The deselected tests need
+    hatchling, which that environment lacks (wheel build and artifact
+    payload).
+- kind: manual
+  requirement: req.twiki-eos-only.docs
+  status: pass
+  command: grep -n -i -E 'CERN_TWIKI_COOKIE|twiki_crawl|raw=all|TwikiCrawl|SSO' docs/cern-team-quickstart.md
+  head: 81fc7bf6253d8ad70b6693fd92d86ab0b712b2de
+  at: '2026-10-20T21:30:59+00:00'
+  note: >-
+    No output, exit status 1: none of the cookie, crawl or login terms
+    remain in the quickstart. The word cookie still appears once, in step
+    8's sentence saying no cookie is involved, which is why the check
+    names the specific terms.
+decisions: []

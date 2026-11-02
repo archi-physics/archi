@@ -1,0 +1,11 @@
+init_questions:
+  - id: pool_name
+    prompt: Pool name
+    type: string
+    required: false
+    default: pool
+    description: |
+      Names the pool in every record id when the snapshot does not
+      (`--pool` of the exporter normally sets it).
+      Fill the cache with `python -m archi.downloaders.htcondor --pool <name>`
+      on a host with the HTCondor client commands before the first ingest.

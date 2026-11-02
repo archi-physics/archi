@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "archi"
+version = "3.0.0a0"
+description = "Archi — the HEP distribution of OKG (W1 seam-proof package)"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["archi"]

@@ -1,0 +1,52 @@
+# Coverage for the subtypes this pack emits. It leaves with the pack.
+invariants:
+  - name: cms_analyses_coverage
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The physics vocabulary and entity sources must have live hubs and
+      entities. Required live subtypes: physics_analysis_group,
+      physics_object_group, physics_technique, physics_concept,
+      physics_topic. Both sources declare their nodes in code, so a missing
+      one means the source did not run or was dropped from the install.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES ('physics_analysis_group'), ('physics_object_group'), ('physics_technique'), ('physics_concept'), ('physics_topic')
+      ),
+      counts AS (
+        SELECT subtype, count(*) AS n
+          FROM okg.v_nodes
+         GROUP BY subtype
+      )
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r
+        LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0
+
+  # The cross-link rules run in an enricher the instance must wire by hand
+  # (README.md); without it the publish succeeds and no derived edge exists.
+  # The PAG/POG join alone produces six edges whenever the linker runs, so
+  # none of these edge kinds being present means it did not.
+  - name: cms_analyses_enricher_edges
+    severity: warn
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      None of the cross-link rules' derived edges exists: no CDS record to
+      analysis note, and no PAG to POG. The PhysicsCrossLinker enricher is
+      probably not wired in the deployment's enrichers block (the cms-analyses
+      README has the block to paste).
+    sql: |
+      SELECT 'enricher_edges' AS subtype, 0 AS live_count
+       WHERE NOT EXISTS (
+         SELECT 1
+           FROM okg.v_edges e
+           JOIN okg.v_nodes s ON s.node_id = e.src
+           JOIN okg.v_nodes d ON d.node_id = e.dst
+          WHERE e.edge_type = 'references'
+            AND ((s.subtype = 'cds_record' AND d.subtype = 'analysis_note')
+              OR (s.subtype = 'analysis_note' AND d.subtype = 'cds_record')
+              OR (s.subtype = 'physics_analysis_group' AND d.subtype = 'physics_object_group')
+              OR (s.subtype = 'physics_object_group' AND d.subtype = 'physics_analysis_group'))
+       )

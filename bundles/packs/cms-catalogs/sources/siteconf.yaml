@@ -1,0 +1,46 @@
+# SITECONF: per-site configuration (storage protocols and endpoints) read
+# live from the CERN GitLab SITECONF group, linked to the CRIC sites in this
+# same pack. Needs a GitLab token in CERN_GITLAB_TOKEN; the value is read by
+# environment-variable reference only.
+siteconf:
+  module: archi.sources.siteconf
+  class: SITECONFAdapter
+  ownership_id: ${deployment_name}.siteconf
+  admission_policy:
+    producer_id: ${deployment_name}.siteconf
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: siteconf
+    output_signature:
+      nodes:
+        - {subtype: site_config}
+      edges:
+        - {src_subtype: site, edge_type: contains, dst_subtype: site_config}
+    output_scope_summary:
+      summary: per-site SITECONF configuration records from CERN GitLab
+      nodes: [site_config]
+      edges:
+        - site contains site_config
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [site_name]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [CERN_GITLAB_TOKEN]
+  credential_aliases:
+    CERN_GITLAB_TOKEN: [GITLAB_CERN_TOKEN]
+  required_for_baseline: true
+  params:
+    # cms defaults
+    base_url: '${gitlab_url}'
+    group_id: 4099
+    token_env: CERN_GITLAB_TOKEN
+    sites_path: ${archi_data_root}/cric/sites.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

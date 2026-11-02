@@ -1,0 +1,68 @@
+# Smoke questions for the cms-physics bundle (PACT r3-bundle-evals).
+#
+# Every question is answerable from the synthetic fixture corpus, never from
+# real CMS data: python/tests/packs/physics_fixtures.py holds two invented
+# analysis notes (AN-2099-001, HIG-99-001), three invented TWiki topics and two
+# invented CDS records (CMS-PAS-HIG-99-001, CMS-PAS-TOP-99-777), and
+# python/tests/fixtures/cmssw the CMSSW 15_0 release map.
+# python/tests/evaluation/bundle_lab.py installs that corpus into a scratch
+# database and writes a script that serves its MCP endpoint; then
+# `archi eval --bundle cms-physics --mcp-url <that endpoint> --model <m>` runs
+# this file. On a real instance the set passes only to the extent that instance
+# holds that corpus: it checks that the bundle installs and answers, not
+# physics content.
+#
+# A question passes when the answer names a node a tool returned from the right
+# source and holds the required strings. No LLM judge.
+#
+# This is the stop-gap harness. The eval framework tracked in #619 replaces it.
+#
+# pass_threshold starts at 7 of 10. It is a starting value, to be raised once
+# there are results from more than one model; it was not tuned to a model.
+bundle: cms-physics
+pass_threshold: 7
+corpus: >-
+  analysis-notes: AN-2099-001 and HIG-99-001 (invented); twiki-eos: HIG99001Review,
+  MuonPOGRecipes, TopicTwo (invented); cds: records 9990001 and 9990002 (invented);
+  cmssw-releases: the 15_0 releases.map fixture.
+questions:
+  - id: note-an-2099-001-title
+    question: What is the title of analysis note AN-2099-001?
+    must_cite: {sources: [analysis-notes]}
+    must_contain: [fictional resonance]
+  - id: note-hig-99-001-topic
+    question: What is analysis note HIG-99-001 a measurement of?
+    must_cite: {sources: [analysis-notes]}
+    must_contain: [Higgs]
+  - id: note-efficiency-method
+    question: Which method does the selection of analysis note AN-2099-001 use to measure efficiencies?
+    must_cite: {sources: [analysis-notes]}
+    must_contain: [tag-and-probe]
+  - id: note-figure
+    question: What does the figure in analysis note AN-2099-001 show?
+    must_cite: {sources: [analysis-notes]}
+    must_contain: [dijet mass]
+  - id: note-control-region
+    question: Which control region does analysis note HIG-99-001 use?
+    must_cite: {sources: [analysis-notes]}
+    must_contain: [W boson]
+  - id: twiki-muon-pog
+    question: What does the Muon POG recipes TWiki page cover?
+    must_cite: {sources: [twiki-eos]}
+    must_contain: [isolation]
+  - id: twiki-review
+    question: What does the review page for analysis HIG-99-001 on the TWiki cover?
+    must_cite: {sources: [twiki-eos]}
+    must_contain: [b tagging]
+  - id: cds-higgs-summary
+    question: What is the title of the CDS record for CMS-PAS-HIG-99-001?
+    must_cite: {sources: [cds]}
+    must_contain: [Synthetic Higgs summary]
+  - id: cds-top-summary
+    question: Which CDS record carries the report number CMS-PAS-TOP-99-777, and what is its title?
+    must_cite: {sources: [cds]}
+    must_contain: [Synthetic top summary]
+  - id: cmssw-production
+    question: Is CMSSW_15_0_0 a development or a production release?
+    must_cite: {sources: [cmssw-releases]}
+    must_contain: [production]

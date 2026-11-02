@@ -1,0 +1,6 @@
+pages:
+  module: archi.sources.docs
+  class: DocumentationAdapter
+  params:
+    records_path: ${archi_data_root}/alpha/records.json
+    base_url: ${site_url}

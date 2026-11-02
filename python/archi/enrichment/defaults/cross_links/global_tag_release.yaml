@@ -1,0 +1,17 @@
+# Declarative cross-link rule: global tag -> CMSSW release.
+#
+# Provenance: okg-deployments main@f33a9c4,
+# cms/cross_links/global_tag_release.yaml (verbatim; this header added).
+# Consumed by archi.enrichment.declarative.GlobalTagReleaseLinker via
+# the substrate DeclarativeLinker (rules_files).
+rules:
+  - id: cms_global_tag_release_depends_on_cmssw_release
+    src:
+      subtype: global_tag
+      field: release
+    dst:
+      subtype: cmssw_release
+      field: release
+    matcher: exact
+    edge: depends_on
+    bidirectional: false

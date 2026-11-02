@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "archi-demo": {
+      "type": "http",
+      "url": "http://127.0.0.1:18080/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OKG_CHAT_MCP_TOKEN}"
+      }
+    },
+    "notes": {
+      "type": "http",
+      "url": "http://127.0.0.1:18090/mcp",
+      "headers": {
+        "X-Api-Key": "${NOTES_API_KEY}"
+      }
+    }
+  }
+}
+
+# or, with the claude CLI:
+# claude mcp add --transport http archi-demo http://127.0.0.1:18080/mcp --header "Authorization: Bearer ${OKG_CHAT_MCP_TOKEN}"
+# claude mcp add --transport http notes http://127.0.0.1:18090/mcp --header "X-Api-Key: ${NOTES_API_KEY}"

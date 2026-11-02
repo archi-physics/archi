@@ -1,0 +1,51 @@
+# MONIT (monit_sam): a daily monitoring snapshot from CERN MONIT (Grafana /
+# OpenSearch). With a cache at the records_path below the source reads it;
+# without one it queries MONIT live with the token in MONIT_GRAFANA_TOKEN
+# (read by environment-variable reference only). Its edges start at the
+# site and storage_endpoint nodes of the cms-catalogs pack, which this pack
+# requires.
+monit_sam:
+  module: archi.sources.monit
+  class: MONITSAMAdapter
+  ownership_id: ${deployment_name}.monit-sam
+  admission_policy:
+    producer_id: ${deployment_name}.monit-sam
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: monit-live
+      source_name: monit_sam
+    output_signature:
+      nodes:
+        - {subtype: monitoring_snapshot}
+      edges:
+        - {src_subtype: site, edge_type: hosts, dst_subtype: monitoring_snapshot}
+    output_scope_summary:
+      summary: daily SAM/SiteMon site-availability snapshots from MONIT
+      nodes: [monitoring_snapshot]
+      edges:
+        - site hosts monitoring_snapshot
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [snapshot_id]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [MONIT_GRAFANA_TOKEN]
+  required_for_baseline: false
+  params:
+    records_path: ${archi_data_root}/monit-sam/records.json
+    token_env: MONIT_GRAFANA_TOKEN
+    from_time: now-24h
+    to_time: now
+    max_sites: 500
+    # CMS defaults, shown for overriding on another instance:
+    # grafana_base_url: https://monit-grafana.cern.ch
+    # datasource_id: 9841
+    # index: monit_prod_sitemon_agg_site-*
+    # query_filter: "data.vo:cms AND data.profile:CMS_CRITICAL"
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

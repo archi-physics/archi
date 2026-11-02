@@ -1,0 +1,67 @@
+pact_version: 5
+id: cmssw-production-architecture
+title: CMSSW release records carry their production architecture
+tier: 2
+why: 'The cms-bot releases.map marks one architecture per release as the production
+  architecture (`prodarch=1`). The release source read the architecture list but dropped
+  that marker, so the question "what is the production architecture of CMSSW_14_0_0?"
+  had no answer in the graph. A chat test gave a wrong answer built from `release_type:
+  Production`, which says nothing about architectures.
+
+
+  Measured 2026-10-21 on the live map: every row carries `prodarch=0` or `prodarch=1`.
+  CMSSW_14_0_0 has six architectures and `prodarch=1` on `el8_amd64_gcc12` only. Some old
+  releases (CMSSW_1_3_0) are marked on more than one architecture, so the field is a
+  comma-separated list, like `architecture`.'
+affected_code:
+- python/archi/sources/cmssw.py
+- python/tests/sources/test_cmssw.py
+- python/tests/fixtures/cmssw/releases_prodarch_excerpt.map
+- python/archi/schemas/operations.yaml
+- bundles/cern-team/schemas/operations.yaml
+requirements:
+- id: req.cmssw-production-architecture.field
+  statement: 'A `cmssw_release` record carries `production_architecture`: the architectures
+    the map marks `prodarch=1`, sorted and comma-separated. The record text gains
+    "production architecture: <value>" so search and the model can see it. When nothing is
+    marked (key absent, or only `prodarch=0`), the attribute and the text phrase are absent.
+    Release-family records never carry it. Node ids and supersedes edges do not change.
+    The frozen-map mode parses the marker the same way.
+
+
+    The schema declares the attribute in both copies of operations.yaml and lists it in the
+    searchable text fields.
+
+
+    Acceptance:
+
+    - acc.cmssw-production-architecture.field: Against a saved excerpt of the public map,
+    CMSSW_14_0_0 lists six architectures and production architecture el8_amd64_gcc12; an
+    old release marked on two architectures keeps both; absent and zero markers give no
+    field; the frozen mode agrees; ids and edges are the same with and without markers.
+    [evidence: executed_test]'
+tasks:
+- id: task.cmssw-production-architecture.parse
+  requirement: req.cmssw-production-architecture.field
+  verification: 'Parse `prodarch`, emit the attribute and text, declare it in both schema
+    copies, add fixture tests.
+
+
+    Proof: cmssw tests and the full suite pass; a run against the live map reports the
+    expected value for CMSSW_14_0_0, cross-checked against the raw map line.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.cmssw-production-architecture.field
+  status: pass
+  command: 'PYTHONPATH=python pytest python/tests/sources/test_cmssw.py python/tests/snapshot -> 445 passed (test_cmssw.py 52 cases, 9 new; one new snapshot test builds the cmssw-releases group with the new key)'
+  artifact: pact/changes/cmssw-production-architecture/evidence/cmssw_snapshot.junit.xml
+  sha256: 33cb6a87af4966a8e2cf6d23aa119d87790088ee949af4ad41b21469c3c55957
+  head: 8ea83323572d93e7a2ca243e0ae720fc6856f699
+  at: '2026-10-21T02:25:17+00:00'
+  note: 'Live run against the public map: 2391 releases, completed scope; CMSSW_14_0_0 lists six architectures and production architecture el8_amd64_gcc12, matching the raw prodarch=1 line. Full python/tests at the earlier head: 1836 passed; the wheel-build tests need hatchling, absent from the test environment.'
+decisions: []

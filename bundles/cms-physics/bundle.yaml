@@ -1,0 +1,25 @@
+name: cms-physics
+version: 0.2.0
+description: A CMS physics knowledge instance - physics TWiki pages, CDS records, CMSSW releases, analysis notes, and the analysis ids, groups and techniques that link them.
+# ADR 0002 section 5. Extends cern-team for its documentation, meetings and
+# generic playbooks; the physics sources are added on top.
+extends: [cern-team]
+# Install answers this bundle fixes. The note floor was calibrated on a real
+# mirror build; the physics filter keeps the TWiki read to physics topics.
+# Override either with the flag on `okg install`.
+answers:
+  analysis_notes_min_notes: 2500
+  twiki_physics_filter: "true"
+packs:
+  default: [twiki, cds, cmssw-releases, analysis-notes, cms-analyses]
+chat:
+  site_name: CMS physics knowledge chat
+  description: >-
+    Answers from this instance's knowledge graph of CMS physics - analysis
+    notes, published summaries, physics TWiki pages and the analyses that
+    link them - with the sources it used.
+  suggestions:
+    - Which analysis note backs a given CMS physics analysis summary?
+    - Which analyses use b tagging, and what do the TWiki recipes say about it?
+    - What does the Muon POG documentation cover?
+okg: ">=0.4.0,<0.5"

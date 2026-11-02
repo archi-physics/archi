@@ -1,0 +1,35 @@
+# Projection extraction-block regex rules (HEP/CMS identifier set).
+#
+# Provenance: okg-deployments main@f33a9c4, cms/deployment.yaml
+# extractor block (extractor.config.rules), lifted verbatim into
+# packaged data. Each rule is [id_type, regex, confidence] and the
+# block below can be pasted into a deployment manifest as
+# extractor.config.rules for
+# okg.substrate.projection.extractor.RegexEntityExtractor.
+rules:
+  - - cms_site
+    - '\b(T[0-3]_[A-Z]{2}(?:_[A-Za-z0-9]+)+)\b'
+    - 0.95
+  # PRCAMPAIGNS is the one CMS computing JIRA project whose key does not
+  # start with CMS; it is named outright so the rule stays narrow.
+  - - cms_jira_key
+    - '\b((?:CMS[A-Z0-9]*|PRCAMPAIGNS)-[0-9]+)\b'
+    - 0.95
+  - - cmssw_release
+    - '\b(CMSSW_[0-9]+_[0-9]+_[0-9]+(?:_[A-Za-z0-9]+)*)\b'
+    - 0.95
+  - - cms_hostname
+    - '\b([A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}(?::[0-9]+)?)\b'
+    - 0.85
+  - - global_tag
+    - '\b((?:auto:)?[0-9A-Za-z]+(?:_[0-9A-Za-z]+){2,}(?:::[0-9A-Za-z_]+)?)\b'
+    - 0.9
+  - - cms_dataset
+    - '(\B/[A-Za-z0-9][A-Za-z0-9._-]+/[A-Za-z0-9][A-Za-z0-9._-]+/[A-Z0-9-]+\b)'
+    - 0.95
+  - - cms_run_number
+    - '\b(?:run|Run|RUN)\s*#?\s*([1-9][0-9]{5,6})\b'
+    - 0.85
+  - - cms_workflow
+    - '\b([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+){3,})\b'
+    - 0.75

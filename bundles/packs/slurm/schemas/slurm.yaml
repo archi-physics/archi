@@ -1,0 +1,209 @@
+# Slurm partitions, nodes, reservations and job summaries.
+#
+# Owned by the slurm pack. Classes live in this file; their edge narrowings
+# are in bridges/slurm.yaml (okg's composer honours narrowings only under
+# schemas/bridges/). Person and DocumentChunk come from okg's person and
+# extraction modules.
+id: https://archi-physics.org/okg/archi/slurm
+name: archi_slurm
+title: Archi - Slurm subtypes
+description: Node subtypes emitted by archi.sources.slurm.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  SlurmPartition:
+    description: >-
+      A Slurm partition in a cluster snapshot.
+    class_uri: archi:SlurmPartition
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      partition_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      is_default:
+        range: boolean
+      max_time:
+      total_nodes:
+        range: integer
+      total_cpus:
+        range: integer
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: partition_name
+      okg_searchable_text_fields: partition_name,cluster,state,text
+      okg_title_from: partition_name
+      okg_last_modified_at_from: observed_at
+
+  SlurmNode:
+    description: >-
+      A Slurm compute node in a cluster snapshot, with its state and drain reason.
+    class_uri: archi:SlurmNode
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      node_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      state_base:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      reason:
+      partitions:
+        multivalued: true
+      cpus:
+        range: integer
+      memory_mb:
+        range: integer
+      gres:
+      features:
+        multivalued: true
+      cpu_load:
+        range: float
+      free_mem_mb:
+        range: integer
+      boot_time:
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: node_name
+      okg_identifier_fields: node_name
+      okg_searchable_text_fields: node_name,cluster,state,reason,gres,text
+      okg_title_from: node_name
+      okg_last_modified_at_from: observed_at
+
+  SlurmReservation:
+    description: >-
+      A Slurm reservation in a cluster snapshot.
+    class_uri: archi:SlurmReservation
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      reservation_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      start:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      end:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      users:
+      accounts:
+      flags:
+      nodes:
+        multivalued: true
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: reservation_name
+      okg_searchable_text_fields: reservation_name,cluster,flags,text
+      okg_title_from: reservation_name
+      okg_last_modified_at_from: observed_at
+
+  SlurmJob:
+    description: >-
+      A Slurm job summary (one sacct allocation row) in a cluster snapshot.
+    class_uri: archi:SlurmJob
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      job_id:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      job_name:
+      user:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      account:
+      partition:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      submit_time:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      start_time:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      end_time:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      elapsed:
+      nodelist:
+        multivalued: true
+      req_cpus:
+        range: integer
+      req_mem:
+      exit_code:
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: process
+      transient: "true"
+      okg_alias_fields: job_id
+      okg_searchable_text_fields: job_id,job_name,cluster,partition,state,text
+      okg_title_from: job_name
+      okg_last_modified_at_from: observed_at

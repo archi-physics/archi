@@ -1,0 +1,126 @@
+pact_version: 5
+id: ws-cds-jira-quickstart
+title: CDS bounded runs are healthy, JIRA reads public projects without a token, quickstart points at this repo
+tier: 2
+why: 'A public-data run of the cern-team bundle (2026-10-20) found three faults that stop a newcomer.
+
+
+  CDS: a harvest stopped by the operator''s own max_records bound was reported as health
+  endpoint_failed (cds.py run). okg admission refuses a source that is not healthy, which
+  blocks the publish of every source, although cds.yaml.example advertises max_records as a
+  safe trial bound. Now a run that stops at the bound reports health ok, completed_scope
+  False and a reason that says it was bounded. A harvest that breaks mid-walk (network or
+  resumption failure) is still endpoint_failed.
+
+
+  JIRA: the downloader refused to start without a token, although public projects (for example
+  ADAPTYST) read anonymously, and the jira package was not declared anywhere. The token is
+  now optional (anonymous when unset), the package is documented as pip install jira (PyPI "archi" is an unrelated package), with an optional extra declared, and a
+  project that is not visible says so instead of JIRA''s "The value X does not exist for the
+  field project".
+
+
+  Quickstart: step 1 installed an old archi (archi-physics/archi@archi_v3, no cds or
+  indico_live) instead of this repository; the inspect/filter/MCP role-password step was
+  missing; code_graph (code symbols) was opt-in with no instructions and no source entry, so okg add code-structure reported activation_blocked and wrote nothing; and the intro said TWiki
+  was the only unverified part, when TWiki needs a CERN login today.
+
+
+  NOT CHANGED: TWiki anonymous access (another worker), per-contribution Indico records, PDF
+  text, the quickstart beyond these points. The code_structure example passes the v0.2.0 activation check (probe) but a full publish with it was not run here.'
+affected_code:
+- python/archi/sources/cds.py
+- python/archi/downloaders/jira.py
+- python/pyproject.toml
+- bundles/cern-team/source-defaults/cds.yaml.example
+- bundles/cern-team/source-defaults/code_structure.yaml.example
+- bundles/cern-team/source-defaults/code_structure_gitlab.yaml.example
+- docs/cern-team-quickstart.md
+- docs/docs/reference/connector-caches.md
+- python/tests/sources/test_cds.py
+- python/tests/downloaders/test_downloader_jira.py
+requirements:
+- id: req.ws-cds-jira-quickstart.main
+  statement: "A CDS run bounded by max_records is healthy; the JIRA downloader needs no token for a public project; the quickstart installs this repository.\n\nAcceptance:\n- acc.ws-cds-jira-quickstart.cds: a CDS run that stops at max_records returns health ok with completed_scope False and a reason naming the bound; a broken resumption chain is still endpoint_failed. [evidence: pytest]\n- acc.ws-cds-jira-quickstart.jira: with no token set the downloader runs anonymously and writes a cache for a public project; a project that is not visible stops with a message saying it needs a token; a missing jira package says pip install jira; a 401 with a token says the token was rejected or lacks access; error text never echoes the raw JIRAError string. [evidence: pytest]\n- acc.ws-cds-jira-quickstart.live: the cds source with max_records=50 against the public OAI endpoint reports health ok, and the downloader with no token on ADAPTYST writes records. [evidence: manual]\n- acc.ws-cds-jira-quickstart.docs: docs/cern-team-quickstart.md installs archi from this repository, includes okg db role-passwords --apply, gives working code_graph steps backed by a shipped code_structure.yaml.example whose activation probe returns 0 findings (the empty entry okg add builds returns 2), and says TWiki needs a CERN login. [evidence: manual]\n\nScenarios:\n- scn.ws-cds-jira-quickstart.fast-path Fast-path work is verified\n  Given a small nontrivial change fits one requirement\n  When the declared verification runs\n  Then the requirement has executed proof before completion"
+tasks:
+- id: task.ws-cds-jira-quickstart
+  requirement: req.ws-cds-jira-quickstart.main
+  verification: 'pytest python/tests/sources/test_cds.py python/tests/downloaders/test_downloader_jira.py -q, plus the live runs against the public CDS OAI endpoint and its.cern.ch ADAPTYST.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests/sources/test_cds.py tests/downloaders tests/test_bundle_cern_team.py tests/test_bundle_source_adapters.py --junitxml=pact/changes/ws-cds-jira-quickstart/evidence/targeted.xml
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/targeted.xml
+  sha256: ccffa34cf8a90ebc5acb83594fdfee8a604cc82bcca4fc0e18b9e014877c8a47
+  head: bb355e3f87e43f1830730fc89c264f9e0d32c06b
+  at: '2026-10-20T16:51:55+00:00'
+  note: '127 passed. New: two-set CDS case (first set fails, second hits the bound -> endpoint_failed), JIRA 401 wording with a token, and no echo of the raw error string.'
+- kind: executed_test
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests --ignore=tests/test_artifact_payload.py --junitxml=pact/changes/ws-cds-jira-quickstart/evidence/full.xml
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/full.xml
+  sha256: 99295dfdfb3debdca14f061c83440163efc677261a18209a997b06ce1e50b546
+  head: bb355e3f87e43f1830730fc89c264f9e0d32c06b
+  at: '2026-10-20T16:51:55+00:00'
+  note: '1795 passed, 2 failed. The failures are outside this change: test_redact_email_addresses_quoted_local_part_is_linear (a timing test) and test_wheel_builds (hatchling is not installed in the test environment). test_artifact_payload.py was skipped for the same reason.'
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: probe source_activation_probe_findings("code_structure", <bundles/cern-team/source-defaults/code_structure.yaml.example with data/click substituted>) against a copy of the myteam source_registry.yaml (AKMON v0.2.0)
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/activation-probe.out
+  sha256: 4ab858778f203b7b8d1dc6ba4cd7819dc5458ffd12872c6bf62a5da651d104ba
+  head: 254940e16b24524ecc14e57e1e343072a957efff
+  at: '2026-10-20T16:17:57+00:00'
+  note: 'repo_root resolves to data/repos/click. 0 findings with the shipped example; the empty entry okg add builds without it returns 2 (class_missing, module_missing). No ingest was run.'
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: CDSSource(sets=[cerncds:cms-pas, cerncds:cms-notes], max_records=50).run against the public CDS OAI endpoint
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/live-cds.out
+  sha256: 5d3943986e02a7f62b1e005629a3d0d27d0c1fa2881a3eed3117597797a6e824
+  head: 254940e16b24524ecc14e57e1e343072a957efff
+  at: '2026-10-20T16:17:57+00:00'
+  note: 'health ok, completed_scope False, 50 records, 50 facts, reason names the bound.'
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: python -m archi.downloaders.jira --project ADAPTYST (no token), then with the default project list and --max-issues 1
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/live-jira.out
+  sha256: ec8aa152ed2a4d041a0c45efdf06162f38bcf13f88b281a991d4bd7bce9e0587
+  head: 254940e16b24524ecc14e57e1e343072a957efff
+  at: '2026-10-20T16:17:57+00:00'
+  note: 'ADAPTYST with no token wrote 43 issues. The default CMS project stopped with the plain "not visible without a token" message.'
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: git diff --stat origin/main...HEAD -- docs/cern-team-quickstart.md
+  head: bb355e3f87e43f1830730fc89c264f9e0d32c06b
+  at: '2026-10-20T16:51:55+00:00'
+  note: 'Read-through of the quickstart: step 1 installs archi-okg at a pinned commit; role-passwords step present; code symbols section uses the shipped code_structure.yaml.example (no okg add); the okg add paragraph under Adding other sources now says it writes nothing when the entry is unknown; intro says TWiki needs a CERN login.'
+
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: okg catalog load --deployment <copy of the myteam deployment> (dry run, no --apply), module list reduced one module at a time
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/module-bisect.out
+  sha256: 0689a090b8150931dfe5551e6a9b36405b00141651b7db9e90142266fc6f1725
+  head: 652aad99db66cb9d7396acc52f083792ba6efd27
+  at: '2026-10-20T16:44:05+00:00'
+  note: 'Smallest list that loads on AKMON v0.2.0: bundle four plus code_graph, agent_sessions, ci, compute_env, openspec. Each of the last four, removed alone, fails with bridge_subtype_unknown. Dry run only; no publish.'
+- kind: manual
+  requirement: req.ws-cds-jira-quickstart.main
+  status: pass
+  command: source_activation_probe_findings for code_structure_gitlab.yaml.example (ci-example, data substituted) on a copy of the myteam registry
+  artifact: pact/changes/ws-cds-jira-quickstart/evidence/activation-probe-gitlab.out
+  sha256: e76b8e58865deb8cda43953cb4ac7b6afea7406723957291c9a2ed7cfd9a934d
+  head: 652aad99db66cb9d7396acc52f083792ba6efd27
+  at: '2026-10-20T16:44:05+00:00'
+  note: 'repo_root data/repos/ci-example, 0 findings. The docs round (data root, ingest twice, source replacement, docsite manifest) was checked by reading it against an integrated run of the three fixes.'
+decisions: []

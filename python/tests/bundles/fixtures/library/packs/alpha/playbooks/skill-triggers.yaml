@@ -1,0 +1,6 @@
+version: 1
+intents:
+  alpha_pages:
+    skill: alpha
+    description: Read alpha pages.
+    subtypes: [document_chunk]

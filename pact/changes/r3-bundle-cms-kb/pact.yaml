@@ -1,0 +1,50 @@
+pact_version: 5
+id: r3-bundle-cms-kb
+title: 'cms-kb scope: fold it into cms-physics'
+tier: 2
+why: archi-physics/cms-kb is the prototype for a CMS knowledge-base instance and a source
+  of the decoupled-stack defaults. ADR 0002 §5 left its scope relative to cms-physics open.
+  The survey (survey.md beside this file) found that cms-kb already is a CMS physics knowledge
+  base and holds nothing operations-specific, so the two names cover one bundle. This PACT
+  records that decision; the bundle and the rebuild are r3-bundle-cms-physics.
+affected_code:
+- pact/changes/r3-bundle-cms-kb/survey.md
+- docs/adr/0002-archi-3.0-release.md
+requirements:
+- id: req.r3-bundle-cms-kb.scope
+  statement: 'A survey of cms-kb lists its sources, schemas, playbooks, setup steps and local
+    patches, and assigns each to a pack, to the cms-kb bundle, to cms-physics, or to the instance.
+    The cms-kb / cms-physics boundary is recorded as a decision in this PACT.
+
+
+    Decision (option A of the survey): there is no cms-kb bundle. 3.0 ships one physics
+    bundle, cms-physics. cms-kb''s sources move into archi as the analysis-notes pack (analysis
+    notes) and the cms-analyses pack (PAG/POG vocabulary, physics entities, cross-link rules),
+    and the cms-kb deployment becomes the validation instance of cms-physics. The cms-kb repo
+    becomes an instance repo plus its research tooling (golden-set mining, entity candidates).
+    ADR 0002 D4 and §5 say so.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cms-kb.decision: decision recorded and approved. [evidence: manual]'
+tasks:
+- id: task.r3-bundle-cms-kb.survey
+  requirement: req.r3-bundle-cms-kb.scope
+  verification: 'Survey cms-kb; write the scope decision.
+
+
+    Test plan:
+
+    - survey doc [evidence: manual]'
+evidence:
+- kind: manual
+  requirement: req.r3-bundle-cms-kb.scope
+  status: pass
+  head: 27a9dcfc25ade9865c70bc037798091ed5692ee2
+  at: '2026-10-25T00:26:13+00:00'
+  note: pact/changes/r3-bundle-cms-kb/survey.md, a read-only survey of archi-physics/cms-kb
+    at a3bd550 (archi-okg pin faa731ff, okg pin aa2fda75). Jason chose option A (merge into
+    cms-physics) on 2026-10-25; the decision landed in 27a9dcfc. The maintainer's approval
+    of this PACT is a separate Pact-Approved trailer.
+decisions: []

@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "archi-demo": {
+      "type": "http",
+      "url": "http://127.0.0.1:18080/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OKG_CHAT_MCP_TOKEN}"
+      }
+    },
+    "notes": {
+      "type": "http",
+      "url": "http://127.0.0.1:18090/mcp",
+      "headers": {
+        "X-Api-Key": "${NOTES_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,0 +1,326 @@
+# Archi 3.0 — operational memory (PACT r3-ops-record, ADR 0002 §6.2).
+#
+# The record of operations, one subtype per step of the loop in ADR 0002
+# §7.1 (signal → context → proposal → decision → action → outcome):
+#
+#   ops_incident  what broke, where, when
+#   ops_proposal  what an automation suggested, and on which evidence
+#   ops_decision  who or what approved or rejected it, and when
+#   ops_action    what the mediator ran, and what it returned
+#   ops_outcome   whether it worked, checked later
+#
+# Records arrive through okg admission from a `workflow` producer
+# (archi.ops.record), never by direct SQL, and are append-only: admission
+# refuses retractions. A later state of the same record (an incident that
+# is now resolved) is the same node id submitted again.
+#
+# Fields every subtype carries:
+#   record_id        the natural key; the node id is <subtype>:<record_id>
+#   actor_kind       automation | person
+#   actor            the automation name or the person's id
+#   automation       the automation that produced the record, if any
+#   generation_read  the okg generation the producer read (ADR 0002 §6.1:
+#                    every proposal is generation-pinned)
+#
+# okg's escalations are not graph nodes, so ops_decision carries the
+# escalation id (esc-…) as an attribute. References to nodes other packs own
+# are attributes too, because okg 0.2.0 admission cannot admit an edge to a
+# node outside the payload (bridges/ops_record.yaml): the evidence a proposal
+# cites (`evidence_ids`, okg node ids), the tickets tracking an incident
+# (`ticket_keys`), the ticket whose resolution an outcome records
+# (`ticket_key`, filterable) and the entity that broke (`entity`, filterable).
+#
+# The okg `incident` module's Incident has no searchable text and no entity
+# field, and loading it would put two incident subtypes in one instance, so
+# this slice defines its own. Edge narrowings are in bridges/ops_record.yaml.
+
+id: https://archi-physics.org/okg/archi/ops-record
+name: archi_ops_record
+title: Archi 3.0 — operational memory
+description: Incident, proposal, decision, action and outcome records written by automations.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  OpsIncident:
+    description: >-
+      Something that broke: the entity it broke on, the symptom, and when it
+      was seen. Opened by an automation from a signal, or by a person through
+      a ticket.
+    class_uri: archi:OpsIncident
+    attributes:
+      record_id:
+        required: true
+      title:
+        required: true
+      summary:
+      entity:
+        required: true
+        description: >-
+          What broke, by the name operators use for it: a site (T2_US_MIT), a
+          node (node-04), a service, a dataset. Precedent lookup filters on it.
+        annotations:
+          filterable: 'true'
+          value_type: text
+      entity_kind:
+        description: site, node, service, dataset, workflow, queue, ...
+        annotations:
+          filterable: 'true'
+          value_type: text
+      error_signature:
+        description: The normalised error text or code, for matching recurrences.
+      severity:
+      status:
+        description: open | mitigated | resolved | false_alarm (not a real problem, no action needed)
+        annotations:
+          filterable: 'true'
+          value_type: text
+      detected_at:
+      resolved_at:
+      ticket_keys:
+        description: >-
+          Keys of the tickets tracking this incident (ABC-123). okg neither
+          filters on one element of a list nor puts a list in search text:
+          the outcome a ticket resolution produces carries its key as the
+          filterable `ticket_key`.
+        multivalued: true
+      signal:
+        description: What raised it (schedule, ticket, alert) and its id.
+      automation:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      actor_kind:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      actor:
+      generation_read:
+      text:
+    annotations:
+      archetype: event
+      transient: "false"
+      okg_alias_fields: record_id
+      okg_identifier_fields: record_id
+      okg_searchable_text_fields: record_id,title,summary,entity,error_signature,text
+      okg_title_from: title
+      okg_created_at_from: detected_at
+      okg_last_modified_at_from: resolved_at
+
+  OpsProposal:
+    description: >-
+      What an automation proposed for an incident: an action class and its
+      payload, the evidence it cites, its confidence and its rollback.
+    class_uri: archi:OpsProposal
+    attributes:
+      record_id:
+        required: true
+      incident_id:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      summary:
+        required: true
+      action_class:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      payload:
+        description: The action payload, as JSON text.
+      confidence:
+      rollback:
+      evidence_ids:
+        description: okg node ids the proposal cites; at least one.
+        multivalued: true
+        required: true
+      autonomy_level:
+        description: L0 | L1 | L2 (ADR 0002 §7.3; 3.0 stops at L2).
+      mode:
+        description: >-
+          shadow | live | placeholder. `placeholder` marks a stand-in written
+          when a run stopped before any real proposal existed (budget spent,
+          proposal refused, proposer failed), so a decision has something to
+          link to. Shadow scoring skips placeholders.
+        annotations:
+          filterable: 'true'
+          value_type: text
+      mode_reason:
+        description: >-
+          Why the run was not live: "demoted to shadow: ..." with the failing
+          context-gate checks, "context gate failed: ..." on a shadow
+          automation, or the note on a placeholder.
+      draft:
+        description: The reply or ticket text an L1 run drafted for a person to send.
+      proposed_at:
+      automation:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      actor_kind:
+      actor:
+      generation_read:
+        required: true
+      text:
+    annotations:
+      archetype: proposal
+      transient: "false"
+      okg_alias_fields: record_id
+      okg_identifier_fields: record_id
+      okg_searchable_text_fields: record_id,summary,action_class,rollback,text
+      okg_title_from: summary
+      okg_created_at_from: proposed_at
+
+  OpsDecision:
+    description: >-
+      The verdict on a proposal: approved, rejected or timed out, by whom
+      (a person through an escalation, or a policy), and when.
+    class_uri: archi:OpsDecision
+    attributes:
+      record_id:
+        required: true
+      proposal_id:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      verdict:
+        required: true
+        description: >-
+          approved | rejected | timed_out, from an escalation; observed (L0, or
+          any shadow run) | drafted (L1); and the stops: budget_exhausted,
+          invalid_proposal (the proposal broke the automation's schema),
+          action_class_capped (the class allows less than the run's level),
+          error (something failed; nothing ran), halted. A later record with
+          the same record_id supersedes the earlier one: `halted` replaces the
+          `approved` of a run halted before its mediator, so no approval is
+          left standing for an action that did not run.
+        annotations:
+          filterable: 'true'
+          value_type: text
+      escalation_id:
+        description: The okg escalation (esc-…) that carried the decision, if any.
+      reason:
+      decided_at:
+      automation:
+      actor_kind:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      actor:
+        required: true
+      generation_read:
+      text:
+    annotations:
+      archetype: claim
+      transient: "false"
+      okg_alias_fields: record_id
+      okg_identifier_fields: record_id
+      okg_searchable_text_fields: record_id,verdict,reason,text
+      okg_title_from: verdict
+      okg_created_at_from: decided_at
+
+  OpsAction:
+    description: >-
+      What a mediator ran for an approved proposal, and what it returned.
+    class_uri: archi:OpsAction
+    attributes:
+      record_id:
+        required: true
+      proposal_id:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      decision_id:
+      action_class:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      mediator:
+        description: The live tool or workflow step that ran it.
+      payload:
+      status:
+        description: >-
+          succeeded | failed | unknown. `unknown` means a replay found that the mediator
+          had been called and no end was recorded, so it was not called again; check
+          the external system.
+        annotations:
+          filterable: 'true'
+          value_type: text
+      result:
+        description: What the mediator returned, as text.
+      executed_at:
+      automation:
+      actor_kind:
+      actor:
+      generation_read:
+      text:
+    annotations:
+      archetype: event
+      transient: "false"
+      okg_alias_fields: record_id
+      okg_identifier_fields: record_id
+      okg_searchable_text_fields: record_id,action_class,mediator,result,text
+      okg_title_from: action_class
+      okg_created_at_from: executed_at
+
+  OpsOutcome:
+    description: >-
+      Whether the incident was fixed, checked after the fact: by the
+      automation's outcome check, or by a person's ticket resolution.
+    class_uri: archi:OpsOutcome
+    attributes:
+      record_id:
+        required: true
+      incident_id:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      action_id:
+      result:
+        required: true
+        description: resolved | not_resolved | partial | unknown | no_action_needed (checked, and nothing needed doing)
+        annotations:
+          filterable: 'true'
+          value_type: text
+      resolution:
+        description: How it was fixed, in the words of the check or the ticket.
+      check_method:
+        description: outcome_check | ticket_resolution | manual
+        annotations:
+          filterable: 'true'
+          value_type: text
+      ticket_key:
+        description: The ticket whose resolution this outcome records.
+        annotations:
+          filterable: 'true'
+          value_type: text
+      checked_at:
+      automation:
+      actor_kind:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      actor:
+      generation_read:
+      text:
+    annotations:
+      archetype: observation
+      transient: "false"
+      okg_alias_fields: record_id
+      okg_identifier_fields: record_id
+      okg_searchable_text_fields: record_id,result,resolution,ticket_key,text
+      okg_title_from: resolution
+      okg_created_at_from: checked_at

@@ -1,0 +1,72 @@
+pact_version: 5
+id: r3-adr-0002
+title: 'ADR 0002: Archi 3.0, automating operations on a solid context layer'
+tier: 2
+why: The workshop discussion (22/10/2026) restated Archi's focus, automating operations, and
+  reframed the rest as replaceable layers (agent, chat, KB, ingestion, MCPs) held together
+  by Archi with sensible defaults. Automation needs a solid context layer underneath it. ADR
+  0001 still describes one bundle, an archi_v3 branch that is no longer where work lands,
+  and no setup story. ADR 0002 records the 3.0 decisions so every later PACT can cite them.
+affected_code:
+- docs/adr/0002-archi-3.0-release.md
+- docs/adr/0001-archi-v3-program-spec.md
+requirements:
+- id: req.r3-adr-0002.adr
+  statement: 'docs/adr/0002-archi-3.0-release.md records D1-D9 (release home, PyPI name archi-kb,
+    composable packs and bundles, the four 3.0 bundles, MCP as the client surface, one-command
+    setup, a thin CLI, Langfuse deferred, PACT+issues planning) D10-D13 (operations automation
+    as the purpose, agents propose / mediators act, automations gated on measured context,
+    3.0 stops at L2), the composition rules, the context-layer properties (§6) and the autonomy
+    levels (§7.3), and is approved by a maintainer.
+
+
+    Acceptance:
+
+    - acc.r3-adr-0002.approved: a Pact-Approved trailer on the commit that merges the ADR.
+    [evidence: manual]'
+- id: req.r3-adr-0002.supersede
+  statement: 'ADR 0001 carries a header note naming the sections ADR 0002 replaces (§6.3 repo
+    table, §14 branching, invariant 2, W6 one-bundle rule, W8 folded into the operations layer),
+    and is otherwise unchanged as history.
+
+
+    Acceptance:
+
+    - acc.r3-adr-0002.note: ADR 0001 header links ADR 0002 and lists the replaced sections.
+    [evidence: manual]'
+tasks:
+- id: task.r3-adr-0002.review
+  requirement: req.r3-adr-0002.adr
+  verification: 'Maintainer review of the ADR text.
+
+
+    Test plan:
+
+    - review on the PR [evidence: manual]'
+- id: task.r3-adr-0002.amend-0001
+  requirement: req.r3-adr-0002.supersede
+  verification: 'Add the supersession note to ADR 0001.
+
+
+    Test plan:
+
+    - diff review [evidence: manual]'
+evidence:
+- kind: manual
+  requirement: req.r3-adr-0002.adr
+  status: pass
+  head: b78eb8b50fb4fd498771b680d9b7311af4adc620
+  at: '2026-10-25T03:07:52+00:00'
+  note: 'acc.r3-adr-0002.approved. ADR 0002 merged into archi_v3 in #674 (merge 09299e4e); its
+    history carries the Pact-Approved trailer for r3-adr-0002 (ddc29f85), re-approved after #764 in
+    d2c7eaf3 (#765). The ADR records D1-D13, the composition rules (§3.3), the context-layer
+    properties (§6) and the autonomy levels (§7.3).'
+- kind: manual
+  requirement: req.r3-adr-0002.supersede
+  status: pass
+  head: b78eb8b50fb4fd498771b680d9b7311af4adc620
+  at: '2026-10-25T03:07:52+00:00'
+  note: 'acc.r3-adr-0002.note. The ADR 0001 header note links ADR 0002 and lists the replaced sections:
+    the branch rules (header Branch line, invariant 2, §14), the §6.3 repository table, the W6
+    one-bundle rule, and W8 folded into the operations layer. The rest of ADR 0001 is unchanged.'
+decisions: []

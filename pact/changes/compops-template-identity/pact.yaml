@@ -1,0 +1,82 @@
+pact_version: 5
+id: compops-template-identity
+title: Comp-ops registry templates declare profiles okg accepts
+tier: 2
+why: 'After compops-reader-adapters, each comp-ops reader has an adapter okg can run, but
+  every registry template still declared a profile combination okg refuses at install (deployment.source_registry.profile_invalid):
+  record_identity_kind remote_id under discovery_crawl (CRIC, CRIC core, DQM, GOCDB) or reference_catalog
+  (CondDB, DBS, GitHub repositories), and content_hash revisions under mutable_api (WMStats).
+  A pasted template could not be installed.
+
+
+  The okg-deployments cms registry ran the same reader code (archi''s readers are verbatim
+  ports; the emitted source_record_id keys and node ids are identical) and declared scoped_locator,
+  domain_key and updated_at for these sources. This change makes the same declarations and
+  changes no reader code, so no node id or record key changes and a comp-ops graph built by
+  cms is not re-keyed. okg dev reads record_identity_kind only for the profile check and the
+  registry binding fingerprint; it does not check emitted keys against it.
+
+
+  WMStats declares updated_at, not version_token: its cache carries a per-workflow update
+  time (the documented updated_at field, emitted as the workflow node''s updated_at attribute)
+  and no upstream version token. Its emitted source_revision stays the run-level cache hash,
+  as the Jira reader''s does under the same declaration.
+
+
+  Strict registry admission also refused the GitHub template''s bare params: (null), so it
+  becomes params: {}.'
+affected_code:
+- python/archi/sources/cric.py
+- python/archi/sources/dqm.py
+- python/archi/sources/gocdb.py
+- python/archi/sources/conddb.py
+- python/archi/sources/dbs.py
+- python/archi/sources/wmstats.py
+- python/archi/sources/github_repos.py
+- python/tests/test_bundle_source_adapters.py
+- docs/okg-alignment.md
+requirements:
+- id: req.compops-template-identity.main
+  statement: 'Every comp-ops registry template passes okg''s install-time profile check and
+    strict registry admission, without changing what the readers emit.
+
+
+    For CRIC, CRIC core, DQM, GOCDB downtimes, CondDB global tags, DBS datasets, WMStats workflows
+    and GitHub repositories, validate_profile_tuple accepts the template''s tuple, strict
+    admission binds its params, and the declared record_identity_fields equal the source_record_id
+    keys the reader emits for its primary records.
+
+
+    Acceptance:
+
+    - acc.compops-template-identity.accepted: test_compops_template_profile_tuples_are_all_accepted
+    and test_compops_template_passes_strict_registry_admission fail on the compops-reader-adapters
+    templates (9 failed) and pass after, on okg 5b2fd076cc and on okg dev. [evidence: executed_test]
+
+    - acc.compops-template-identity.stable: no reader code changes; the existing per-reader
+    tests, which pin node ids, pass unchanged. [evidence: executed_test]'
+tasks:
+- id: task.compops-template-identity.deliver
+  requirement: req.compops-template-identity.main
+  verification: 'Change the eight template declarations, flip the refusal-list test to assert
+    zero refusals, add a strict-admission test per template, and check the declared identity
+    fields against emitted record keys.
+
+
+    Proof: the full archi suite on okg 5b2fd076cc (CI''s pin) and on okg dev.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.compops-template-identity.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 4ea61b8b3493114f72ead64759f549c19f4c0beb
+  at: '2026-09-28T02:43:51+00:00'
+  note: 452 passed on okg 5b2fd076cc (CI pin) and 452 passed on okg dev fdf5638bf. The 9 new
+    or flipped checks (zero-refusal test + 8 strict-admission cases) failed on the compops-reader-adapters
+    templates and pass here; the per-reader tests that pin node ids pass unchanged.
+decisions: []

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/schema/bundle.schema.json",
+  "title": "Archi bundle manifest (bundle.yaml)",
+  "description": "A named, versioned selection of packs plus a chat preset and an eval set (ADR 0002 section 3.2). Paths are relative to the directory holding bundle.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "description", "packs", "okg"],
+  "properties": {
+    "name": {
+      "description": "Bundle name. Must equal the directory name.",
+      "$ref": "#/$defs/name"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+][0-9A-Za-z.-]+)?$"
+    },
+    "description": {"type": "string", "minLength": 1},
+    "extends": {
+      "description": "Bundles whose default packs this one inherits, resolved transitively.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/name"},
+      "uniqueItems": true
+    },
+    "packs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+      "properties": {
+        "default": {
+          "description": "Packs installed unless removed with --without.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/name"},
+          "uniqueItems": true
+        },
+        "optional": {
+          "description": "Packs offered for --with. Not installed unless asked for.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/name"},
+          "uniqueItems": true
+        },
+        "companions": {
+          "description": "Packs that come on whenever another pack is selected, {<pack>: [<companion>, ...]} (ADR 0002 section 3.3, amended 2026-10-31). When <pack> is selected, by default or with --with, each companion is added with the packs it requires, unless it is removed with --without. Merged over extends, parents first.",
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/name"},
+          "additionalProperties": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/name"},
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "chat": {
+      "description": "Chat preset. Scalars come from the last --bundle given; suggestions are a union.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "site_name": {"type": "string", "minLength": 1},
+        "default_model": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "suggestions": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "automations": {
+      "description": "Upper bound on the autonomy level of each automation pack this bundle selects, {<automation>: {max_level}}. The instance sets the level itself, in archi.yaml, and may not exceed any bound. L0, L1 or L2; anything above L2 is refused (ADR 0002 D13).",
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/name"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["max_level"],
+        "properties": {"max_level": {"type": "string"}}
+      }
+    },
+    "answers": {
+      "description": "Install-question defaults this bundle sets, {<rendered question id>: value}, e.g. analysis_notes_min_notes. A later bundle overrides an earlier one; an id no selected pack asks is refused.",
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": {"type": ["string", "integer"]}
+    },
+    "eval": {
+      "description": "Eval set (JSONL) run by `archi eval` and by CI.",
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "(^/|^~|(^|/)\\.\\.(/|$)|\\\\)"}
+    },
+    "okg": {
+      "description": "Supported AKMON (okg) version range, PEP 440 specifiers, e.g. \">=0.2.0,<0.3\".",
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"}
+  }
+}

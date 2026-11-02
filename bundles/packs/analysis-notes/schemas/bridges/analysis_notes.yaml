@@ -1,0 +1,75 @@
+# Edge narrowings for the analysis-note source.
+#
+# The composer only honours narrowings under a schemas/bridges/ directory,
+# and a narrowing placed anywhere else is silently ignored and fails at
+# ingest with ProducerPolicyViolation.
+#
+# DocumentationPage is archi's (schemas/sources.yaml) and DocumentChunk is
+# okg's (extraction module); the other classes are in ../analysis_notes.yaml.
+id: https://archi-physics.org/okg/archi/bridges/analysis_notes
+name: archi_analysis_note_narrowings
+title: Archi — analysis-note bridge narrowings
+description: Narrowings for archi.sources.analysis_notes emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for archi.sources.analysis_notes emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      analysis_note_contains_section:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: AnalysisNote
+          dst_subtypes: Section
+      analysis_note_references_reference:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: Reference
+      analysis_note_references_pag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: PhysicsAnalysisGroup
+      # Figures: a section or note contains its figure
+      # environments, and a chunk that \ref's a figure's label references
+      # it -- which is what ties the prose discussing a figure to it.
+      analysis_note_contains_figure:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: AnalysisNote
+          dst_subtypes: NoteFigure
+      section_contains_figure:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Section
+          dst_subtypes: NoteFigure
+      document_chunk_references_figure:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: NoteFigure
+      # The bib->TWiki bridge. Its target is archi's DocumentationPage,
+      # which the twiki pack's source emits; this pack requires it.
+      analysis_note_references_documentation_page:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: DocumentationPage
+      # Notes are chunked like wiki pages (4000/200 window), so a section
+      # contains its chunks.
+      section_contains_chunk:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Section
+          dst_subtypes: DocumentChunk

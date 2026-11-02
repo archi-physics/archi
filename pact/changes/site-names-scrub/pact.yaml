@@ -1,0 +1,79 @@
+pact_version: 5
+id: site-names-scrub
+title: Keep site host names, instance paths and account names out of the public repository
+tier: 2
+why: >-
+  AGENTS.md says nothing in this public repository may carry a site host
+  name or an instance's configuration. PACT evidence rows, archived PACT
+  notes, three docs pages, a bundle schema description and four tests named
+  lab hosts, shared-filesystem paths, personal venvs, user accounts and
+  dev-host ports (#861). Evidence rows only need to say where a command ran
+  in kind ("on a dev host"); the full host and path belong in the run's
+  private record.
+affected_code:
+- docs/adr/0001-archi-v3-program-spec.md
+- docs/eval-transition-audit.md
+- docs/ops-runtime-akmon-asks.md
+- docs/okg-alignment.md
+- bundles/packs/ops-record/schemas/ops_record.yaml
+- python/tests/ops/test_ops_cli.py
+- python/tests/ops/test_promotion.py
+- python/tests/sources/test_reference_targets_hep.py
+- python/tests/test_packaging.py
+requirements:
+- id: req.site-names-scrub.clean
+  statement: >-
+    Outside the documented exceptions, git grep for lab host names
+    (submitNN, CERN VM names), site paths (/ceph/, /work/submit, /home/submit),
+    and the user accounts found in #861 finds nothing under pact/, docs/,
+    bundles/ and python/. Documented exceptions: leak-detector patterns in
+    tests; public CERN and grid service names in fixtures; recorded test
+    outputs and evidence artifacts whose sha256 a PACT records (editing them
+    would break that record); docs/cern-team-demo.md, handled by #859.
+- id: req.site-names-scrub.harmless
+  statement: >-
+    The edit changes no PACT's check result other than intent digests whose
+    text was edited, and the full test suite passes.
+tasks:
+- id: task.site-names-scrub.rewrite
+  requirement: req.site-names-scrub.clean
+  verification: >-
+    git grep -nE 'submit[0-9]{2}|vocms[0-9]|/ceph/|/work/submit|/home/submit|<the three account names of #861>'
+    -- pact docs bundles python lists only the documented exceptions.
+- id: task.site-names-scrub.check
+  requirement: req.site-names-scrub.harmless
+  verification: >-
+    okg pact check --strict --json for every manifest before and after:
+    same state, blocked_by and warnings; python -m pytest python/tests passes.
+evidence:
+- kind: executed_test
+  requirement: req.site-names-scrub.clean
+  status: pass
+  command: >-
+    git grep -nE "submit[0-9]{2}|vocms[0-9]|/ceph/|/work/submit|/home/submit|<the three account names of #861>"
+    -- pact docs bundles python
+  head: 385a73b5f830d40afb359e4e949f9cd3ec75a813
+  at: '2026-10-30T23:49:51+00:00'
+  note: '18 matches, all documented exceptions: docs/cern-team-demo.md (3, handled by #859); the w2
+    compops-lint baseline and recheck JSON in pact/changes and pact/archive (4; the recheck file sha256
+    is recorded by a w2 evidence row and the baseline must match it); this manifest (2, the patterns);
+    tests/packs/test_packs.py and tests/test_skills.py leak-detector patterns (4); submit01/02.example.org
+    fixtures in tests/sources/test_htcondor.py and tests/fixtures/cluster (4). Recorded test outputs under
+    pact/changes/*/evidence/ also keep a host name and an account path (sha256 recorded); #861 stays open
+    for them. Git history still holds every scrubbed value.'
+- kind: executed_test
+  requirement: req.site-names-scrub.harmless
+  status: pass
+  command: okg pact check <id> --base 011f5d64 --strict --json for all 72 manifests at origin/archi_v3
+    2426842c and at this branch; python -m pytest python/tests -q (okg 0.2.0, Python 3.12, on a dev host)
+  head: 385a73b5f830d40afb359e4e949f9cd3ec75a813
+  at: '2026-10-30T23:49:51+00:00'
+  note: 'pact check: same state, blocked_by, warnings and evidence counts for every manifest except
+    (a) intent digests change where text in why/requirements/tasks was edited: chunk-char-end,
+    email-rule-gaps, okg-deploy-key-ci, r3-bundle-evals, r3-context-quality, twiki-email-redaction,
+    twiki-empty-topics-upstream, twiki-web-qualified-parent (r3-bundle-evals and r3-context-quality go from
+    approval_stale_code to approval_missing; all of these needed a fresh approval already); (b)
+    r3-responses-api goes approval_stale_code, as after any code or docs merge. Tests: 3786 passed, 28
+    skipped; 13 wheel tests errored because the venv lacked hatchling and passed (24) once it was installed;
+    test_redact_email_addresses_quoted_local_part_is_linear misses its 1.0 s budget on the loaded host on
+    origin/archi_v3 too (this branch changes nothing under python/archi).'

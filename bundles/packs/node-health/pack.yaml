@@ -1,0 +1,22 @@
+name: node-health
+kind: context
+version: 0.1.0
+description: Compute-node health from a JSON list of per-node reports that a site's own health exporter writes to node-health/records.json (each report has node, cluster, observed_at and checks, a list of name, status ok or warn or fail, and detail).
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# Health checks run every few minutes or hours; a reading older than 6h says nothing about the node now.
+freshness:
+  node-health.node_health: {max_staleness: 6h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant node_health_link_<name>.
+link_coverage:
+  # Every check belongs to the node it ran on.
+  - {name: check_node, from: node_health_check, edge: contains, to: compute_node, direction: in, min_fraction: 0.99}
+search_subtypes: [compute_node, node_health_check]
+prompt_fragment: prompt.md
+# The cache is written by the site's own health exporter (LBNL NHC, Nagios, a script); archi reads a file.
+needs_credentials: false

@@ -1,0 +1,164 @@
+# Download targets for archi.downloaders.static_docs.
+# Moved from okg-deployments cms/docs/source-download-manifest.yaml (main 32f2b4e3c2).
+# Only change: cache paths lost their data/cms/ prefix and now name the archi
+# layout (data/gitlab-docs, data/docsite) under ARCHI_DATA_ROOT.
+# The downloader reads targets.*.repos/urls, status and policy; the cache_path and
+# expected_cache strings are informational.
+version: 1
+generated_for: add-cms-source-coverage-expansion
+owner_lane: cms
+policy:
+  cache_broader_than_graph: true
+  credential_values_in_manifest: false
+  graph_emission_requires_followup_task: true
+  default_text_suffixes:
+    - .md
+    - .rst
+    - .txt
+    - .html
+  default_config_suffixes:
+    - .yaml
+    - .yml
+    - .json
+    - .ini
+    - .conf
+    - .cfg
+    - .tpl
+    - .j2
+  default_operator_code_suffixes:
+    - .py
+    - .sh
+    - .go
+  default_skip_path_fragments:
+    - /.git/
+    - /node_modules/
+    - /dist/
+    - /build/
+    - /target/
+    - /__pycache__/
+    - /.tox/
+    - /.venv/
+    - /vendor/
+    - /assets/
+
+targets:
+  gitlab_docs:
+    cache_path: data/gitlab-docs/records.json
+    credential_refs:
+      - CERN_GITLAB_TOKEN
+    credential_aliases:
+      CERN_GITLAB_TOKEN:
+        - GITLAB_CERN_TOKEN
+    current_cache:
+      record_count: 110
+      repos:
+        - cmsdmops/Documentation
+        - cms-tier0-ops/documentation
+    repos:
+      - project: cmsdmops/Documentation
+        status: ready
+        api_project_path: /api/v4/projects/cmsdmops%2FDocumentation
+        tree_api_path: /api/v4/projects/cmsdmops%2FDocumentation/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Existing cache emits documentation pages for this repo.
+      - project: cms-tier0-ops/documentation
+        status: ready
+        api_project_path: /api/v4/projects/cms-tier0-ops%2Fdocumentation
+        tree_api_path: /api/v4/projects/cms-tier0-ops%2Fdocumentation/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Existing cache emits documentation pages for this repo.
+      - project: CMSProductionReprocessing/unified
+        status: ready
+        api_project_path: /api/v4/projects/CMSProductionReprocessing%2Funified
+        tree_api_path: /api/v4/projects/CMSProductionReprocessing%2Funified/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Reachable replacement for production-reprocessing procedure coverage.
+      - project: CMSProductionReprocessing/WmAgentScripts
+        status: ready
+        api_project_path: /api/v4/projects/CMSProductionReprocessing%2FWmAgentScripts
+        tree_api_path: /api/v4/projects/CMSProductionReprocessing%2FWmAgentScripts/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Includes Unified client scripts for McM, JIRA, and WMAgent operations.
+      - project: CMSProductionReprocessing/workflow
+        status: ready
+        api_project_path: /api/v4/projects/CMSProductionReprocessing%2Fworkflow
+        tree_api_path: /api/v4/projects/CMSProductionReprocessing%2Fworkflow/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Includes request/workflow model and README content.
+      - project: CMSProductionReprocessing/workflow-frontend
+        status: ready
+        api_project_path: /api/v4/projects/CMSProductionReprocessing%2Fworkflow-frontend
+        tree_api_path: /api/v4/projects/CMSProductionReprocessing%2Fworkflow-frontend/repository/tree?recursive=true
+        expected_cache: data/gitlab-docs/records.json
+        graph_emission_task: 2.2
+        notes: Includes operator-console UI code for workflow and Rucio views.
+
+  stale_a2rchi_gitlab_paths:
+    credential_refs:
+      - CERN_GITLAB_TOKEN
+    repos:
+      - project: dmwm/wmcore-docs
+        status: stale-path
+        api_project_path: /api/v4/projects/dmwm%2Fwmcore-docs
+        observed_http_status: 404
+        expected_cache: none
+        replacement_coverage:
+          - GitHub dmwm/WMCore repo-file content
+          - GitHub dmwm/CMSKubernetes WMAgent docs and deployment scripts
+        notes: A2rchi source-list entry did not resolve through the current CERN GitLab API path.
+      - project: CMSProductionReprocessing/documentation
+        status: stale-path
+        api_project_path: /api/v4/projects/CMSProductionReprocessing%2Fdocumentation
+        observed_http_status: 404
+        expected_cache: none
+        replacement_coverage:
+          - CMSProductionReprocessing/unified
+          - CMSProductionReprocessing/WmAgentScripts
+          - CMSProductionReprocessing/workflow
+          - CMSProductionReprocessing/workflow-frontend
+        notes: A2rchi source-list entry did not resolve; adjacent production-reprocessing repos do.
+
+  public_docs:
+    cache_path: data/docsite/records.json
+    credential_refs: []
+    urls:
+      - name: cms_pdmv_mc_production_gitbook
+        status: ready
+        url: https://cms-pdmv.gitbook.io/project/monte-carlo-production-overview
+        expected_cache: data/docsite/records.json
+        graph_emission_task: 2.2
+        notes: Public PDMV Monte Carlo production documentation.
+      - name: fts3_docs
+        status: ready
+        url: https://fts3-docs.web.cern.ch/fts3-docs/
+        expected_cache: data/docsite/records.json
+        graph_emission_task: 2.2
+        notes: Public FTS3 documentation.
+      - name: rucio_github_docs
+        status: ready
+        url: https://rucio.github.io/documentation/
+        expected_cache: data/docsite/records.json
+        graph_emission_task: 2.2
+        notes: Current public Rucio documentation landing page.
+      - name: rucio_readthedocs
+        status: ready
+        url: https://rucio.readthedocs.io/en/latest/
+        expected_cache: data/docsite/records.json
+        graph_emission_task: 2.2
+        notes: Existing cache already includes this URL; keep as compatibility fallback.
+
+  deferred_auth_docs:
+    urls:
+      - name: cmsweb_docs
+        status: deferred-auth
+        url: https://cms-http-group.docs.cern.ch/sitemap.xml
+        credential_refs:
+          - CMS_HTTP_GROUP_DOCS_COOKIE_FILE
+        expected_cache: live_or_future_cache
+        notes: Cookie-file path is configured but missing in the current clone environment.
+

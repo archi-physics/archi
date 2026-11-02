@@ -1,0 +1,24 @@
+name: code-symbols
+kind: context
+version: 0.1.0
+description: Functions, classes, imports and calls in git-code's repository.
+requires:
+  # code_graph composes with agent_sessions, ci, compute_env and openspec.
+  modules: [document_starter, person, extraction, git_graph, code_graph, agent_sessions, ci, compute_env, openspec]
+  packs: [git-code]
+schemas: schemas/
+sources: sources/
+invariants: invariants.yaml
+# Rebuilt from git-code's checkout, so it may lag git-code by no more than
+# git-code may lag the repository: 7d, the same bound.
+freshness:
+  code-symbols.code_structure: {max_staleness: 7d}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant code_symbols_link_<name>.
+link_coverage:
+  # Top-level symbols hang off their file; nested ones hang off their parent symbol.
+  - {name: symbol_file, from: code_symbol, edge: contains, to: source_file, direction: in, min_fraction: 0.5}
+search_subtypes: [code_symbol]
+prompt_fragment: prompt.md
+# It reads git-code's checkout and fetches nothing itself.
+needs_credentials: false

@@ -1,0 +1,76 @@
+pact_version: 5
+id: docpage-passage-and-title-split
+title: Doc pages and JIRA issues declare their chunk relation; page titles split into words
+tier: 2
+why: 'archi-physics/cms-kb#6 and comp-ops design row 13: TWiki and docs-site pages are hard
+  to find. A page''s text lives on document_chunk rows reached by `contains`
+  (archi.sources.twiki, archi.sources.docs), and a JIRA issue''s the same way
+  (archi.sources.jira). Neither parent subtype declared that relation, so a passage hit named
+  no page or issue as its parent and passage-ranked search could not roll chunk scores up to
+  them. A TWiki title is one WikiWord that the search index reads as a single token.
+
+
+  okg#2914 (merged to okg dev 2026-09-29) resolves a passage''s parent by the subtype its edge
+  comes from, which makes a per-subtype `okg_passage_rollup` declaration usable next to okg''s
+  own Document declaration. `okg_searchable_text_path_fields` already exists; okg#2925 (in
+  review) extends its split to CamelCase.
+
+
+  DECISION: declare on both DocumentationPage and JiraIssue, in the form okg''s own Document
+  subtype uses (edge_type contains, child_subtype DocumentChunk); declare only `title` as a
+  path field on DocumentationPage. Both copies of sources.yaml (package and cern-team bundle)
+  change together.
+
+
+  PIN NOTE: archi CI tests against okg ac078aabd5, which predates #2914. Both annotations are
+  known there and the catalog composes. At that pin, a passage under two declared parents
+  reads as ambiguous_declaration rather than declared_but_unlinked; neither is citable, and
+  rank_by=passages on documentation_page or jira_issue works through the parent''s own
+  declaration. The parent-naming effect needs an okg pin at or after #2914; the pin bump is
+  CI configuration and is left to the operator.'
+affected_code:
+- python/archi/schemas/sources.yaml
+- bundles/cern-team/schemas/sources.yaml
+- python/tests/test_passage_rollup_declarations.py
+requirements:
+- id: req.docpage-passage-and-title-split.main
+  statement: 'The composed catalog declares the chunk relation for documentation_page and
+    jira_issue and splits documentation_page titles.
+
+
+    Acceptance:
+
+    - acc.docpage-passage-and-title-split.compose: for the cern-team and cms-compops module
+    sets, okg''s composer reports passage_rollup {edge_type: contains, child_subtype:
+    document_chunk} on documentation_page and jira_issue, that triple is a composed narrowing,
+    and documentation_page has searchable_text_path_fields [title]; the bundle copy of
+    sources.yaml is byte-identical to the package copy. [evidence: executed_test]'
+tasks:
+- id: task.docpage-passage-and-title-split.deliver
+  requirement: req.docpage-passage-and-title-split.main
+  verification: 'Add the two declarations to both copies of sources.yaml; add a composition
+    test through okg''s compose_catalog.
+
+
+    Proof: the new tests fail on main and pass on the branch; the full archi suite passes
+    against the pinned okg.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.docpage-passage-and-title-split.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 34f5204bc50bad5dedc06e37b32c91746deafeff
+  at: '2026-09-29T10:55:00+00:00'
+  note: 'a dev host, Python 3.12, okg at the CI pin ac078aabd5. 1569 passed, 1 failed. The failure
+    is test_redact_email_addresses_quoted_local_part_is_linear, a wall-clock budget (1.20 s
+    against 1.0 s on a host at load 46); this change touches neither the test nor the anonymizer,
+    and the test passes locally in 0.5 s. The 7 new cases and the 4 in test_bridge_portability
+    pass at the pin; with main''s sources.yaml restored in both copies, all 7 new cases fail.
+    okg deployment lint (static) on probe deployments for the cern-team and cms-compops module
+    sets reports no catalog finding; its only blocker is the probe''s missing source_registry.'
+decisions: []

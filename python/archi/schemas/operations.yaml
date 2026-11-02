@@ -1,0 +1,401 @@
+# Archi W2 — operations/catalog node subtypes (req.w2.sources-catalogs).
+#
+# Copied wholesale from the proven cms deployment schema
+# okg-deployments cms/schemas/nodes.yaml at main@f33a9c4, adapting only
+# the id/name headers and prefixes to the archi namespace (class
+# content verbatim). Five of the cms file's 22 classes are NOT here
+# because they already ship in archi/schemas/sources.yaml — keep ONE
+# definition each, in sources.yaml: JiraIssue, DocumentationPage,
+# SoftwareRepository (the jira/docs port) and MonitoringSnapshot,
+# TransferJob (the MONIT port; identical content to the cms classes).
+# CMSSWRelease absorbs the W1 operations_w1.yaml slice (same class
+# content); that file is retired. Generic document/chunk/mention,
+# person, ticket, dataset, service, and repository primitives are
+# intentionally reused from substrate modules instead of copied here.
+
+id: https://archi-physics.org/okg/archi/operations
+name: archi_operations
+title: Archi W2 — operations node subtypes
+description: Catalog/feed node subtypes for the ported cms sources.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  Facility:
+    description: >-
+      WLCG facility grouping one or more CMS sites.
+    class_uri: archi:Facility
+    attributes:
+      name:
+        required: true
+      country:
+      timezone:
+      fullname:
+      state:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name
+      okg_searchable_text_fields: name,fullname,country,text
+      okg_title_from: name
+
+  Site:
+    description: >-
+      CMS computing site such as T2_US_MIT or T1_DE_KIT.
+    class_uri: archi:Site
+    attributes:
+      name:
+        required: true
+      tier_level:
+        required: true
+        description: WLCG tier classification (T0, T1, T2, T3).
+      geographic_location:
+      country_code:
+      facility:
+      status:
+      state:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name
+      okg_searchable_text_fields: name,tier_level,geographic_location,text
+      okg_title_from: name
+
+  SiteConfig:
+    description: >-
+      Per-site SITECONF configuration from CERN GitLab, including
+      storage protocols and local site endpoint declarations.
+    class_uri: archi:SiteConfig
+    attributes:
+      site_name:
+        required: true
+      storage_protocols:
+      se_endpoints:
+      ce_endpoints:
+      local_stage_out:
+      fallback_stage_out:
+      frontier_config:
+      raw_storage_json:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: site_name
+      okg_searchable_text_fields: site_name,se_endpoints,ce_endpoints,text
+      okg_title_from: site_name
+
+  StorageEndpoint:
+    description: CMS storage unit / storage endpoint from CRIC.
+    class_uri: archi:StorageEndpoint
+    attributes:
+      name:
+        required: true
+      type:
+      pledged_cms:
+        range: float
+      state:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name
+      okg_searchable_text_fields: name,type,text
+      okg_title_from: name
+
+  ComputeEndpoint:
+    description: CMS compute unit / compute endpoint from CRIC.
+    class_uri: archi:ComputeEndpoint
+    attributes:
+      name:
+        required: true
+      corepower:
+        range: float
+      pledged_cms:
+        range: float
+      potential_max:
+        range: float
+      promised:
+        range: float
+      state:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name
+      okg_searchable_text_fields: name,text
+      okg_title_from: name
+
+  Operator:
+    description: >-
+      CMS operator/account responsible for one or more sites. Kept as a
+      CMS-specific subtype for now because CRIC responsibilities are
+      operational roles, not necessarily resolved human identities.
+    class_uri: archi:Operator
+    attributes:
+      name:
+        required: true
+      text:
+    annotations:
+      archetype: actor
+      transient: "false"
+      okg_alias_fields: name
+      okg_searchable_text_fields: name,text
+      okg_title_from: name
+
+  InfrastructureService:
+    description: >-
+      CRIC core infrastructure service endpoint: CE, Squid, perfSONAR,
+      Frontier, CVMFS, XRootD, or related service.
+    class_uri: archi:InfrastructureService
+    attributes:
+      name:
+        required: true
+      service_type:
+      flavour:
+      endpoint:
+      is_monitored:
+        range: boolean
+      rcsite:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name,endpoint
+      okg_searchable_text_fields: name,service_type,flavour,endpoint,text
+      okg_title_from: name
+
+  Federation:
+    description: >-
+      WLCG federation with CMS site membership and pledge metadata.
+    class_uri: archi:Federation
+    attributes:
+      name:
+        required: true
+      tier_level:
+        range: integer
+      country:
+      accounting_name:
+      infrastructure:
+      pledge_cpu:
+        range: float
+      pledge_disk:
+        range: float
+      pledge_year:
+      pledge_quarter:
+      text:
+    annotations:
+      archetype: resource
+      transient: "false"
+      okg_alias_fields: name,accounting_name
+      okg_searchable_text_fields: name,accounting_name,country,text
+      okg_title_from: name
+
+  ForumThread:
+    description: CMS HyperNews or discussion thread.
+    class_uri: archi:ForumThread
+    attributes:
+      title:
+      url:
+      forum_name:
+      body:
+      author:
+      date:
+      reply_count:
+        range: integer
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: url
+      okg_searchable_text_fields: title,body,text
+      okg_title_from: title
+
+  MeetingMinutes:
+    description: CERN Indico meeting/event notes for CMS operations.
+    class_uri: archi:MeetingMinutes
+    attributes:
+      title:
+      url:
+      date:
+      end_date:
+      event_type:
+      category:
+      category_id:
+        range: integer
+      speakers:
+      chairs:
+      attachment_urls:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: url
+      okg_searchable_text_fields: title,category,text
+      okg_title_from: title
+
+  CMSSWRelease:
+    description: CMS software framework release. One record per cms-bot releases.map label (id cmssw_release:<label>), plus one derived release-family record per major/minor series (id cmssw_release_family:CMSSW_<major>_<minor>).
+    class_uri: archi:CMSSWRelease
+    attributes:
+      release:
+        required: true
+      release_type:
+        description: The source's own release type, unchanged (cms-bot writes Production or Development). Absent on release-family records.
+      release_kind:
+        description: okg's kind, derived from the label - release, patch, pre-release, hlt-patch, variant, integration-series (a CMSSW_<major>_<minor>_X row), or release_family.
+      state:
+      architecture:
+      production_architecture:
+        description: The architecture cms-bot marks as the production architecture of this release (prodarch=1 in releases.map). Comma-separated when the map marks more than one (some old releases). Absent when the map marks none, and on release-family records.
+      release_date:
+      major:
+        range: integer
+      minor:
+        range: integer
+      patch:
+        range: integer
+      suffix:
+      series:
+        description: On a release-family record only, the series label cms-bot uses (CMSSW_<major>_<minor>_X).
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: release
+      okg_searchable_text_fields: release,release_type,release_kind,architecture,production_architecture,text
+      # The release name (CMSSW_14_0_0) is the id a person types.
+      okg_identifier_fields: release
+      okg_title_from: release
+
+  GlobalTag:
+    description: CMS detector conditions global tag.
+    class_uri: archi:GlobalTag
+    attributes:
+      tag_name:
+        required: true
+      release:
+      scenario:
+      created_at:
+      description:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: tag_name
+      okg_searchable_text_fields: tag_name,release,description,text
+      okg_title_from: tag_name
+
+  Workflow:
+    description: CMS production/reprocessing workflow.
+    class_uri: archi:Workflow
+    attributes:
+      workflow_name:
+        required: true
+      request_type:
+      status:
+      campaign:
+      prep_id:
+      priority:
+        range: integer
+      input_dataset:
+      output_dataset:
+      created_at:
+      updated_at:
+      text:
+    annotations:
+      archetype: process
+      transient: "false"
+      okg_alias_fields: workflow_name,prep_id
+      okg_searchable_text_fields: workflow_name,campaign,prep_id,text
+      okg_title_from: workflow_name
+      okg_created_at_from: created_at
+
+  DataCertification:
+    description: CMS DQM run/lumi certification.
+    class_uri: archi:DataCertification
+    attributes:
+      certification_id:
+        required: true
+      run:
+      dataset:
+      status:
+      certification_type:
+      created_at:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: certification_id
+      okg_searchable_text_fields: certification_id,run,dataset,status,text
+      okg_title_from: certification_id
+
+  Downtime:
+    description: GOCDB or WLCG downtime affecting a site or service.
+    class_uri: archi:Downtime
+    attributes:
+      downtime_id:
+        required: true
+      site:
+      service:
+      severity:
+      classification:
+      start_time:
+      end_time:
+      description:
+      text:
+    annotations:
+      archetype: incident
+      transient: "false"
+      okg_alias_fields: downtime_id
+      okg_searchable_text_fields: downtime_id,site,service,description,text
+      okg_title_from: description
+
+  # TransferJob and MonitoringSnapshot: see archi/schemas/sources.yaml
+  # (single definition, landed with the MONIT port).
+
+  SAMTest:
+    description: SAM/ETF site or service test result.
+    class_uri: archi:SAMTest
+    attributes:
+      test_id:
+        required: true
+      site:
+      service:
+      status:
+      metric:
+      observed_at:
+      text:
+    annotations:
+      archetype: process
+      transient: "true"
+      okg_alias_fields: test_id
+      okg_searchable_text_fields: test_id,site,service,metric,status,text
+      okg_title_from: test_id
+
+  Run:
+    description: CMS data-taking run.
+    class_uri: archi:Run
+    attributes:
+      run_number:
+        required: true
+      fill:
+      era:
+      start_time:
+      end_time:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: run_number
+      okg_searchable_text_fields: run_number,era,text
+      okg_title_from: run_number

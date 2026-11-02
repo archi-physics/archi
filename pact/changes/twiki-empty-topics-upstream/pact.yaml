@@ -1,0 +1,118 @@
+pact_version: 5
+id: twiki-empty-topics-upstream
+title: A few empty TWiki topics no longer refuse the whole snapshot
+tier: 2
+why: 'Release risk found by a real run. The empty-cache-fails-loudly rule (PR #21) read every
+  zero-byte, whitespace-only or NUL-only TWiki topic file as an interrupted sync: the file was
+  skipped and the run claimed no complete scope (health endpoint_failed). The real CMS snapshot
+  holds two topics that are empty upstream (twiki-cms/ExperienceFromFirstCollisions.txt, mtime
+  2010-01-14, and twiki-cms/TWikiTopQuarkTtXAnalyses.txt, mtime 2025-09-01), so every full cms-kb
+  ingest was refused and its publish skipped. The snapshot builder refused the twiki-eos group for
+  the same reason, so a release snapshot needed a hand-staged copy without the two files.
+
+
+  DECISION (lead, 2026-09-29): a topic that is empty upstream is correctly absent, and a complete
+  scope retracts it; an interrupted sync leaves many empty files. Empty topic files are skipped
+  (never emitted: that would blank the page), counted and named in the health reason and in
+  TwikiEOSSource.last_empty_topics, and the run still claims its scope with health ok, unless
+  there are more than max(10, 0.1% of the topic files read, empty ones included). Above that the
+  refusal stays (endpoint_failed, no complete scope). A snapshot of only empty topics stays
+  cache_missing; every other #21 rule is unchanged. preflight() reaches the same verdict as run().
+
+
+  DECISION (orchestrator, 2026-09-29): the snapshot builder leaves empty twiki-eos topic files out
+  of the archive and records them in the lock (empty_topic_files, a count, and empty_topic_names).
+  The same threshold refuses the group, and so does a tree of only empty files. verify checks that
+  the count matches the names and that no named file is archived.'
+affected_code:
+- python/archi/sources/twiki.py
+- python/archi/snapshot/builder.py
+- python/archi/snapshot/groups.py
+- docs/cache-snapshot.md
+- python/tests/sources/test_twiki.py
+- python/tests/snapshot/test_snapshot_builder.py
+requirements:
+- id: req.twiki-empty-topics-upstream.reader
+  statement: 'The TWiki EOS reader skips empty topic files and still claims its scope when
+    there are at most max(10, 0.1% of topic files) of them.
+
+
+    Acceptance:
+
+    - acc.twiki-empty-topics-upstream.few: two empty topics among many are not emitted, both are
+    named in the health reason, health is ok and the scope is complete, in run() and preflight();
+    the same holds for a seeded walk and for whitespace-only and NUL-only files. [evidence: executed_test]
+
+    - acc.twiki-empty-topics-upstream.many: more empty topics than the limit give endpoint_failed
+    and no complete scope, with preflight() giving the same reason; a snapshot of only empty topics
+    stays cache_missing. [evidence: executed_test]
+
+    - acc.twiki-empty-topics-upstream.real: on the real Aug 31 twiki-eos snapshot the patched reader
+    reports ok, a complete scope and 43,744 topics, and names the two empty files. [evidence: executed_test]'
+- id: req.twiki-empty-topics-upstream.snapshot
+  statement: 'The snapshot builder leaves empty twiki-eos topic files out, lists them in the lock,
+    and refuses the group above the same limit.
+
+
+    Acceptance:
+
+    - acc.twiki-empty-topics-upstream.lock: a fake snapshot with 2 empty topics among many builds;
+    the lock shows empty_topic_files 2 and names both; the archive holds neither; verify is ok.
+    [evidence: executed_test]
+
+    - acc.twiki-empty-topics-upstream.refuse: 11 empty among 13 text files, or a tree of only empty
+    files, refuses the group and writes nothing; verify fails a lock whose count or names disagree
+    with the archive. [evidence: executed_test]'
+tasks:
+- id: task.twiki-empty-topics-upstream.reader
+  requirement: req.twiki-empty-topics-upstream.reader
+  verification: 'Apply the threshold in the shared preflight/run verdict; rewrite the tests
+    that asserted any empty topic refuses the scope; add the few, at-the-limit, many and
+    limit-arithmetic cases with fake data.
+
+
+    Proof: the full archi suite passes on a dev host; the patched reader, run read-only on the
+    real Aug 31 snapshot on a dev host, reports ok, complete scope, 43,744 topics and the two names.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.twiki-empty-topics-upstream.snapshot
+  requirement: req.twiki-empty-topics-upstream.snapshot
+  verification: 'Skip blank text files for twiki-eos in the builder, record them in the lock,
+    apply the threshold, check the rows in verify; test with small fake snapshot builds.
+
+
+    Test plan:
+
+    - python/tests/snapshot [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.twiki-empty-topics-upstream.reader
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 0a16d12cd0d24baf2b7795e99e4e70f6fad6b1a5
+  at: '2026-09-29T07:25:00+00:00'
+  note: 'Full suite on a dev host at this commit: 1577 passed, 2 failed. The 2 failures are the
+    timing tests test_redact_email_addresses_git_scan_is_linear and ..._quoted_local_part_is_linear
+    in tests/enrichment/test_anonymizer.py (untouched code); they fail the same way on main b4fc6a55
+    on the same host (load average about 45). New and rewritten reader tests use fake data: 2 empty
+    among 45 topics claim scope and are named; 10 empty claim scope; 11 empty refuse (tree and
+    seeded) with preflight giving the same reason; only-empty stays cache_missing; limit arithmetic
+    max(10, n // 1000). Real-data check, read-only on a dev host, Aug 31 twiki-eos stage: main gives
+    endpoint_failed, no complete scope; this change gives health ok, completed_scope true, 43,744
+    topics, preflight ok with 43,744, and names twiki-cms/ExperienceFromFirstCollisions.txt and
+    twiki-cms/TWikiTopQuarkTtXAnalyses.txt (limit 43 among 43,746 topic files). The probe ran at
+    the parent draft e5298735; the only later edit is the reason wording for an all-empty snapshot.'
+- kind: executed_test
+  requirement: req.twiki-empty-topics-upstream.snapshot
+  status: pass
+  command: cd python && python -m pytest tests/snapshot -q
+  head: 0a16d12cd0d24baf2b7795e99e4e70f6fad6b1a5
+  at: '2026-09-29T07:25:00+00:00'
+  note: 'Part of the full-suite run above. Fake snapshot builds: 2 empty twiki topics among 42 build;
+    the lock shows empty_topic_files 2 and names both; neither is archived; verify is ok. 11 empty
+    among 13 text files and an all-empty tree refuse the group and write nothing; verify fails a lock
+    whose count disagrees or that names an archived file. Existing NUL-byte refusals still pass.'
+decisions: []

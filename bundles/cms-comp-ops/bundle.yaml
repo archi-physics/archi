@@ -1,0 +1,29 @@
+name: cms-comp-ops
+version: 0.2.0
+description: A CMS computing operations knowledge instance - sites, storage, datasets and workflows from the CMS catalogs, site status, CMSSW releases, and the operational memory of past incidents.
+# ADR 0002 section 5. Extends cern-team for its documentation, meetings and
+# generic playbooks; the comp-ops catalogs go on top. The Rucio, site and
+# incident playbooks ride with the packs that own their data (cms-catalogs,
+# monit-live). The ticket-triage automation pack triages the JIRA
+# queue, so it needs jira selected with it.
+# Companions (PACT r3-bundle-companions, decision d716): an install that
+# selects git-code also gets code-text, the text of the repository's files
+# (code, YAML, shell, Markdown), behind its secret screen. Opt out with
+# --without code-text. An install without git-code is unchanged.
+extends: [cern-team]
+packs:
+  default: [cms-catalogs, cmssst, cmssw-releases, ops-record]
+  optional: [monit-live, dqm, hypernews, jira, git-code, ticket-triage]
+  companions:
+    git-code: [code-text]
+chat:
+  site_name: CMS computing operations chat
+  description: >-
+    Answers from this instance's knowledge graph of CMS computing operations -
+    sites, storage endpoints, datasets, workflows, downtimes, site status and
+    past incidents - with the sources it used.
+  suggestions:
+    - Which storage endpoints does a given site have, and what is its status?
+    - Which workflows read a given dataset, and where is it hosted?
+    - Which downtimes are scheduled for a site, and what happened the last time it had one?
+okg: ">=0.4.0,<0.5"

@@ -1,0 +1,77 @@
+# Tracker tickets (Redmine, JIRA, and any tracker with the same export shape).
+#
+# Owned by the tickets pack. Classes live in this file; their edge narrowings
+# are in bridges/tickets.yaml (okg's composer honours narrowings only under
+# schemas/bridges/). Person and DocumentChunk come from okg's person and
+# extraction modules.
+id: https://archi-physics.org/okg/archi/tickets
+name: archi_tickets
+title: Archi - tracker ticket subtype
+description: Node subtype emitted by archi.sources.tickets.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  TrackerTicket:
+    description: >-
+      A ticket from a tracker such as Redmine or JIRA, mirrored from the records cache.
+    class_uri: archi:TrackerTicket
+    attributes:
+      ticket_id:
+        required: true
+      system:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      subject:
+      description:
+      project:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      tracker:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      status:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      priority:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      author:
+      assignee:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      created:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      updated:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      closed:
+      note_count:
+        range: integer
+      url:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: ticket_id
+      okg_identifier_fields: ticket_id
+      okg_searchable_text_fields: ticket_id,subject,description,status,priority,tracker,project,text
+      okg_title_from: subject
+      okg_created_at_from: created
+      okg_last_modified_at_from: updated

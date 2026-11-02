@@ -1,0 +1,196 @@
+pact_version: 5
+id: empty-cache-fails-loudly
+title: An empty or broken source cache fails loudly instead of claiming a complete scope
+tier: 2
+why: 'okg retracts a source''s rows when a run reports completed_scope=True and health ok,
+  not_applicable or skipped_optional (okg dev ingest/runner.py, _completed_scope_deletion_authorized).
+  Nine archi sources reported exactly that over an empty [] cache in a scope_complete or reconcile
+  run: jira (no meta.json), docs, indico, gocdb, dqm, cric_core with health ok; dbs, conddb,
+  wmstats with health skipped_optional. cric claimed it over {} caches and crashed on [].
+  Each is an order to retract every record the source ever ingested, issued by a failed or
+  unsynced fetch.
+
+
+  DECISION (Jason, 2026-09-28): an EMPTY or FAILED cache is a loud failure, never a complete
+  scope. Applied per source:
+
+  - dbs, conddb, wmstats, dqm, indico, jira, docs, cric, cric_core: a missing, unreadable,
+  zero-byte, whitespace-only, truncated-JSON or empty cache file is cache_missing with the
+  path as cache_path, no facts, completed_scope=False. Valid JSON of the wrong shape (an error
+  body, a list where an object belongs) is endpoint_failed. Missing caches used to raise FileNotFoundError
+  from run() in dbs, conddb, wmstats, dqm, indico, gocdb, cric, cric_core while preflight()
+  reported cache_missing; run() now reports it too.
+
+  - skipped_optional is no longer reported for an empty cache (dbs, conddb, wmstats). None
+  of these sources has a "not configured" state: a deployment that does not want one does
+  not register it, and a registered source whose cache file is absent was already cache_missing
+  (required=False) in preflight. No archi source changed here reports skipped_optional for
+  a cache any more; monit''s zero-bucket read (skipped_optional, completed_scope=False) is
+  unchanged.
+
+  - gocdb (revised after the review of #21): an empty downtime list is cache_missing like
+  every other empty cache; the snapshot builder already refuses an empty gocdb group. An empty
+  CRIC topology cache (sites or services {}) is also cache_missing, because it would drop
+  every affects edge under a complete scope; an error body or a sites cache with no CMS site
+  name is endpoint_failed; non-object topology entries are skipped and stop the scope claim.
+  The snapshot builder''s gocdb reader check (archi/snapshot/groups.py) now stages one-entry
+  stubs that match no real host instead of {}.
+
+  - jira: meta.json cannot bless an empty cache (record_count=0 still fails). Items without
+  an issue key are skipped but stop the scope claim; preflight now reports the meta mismatch
+  run() already reported.
+
+  - docs: items with no url stop the scope claim (duplicate urls are dedup). The live SSOCookieDocsSource
+  crawl that yields zero pages is endpoint_failed with no scope.
+
+  - cric: responsibilities with an empty result list is cache_missing; a drifted payload is
+  endpoint_failed from run() (it raised ValueError). cric_core: a federations cache with no
+  CMS federation is endpoint_failed.
+
+  - cric and cric_core (review of #21): every key of a name -> object cache used to become
+  a record, so an API error body such as {"error": {...}} claimed a complete scope and retracted
+  every real site. Now a top-level error/errors key, a sites cache with no key shaped like
+  a CMS site name (T2_XX_Name), a cache none of whose values is an object, a responsibilities
+  payload with no 3-field row, or an entry whose nested shape breaks the record builder (it
+  used to raise AttributeError/TypeError) is endpoint_failed. A single non-object entry or
+  non-3-field row is skipped and counted and stops the scope claim, the same rule as the list
+  sources. Rows with a null username or site stay a plain drop, as in real exports; but rows
+  that yield no operator at all (every site null, or no title matching the sites cache) are
+  endpoint_failed (re-review of #21). Known limit, unchanged: a dict-valued fake entry such
+  as {"junk": {}} in facilities, storage_units, compute_units, services or rcsites still passes
+  (only sites has a name-shape check); the snapshot builder''s own-key check refuses it on
+  that path.
+
+  - preflight() and run() share one verdict per source (a shared helper or one method), so
+  they cannot disagree.
+
+
+  Folded in from the PR #19 review of twiki.py: (1) preflight now reaches run()''s verdict
+  when every seed is missing (cache_missing) or some are (endpoint_failed); (2) a snapshot
+  root that cannot be listed says it could not be read, not that it holds no topics; (3) an
+  unreadable subfolder or topic file is no longer hidden by rglob: readable pages are emitted,
+  no complete scope is claimed, health endpoint_failed names them; (4) DECISION a zero-byte
+  topic file is an interrupted sync of that page: skipped (emitting it would blank the page)
+  and the run claims no scope (claiming it would retract the page), so the last good copy
+  stays and other pages still update; all-zero-byte is cache_missing. After the review of
+  #21 a topic of only whitespace or NUL bytes is treated the same way; (5) hidden files and
+  folders (.TopicA.txt, .sync/...) are sync-tool metadata and are skipped without affecting
+  the scope claim; (6, review of #21) a max_files cap that leaves topics out reports ok but
+  claims no complete scope (the docs max_pages rule).
+
+
+  NOT CHANGED: twiki preflight does not apply the optional physics filter (it needs every
+  topic parsed); run() alone reports a filter that keeps nothing. Tests that encoded the old
+  behavior were updated: dbs/wmstats empty preflight (skipped_optional -> cache_missing),
+  cric drifted responsibilities (raise -> endpoint_failed health), twiki one-seed-missing
+  preflight (ok -> endpoint_failed), twiki walk-once counter (_paths -> _listing).'
+affected_code:
+- python/archi/snapshot/groups.py
+- python/archi/sources/_cache_report.py
+- python/archi/sources/conddb.py
+- python/archi/sources/cric.py
+- python/archi/sources/dbs.py
+- python/archi/sources/docs.py
+- python/archi/sources/dqm.py
+- python/archi/sources/gocdb.py
+- python/archi/sources/indico.py
+- python/archi/sources/jira.py
+- python/archi/sources/twiki.py
+- python/archi/sources/wmstats.py
+- python/tests/sources/test_empty_cache_fails_loudly.py
+- python/tests/sources/test_cric.py
+- python/tests/sources/test_dbs.py
+- python/tests/sources/test_docs.py
+- python/tests/sources/test_twiki.py
+- python/tests/sources/test_wmstats.py
+requirements:
+- id: req.empty-cache-fails-loudly.main
+  statement: 'No archi cache-backed source claims a complete scope over an empty or broken
+    cache, and preflight() agrees with run().
+
+
+    Acceptance:
+
+    - acc.empty-cache-fails-loudly.list-caches: for dbs, conddb, wmstats, dqm, indico, jira
+    and docs, an empty list, zero-byte, whitespace-only, truncated, unreadable or missing
+    records cache makes run() emit no facts, set completed_scope=False and report cache_missing
+    with the path as cache_path and in the reason, in scope_complete and reconcile; an error-shaped
+    payload reports endpoint_failed; preflight() reports the same status; a one-record cache
+    still claims its scope. [evidence: executed_test]
+
+    - acc.empty-cache-fails-loudly.object-caches: for cric and cric_core, each cache file
+    that is {} or broken is cache_missing, a [] is endpoint_failed, empty responsibility rows
+    are cache_missing, a federations cache without CMS is endpoint_failed; an error body,
+    a sites cache with no CMS site name, only non-object values, no 3-field responsibility
+    row, responsibility rows that map to no operator, or a nested shape that breaks the builder
+    is endpoint_failed and never a crash; one non-object entry or bad row stops the scope
+    claim; all of it in run() and preflight(); full caches still claim scope. [evidence: executed_test]
+
+    - acc.empty-cache-fails-loudly.gocdb: an empty gocdb downtime list or an empty CRIC topology
+    cache is cache_missing with no facts and completed_scope=False in run() and preflight();
+    a topology error body is endpoint_failed; a missing downtime or topology cache is cache_missing
+    in both; the snapshot builder still accepts a gocdb group. [evidence: executed_test]
+
+    - acc.empty-cache-fails-loudly.twiki: an unreadable snapshot root is cache_missing saying
+    it could not be read; an unreadable subfolder or topic file and a zero-byte, whitespace-only
+    or NUL-only topic stop the scope claim with endpoint_failed; a max_files cap that cuts
+    the listing claims no scope; hidden files and folders are not topics; preflight() matches
+    run() for missing seeds and each of these cases. [evidence: executed_test]
+
+    - acc.empty-cache-fails-loudly.sso-docs: an SSO docs crawl that yields zero pages reports
+    endpoint_failed with no complete scope. [evidence: executed_test]'
+tasks:
+- id: task.empty-cache-fails-loudly.deliver
+  requirement: req.empty-cache-fails-loudly.main
+  verification: 'Shared cache reader and unusable-cache helpers in _cache_report; each source
+    routes preflight() and run() through them; twiki walks the snapshot with os.walk and one
+    shared verdict.
+
+
+    Proof: the new failure-case tests fail on main 8e056961 and pass on the branch; the controls
+    pass on both; the full archi suite passes.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.empty-cache-fails-loudly.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 91df371530afa665719e660952548e0f832b5035
+  at: '2026-09-29T00:48:09+00:00'
+  note: '1243 passed at this commit (main 8e056961: 1066). 177 new tests: 167 failure cases
+    fail on main and pass here (153 in tests/sources/test_empty_cache_fails_loudly.py across
+    dbs, conddb, wmstats, dqm, indico, jira, docs, gocdb, cric, cric_core; 12 twiki review
+    follow-ups; 2 SSO docs zero-page); the 10 controls (one record / full caches still claim
+    scope) pass on both. 4 existing tests changed on purpose (dbs/wmstats empty preflight,
+    cric drift raise->health, twiki one-seed preflight) plus the twiki walk counter (_paths->_listing);
+    see why.'
+- kind: executed_test
+  requirement: req.empty-cache-fails-loudly.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 881152a3d653561eda038484541d7aadc65badc6
+  at: '2026-09-29T01:10:09+00:00'
+  note: '1308 passed at this commit (tests/snapshot: 380 passed). Review-of-#21 round: 67
+    new tests; 65 failure cases fail on the previous head 64ed7e74 and pass here (cric/cric_core
+    error bodies, non-CMS sites key, non-object values, bad responsibility rows, nested-shape
+    crashes; gocdb empty downtime list and empty/error topology; twiki max_files cut and whitespace/NUL-only
+    topics); the 2 controls (null-site row is a plain drop, a max_files that cuts nothing)
+    pass on both. test_gocdb_empty_downtime_list_never_claims_scope (2 cases) was replaced
+    by the cache_missing test. First round (91df3715): 167 failure cases fail on main 8e056961,
+    10 controls pass on both.'
+- kind: executed_test
+  requirement: req.empty-cache-fails-loudly.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 6e8bae4858bb40906d3570174d50d83e0915d06d
+  at: '2026-09-29T01:16:08+00:00'
+  note: '1311 passed at this commit (tests/snapshot included). Re-review round: the 2 zero-operator
+    failure cases (all rows null-site; no title matches the sites cache) fail on b80b59ca
+    and pass here; the control (some null-site rows, one that maps) passes on both. Earlier
+    rounds: 65 failure cases fail on 64ed7e74 (2 controls pass on both); 167 fail on main
+    8e056961 (10 controls pass on both).'
+decisions: []

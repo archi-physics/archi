@@ -1,0 +1,34 @@
+name: cms-analyses
+kind: context
+version: 0.1.0
+description: CMS physics group and technique hubs, and rules joining analysis ids across CDS records, TWiki pages and analysis notes (code is not linked).
+requires:
+  modules: [document_starter, person, extraction]
+  # The entity source re-reads the TWiki dump and the note mirror, and the
+  # cross-link rules join CDS records to notes, so all three sources must be
+  # installed.
+  packs: [twiki, cds, analysis-notes]
+schemas: schemas/
+sources: sources/
+invariants: invariants.yaml
+playbooks: playbooks/
+# The cross-link rules sit in cross_links/ beside this file. A profile may
+# carry only a fixed set of extra files, so they are not rendered into the
+# instance; PhysicsCrossLinker reads them from the installed pack (README.md).
+# Both sources are compiled-in lists plus a re-read of the TWiki dump and
+# note mirror; they change when the pack changes or when those inputs do, and
+# the inputs are refreshed by hand: 7d, as for twiki and analysis-notes.
+freshness:
+  cms-analyses.physics_vocabulary: {max_staleness: 7d}
+  cms-analyses.physics_entities: {max_staleness: 7d}
+search_subtypes:
+  - physics_analysis_group
+  - physics_object_group
+  - physics_technique
+  - physics_concept
+  - physics_topic
+prompt_fragment: prompt.md
+# This pack fetches nothing, but the TWiki dump and the analysis-note mirror
+# it re-reads each need a CERN account, and it installs with the packs
+# that read them.
+needs_credentials: true

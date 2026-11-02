@@ -1,0 +1,7 @@
+[mcp_servers.archi-demo]
+url = "http://127.0.0.1:18080/mcp"
+bearer_token_env_var = "OKG_CHAT_MCP_TOKEN"
+
+[mcp_servers.notes]
+url = "http://127.0.0.1:18090/mcp"
+env_http_headers = { X-Api-Key = "NOTES_API_KEY" }

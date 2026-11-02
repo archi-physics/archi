@@ -1,0 +1,9 @@
+init_questions:
+  - id: gitlab_url
+    prompt: GitLab server holding the SITECONF group
+    type: string
+    required: false
+    default: https://gitlab.cern.ch
+    description: |
+      The GitLab the siteconf source reads (group 4099 on CERN GitLab).
+      Leave the default.

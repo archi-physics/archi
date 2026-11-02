@@ -2,51 +2,120 @@
   <img src="https://raw.githubusercontent.com/archi-physics/archi/main/docs/docs/_static/archi-logo.png" width="200" />
 </p>
 
-# _archi_ - AI Augmented Research Chat Intelligence
+# Archi
 
-[![CI](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml/badge.svg)](https://github.com/archi-physics/archi/actions/workflows/pr-preview.yml)
-[![Docs](https://img.shields.io/badge/docs-online-blue)](https://archi-physics.github.io/archi/)
+[![Docs](https://img.shields.io/badge/docs-3.0-blue)](docs/docs/index.md)
 
-_archi_ is a retrieval-augmented generation framework for research and education teams who need a low-barrier to entry, configurable, private, and extensible assistant. The system was first developed at MIT for the SubMIT computing project, and now powers chat, ticketing, and course-support workflows across academia and research organizations.
+**Archi automates operations for scientific computing.** It serves the teams
+that keep research infrastructure running: experiment computing operations,
+analysis user support, data quality and cluster management. Agents watch the
+system and propose actions. Once a person approves a proposal, a separate
+component carries it out; in 3.0 no automation acts on its own. Every step
+cites the facility's own knowledge, and its outcome is written back into that
+knowledge, so the next proposal can see what happened last time.
 
-## Key Capabilities
+Archi 3.0 ships the context layer, the automation runtime and two
+automations. `ticket-triage` triages new and updated Redmine, JIRA and
+ServiceNow tickets: it drafts a cited reply for a person to send, or proposes
+a status change, assignment or reply that runs only after a person approves
+it. `instance-health` watches the Archi instance itself.
 
-_archi_ provides:
-- Customizable AI pipelines that combine data retrieval and LLMs (and more tools to come!).
-- Data ingestion connectors: web links, git repositories, local files, JIRA, and more.
-- Interfaces: chat app, ticketing assistant, email bot, and more.
-- Support for running or interacting with local and API-based LLMs.
-- Modular design that allows custom data sources, LLM backends, and deployment targets.
-- Containerized services and CLI utilities for repeatable deployments.
+## How it works
 
-## Documentation
+Automation is only as good as what the agent knows, so Archi has two layers.
 
-The [docs](https://archi-physics.github.io/archi/) are organized as follows:
+1. **The context layer** holds what a facility knows: documentation, tickets,
+   catalogs, monitoring, code and, for operations bundles, the record of past
+   operations. Archi keeps it *solid* and checks that it is: current, linked
+   across sources, cited on every read, and measured by freshness checks and
+   evals. An automation can refuse to run when the knowledge it depends on is
+   stale.
+2. **The operations layer** runs automations over that context. Each follows
+   the same loop: signal, context, proposal, decision, action, outcome. Each
+   automation runs at a set level, from "only record what it would do" up to
+   "act after a person approves", and anything that changes a system goes
+   through review first.
 
-- [Install](https://archi-physics.github.io/archi/install/) — system requirements and installation.
-- [Quickstart](https://archi-physics.github.io/archi/quickstart/) — deploy your first Archi instance in minutes.
-- [User Guide](https://archi-physics.github.io/archi/user_guide/) — overview of all capabilities.
-- [Data Sources](https://archi-physics.github.io/archi/data_sources/) — configure web links, git, JIRA, Redmine, and more.
-- [Services](https://archi-physics.github.io/archi/services/) — chat, uploader, data manager, Piazza, and other interfaces.
-- [Models & Providers](https://archi-physics.github.io/archi/models_providers/) — LLM providers, embeddings, and BYOK.
-- [Agents & Tools](https://archi-physics.github.io/archi/agents_tools/) — agent specs, tools, MCP integration.
-- [Configuration](https://archi-physics.github.io/archi/configuration/) — full YAML config schema reference.
-- [CLI Reference](https://archi-physics.github.io/archi/cli_reference/) — all CLI commands and options.
-- [API Reference](https://archi-physics.github.io/archi/api_reference/) — REST API endpoints.
-- [Benchmarking](https://archi-physics.github.io/archi/benchmarking/) — evaluate retrieval and response quality.
-- [Evaluation Guide](https://archi-physics.github.io/archi/evaluation/) — evaluate complete agent answers against reviewed gold atoms.
-- [Advanced Setup](https://archi-physics.github.io/archi/advanced_setup_deploy/) — GPU setup and production deployment.
-- [Developer Guide](https://archi-physics.github.io/archi/developer_guide/) — architecture, contributing, and extension patterns.
-- [Troubleshooting](https://archi-physics.github.io/archi/troubleshooting/) — common issues and fixes.
+The working rule is **algorithmic first, agents for judgment**: fixed checks
+decide everything they can, and agents handle what needs reading and judgment.
 
-## Getting Started
+Any agent that speaks the Model Context Protocol (MCP), the standard way AI
+agents call tools, can use an Archi instance: the built-in chat, Claude Code,
+Codex or your own agent. You can bring your own agent, language model,
+connectors and tools; the defaults work out of the box.
 
-Follow the [Install](https://archi-physics.github.io/archi/install/) and [Quickstart](https://archi-physics.github.io/archi/quickstart/) guide to set up prerequisites, configure data sources, and launch an instance.
+## What you install
 
-## Contributing
+You install a **bundle**: a named selection of packs. A pack is one source
+family (TWiki, Indico, Redmine, Slurm, the CMS catalogs), one set of tools, or
+one automation.
 
-We welcome fixes and new integrations—see the [Developer Guide](https://archi-physics.github.io/archi/developer_guide/) for coding standards, testing instructions, and contribution tips. Please open issues or pull requests on the [GitHub repository](https://github.com/archi-physics/archi).
+| Bundle | For |
+|---|---|
+| `cern-team` | Any CERN team: documentation and meetings, with no credentials needed to start. |
+| `cms-physics` | CMS physics: analysis notes, published summaries, physics TWiki pages and the analyses that link them. |
+| `cms-comp-ops` | CMS computing operations: sites, storage, datasets, workflows, site status and past incidents. |
+| `cluster-manager` | Any cluster operator, at any site: documentation, tickets, operational memory, and optionally Slurm, HTCondor, ServiceNow and node health. |
 
-## License and Support
+You can also install a bundle with no automations, and get a knowledge base
+your team can query, with citations, from any MCP agent. Your own sources and
+automations can ship as packs from your own package.
 
-_archi_ is released under the [MIT License](LICENSE). For project inquiries, contact paus@mit.edu.
+## Start here
+
+Archi is on PyPI as `archi-kb`. It runs on the `okg` graph engine, which
+comes from its own release file. In a Python 3.12 virtual environment:
+
+```bash
+pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+archi init myteam && cd myteam && archi up && archi doctor
+```
+
+The [quickstart](docs/docs/quickstart.md) takes an empty machine to a cited
+answer. The documentation is in [`docs/docs/`](docs/docs/index.md).
+
+## How it is built
+
+Archi runs on [OKG](https://github.com/mitdbg/akmon), a knowledge graph that
+publishes checked versions of its data, serves them to agents through a set of
+read tools, and records every review decision. (AKMON is the name of the OKG
+project and repository.) Archi supplies everything above it: the connectors and schemas for each source,
+the packs and bundles, the automations and their runtime, and the `archi`
+command (`init`, `up`, `doctor`, `connect`, `eval`, `ops`). It is distributed
+as the Python package `archi-kb` (import name `archi`), built from
+[`python/`](python/).
+
+The package holds no credentials, no site configuration and no running
+services. Each instance lives in its own repository and carries only its
+configuration and secrets.
+
+## Repository layout
+
+- [`python/`](python/): the `archi` package, with its tests.
+- [`bundles/`](bundles/): the bundles and the [packs](bundles/packs/) they
+  select. See [bundles and packs](docs/docs/bundles-and-packs.md).
+- [`skills/`](skills/): playbooks for agents operating over the graph.
+- [`docs/`](docs/): the design records ([`docs/adr/`](docs/adr/)) and the
+  documentation site (`docs/mkdocs.yml`, pages in `docs/docs/`). The library
+  and command reference pages are generated:
+  `cd python && python -m archi.docs_gen`.
+- [`pact/`](pact/): the change record (requirements, tasks, evidence).
+
+## Key documents
+
+- [ADR 0002](docs/adr/0002-archi-3.0-release.md): what Archi 3.0 is, and its
+  milestones.
+- [ADR 0001](docs/adr/0001-archi-v3-program-spec.md): the v3 program spec.
+- [OKG alignment](docs/okg-alignment.md): which parts of OKG Archi depends
+  on, and the OKG version it is tested against.
+
+## v2
+
+The v2 application (the RAG chatbot) lives on the `main` branch and serves
+existing deployments until the 3.0 cutover. This branch carries 3.0 only.
+See [moving from v2 to 3.0](docs/docs/migration-from-v2.md).
+
+## License
+
+Archi is released under the [MIT License](LICENSE). For project inquiries,
+contact paus@mit.edu.

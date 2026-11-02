@@ -1,0 +1,21 @@
+name: indico
+kind: context
+version: 0.2.0
+description: Indico events and their talks, read live from the Indico HTTP API.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+playbooks: playbooks/
+# Read live from the Indico API. Events are scheduled days ahead but their
+# agendas and minutes change on the day: 24h (ADR 0002 section 3.1 example).
+freshness:
+  indico.indico_live: {max_staleness: 24h}
+search_subtypes: [meeting_minutes, document, document_chunk]
+prompt_fragment: prompt.md
+# Public events need no credential. Protected ones read a cookie file whose
+# path is in the variable `cookie_file_env` names (ARCHI_INDICO_COOKIES in
+# the template); the variable is the operator's choice, so none is listed.
+needs_credentials: false

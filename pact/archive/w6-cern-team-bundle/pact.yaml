@@ -1,0 +1,48 @@
+pact_version: 5
+id: w6-cern-team-bundle
+title: 'W6: cern-team bundle + install demo'
+tier: 1
+why: 'ADR 0001 W6 / okg#1185: the cern-team bundle turns a blank OKG install into a working
+  HEP instance. Demo executed 2026-08-21 on a dev host: okg install --profile cern-team on a
+  fresh DB, lint zero blocker/warning, four connectors ingest OK (live cmssw fetch), a generation
+  published with cross-connector reference edges, idempotent re-run. Runbook docs/cern-team-demo.md;
+  results + friction log in w2-consolidate-hep-sources/cern-team-demo-evidence.md.
+
+
+  Small nontrivial change whose intent, task, acceptance, and proof fit the PACT fast path.'
+affected_code: []
+requirements:
+- id: req.w6-cern-team-bundle
+  statement: "W6: cern-team bundle + install demo\n\nokg install --profile cern-team (external\
+    \ OKG_PROFILES_DIR) plus the two documented manual steps must produce a lint-clean instance\
+    \ whose connectors ingest and publish a readable generation; the bundle files must keep\
+    \ the strict-admission shape, resolvable playbook symlinks, and no operator paths or credential\
+    \ values.\n\nAcceptance:\n- acc.w6-cern-team-bundle: python/tests/test_bundle_cern_team.py\
+    \ passes (4 structural guards); the live run is reproducible from docs/cern-team-demo.md.\
+    \ [evidence: executed_test]\n\nScenarios:\n- scn.w6-cern-team-bundle.fast-path Fast-path\
+    \ work is verified\n  Given a small nontrivial change fits one requirement\n  When the\
+    \ declared verification runs\n  Then the requirement has executed proof before completion"
+tasks:
+- id: task.w6-cern-team-bundle
+  requirement: req.w6-cern-team-bundle
+  verification: 'W6: cern-team bundle + install demo
+
+
+    python/tests/test_bundle_cern_team.py
+
+
+    Test plan:
+
+    - python/tests/test_bundle_cern_team.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.w6-cern-team-bundle
+  status: pass
+  command: <okg-venv>/bin/python -m pytest python/tests/test_bundle_cern_team.py
+    -q
+  artifact: python/tests/test_bundle_cern_team.py
+  sha256: f3515d5aec7d8600fd5eaec289ea42b349ecea6a6928c0605ae1d7378f411a31
+  at: '2026-08-21T16:06:21.143296+00:00'
+  note: '4/4 bundle guards; live demo: lint clean, 4 connectors OK, gen 20260821T155948...
+    published, cross-connector edges, idempotent (docs/cern-team-demo.md)'
+decisions: []

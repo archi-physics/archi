@@ -1,0 +1,23 @@
+init_questions:
+  - id: base_url
+    prompt: Tracker URL
+    type: string
+    required: true
+    description: |
+      The tracker's root URL; a ticket whose cache record has no link of its own
+      links to it (Redmine: <url>/issues/<id>; JIRA: <url>/browse/<key>). Fill the
+      cache before the first ingest:
+      `python -m archi.downloaders.tickets --redmine-url <url>` for Redmine, or
+      `JIRA_API_TOKEN=... python -m archi.downloaders.tickets --jira-url <url> --jira-project <KEY>`
+      for JIRA. Give both URLs to read both trackers into one cache.
+
+  - id: system
+    prompt: Tracker system name (lowercase)
+    type: string
+    required: false
+    default: redmine
+    description: |
+      `redmine` (the default) or `jira`, or the name of another tracker whose
+      export fills the cache. Records the downloader writes carry their own
+      system, so this only names tickets that do not; the system also keeps
+      ticket ids of two trackers apart.

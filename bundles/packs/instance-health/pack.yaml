@@ -1,0 +1,48 @@
+name: instance-health
+kind: automation
+version: 0.1.0
+description: Watches the instance itself (doctor, source freshness, failed ingests, automation error rates, eval trends) and keeps one issue per problem in the instance repository.
+# ADR 0002 section 7.5. L0 records what it finds; L1 drafts the issues. The default tracker writes Markdown
+# files under .archi/issues/ in the instance repository (a workflow step, no credential). GitLab and GitHub
+# trackers are the live tool below, which runs at L2 only (an approval per run: a forge issue is an external
+# post). The pack starts at L1 and never escalates there; an instance opts in to forge issues with level L2.
+requires:
+  packs: [ops-record]
+live_tools:
+  - archi.tools.instance_health:sync_forge_issues
+idempotent_tools:
+  - archi.tools.instance_health:sync_forge_issues
+playbooks: skills/
+action_classes: action_classes.yaml
+needs_credentials: false
+automation:
+  trigger:
+    type: schedule
+    cron: "7 * * * *"
+  # `evidence: own_signals` is the monitor opt-in (archi bundles validate): the proposal cites its own run's incident
+  # (its evidence is the instance's state, not graph nodes), the gate may ask only for a published graph, and the
+  # draft_issue step may run at L1.
+  # A health monitor must run while the thing it reports is stale, so its gate asks only whether the graph
+  # has a published generation to read, not whether any source is fresh.
+  evidence: own_signals
+  context_gate:
+    published: true
+  playbook: health.md
+  action_classes: [draft_issue, sync_forge_issues]
+  proposal_schema:
+    type: object
+    required: [summary, evidence_ids, action_class, payload, confidence, rollback]
+    additionalProperties: false
+    properties:
+      summary: {type: string, minLength: 1}
+      evidence_ids: {type: array, minItems: 1, items: {type: string}}
+      action_class: {type: string}
+      payload: {type: object}
+      confidence: {type: number, minimum: 0, maximum: 1}
+      rollback: {type: string}
+  budget:
+    cost_per_run: 0.01
+    cost_per_day: 1
+    runs_per_hour: 2
+  default_level: L1
+  max_level: L2

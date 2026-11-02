@@ -1,0 +1,44 @@
+# WMStats production workflows (cache-backed): one workflow node per
+# request, linked to the datasets it reads and writes. Reads
+# ${archi_data_root}/wmstats-workflows/records.json.
+wmstats_workflows:
+  module: archi.sources.wmstats
+  class: WMStatsWorkflowAdapter
+  ownership_id: ${deployment_name}.wmstats-workflows
+  admission_policy:
+    producer_id: ${deployment_name}.wmstats-workflows
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: wmstats_workflows
+    output_signature:
+      nodes:
+        - {subtype: workflow}
+        - {subtype: dataset}
+      edges:
+        - {src_subtype: workflow, edge_type: consumes, dst_subtype: dataset}
+        - {src_subtype: workflow, edge_type: produces, dst_subtype: dataset}
+        - {src_subtype: workflow, edge_type: depends_on, dst_subtype: cmssw_release}
+    output_scope_summary:
+      summary: WMStats workflows with dataset input/output and release dependencies
+      nodes: [workflow, dataset]
+      edges:
+        - workflow consumes dataset
+        - workflow produces dataset
+        - workflow depends_on cmssw_release
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [workflow]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    # cms default; the cms deployment used data/cms/wmstats-workflows/
+    records_path: ${archi_data_root}/wmstats-workflows/records.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

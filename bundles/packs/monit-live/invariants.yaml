@@ -1,0 +1,23 @@
+# Coverage for the subtypes this pack emits. It leaves with the pack.
+invariants:
+  - name: monit_live_coverage
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The MONIT sources must have live snapshots and transfers. Required
+      live subtypes: monitoring_snapshot, transfer_job. A missing one
+      means the input was empty or the connector regressed.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES ('monitoring_snapshot'), ('transfer_job')
+      ),
+      counts AS (
+        SELECT subtype, count(*) AS n
+          FROM okg.v_nodes
+         GROUP BY subtype
+      )
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r
+        LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0

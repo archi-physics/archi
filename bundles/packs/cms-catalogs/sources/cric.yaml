@@ -1,0 +1,55 @@
+# CRIC topology (cache-backed): facilities, sites, storage and compute
+# endpoints, and the operators responsible for each site. Reads the JSON
+# caches under ${archi_data_root}/cric/ (docs/docs/reference/connector-caches.md has
+# their shape). Nothing in archi downloads them yet; the CRIC API needs a
+# CERN grid certificate or SSO.
+cric:
+  module: archi.sources.cric
+  class: CRICAdapter
+  ownership_id: ${deployment_name}.cric
+  admission_policy:
+    producer_id: ${deployment_name}.cric
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: cric
+    output_signature:
+      nodes:
+        - {subtype: facility}
+        - {subtype: site}
+        - {subtype: storage_endpoint}
+        - {subtype: compute_endpoint}
+        - {subtype: operator}
+      edges:
+        - {src_subtype: facility, edge_type: contains, dst_subtype: site}
+        - {src_subtype: site, edge_type: contains, dst_subtype: compute_endpoint}
+        - {src_subtype: site, edge_type: contains, dst_subtype: storage_endpoint}
+        - {src_subtype: operator, edge_type: responsible_for, dst_subtype: site}
+    output_scope_summary:
+      summary: CRIC topology - facilities, sites, storage/compute endpoints, operators
+      nodes: [facility, site, storage_endpoint, compute_endpoint, operator]
+      edges:
+        - facility contains site
+        - site contains compute_endpoint
+        - site contains storage_endpoint
+        - operator responsible_for site
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [name, kind]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    # cms defaults; the cms deployment used data/cms/cric/*.json
+    sites_path: ${archi_data_root}/cric/sites.json
+    storage_units_path: ${archi_data_root}/cric/storage_units.json
+    compute_units_path: ${archi_data_root}/cric/compute_units.json
+    facilities_path: ${archi_data_root}/cric/facilities.json
+    responsibilities_path: ${archi_data_root}/cric/responsibilities.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

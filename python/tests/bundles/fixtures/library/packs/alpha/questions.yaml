@@ -1,0 +1,6 @@
+init_questions:
+  - id: site_url
+    prompt: documentation site URL
+    type: string
+    required: false
+    default: https://example.org/docs

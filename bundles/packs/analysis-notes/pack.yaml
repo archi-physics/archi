@@ -1,0 +1,26 @@
+name: analysis-notes
+kind: context
+version: 0.1.0
+description: CMS analysis notes, read from a local mirror of gitlab.cern.ch/tdr/notes - notes, sections, figures, bibliography and links to TWiki pages.
+requires:
+  modules: [document_starter, person, extraction]
+  # The bibliography-to-TWiki bridge points at pages the twiki pack emits, and
+  # the notes source runs after it so the page list it reads is current.
+  packs: [twiki]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# The mirror is a git clone refreshed by hand (README.md has the commands)
+# and notes change slowly: 7d is the age at which a new note is likely missing.
+freshness:
+  analysis-notes.analysis_notes: {max_staleness: 7d}
+search_subtypes: [analysis_note, section, reference, note_figure, document_chunk]
+prompt_fragment: prompt.md
+# Names the credential the mirror fetch needs (README.md). The source itself
+# only reads the clone from disk and never reads this variable.
+credentials: [CERN_GITLAB_TOKEN]
+# gitlab.cern.ch/tdr/notes is not readable without a CERN account, so the
+# mirror cannot be cloned anonymously; with no mirror the source blocks the
+# publish.
+needs_credentials: true

@@ -1,0 +1,136 @@
+pact_version: 5
+id: r3-responses-api
+title: Agent arms call OpenAI models through the Responses API
+tier: 2
+why: 'Root cause: on 2026-10-30 a priced `archi eval --context --agents` run with gpt-6-luna at
+  `--reasoning-effort medium` stopped on its first model call. OpenAI answered HTTP 400: this
+  model does not take function tools together with reasoning_effort on /v1/chat/completions;
+  it takes them only on /v1/responses. The agent client (archi.evaluation.agent.OpenAIChat)
+  spoke only chat/completions, so every agent-arm call to such a model failed, and the three
+  planned runs (two instance acceptance runs and one corpus trial) could not run their agent
+  arms. Dropping the effort to none would change what is measured; Jason chose to add Responses
+  support instead.
+
+
+  The change adds OpenAIResponses, a client with the same interface (chat-format messages and
+  tools in, ChatReply out), so the two agent loops, the spend ledger, the cap and the retries
+  are shared and unchanged. `--model-api auto|chat|responses` picks the API; auto uses
+  Responses for api.openai.com and chat/completions for everything else, so local models
+  (Ollama, vLLM) keep the exact request they had. Requests set store false, so nothing is kept
+  at OpenAI: each turn sends the whole conversation, with the earlier turns'' output items
+  (encrypted reasoning, function calls) sent back as they came, as OpenAI''s reasoning guide asks
+  for reasoning models with tools. Request and response shapes follow OpenAI''s Responses API
+  reference and its function-calling, reasoning and migration guides, read on 2026-10-29.'
+affected_code:
+- python/archi/evaluation/agent.py
+- python/archi/evaluation/raw_arm.py
+- python/archi/cli/evaluate.py
+- python/tests/evaluation/test_responses.py
+- docs/docs/operating/evals.md
+- docs/docs/reference/cli.md
+requirements:
+- id: req.r3-responses-api.agent-calls
+  statement: 'With `--model-api responses`, or with the default `auto` and a model URL whose
+    host is api.openai.com, every agent-arm model call is POST {model-url}/responses with model,
+    input, tools as flat function tools (strict false), reasoning {effort} from --reasoning-effort
+    (none with --no-think), max_output_tokens from --max-output-tokens, store false and
+    include ["reasoning.encrypted_content"]; no temperature or seed goes to a remote endpoint.
+    Each request carries the system message, the question, and for every earlier turn its
+    output items exactly as returned (reasoning with encrypted_content, function_call; a
+    reasoning item without encrypted content is left out) followed by a function_call_output
+    per call id. The reply''s complete function_call items become tool calls and its
+    output_text the answer; a function_call cut off mid-call (status incomplete or
+    in_progress) is neither run nor sent back. A 200 reply with status failed is retried for
+    code server_error or rate_limit_exceeded, as a 5xx or 429 is. Usage
+    maps input_tokens, input_tokens_details.cached_tokens, output_tokens (reasoning included)
+    and output_tokens_details.reasoning_tokens onto the ledger''s prompt, cached, completion
+    and reasoning tokens, priced as before, so --cap stops a run before a call that could
+    cross it. A reply without usage is charged at its bound. An incomplete reply cut by
+    max_output_tokens is finish_reason length (the named output-limit failure). An HTTP error
+    names the status, OpenAI''s error message, type, code and param; a 4xx other than 429 or a
+    context-length error stops the run as before; a 200 reply with status failed is a model
+    error with its message and code. Any other model URL, or `--model-api chat`, sends the
+    same chat/completions request as before. The report records the API used (model_api).
+
+
+    Acceptance:
+
+    - acc.r3-responses-api.round-trip: a tool call and its result round-trip through a fake
+    Responses endpoint, with the reasoning item and function call sent back verbatim and the
+    output under the same call id. [evidence: executed_test]
+
+    - acc.r3-responses-api.usage-and-cap: cached and reasoning tokens reach the ledger and are
+    priced with the cached rate; the cap stops the run before a call that could cross it; a
+    reply without usage is charged at its bound. [evidence: executed_test]
+
+    - acc.r3-responses-api.errors: an OpenAI error body is shown with its message, code and
+    param, and a 400 stops the run with a failed ledger row; a non-JSON body is shown as text;
+    a failed response is an error with its reason. [evidence: executed_test]
+
+    - acc.r3-responses-api.chat-unchanged: a local model gets byte-for-byte the chat/completions
+    body it got before, and `--model-api chat` keeps chat/completions for OpenAI.
+    [evidence: executed_test]
+
+    - acc.r3-responses-api.live: one priced agent-graph run against gpt-6-luna at reasoning
+    effort medium, on a dev host, under a cap of at most $0.25, makes at least one tool call
+    and writes priced ledger rows. [evidence: manual]'
+tasks:
+- id: task.r3-responses-api.agent-calls
+  requirement: req.r3-responses-api.agent-calls
+  verification: 'Add OpenAIResponses, the --model-api choice and the tests, all on fakes, then
+    run one small live call.
+
+
+    Proof: the new tests fail on the base (archi_v3 64925362) and pass with the change;
+    tests/evaluation passes in full; the generated docs check passes; a live gpt-6-luna medium
+    agent-graph run of one or two questions under a cap of at most $0.25 shows a tool call and
+    priced ledger rows.
+
+
+    Test plan:
+
+    - python/tests/evaluation [evidence: pytest]
+
+    - python/tests/test_docs_generated.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-responses-api.agent-calls
+  status: pass
+  command: python -m pytest python/tests/evaluation -q
+  head: ad7d64033b7faa2b632fd6ac0e953685a18b3158
+  at: '2026-10-30T13:12:00+00:00'
+  note: '328 passed at this head on a dev host (Python 3.12, no network: requests.post is a
+    fake that answers recorded-shape Responses and chat/completions bodies). The 26 tests in
+    test_responses.py cover the tool-call round trip with reasoning sent back, include of
+    encrypted reasoning, dropped bare reasoning items, cut-off calls never run or resent,
+    cached and reasoning token pricing, the cap stopping a run before its second call, a reply
+    without usage charged at its bound, the output-limit failure, an OpenAI error body with
+    message, code and param and a 400 stopping the run, a non-JSON error body, failed responses
+    (retried for rate_limit_exceeded), a context-length error ending the try only, the exact
+    chat/completions body for a local model, and the command on both APIs. Copied onto the
+    base (archi_v3 5103e24c) the file fails at collection: none of OpenAIResponses, make_model
+    or model_api exists there. black and isort report the same files as on the base (lint is
+    report-only in CI).'
+- kind: executed_test
+  requirement: req.r3-responses-api.agent-calls
+  status: pass
+  command: python -m pytest python/tests/test_docs_generated.py -q
+  head: ad7d64033b7faa2b632fd6ac0e953685a18b3158
+  at: '2026-10-30T13:12:00+00:00'
+  note: 9 passed; python -m archi.docs_gen leaves the committed docs unchanged.
+- kind: manual
+  requirement: req.r3-responses-api.agent-calls
+  status: pass
+  command: archi eval --context --agents agent-graph --model gpt-6-luna --model-url https://api.openai.com/v1
+    --allow-remote-model --reasoning-effort medium --model-price 0.10/0.50/0.01 --cap 0.20 --tries 1
+  head: ad7d64033b7faa2b632fd6ac0e953685a18b3158
+  at: '2026-10-30T13:11:49+00:00'
+  note: 'On a dev host, read-only against an archi instance of the cluster-manager bundle,
+    one question written for this check, default --model-api auto. The report records model_api
+    responses. 3 model calls, all answered (finish tool_calls, tool_calls, stop), 5 MCP tool
+    calls (search, then inspect x4); ledger rows priced $0.000061, $0.000288 and $0.001965
+    (cached 2974, 2974 and 4668 tokens at the cached rate; reasoning 14, 35 and 270 tokens),
+    $0.0023 of the $0.20 cap. Evidence recall 1.0; the answer cites the gold documentation
+    page. An earlier run at 092c13fb (before the review fixes, without include) also passed:
+    3 calls, 6 tool calls, $0.0018 of $0.25. Total spend for this change: $0.0041.'
+decisions: []

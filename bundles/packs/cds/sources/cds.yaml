@@ -1,0 +1,53 @@
+# CDS connector: CERN Document Server records over OAI-PMH.
+#
+# It needs no credential, since the OAI endpoint is public, but a whole-set
+# harvest takes a few minutes.
+#
+# The sets come from the `--cds-sets` install answer, a YAML list. The
+# default is CMS's PAS and notes; another experiment's instance sets its
+# own, and `verb=ListSets` on the endpoint lists what exists.
+#
+# Why OAI and not the search API: CDS's search and REST endpoints sit
+# behind an anti-bot interstitial and answer HTTP 200 with HTML where JSON
+# is expected. The connector's preflight detects that shape and fails
+# loudly rather than parsing an interstitial as an empty corpus.
+cds:
+  module: archi.sources.cds
+  class: CDSAdapter
+  ownership_id: ${deployment_name}.cds
+  admission_policy:
+    producer_id: ${deployment_name}.cds
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cds
+      source_name: cds
+    output_signature:
+      nodes:
+        - {subtype: cds_record}
+      edges: []
+    output_scope_summary:
+      summary: CERN Document Server records for the configured OAI sets
+      nodes: [cds_record]
+      edges: []
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [oai_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    base_url: '${base_url}'
+    sets: ${sets}
+    required: false
+    # Bound the harvest while trying it out. Unset harvests the sets
+    # whole. A run that stops at this bound is healthy (the publish goes
+    # ahead) but claims no complete scope, so it never retracts records
+    # it did not fetch. A harvest that breaks mid-way is still a failure.
+    # max_records: 200
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

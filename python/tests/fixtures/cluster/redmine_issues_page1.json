@@ -1,0 +1,39 @@
+{
+  "total_count": 3,
+  "offset": 0,
+  "limit": 2,
+  "issues": [
+    {
+      "id": 4812,
+      "project": {"id": 7, "name": "Cluster Ops"},
+      "tracker": {"id": 3, "name": "Support"},
+      "status": {"id": 2, "name": "In Progress"},
+      "priority": {"id": 5, "name": "High"},
+      "author": {"id": 11, "name": "Ada Lovelace"},
+      "assigned_to": {"id": 12, "name": "Grace Hopper"},
+      "subject": "Scratch filesystem full on node042",
+      "description": "Jobs on node042 fail with ENOSPC. Contact ada.lovelace@example.org if more output is needed.",
+      "created_on": "2026-10-12T08:14:03Z",
+      "updated_on": "2026-10-12T09:40:11Z",
+      "closed_on": null,
+      "journals": [
+        {"id": 90, "user": {"id": 12, "name": "Grace Hopper"}, "notes": "Drained the node, clearing stale job directories.", "created_on": "2026-10-12T09:40:11Z"},
+        {"id": 91, "user": {"id": 12, "name": "Grace Hopper"}, "notes": "", "created_on": "2026-10-12T09:41:00Z"}
+      ]
+    },
+    {
+      "id": 4799,
+      "project": {"id": 7, "name": "Cluster Ops"},
+      "tracker": {"id": 3, "name": "Support"},
+      "status": {"id": 5, "name": "Closed"},
+      "priority": {"id": 4, "name": "Normal"},
+      "author": {"id": 14, "name": "Alan Turing"},
+      "subject": "Request: install apptainer on the new GPU nodes",
+      "description": "The new GPU nodes lack apptainer.",
+      "created_on": "2026-10-05T10:00:00Z",
+      "updated_on": "2026-10-08T15:30:00Z",
+      "closed_on": "2026-10-08T15:30:00Z",
+      "journals": []
+    }
+  ]
+}

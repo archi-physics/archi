@@ -1,0 +1,241 @@
+# Archi 3.0 release plan: milestones, PACTs, and the GitHub issues that track them.
+#
+# Design: docs/adr/0002-archi-3.0-release.md.
+#
+# The PACT manifests under pact/changes/r3-*/pact.yaml carry the requirements and
+# verification. This file adds what the v5 manifest has no slot for: the milestone
+# each PACT belongs to, labels, and a short issue title per task. Keep the task ids
+# here equal to the manifests' task ids; python/tests/test_release_plan.py checks that.
+#
+# Sync to GitHub (idempotent: matches existing milestones/issues by title):
+#   python pact/plan/sync_github.py --repo archi-physics/archi            # dry run
+#   python pact/plan/sync_github.py --repo archi-physics/archi --apply
+repo: archi-physics/archi
+
+labels:
+  archi-3.0: {color: "5319e7", description: "Archi 3.0 release work"}
+  epic: {color: "3e4b9e", description: "Tracks one PACT; lists its task issues"}
+  upstream-ask: {color: "d93f0b", description: "Needs a change in AKMON/okg; tracked here"}
+  needs-decision: {color: "fbca04", description: "Blocked on a maintainer decision"}
+  "bundle:cern-team": {color: "0e8a16"}
+  "bundle:cms-comp-ops": {color: "0e8a16"}
+  "bundle:cms-physics": {color: "0e8a16"}
+  "bundle:cluster-manager": {color: "0e8a16"}
+  "layer:context": {color: "1d76db", description: "Context layer: sources, quality, operational memory"}
+  "layer:ops": {color: "b60205", description: "Operations layer: automations, autonomy, mediators"}
+
+milestones:
+  - title: "3.0 · M0 Decisions"
+    description: "ADR 0002 approved: operations automation as the purpose, the context layer it rests on, packs/bundles, release home, PyPI name."
+  - title: "3.0 · M1 Release home"
+    description: "v3 line lives on archi-physics/archi; archi-kb pre-release on PyPI; archi-okg archived."
+  - title: "3.0 · M2 Context layer"
+    description: "Composable packs and bundles; freshness, coverage, linking and context evals measured; operational memory admissible."
+  - title: "3.0 · M3 One-command setup"
+    description: "archi init/up/doctor/connect; nightly empty-VM to cited-answer run green."
+  - title: "3.0 · M4 Operations layer"
+    description: "The loop (signal, context, proposal, decision, action, outcome) runs at L0-L2 (no L3 in 3.0) with context gates, shadow scoring and halt."
+  - title: "3.0 · M5 Bundles & automations"
+    description: "Four bundles green with evals; ticket-triage ships and replaces SubMIT's v2 Redmine bot at the cutover, no shadow trial (board d717)."
+  - title: "3.0 · M6 Bring your own agent"
+    description: "Any MCP client works; external packs and MCP servers plug in."
+  - title: "3.0 · M7 Docs & release"
+    description: "Docs rewritten, cutover conditions met, archi-kb 3.0.0 released."
+
+pacts:
+  r3-adr-0002:
+    milestone: "3.0 · M0 Decisions"
+    labels: []
+    tasks:
+      task.r3-adr-0002.review: "Review and approve ADR 0002 (Archi 3.0)"
+      task.r3-adr-0002.amend-0001: "Mark ADR 0001 branch/cutover/W6 sections superseded"
+
+  r3-release-home:
+    milestone: "3.0 · M1 Release home"
+    labels: []
+    tasks:
+      task.r3-release-home.merge-lines: "Bring archi-okg main into archi as the v3 line"
+      task.r3-release-home.rules: "Update AGENTS.md, CLAUDE.md, pact/project.yaml for the new home"
+      task.r3-release-home.dist-name: "Rename the distribution to archi-kb"
+      task.r3-release-home.publish: "PyPI trusted publishing for archi-kb"
+      task.r3-release-home.archive-okg: "Archive archi-okg with a redirect"
+
+  r3-bundle-format:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-bundle-format.schema: "Define pack.yaml and bundle.yaml schemas"
+      task.r3-bundle-format.resolver: "Implement pack resolution and composition rules"
+      task.r3-bundle-format.render: "Render a composed okg profile plus archi.lock"
+      task.r3-bundle-format.packaging: "Ship bundles/packs in the wheel without symlinks; entry-point discovery"
+      task.r3-bundle-format.add-diff: "archi add <pack> and archi diff for existing instances"
+      task.r3-bundle-format.upstream: "File AKMON asks: profile entry points and profile composition"
+
+  r3-packs-split:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-packs-split.doc-packs: "Packs: docsite, indico, twiki, cds, jira"
+      task.r3-packs-split.code-packs: "Packs: git-code, code-text, code-symbols"
+      task.r3-packs-split.cms-packs: "Packs: cms-catalogs, cmssst, cmssw-releases, dqm, hypernews, monit-live"
+      task.r3-packs-split.isolation: "Test: every pack installs alone on the base and publishes"
+
+  r3-context-quality:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-context-quality.freshness: "Freshness SLOs per source, reported by archi doctor"
+      task.r3-context-quality.linking: "Link-coverage targets and invariants per pack"
+      task.r3-context-quality.context-eval: "archi eval --context: retrieval scoring with a raw-document baseline"
+      task.r3-context-quality.raw-corpus: "Raw-document corpus from the instance's connector caches"
+      task.r3-context-quality.raw-arm-harness: "Sandboxed bash and graph-tool agent arms, with a spend ledger and cap"
+      task.r3-context-quality.raw-arm-scoring: "Gold ids to corpus files; evidence recall, MRR and an optional judge"
+      task.r3-context-quality.gate: "Context gate evaluator for automations"
+
+  r3-responses-api:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-responses-api.agent-calls: "Agent arms call OpenAI models through the Responses API"
+
+  r3-ops-record:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context", "layer:ops"]
+    tasks:
+      task.r3-ops-record.schema: "ops-record pack: incident/proposal/decision/action/outcome schema"
+      task.r3-ops-record.write: "Admit ops records from workflows; link ticket resolutions"
+      task.r3-ops-record.recall: "Precedent retrieval playbook and search profile"
+
+  r3-golden-path:
+    milestone: "3.0 · M3 One-command setup"
+    labels: []
+    tasks:
+      task.r3-golden-path.init: "archi init: instance repo, secrets, absolute paths, lock"
+      task.r3-golden-path.up: "archi up/down: one compose stack (graph pg, chat pg, Open WebUI, MCP)"
+      task.r3-golden-path.doctor: "archi doctor (--json): okg lint/doctor plus footgun checks"
+      task.r3-golden-path.footguns: "Footgun ledger: absorb or file each quickstart trap"
+      task.r3-golden-path.nightly: "Nightly CI: empty VM to cited answer"
+      task.r3-golden-path.upstream: "File AKMON asks: PyPI wheel, role passwords, chat+MCP up, non-git publish"
+
+  r3-ops-runtime:
+    milestone: "3.0 · M4 Operations layer"
+    labels: ["layer:ops"]
+    tasks:
+      task.r3-ops-runtime.pack: "Automation pack and action class manifests"
+      task.r3-ops-runtime.loop: "The loop as an OKG deployment workflow (escalations, mediators; L0-L2 only)"
+      task.r3-ops-runtime.shadow: "Shadow mode, scoring, promotion and demotion"
+      task.r3-ops-runtime.control: "archi ops status/halt/resume and budgets"
+      task.r3-ops-runtime.upstream: "File AKMON asks: envelope expiry, approve-with-edits, proposal API, per-actor cost, kill switch"
+
+  r3-ops-self-monitoring:
+    milestone: "3.0 · M4 Operations layer"
+    labels: ["layer:ops"]
+    tasks:
+      task.r3-ops-self-monitoring.health: "instance-health automation: doctor/freshness/eval regressions to issues"
+      task.r3-ops-self-monitoring.rollout: "Enable instance-health on cms-compops and SubMIT"
+
+  r3-bundle-cern-team:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["bundle:cern-team"]
+    tasks:
+      task.r3-bundle-cern-team.rebuild: "Rebuild cern-team on packs with a credential-free default"
+      task.r3-bundle-cern-team.migrate: "Migration note for existing cern-team instances"
+
+  r3-code-text-all-files:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context"]
+    tasks:
+      task.r3-code-text-all-files.pack: "code-text reads every text file"
+      task.r3-code-text-all-files.screen: "code-text leaves out files holding a literal secret"
+
+  r3-bundle-companions:
+    milestone: "3.0 · M2 Context layer"
+    labels: ["layer:context", "bundle:cms-comp-ops"]
+    tasks:
+      task.r3-bundle-companions.rule: "Bundles name companion packs that come with a selected pack"
+      task.r3-bundle-companions.comp-ops: "cms-comp-ops brings code-text whenever git-code is selected"
+
+  r3-bundle-cms-comp-ops:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["bundle:cms-comp-ops"]
+    tasks:
+      task.r3-bundle-cms-comp-ops.bundle: "cms-comp-ops bundle extending cern-team"
+      task.r3-bundle-cms-comp-ops.playbooks: "Move comp-ops playbooks (rucio, site, incident) into its packs"
+      task.r3-bundle-cms-comp-ops.instance: "Rebuild cms-compops instance from the bundle; parity green"
+
+  r3-bundle-cms-kb:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["bundle:cms-physics"]
+    tasks:
+      task.r3-bundle-cms-kb.survey: "Survey cms-kb; decide its scope vs cms-physics"
+
+  r3-bundle-cms-physics:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["bundle:cms-physics"]
+    tasks:
+      task.r3-bundle-cms-physics.analyses-pack: "cms-analyses pack (analysis ids, notes, publications)"
+      task.r3-bundle-cms-physics.notes-pack: "analysis-notes pack, lifted from cms-kb"
+      task.r3-bundle-cms-physics.bundle: "cms-physics bundle extending cern-team"
+      task.r3-bundle-cms-physics.instance: "Rebuild the cms-kb deployment from cms-physics"
+
+  r3-bundle-cluster-manager:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["bundle:cluster-manager"]
+    tasks:
+      task.r3-bundle-cluster-manager.tickets: "tickets pack (Redmine/JIRA queues, generic)"
+      task.r3-bundle-cluster-manager.servicenow: "servicenow pack: incidents and KB articles connector"
+      task.r3-bundle-cluster-manager.slurm: "slurm pack: partitions/nodes/jobs connector + review-gated live tools"
+      task.r3-bundle-cluster-manager.htcondor: "htcondor and node-health packs"
+      task.r3-bundle-cluster-manager.bundle: "cluster-manager bundle (no CERN dependency)"
+      task.r3-bundle-cluster-manager.instance: "Rebuild SubMIT from the bundle"
+
+  r3-bundle-evals:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: []
+    tasks:
+      task.r3-bundle-evals.harness: "archi eval: run a bundle's smoke set against the instance MCP"
+      task.r3-bundle-evals.sets: "Smoke eval set per bundle"
+      task.r3-bundle-evals.ci: "CI: install each bundle and gate on its smoke eval"
+
+  r3-auto-ticket-triage:
+    milestone: "3.0 · M5 Bundles & automations"
+    labels: ["layer:ops", "bundle:cluster-manager", "bundle:cms-comp-ops"]
+    tasks:
+      task.r3-auto-ticket-triage.build: "ticket-triage automation pack (Redmine, JIRA, ServiceNow)"
+      task.r3-auto-ticket-triage.reply: "ticket-triage: model-written reply and post_reply (board d704)"
+      task.r3-auto-ticket-triage.switch: "ticket-triage: promote --no-trial and the rollback (board d717)"
+      # task.r3-auto-ticket-triage.shadow-submit (#747) removed: no trial, board d717, 2026-10-31
+      # task.r3-auto-ticket-triage.shadow-compops (#748) left 3.0: board d380 Q6, 2026-10-27
+
+
+  r3-mcp-clients:
+    milestone: "3.0 · M6 Bring your own agent"
+    labels: []
+    tasks:
+      task.r3-mcp-clients.connect: "archi connect: open-webui, claude-code, codex, openclaw, mcp"
+      task.r3-mcp-clients.external-mcp: "mcp_servers: block for external MCP servers"
+      task.r3-mcp-clients.external-pack: "Contribution contract for external packs (ingestion WG)"
+
+  r3-docs:
+    milestone: "3.0 · M7 Docs & release"
+    labels: []
+    tasks:
+      task.r3-docs.site: "Rewrite the docs site for 3.0 (replace v2 chatbot pages)"
+      task.r3-docs.bundles: "One page per bundle and per pack, generated from manifests"
+      task.r3-docs.v2-migration: "v2 to v3 migration guide"
+
+  r3-release:
+    milestone: "3.0 · M7 Docs & release"
+    labels: []
+    tasks:
+      task.r3-release.r1: "R1: inventory live v2 deployments and owners"
+      task.r3-release.cutover: "Cutover: v3 line becomes main, v2 branch kept"
+      task.r3-release.tag: "Tag and publish archi-kb 3.0.0; announce"
+  r3-301-akmon-040:
+    milestone: "3.0 · M7 Docs & release"
+    labels: []
+    tasks:
+      task.r3-301-akmon-040.okg040: "3.0.1: run on AKMON okg 0.4.0"
+      task.r3-301-akmon-040.doctext: "3.0.1: declare doc: records for code-text profiles"
+      task.r3-301-akmon-040.names: "3.0.1: archi init refuses _ in instance names"
+      task.r3-301-akmon-040.release: "3.0.1: version, release notes, links to their own tag"

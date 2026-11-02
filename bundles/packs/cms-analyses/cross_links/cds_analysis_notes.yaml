@@ -1,0 +1,47 @@
+# CDS records to analysis notes and to PAG hubs.
+#
+# Both are exact matches between identifiers the records ALREADY carry.
+# Nothing here infers, resolves entities across spellings, or asks a
+# model: a CDS Physics Analysis Summary is named CMS-PAS-HIG-99-001, the
+# analysis note behind it is named HIG-99-001, and archi's CDS connector
+# parses the first into the second as `analysis_code` precisely so this
+# join can be a string equality rather than a guess.
+#
+# WHY `analysis_code` AND NOT `report_number`: a report number with no
+# PAG token (CMS-NOTE-2099-001 names a note series, not an analysis) or
+# an unrecognised token yields an EMPTY analysis_code upstream. Matching
+# on the raw report number would let those match the wrong note, or
+# nothing, silently. The empty-string case simply finds no partner.
+#
+# KNOWN, and the reason this is not a one-to-one join: a report number
+# can resolve to more than one CDS record (a summary republished under
+# one identifier). okg quarantines the alias; this rule is unaffected
+# because it links every matching record to the note rather than picking
+# one.
+rules:
+  - id: cms_analyses_cds_record_documents_analysis_note
+    src:
+      subtype: cds_record
+      field: analysis_code
+    dst:
+      subtype: analysis_note
+      field: an_id
+    matcher: exact
+    edge: references
+    # Bidirectional: "what was published from this note" and "which note
+    # backs this summary" are both questions a physicist asks, and
+    # neither direction is the obviously primary one.
+    bidirectional: true
+
+  - id: cms_analyses_cds_record_belongs_to_pag
+    src:
+      subtype: cds_record
+      field: pag_code
+    dst:
+      subtype: physics_analysis_group
+      field: code
+    matcher: exact
+    edge: references
+    # One-way: a PAG hub with an edge to every summary it ever produced
+    # would make the hub's neighbourhood useless to expand from.
+    bidirectional: false

@@ -1,0 +1,100 @@
+pact_version: 5
+id: compops-release-type
+title: CMSSW release_type keeps the source value; release_kind holds the derived kind; families get their own ids
+tier: 2
+why: 'cmssw.py stored the kind it derived from the label in release_type, overwriting the releases.map
+  type. CMSSW_15_0_19_patch2 is a Production release in the source but was stored as release_type
+  patch, so a count of CMSSW_15_0 Production releases on the comp-ops graph returned 22 instead of 45.
+
+
+  The derived release-family node used the id cmssw_release:CMSSW_15_0_X, which is also the label of
+  the cms-bot integration-series row for that series (type Development, state IB). The parser dropped
+  those 58 rows, so they never reached the graph.
+
+
+  Decision (Jason, relayed by the orchestrator, "relkind A"): release_type keeps the source value unchanged; a new
+  attribute release_kind holds the derived kind; the CMSSW_n_m_X rows get their own records. Families
+  move to cmssw_release_family:CMSSW_<major>_<minor> with release CMSSW_<major>_<minor> (release is the
+  alias field, and okg refuses an alias value two records share), so every
+  cmssw_release:<label> id and every alias value names exactly one record.
+
+
+  Two other readers name CMSSW_n_m_X: conddb (a global tag''s release) and the GlobalTagReleaseLinker
+  cross-link (global_tag.release = cmssw_release.release, exact). Both keep naming
+  cmssw_release:CMSSW_n_m_X, which is now the integration-series record. conddb only stops treating a
+  concrete release as making that id known, and its placeholders carry release_kind, not
+  release_type.'
+affected_code:
+- python/archi/sources/cmssw.py
+- python/archi/sources/conddb.py
+- python/archi/schemas/operations.yaml
+- bundles/cern-team/schemas/operations.yaml
+- python/tests/sources/test_cmssw.py
+- python/tests/sources/test_conddb.py
+- python/tests/test_bundle_source_adapters.py
+- python/tests/fixtures/cmssw/releases_15_0.map
+requirements:
+- id: req.compops-release-type.main
+  statement: 'Every cmssw_release record from releases.map carries the source type unchanged in
+    release_type and okg''s derived kind in release_kind; every CMSSW_n_m_X row is a record of its own;
+    derived release families carry no release_type and use ids and alias values no source row uses.
+
+
+    Acceptance:
+
+    - acc.compops-release-type.parse: CMSSW_15_0_19_patch2 parses to release_type Production and
+    release_kind patch; CMSSW_15_0_X and the 15.0 family are two records; the real CMSSW_15_0 slice of
+    releases.map gives Production 45 and Development 4. [evidence: executed_test]
+
+    - acc.compops-release-type.publish: On a copy of the comp-ops graph, an ingest and publish of
+    cmssw_releases leaves release_type only Production, Development or absent (families), raises
+    CMSSW_15_0 Production releases from 22 to 45, adds the 58 integration-series records, and doctor
+    reports no alias collision. [evidence: published_generation]'
+tasks:
+- id: task.compops-release-type.deliver
+  requirement: req.compops-release-type.main
+  verification: 'Split release_type and release_kind in cmssw.py; keep CMSSW_n_m_X rows; move family
+    ids; update conddb targets and placeholders; declare release_kind and series in both schema copies; add tests
+    that fail on main; publish on a copy of the comp-ops graph and compare release_type and
+    release_kind counts before and after.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.compops-release-type.main
+  status: pass
+  command: python -m pytest tests/sources/test_cmssw.py tests/sources/test_conddb.py -q; python -m pytest
+    tests -q (python/, shared lab host, okg d87b50397725)
+  head: e852c5ee59893c8b5e8e809b18c39c6823e59e6d
+  at: '2026-10-13T22:48:31+00:00'
+  note: 'cmssw and conddb tests: 59 passed. The new and changed tests fail on main''s code: 10 failed,
+    including test_patch_release_keeps_source_type (patch != Production). Full suite, run twice at this
+    head: 1795 passed, 1 failed each time. The failure is the wall-clock test
+    test_anonymizer::test_redact_email_addresses_quoted_local_part_is_linear (1.0 s limit; lab host load
+    average about 19). It fails the same way on main''s code under the same load (1.23 s), and this change
+    does not touch the anonymizer. On the first branch (bc73cf18) the suite first ran with 2 failures:
+    that timing test and test_bundle_source_adapters, whose stale family label assertion this change
+    then updated.'
+- kind: published_generation
+  requirement: req.compops-release-type.main
+  status: pass
+  command: okg catalog load --apply; okg ingest --include cmssw_releases --no-predecessors --inline --no-publish;
+    okg run --once --apply --inline; okg doctor (copy of the comp-ops graph)
+  head: 1e7c3d1e73d5de349b6443e7e4e5cb59f7d8ab2a
+  at: '2026-10-13T23:33:10+00:00'
+  note: 'Generation okg:cms-compops:branch:default:gen:20261013T233300598698Z:ab7bde4ebb93, from the frozen
+    2026-09-18 releases.map (sha256:cd10e1e195124346cab659c290ef13578423ac7dac0e5b4f1774b964c0c64b4e,
+    pinned with map_cache_digest). Records from the source went from 2,415 to 2,473: 2,386 releases plus
+    87 families under cmssw_release_family:. CMSSW_15_0 releases by release_type went from Production
+    22, patch 23, pre-release 3, release_family 1 to Production 45, Development 4. release_type is now
+    only Production (1,674), Development (712) or absent (the 87 families). All 58 integration-series
+    records are present: 55 reuse an old family id and carry no family attributes, and the other 32 old
+    family ids were retracted. Supersedes edges 2,110 to 2,110. No edge into a cmssw_release record
+    dangles, no release value is shared by two records, doctor is ok, and there is no cmssw_release alias
+    collision. Extractor retry queue 0; the runtime is disabled on this deployment. One read of
+    cmssw_release:CMSSW_15_0_19_patch2 returns release_type Production, release_kind patch. The publish
+    took 137 s.'
+decisions: []

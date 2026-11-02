@@ -1,0 +1,100 @@
+# Analysis-note connector: CMS analysis-note LaTeX trees from a local mirror
+# of gitlab.cern.ch/tdr/notes.
+#
+# Reads `<PAG>-YY-NNN/` and legacy `AN-YY-NNN/` directories under the path
+# answered for `--analysis-notes-mirror-root` and emits notes, sections,
+# section chunks, figures, bibliography entries and PAG hubs, plus the
+# bibliography-to-TWiki bridge. The clone itself needs CERN credentials and
+# is not done here; the pack README has the commands.
+#
+# `required: true`, like the TWiki source: a missing mirror fails preflight
+# loudly rather than publishing a graph that silently lost its corpus.
+#
+# The bibliography-to-TWiki bridge needs to know which pages the twiki source
+# emits. It is NOT guessed, because an edge to a page the TWiki ingest
+# filtered out would dangle. This source reads the same dump, with the same
+# web root and physics filter (the twiki pack's own answers), through the same
+# reader, so the list is current by construction and the twiki source needs
+# no side file. tests/packs/test_analysis_notes.py holds the parameters equal.
+#
+# min_notes is the note-count floor, an install answer: a mirror with fewer
+# note directories fails preflight. The cms-physics bundle sets the production
+# value.
+analysis_notes:
+  module: archi.sources.analysis_notes
+  class: AnalysisNoteAdapter
+  ownership_id: ${deployment_name}.analysis-notes
+  admission_policy:
+    producer_id: ${deployment_name}.analysis-notes
+    producer_kind: source
+    # untrusted: analysis notes are authored text from many contributors, so
+    # an MCP reader gets this source's text inside okg's untrusted-data
+    # fence. Read trust follows the newest producer profile, which the next
+    # run of this source writes.
+    trust_label: untrusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: analysis-notes
+      source_name: analysis_notes
+    output_signature:
+      nodes:
+        - {subtype: analysis_note}
+        - {subtype: section}
+        - {subtype: reference}
+        - {subtype: physics_analysis_group}
+        # Section prose is chunked on the same 4000/200 window as TWiki, so a
+        # note passage ranks against a TWiki passage instead of a whole note
+        # competing as one long document.
+        - {subtype: document_chunk}
+        # Figure environments: caption, label, the panel paths, and an
+        # `images` attr of okg image values that ingest renders to stored
+        # PNGs under the mirror root.
+        - {subtype: note_figure}
+      edges:
+        - {src_subtype: analysis_note, edge_type: contains, dst_subtype: section}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: reference}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: physics_analysis_group}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: documentation_page}
+        - {src_subtype: section, edge_type: contains, dst_subtype: document_chunk}
+        - {src_subtype: analysis_note, edge_type: contains, dst_subtype: note_figure}
+        - {src_subtype: section, edge_type: contains, dst_subtype: note_figure}
+        - {src_subtype: document_chunk, edge_type: references, dst_subtype: note_figure}
+    output_scope_summary:
+      summary: CMS analysis notes, their sections, figures and bibliographies, their PAG hubs, and bibliography links to TWiki pages
+      nodes: [analysis_note, section, reference, physics_analysis_group, document_chunk, note_figure]
+      edges:
+        - analysis_note contains section
+        - analysis_note references reference
+        - analysis_note references physics_analysis_group
+        - analysis_note references documentation_page
+        - section contains document_chunk
+        - analysis_note contains note_figure
+        - section contains note_figure
+        - document_chunk references note_figure
+  # ORDERING, not preference. The bridge emits edges into documentation_page
+  # nodes the twiki pack owns. (The pack's other producer of `pag:*` ids, the
+  # cms-analyses vocabulary, is ordered after this source because that pack
+  # requires this one.) okg resolves an edge endpoint against the graph
+  # as it stands FOR THIS SOURCE RUN, so if those pages have not been admitted
+  # yet the endpoints do not resolve and admission refuses the WHOLE emission,
+  # not just the bad edges. `predecessor_source` puts this source in a later
+  # topological layer, which is the framework's own way of saying it.
+  predecessor_source: ${deployment_name}.twiki-eos
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [an_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    an_root: '${mirror_root}'
+    required: true
+    twiki_eos_root: '${twiki_eos_root}'
+    twiki_web_root: CMS
+    twiki_physics_filter: ${twiki_physics_filter}
+    min_notes: ${min_notes}
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,85 @@
+# Physics entity layer: the connective vocabulary.
+#
+# Emits 180 entity nodes (81 techniques, 58 concepts, 41 topics) and a
+# `references` edge from every TWiki page and analysis note whose text names
+# one. Nothing is model-extracted: an edge exists because a declared alias
+# matched verbatim, so the evidence is a span you can point at.
+#
+# It DRIVES the real TwikiEOSSource and AnalysisNoteSource rather than reading
+# a cache, which costs a second pass over both mirrors and buys the property
+# that matters: the documents it links are exactly the ones those sources
+# publish, with the same node ids, by construction. A cached document list
+# drifts, and an endpoint this run did not produce fails admission for the
+# entire emission.
+#
+# The TWiki root and the note mirror are the answers to the twiki and
+# analysis-notes packs' own questions. The physics filter is the twiki
+# pack's `--twiki-physics-filter` answer, so this source matches exactly the
+# pages the twiki source keeps.
+physics_entities:
+  module: archi.sources.physics_entities
+  class: PhysicsEntityAdapter
+  ownership_id: ${deployment_name}.physics-entities
+  admission_policy:
+    producer_id: ${deployment_name}.physics-entities
+    producer_kind: source
+    # Untrusted like twiki_eos and analysis_notes: every edge it emits is a
+    # verbatim match in their user-written text, and okg refuses an edge whose
+    # producer is more trusted than the records it links.
+    trust_label: untrusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-analyses
+      source_name: physics_entities
+    output_signature:
+      nodes:
+        - {subtype: physics_technique}
+        - {subtype: physics_concept}
+        - {subtype: physics_topic}
+      edges:
+        - {src_subtype: documentation_page, edge_type: references, dst_subtype: physics_technique}
+        - {src_subtype: documentation_page, edge_type: references, dst_subtype: physics_concept}
+        - {src_subtype: documentation_page, edge_type: references, dst_subtype: physics_topic}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: physics_technique}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: physics_concept}
+        - {src_subtype: analysis_note, edge_type: references, dst_subtype: physics_topic}
+    output_scope_summary:
+      summary: CMS physics techniques, concepts and topics, and the documents that name them
+      nodes: [physics_technique, physics_concept, physics_topic]
+      edges:
+        - documentation_page references physics_technique
+        - documentation_page references physics_concept
+        - documentation_page references physics_topic
+        - analysis_note references physics_technique
+        - analysis_note references physics_concept
+        - analysis_note references physics_topic
+  source_class: reference_catalog
+  record_identity_kind: domain_key
+  record_identity_fields: [code]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  # ORDERING. Every edge this source emits points INTO a node another source
+  # owns, documentation_page or analysis_note. okg resolves an edge endpoint
+  # against the graph as it stands for this source run, so if those have not
+  # been admitted yet the endpoints do not resolve and admission refuses the
+  # whole emission. analysis-notes is itself ordered after twiki_eos, so one
+  # predecessor puts this source after both.
+  predecessor_source: ${deployment_name}.analysis-notes
+  params:
+    eos_root: '${twiki_eos_root}'
+    an_root: '${analysis_notes_mirror_root}'
+    web_root: CMS
+    physics_filter: ${twiki_physics_filter}
+    required: true
+    # Matching is a pure function of (document text, vocabulary), so the
+    # answer is remembered between runs, keyed on both; an alias edit
+    # discards the cache whole. It changes nothing the source emits, and it
+    # saves most of a corpus read when little moved. Outside the deployment
+    # directory, which `okg install --force` deletes.
+    match_cache_path: '${archi_data_root}/physics-entities/matches.json'
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

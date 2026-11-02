@@ -1,0 +1,51 @@
+# Edge narrowings for the servicenow pack's source emissions.
+#
+# The composer honours narrowings only under schemas/bridges/. A narrowing
+# anywhere else is silently ignored and fails at ingest with
+# ProducerPolicyViolation. Person is okg's (person module); the other classes
+# are in ../servicenow.yaml.
+id: https://archi-physics.org/okg/archi/bridges/servicenow
+name: archi_servicenow_narrowings
+title: Archi servicenow bridge narrowings
+description: Narrowings for archi.sources.servicenow emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for archi.sources.servicenow emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      servicenow_incident_reported_by_person:
+        annotations:
+          edge_archetype: reported_by
+          src_subtypes: ServicenowIncident
+          dst_subtypes: Person
+      servicenow_incident_assigned_to_person:
+        annotations:
+          edge_archetype: assigned_to
+          src_subtypes: ServicenowIncident
+          dst_subtypes: Person
+      servicenow_request_reported_by_person:
+        annotations:
+          edge_archetype: reported_by
+          src_subtypes: ServicenowRequest
+          dst_subtypes: Person
+      servicenow_request_assigned_to_person:
+        annotations:
+          edge_archetype: assigned_to
+          src_subtypes: ServicenowRequest
+          dst_subtypes: Person
+      servicenow_kb_article_authored_by_person:
+        annotations:
+          edge_archetype: authored_by
+          src_subtypes: ServicenowKbArticle
+          dst_subtypes: Person

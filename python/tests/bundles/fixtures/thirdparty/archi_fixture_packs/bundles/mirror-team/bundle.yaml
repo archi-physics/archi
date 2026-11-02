@@ -1,0 +1,8 @@
+name: mirror-team
+version: 0.0.1
+description: A team that only mirrors one repository.
+packs:
+  default: [repo-mirror]
+chat:
+  site_name: Mirror chat
+okg: ">=0.4.0,<0.5"

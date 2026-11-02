@@ -1,0 +1,20 @@
+{
+  "mcp": {
+    "servers": {
+      "archi-demo": {
+        "url": "http://127.0.0.1:18080/mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "Authorization": "Bearer ${OKG_CHAT_MCP_TOKEN}"
+        }
+      },
+      "notes": {
+        "url": "http://127.0.0.1:18090/mcp",
+        "transport": "streamable-http",
+        "headers": {
+          "X-Api-Key": "${NOTES_API_KEY}"
+        }
+      }
+    }
+  }
+}

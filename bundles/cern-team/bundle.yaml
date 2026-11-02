@@ -1,0 +1,19 @@
+name: cern-team
+version: 0.4.0
+description: A generic CERN team knowledge instance - documentation, meetings, wiki, documents, tickets and code.
+# ADR 0002 section 5. docsite is the credential-free default context pack.
+# cmssw-releases moved to the CMS bundles.
+packs:
+  default: [docsite, indico, core-playbooks]
+  optional: [twiki, cds, jira, git-code, code-text, code-symbols]
+chat:
+  site_name: Team knowledge chat
+  default_model: llama3.1:8b
+  description: >-
+    Answers from this instance's knowledge graph (documentation, meetings and
+    whatever else the instance indexes) with the sources it used.
+  suggestions:
+    - What does the documentation say about getting started?
+    - Which meetings are in the graph, and what were they about?
+    - What repositories are indexed here, and what is in them?
+okg: ">=0.4.0,<0.5"

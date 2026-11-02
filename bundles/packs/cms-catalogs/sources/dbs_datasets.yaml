@@ -1,0 +1,39 @@
+# DBS dataset catalog (cache-backed): one dataset node per dataset path in
+# ${archi_data_root}/dbs-datasets/records.json. Reading DBS needs a CERN
+# grid certificate; nothing in archi downloads it yet.
+dbs_datasets:
+  module: archi.sources.dbs
+  class: DBSDatasetAdapter
+  ownership_id: ${deployment_name}.dbs-datasets
+  admission_policy:
+    producer_id: ${deployment_name}.dbs-datasets
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: dbs_datasets
+    output_signature:
+      nodes:
+        - {subtype: dataset}
+      edges:
+        - {src_subtype: dataset, edge_type: derives_from, dst_subtype: dataset}
+    output_scope_summary:
+      summary: DBS datasets and deterministic tier-chain derives_from edges
+      nodes: [dataset]
+      edges:
+        - dataset derives_from dataset
+  source_class: reference_catalog
+  record_identity_kind: domain_key
+  record_identity_fields: [dataset]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    # cms default; the cms deployment used data/cms/dbs-datasets/
+    records_path: ${archi_data_root}/dbs-datasets/records.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

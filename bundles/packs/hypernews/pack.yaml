@@ -1,0 +1,19 @@
+name: hypernews
+kind: context
+version: 0.1.0
+description: CMS HyperNews forum threads, from a records cache or a live SSO crawl.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+invariants: invariants.yaml
+# An archive that grows by a few threads a week, behind SSO so the cache is
+# refreshed by hand: 7d.
+freshness:
+  hypernews.hypernews: {max_staleness: 7d}
+search_subtypes: [forum_thread, document_chunk]
+prompt_fragment: prompt.md
+credentials: [HYPERNEWS_COOKIE_FILE]
+# HyperNews is behind CERN SSO: the live crawl needs the cookie jar, and a
+# cache can only be made with one.
+needs_credentials: true

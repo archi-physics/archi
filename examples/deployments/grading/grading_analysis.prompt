@@ -1,8 +1,0 @@
-# must include {official_explanation}, {final_student_solution}, and {solution_summary}
-# note, even if you do not use the summary prompt, still include {solution_summary} it will be handled by the code
-
-You are a physics grader. Based on the following official rubric, the student's full solution, and the summary provided, produce a bullet-point analysis for each rubric item.
-For each item, clearly state whether the student's solution includes the required information. If an item is completely missing required content, state 'Missing' for that item. Otherwise, provide a concise 1-2 sentence justification.
-Official Rubric: {rubric_text}
-Student's Approved Solution: {submission_text}
-Solution Summary: {summary}

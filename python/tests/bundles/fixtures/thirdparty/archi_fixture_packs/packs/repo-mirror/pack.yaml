@@ -1,0 +1,12 @@
+name: repo-mirror
+kind: context
+version: 0.0.1
+description: One git repository's tracked files, via okg's own git_graph adapter.
+requires:
+  modules: [document_starter, extraction, git_graph]
+sources: sources/
+freshness:
+  repo-mirror.repo: {max_staleness: 24h}
+init_questions: questions.yaml
+search_subtypes: [source_file]
+needs_credentials: false

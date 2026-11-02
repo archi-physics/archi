@@ -1,0 +1,71 @@
+# Archi 3.0 — operational memory: edge narrowings (PACT r3-ops-record).
+#
+# Only edges between ops records. okg admission checks every submitted edge
+# against these narrowings.
+#
+# References to nodes other packs own (the tickets tracking an incident, the
+# evidence a proposal cites, the site that broke) are attributes, not edges:
+# okg 0.2.0's generic admission cannot admit an edge to a node outside the
+# submitted payload (pact/changes/r3-ops-record/okg-asks.md, ask 1). Add the
+# narrowings here, as optional_when_subtypes_missing, once it can.
+
+id: https://archi-physics.org/okg/archi/bridges/ops-record
+name: archi_ops_record_narrowings
+title: Archi 3.0 — operational memory narrowings
+description: Edges between ops records.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Edges between ops records.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+
+      # --- the loop -------------------------------------------------------
+      ops_proposal_addresses_incident:
+        annotations:
+          edge_archetype: addresses
+          src_subtypes: OpsProposal
+          dst_subtypes: OpsIncident
+      ops_decision_decides_proposal:
+        annotations:
+          edge_archetype: decides
+          src_subtypes: OpsDecision
+          dst_subtypes: OpsProposal
+      ops_action_executes_proposal:
+        annotations:
+          edge_archetype: executes
+          src_subtypes: OpsAction
+          dst_subtypes: OpsProposal
+      ops_action_authorized_by_decision:
+        annotations:
+          edge_archetype: authorized_by
+          src_subtypes: OpsAction
+          dst_subtypes: OpsDecision
+      ops_outcome_evaluates_action:
+        annotations:
+          edge_archetype: evaluates
+          src_subtypes: OpsOutcome
+          dst_subtypes: OpsAction
+      ops_outcome_outcome_of_incident:
+        annotations:
+          edge_archetype: outcome_of
+          src_subtypes: OpsOutcome
+          dst_subtypes: OpsIncident
+
+      ops_proposal_cites_incident:
+        description: A precedent the proposal relied on.
+        annotations:
+          edge_archetype: cites
+          src_subtypes: OpsProposal
+          dst_subtypes: OpsIncident
+

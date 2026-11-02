@@ -1,0 +1,9 @@
+name: core-playbooks
+# Playbooks only: no sources and no live tools. `tool` is the nearest kind
+# the manifest schema offers for a pack that adds agent instructions.
+kind: tool
+version: 0.1.0
+description: The generic archi playbooks for retrieving, citing and synthesising graph evidence.
+playbooks: playbooks/
+skill_triggers: playbooks/skill-triggers.yaml
+needs_credentials: false

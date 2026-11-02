@@ -1,0 +1,15 @@
+name: ops-record
+kind: context
+version: 0.1.0
+description: Operational memory, the incidents, proposals, decisions, actions and outcomes automations record through okg admission (ADR 0002 section 6.2).
+# No sources: automations write records through okg admission
+# (archi.ops.record), and ticket resolutions arrive through the ticket packs.
+schemas: schemas/
+playbooks: skills/
+skill_triggers: skills/skill-triggers.yaml
+search_subtypes: [ops_incident, ops_outcome]
+search_profiles:
+  precedents:
+    description: The operational memory only, for retrieving precedents - past incidents with what was proposed, decided, run and the outcome.
+    subtypes: [ops_incident, ops_proposal, ops_decision, ops_action, ops_outcome]
+needs_credentials: false

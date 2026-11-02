@@ -1,0 +1,42 @@
+# DQM data-quality certifications (cache-backed): each certification
+# (golden JSON) with the runs it covers and the datasets it names. Reads
+# ${archi_data_root}/dqm/records.json; nothing in archi downloads it yet.
+dqm:
+  module: archi.sources.dqm
+  class: DQMAdapter
+  ownership_id: ${deployment_name}.dqm
+  admission_policy:
+    producer_id: ${deployment_name}.dqm
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: dqm
+      source_name: dqm
+    output_signature:
+      nodes:
+        - {subtype: data_certification}
+        - {subtype: run}
+        - {subtype: dataset}
+      edges:
+        - {src_subtype: data_certification, edge_type: recorded_during, dst_subtype: run}
+        - {src_subtype: data_certification, edge_type: references, dst_subtype: dataset}
+    output_scope_summary:
+      summary: DQM certifications with run-range boundary runs and referenced datasets
+      nodes: [data_certification, run, dataset]
+      edges:
+        - data_certification recorded_during run
+        - data_certification references dataset
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [certification_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/dqm/records.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

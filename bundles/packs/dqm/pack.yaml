@@ -1,0 +1,23 @@
+name: dqm
+kind: context
+version: 0.1.0
+description: CMS DQM data-quality certifications, with the runs and datasets they cover.
+requires:
+  modules: [document_starter, person, extraction, dataset]
+schemas: schemas/
+sources: sources/
+invariants: invariants.yaml
+# Certifications are added as runs are certified, not continuously, and nothing
+# in archi downloads them yet (the cache is placed by hand): 7d.
+freshness:
+  dqm.dqm: {max_staleness: 7d}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant dqm_link_<name>.
+link_coverage:
+  # A golden JSON names the runs it covers.
+  - {name: certification_run, from: data_certification, edge: recorded_during, to: run, direction: out, min_fraction: 0.9}
+search_subtypes: [data_certification, run, dataset]
+prompt_fragment: prompt.md
+# The certification files are published behind CERN SSO; nothing in archi
+# downloads them yet.
+needs_credentials: true

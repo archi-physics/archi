@@ -1,0 +1,20 @@
+init_questions:
+  - id: repo_name
+    prompt: short name for the repository (graph identity)
+    type: string
+    required: false
+    default: repo
+    description: |
+      Names the repository inside the graph: file nodes are
+      `file:<name>:<path>`. Any stable slug; it does not have to match the
+      name on the server. The checkout lands at
+      `<archi data root>/repos/<name>`.
+
+  - id: repo_url
+    prompt: Git URL of the repository to ingest
+    type: string
+    required: true
+    description: |
+      The connector clones this itself and fast-forwards it on later runs;
+      you never run `git clone` by hand. A private repository uses your own
+      git credentials, so no token reaches the instance.

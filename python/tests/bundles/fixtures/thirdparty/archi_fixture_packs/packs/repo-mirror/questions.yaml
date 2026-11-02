@@ -1,0 +1,10 @@
+init_questions:
+  - id: name
+    prompt: short name for the repository (graph identity)
+    type: string
+    required: false
+    default: mirror
+  - id: url
+    prompt: repository URL to clone
+    type: string
+    required: true

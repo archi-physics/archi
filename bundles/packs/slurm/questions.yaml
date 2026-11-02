@@ -1,0 +1,12 @@
+init_questions:
+  - id: cluster_name
+    prompt: Cluster name
+    type: string
+    required: false
+    default: cluster
+    description: |
+      Names the cluster in every record id when the snapshot does not
+      (`--cluster` of the exporter normally sets it). Use a short name such
+      as the site's: records of two clusters stay apart by it.
+      Fill the cache with `python -m archi.downloaders.slurm --cluster <name>`
+      on a host with the Slurm client commands before the first ingest.

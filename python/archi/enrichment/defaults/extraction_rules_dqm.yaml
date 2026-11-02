@@ -1,0 +1,18 @@
+# Extra projection extraction-block regex rules for DQM-flavoured
+# instances (trigger paths, L1 seeds, DQM workspaces).
+#
+# Provenance: okg-deployments main@f33a9c4, wisdqm/deployment.yaml
+# extractor block — the three rules the wisdqm instance carries beyond
+# the shared CMS set (extraction_rules.yaml). Same [id_type, regex,
+# confidence] shape; append to extractor.config.rules when a bundle
+# wants DQM identifiers.
+rules:
+  - - hlt_path
+    - '\b(HLT_[A-Za-z0-9_]+_v[0-9]+)\b'
+    - 0.9
+  - - l1t_seed
+    - '\b(L1_[A-Za-z0-9_]+)\b'
+    - 0.85
+  - - dqm_workspace
+    - '\b(Online DQM|Online Trigger|Offline Tracker DQM|TKDQM|DQMGUI|Beam Monitor|FED Integrity)\b'
+    - 0.8

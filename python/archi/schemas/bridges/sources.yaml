@@ -1,0 +1,142 @@
+# Archi W2 — deployment bridge: edge narrowings for the ported
+# jira/docs source emissions (acc.w2.sources). Person and
+# DocumentChunk resolve from the co-loaded person and extraction
+# modules; JiraIssue / DocumentationPage / SoftwareRepository come
+# from archi/schemas/sources.yaml and CMSSWRelease from
+# archi/schemas/operations.yaml. Copy this file into the
+# deployment as <deployment>/schemas/bridges/sources.yaml, alongside
+# archi/schemas/sources.yaml -> <deployment>/schemas/sources.yaml
+# (the catalog composer only honors narrowings under schemas/bridges/).
+id: https://archi-physics.org/okg/archi/bridges/sources
+name: archi_sources_narrowings
+title: Archi W2 — sources bridge narrowings
+description: Narrowings for the ported jira/docs source emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for the ported jira/docs source emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      jira_issue_assigned_to_person:
+        annotations:
+          edge_archetype: assigned_to
+          src_subtypes: JiraIssue
+          dst_subtypes: Person
+      jira_issue_reported_by_person:
+        annotations:
+          edge_archetype: reported_by
+          src_subtypes: JiraIssue
+          dst_subtypes: Person
+      jira_issue_contains_chunk:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: JiraIssue
+          dst_subtypes: DocumentChunk
+      jira_issue_has_comment_jira_comment:
+        description: >-
+          An issue and one of its comments (JiraIssueSource with
+          comment_records on). attrs.position is the comment's 0-based
+          place in source order.
+        annotations:
+          edge_archetype: has_comment
+          src_subtypes: JiraIssue
+          dst_subtypes: JiraComment
+      jira_comment_authored_by_person:
+        annotations:
+          edge_archetype: authored_by
+          src_subtypes: JiraComment
+          dst_subtypes: Person
+      chunk_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: JiraIssue
+      jira_issue_linked_to_jira_issue:
+        description: >-
+          A JIRA issue link or sub-task parent (JiraIssueSource with
+          issue_link_edges on), one edge per ordered pair of issues.
+          attrs.link_kind is one of child, blocks, duplicates, clones,
+          gantt, relates; attrs.link_type is the exact JIRA link type
+          name (Child-Issue, Blocks, Sub-task, ...), several joined
+          with "; " when the pair is linked more than once. The source
+          is the issue on the link's outward side; for child, the
+          parent.
+        annotations:
+          edge_archetype: linked_to
+          src_subtypes: JiraIssue
+          dst_subtypes: JiraIssue
+      # chunk -> site and chunk -> infrastructure_service narrowings
+      # ship in archi/schemas/bridges/operations.yaml (the catalogs
+      # port); CMSSWRelease already ships in operations.yaml.
+      chunk_references_cmssw_release:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: CMSSWRelease
+      repo_contains_documentation_page:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: SoftwareRepository
+          dst_subtypes: DocumentationPage
+      documentation_page_contains_chunk:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: DocumentationPage
+          dst_subtypes: DocumentChunk
+      # TWiki sources (archi.sources.twiki): topic-to-topic references
+      # (topic_parent / wiki_link / bare_wikiword).
+      documentation_page_references_documentation_page:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: DocumentationPage
+      # MONIT sources (archi.sources.monit). Every edge starts at a
+      # Site (or StorageEndpoint) node owned by the catalogs port
+      # (archi/schemas/operations.yaml); Dataset comes from the
+      # substrate `dataset` module. optional_when_subtypes_missing
+      # keeps catalog composition green when those subtypes are not
+      # co-composed — but the monit sources' edges are then rejected
+      # at ingest, so deploy the family only together with a slice
+      # providing site (and storage_endpoint for monit_rucio_datasets).
+      # These five narrowings live ONLY here;
+      # archi/schemas/bridges/operations.yaml deliberately omits them.
+      site_hosts_monitoring_snapshot:
+        annotations:
+          edge_archetype: hosts
+          src_subtypes: Site
+          dst_subtypes: MonitoringSnapshot
+          optional_when_subtypes_missing: 'true'
+      site_hosts_transfer_job:
+        annotations:
+          edge_archetype: hosts
+          src_subtypes: Site
+          dst_subtypes: TransferJob
+          optional_when_subtypes_missing: 'true'
+      transfer_site_to_site:
+        annotations:
+          edge_archetype: transfers_to
+          src_subtypes: Site
+          dst_subtypes: Site
+          optional_when_subtypes_missing: 'true'
+      site_hosts_dataset:
+        annotations:
+          edge_archetype: hosts
+          src_subtypes: Site
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+      storage_endpoint_hosts_dataset:
+        annotations:
+          edge_archetype: hosts
+          src_subtypes: StorageEndpoint
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'

@@ -1,0 +1,133 @@
+pact_version: 5
+id: r3-release-home
+title: Make archi-physics/archi the home of the v3 line; publish as archi-kb
+tier: 2
+why: 'The v3 distribution is developed in archi-physics/archi-okg (main), while archi-physics/archi
+  still carries a stale archi_v3 (tip 7e15f35, PR #654) that diverged from it, plus the live
+  v2 main. The release, the docs URL and the name recognition are on archi. The PyPI name
+  archi belongs to an unrelated package, so the quickstart installs from a git URL. ADR 0002
+  D1/D2.'
+affected_code:
+- python/pyproject.toml
+- AGENTS.md
+- CLAUDE.md
+- pact/project.yaml
+- .github/workflows/
+- README.md
+- docs/okg-alignment.md
+requirements:
+- id: req.r3-release-home.home
+  statement: 'archi-physics/archi archi_v3 equals archi-okg main (history preserved), the
+    previous archi_v3 tip is kept as tag archi_v3-pre-merge, and any commit on it not already
+    in archi-okg is either carried over or listed as dropped with a reason.
+
+
+    Acceptance:
+
+    - acc.r3-release-home.parity: git diff archi-okg/main archi/archi_v3 is empty after the
+    merge. [evidence: manual]'
+- id: req.r3-release-home.rules
+  statement: 'Working rules (AGENTS.md, CLAUDE.md, pact/project.yaml pr_policy) agree on where
+    PRs land.
+
+
+    Acceptance:
+
+    - acc.r3-release-home.rules: AGENTS.md, CLAUDE.md and pact/project.yaml name the same
+    PR base. [evidence: manual]'
+- id: req.r3-release-home.dist
+  statement: 'The wheel''s distribution name is archi-kb, import name archi; a trusted-publishing
+    workflow publishes tagged releases to PyPI; `pip install archi-kb` provides `import archi`
+    and the archi CLI.
+
+
+    Acceptance:
+
+    - acc.r3-release-home.name: pyproject declares name = archi-kb; packaging test green.
+    [evidence: pytest]
+
+    - acc.r3-release-home.pypi: a 3.0.0a pre-release installs from PyPI in a clean venv. [evidence:
+    manual]'
+- id: req.r3-release-home.archive
+  statement: 'archi-physics/archi-okg is archived with a README pointing at archi; open PRs
+    and issues there are moved or closed with a link.
+
+
+    Acceptance:
+
+    - acc.r3-release-home.archived: the repo shows as archived; README redirect merged. [evidence:
+    manual]'
+tasks:
+- id: task.r3-release-home.merge-lines
+  requirement: req.r3-release-home.home
+  verification: 'Replace archi_v3 with archi-okg main after tagging the old tip; audit the
+    divergent commits.
+
+
+    Test plan:
+
+    - git log archi_v3-pre-merge --not archi-okg/main reviewed [evidence: manual]'
+- id: task.r3-release-home.rules
+  requirement: req.r3-release-home.rules
+  verification: 'Edit the three rule files together.
+
+
+    Test plan:
+
+    - diff review [evidence: manual]'
+- id: task.r3-release-home.dist-name
+  requirement: req.r3-release-home.dist
+  verification: 'Rename the distribution; keep the import name.
+
+
+    Test plan:
+
+    - python/tests/test_packaging.py [evidence: pytest]'
+- id: task.r3-release-home.publish
+  requirement: req.r3-release-home.dist
+  verification: 'Add the release workflow with PyPI trusted publishing.
+
+
+    Test plan:
+
+    - pre-release install in a clean venv [evidence: manual]'
+- id: task.r3-release-home.archive-okg
+  requirement: req.r3-release-home.archive
+  verification: 'Archive archi-okg after the merge lands.
+
+
+    Test plan:
+
+    - repo settings screenshot or API output [evidence: manual]'
+evidence:
+- kind: manual
+  requirement: req.r3-release-home.home
+  status: pass
+  head: 011f5d64195f2fa47dbc051679c47e1c6c2ae8ab
+  at: '2026-10-25T01:39:46+00:00'
+  note: 'acc.r3-release-home.parity. archi-physics/archi archi_v3 and archi-physics/archi-okg
+    main both point at 011f5d64 (archi #764: a merge, not a force-push), and git diff
+    archi-okg/main archi/archi_v3 is empty. The old tip 09299e4e is tag archi_v3-pre-merge.
+    git log --no-merges archi-okg/main..archi_v3-pre-merge is now empty; the 011f5d64 commit
+    message records what was carried over (the 3.0 plan and approvals) and what was superseded
+    (the deploy-key CI, 54219413 and 41863a7e).'
+- kind: manual
+  requirement: req.r3-release-home.rules
+  status: pass
+  head: dc7e0fb99f698f0734a3b3bf267fb8dedcae5d19
+  at: '2026-10-25T02:04:07+00:00'
+  note: 'acc.r3-release-home.rules. The PR base is archi_v3 in all three places: AGENTS.md
+    "Where work lands" ("PRs target archi_v3"), pact/project.yaml pr_policy.base, and CLAUDE.md,
+    which is a single @AGENTS.md import and so carries the same rule. AGENTS.md also documents
+    okg pact check --base origin/archi_v3, because origin/HEAD here is v2 main.'
+- kind: manual
+  requirement: req.r3-release-home.archive
+  status: pass
+  head: 4d7b34678c64ba146c908cb18c6815c3d19211e2
+  at: '2026-10-25T13:50:27+00:00'
+  note: 'acc.r3-release-home.archived. gh api repos/archi-physics/archi-okg reports archived=true
+    (2026-10-25). The README redirect, archi-okg#65, merged as f2461e15; it points to archi-physics/archi
+    branch archi_v3 and says the repo is archived. Nothing was left open before archiving. PRs #29 and
+    #39 moved to archi #770 and #771 with links both ways. Issues #47 and #55-#60 were transferred
+    (archi #772-#778). #61-#63 were closed with links to their 3.0 successors (#734, #727, #690).'
+decisions: []

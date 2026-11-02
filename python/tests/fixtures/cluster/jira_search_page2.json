@@ -1,0 +1,34 @@
+{
+  "expand": "schema,names",
+  "startAt": 2,
+  "maxResults": 2,
+  "total": 3,
+  "issues": [
+    {
+      "id": "10003",
+      "self": "https://jira.example.org/rest/api/2/issue/10003",
+      "key": "OPS-3",
+      "fields": {
+        "summary": "Home quota raise for the theory group",
+        "description": "Please raise the default home quota to 50 GB, as [~mhamilton] asked.",
+        "project": {"id": "10000", "key": "OPS", "name": "Cluster Operations"},
+        "issuetype": {"id": "10003", "name": "Service Request"},
+        "status": {"id": "1", "name": "Open"},
+        "priority": {"id": "4", "name": "Low"},
+        "reporter": {"name": "mhamilton", "displayName": "Margaret Hamilton"},
+        "assignee": {"name": "dvaughan", "displayName": "Dorothy Vaughan"},
+        "created": "2026-09-28T13:30:00.000+0000",
+        "updated": "2026-09-29T08:10:00.000+0000",
+        "resolutiondate": null,
+        "comment": {
+          "startAt": 0,
+          "maxResults": 1,
+          "total": 1,
+          "comments": [
+            {"id": "20009", "author": {"name": "dvaughan", "displayName": "Dorothy Vaughan"}, "body": "Admins only: the theory group is over budget, see [~mhamilton].", "created": "2026-09-29T08:10:00.000+0000", "visibility": {"type": "role", "value": "Administrators"}}
+          ]
+        }
+      }
+    }
+  ]
+}

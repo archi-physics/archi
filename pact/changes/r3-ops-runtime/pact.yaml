@@ -1,0 +1,211 @@
+pact_version: 5
+id: r3-ops-runtime
+title: 'Operations runtime: automation packs, action classes, autonomy levels, shadow mode,
+  halt'
+tier: 2
+why: Archi's focus is automating operations. The v2 bots each had their own loop, state in
+  local files, and execution mixed into the agent. 3.0 needs one loop (signal, context, proposal,
+  decision, action, outcome) on OKG's workflow, escalation and Nomos machinery, where agents
+  propose and mediators act. ADR 0002 §7.1-7.3, D10-D12; ADR 0001 §5.3.
+affected_code:
+- python/archi/ops/
+- bundles/packs/
+- python/archi/cli/
+requirements:
+- id: req.r3-ops-runtime.pack
+  statement: 'Automation packs declare trigger, context gate, playbook, action classes (payload
+    schema, mediator, reversible, max level), proposal schema and budget; archi bundles validate
+    enforces it.
+
+
+    Acceptance:
+
+    - acc.r3-ops-runtime.schema: manifest tests over valid and invalid automation packs. [evidence:
+    pytest]'
+- id: req.r3-ops-runtime.loop
+  statement: 'An automation runs as an OKG deployment workflow: context gate check, pinned
+    read, agent proposal with cited evidence, decision per autonomy level (L0 observe, L1
+    draft, L2 propose via request_escalation), mediator execution, outcome check, ops-record
+    writes. Timed-out or rejected proposals never execute.
+
+
+    Acceptance:
+
+    - acc.r3-ops-runtime.e2e: a fixture automation runs end to end at L0, L1 and L2 on a scratch
+    instance. [evidence: executed_test]
+
+    - acc.r3-ops-runtime.no-l3: an automation or action class configured above L2 is refused
+    at validate and at run start (ADR 0002 D13). [evidence: pytest]
+
+    - acc.r3-ops-runtime.timeout: a timed-out proposal provably does not execute. [evidence:
+    executed_test]'
+- id: req.r3-ops-runtime.shadow
+  statement: 'Every automation starts in shadow; shadow proposals are scored against later
+    human actions (agreement, time-to-first-response, false-proposal rate); promotion to live
+    needs recorded results and an operator approval recorded as a PACT decision in the instance
+    repo. A failing context gate drops a live automation back to shadow with the reason on
+    the proposal.
+
+
+    Acceptance:
+
+    - acc.r3-ops-runtime.score: shadow report produced from a fixture history. [evidence:
+    pytest]
+
+    - acc.r3-ops-runtime.demote: a stale source demotes a live automation. [evidence: executed_test]'
+- id: req.r3-ops-runtime.control
+  statement: '`archi ops status|halt|resume` shows levels, budgets and shadow scores and stops
+    every automation on an instance; budgets cap cost per run and per day.
+
+
+    Acceptance:
+
+    - acc.r3-ops-runtime.halt: halt stops an in-flight run before its mediator step. [evidence:
+    executed_test]'
+- id: req.r3-ops-runtime.upstream
+  statement: 'AKMON issues exist for envelope expiry, approve-with-edits, the proposal API,
+    per-actor cost attribution, a kill switch and a retraction-size guard, each linked from
+    an upstream-ask issue here.
+
+
+    Acceptance:
+
+    - acc.r3-ops-runtime.filed: issue links recorded. [evidence: manual]'
+tasks:
+- id: task.r3-ops-runtime.pack
+  requirement: req.r3-ops-runtime.pack
+  verification: 'Automation pack and action class manifests.
+
+
+    Test plan:
+
+    - python/tests/ops/test_manifest.py [evidence: pytest]'
+- id: task.r3-ops-runtime.loop
+  requirement: req.r3-ops-runtime.loop
+  verification: 'Workflow template for the loop on DBOS + escalations.
+
+
+    Test plan:
+
+    - scratch run [evidence: executed_test]'
+- id: task.r3-ops-runtime.shadow
+  requirement: req.r3-ops-runtime.shadow
+  verification: 'Shadow mode, scoring, promotion and demotion.
+
+
+    Test plan:
+
+    - python/tests/ops/test_shadow.py; scratch run [evidence: executed_test]'
+- id: task.r3-ops-runtime.control
+  requirement: req.r3-ops-runtime.control
+  verification: 'archi ops status/halt/resume and budgets.
+
+
+    Test plan:
+
+    - scratch run [evidence: executed_test]'
+- id: task.r3-ops-runtime.upstream
+  requirement: req.r3-ops-runtime.upstream
+  verification: 'File the operations-layer AKMON asks.
+
+
+    Test plan:
+
+    - links [evidence: manual]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-ops-runtime.pack
+  status: pass
+  command: python -m pytest python/tests/ops/test_manifest.py python/tests/ops/test_levels.py python/tests/ops/test_render.py
+    -q; python -m pytest python/tests -q (a dev host, okg 0.2.0)
+  head: 4804f5c979322f01db104611397584bbb9aed575
+  at: '2026-10-25T17:29:57+00:00'
+  note: 'acc.r3-ops-runtime.schema: a pack of kind automation declares its trigger (schedule, ticket queue
+    or watched signal), context gate (the context_gate.GateSpec keys), playbook, action classes (payload
+    JSON Schema, mediator, reversible, blast radius, max level), proposal schema (the six ops_proposal
+    fields with their types) and budget (cost per run and per day, runs per hour), and archi bundles
+    validate enforces it. Invalid fixture packs each fail with their own message: duplicate or undefined
+    action classes, an unresolvable mediator (resolved through the catalog, so a third-party pack may
+    require a shipped tool pack), an L2 class on a workflow-step mediator (only side-effect-free steps
+    in python/archi/ops/steps.py), a missing playbook, a bad payload or proposal schema, a bad gate, a
+    non-positive budget or a cron that fires more often than runs_per_hour, duplicate YAML keys. Levels
+    above L2 or unknown are refused citing ADR 0002 D13 at every place a level is set: pack default and
+    max level, each action class, the bundle bound and the instance archi.yaml (the validate half of
+    acc.no-l3; the run-start half is req.loop). The automation block reaches the rendered instance
+    and archi.lock. Full suite 2468 passed, 17 skipped, 2 failed: the two anonymizer wall-clock tests at
+    load average above 40. Two independent reviews; their findings were fixed in b11d26c1 and 4804f5c9.'
+- kind: manual
+  requirement: req.r3-ops-runtime.upstream
+  status: pass
+  command: gh issue view 14..26 --repo mitdbg/akmon; gh issue view 814..826 --repo archi-physics/archi
+  head: abb34ebda8e0365ff48bbd12d7301c23d6591143
+  at: '2026-10-25T21:33:35+00:00'
+  note: 'acc.r3-ops-runtime.filed: the six ADR 0002 section 9 item 7 asks are filed on mitdbg/akmon
+    (2026-10-25): envelope expiry #14, approve-with-edits #15, a mounted authenticated proposal API #16,
+    per-actor cost attribution #17, a first-class kill switch #18, a retraction-size guard #19. Seven more
+    found while building the loop on okg 0.2.0 are filed with them: #20 (escalation respond always fails),
+    #21 (a late approval is accepted and executes after a worker restart), #22 (public workflow context
+    binding), #23 (on_escalation_decided never fires), #24 (runtime: after install blocks publishing),
+    #25 (install fails at ingest with the runtime enabled), #26 (a queued admission blocks the worker).
+    Each is linked from an upstream-ask issue here, #814 to #826, and from docs/ops-runtime-akmon-asks.md.'
+- kind: manual
+  requirement: req.r3-ops-runtime.upstream
+  status: pass
+  command: gh issue view 27 --repo mitdbg/akmon; gh issue view 829 --repo archi-physics/archi
+  head: 1e551b5e01740415a4659d277a4f29743b65181c
+  at: '2026-10-25T22:02:34+00:00'
+  note: 'acc.r3-ops-runtime.filed, addendum: ask O14 (request_escalation fails on replay once the decision
+    is applied), found in the scratch run''s crash-recovery case and checked in okg 0.2.0''s source, is filed
+    as mitdbg/akmon#27 and tracked here by #829.'
+- kind: executed_test
+  requirement: req.r3-ops-runtime.loop
+  status: pass
+  command: python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests -q (a dev host, clean clone)
+  head: db2485b6c90891364710328f71ff62804618f4ff
+  at: '2026-10-26T00:03:35+00:00'
+  note: 'acc.r3-ops-runtime.e2e: a fixture automation (stub proposer, a stub mediator that writes a marker
+    row) runs on a real okg 0.2.0 worker as a deployment workflow started by a scanner: context gate,
+    pinned read, proposal with cited evidence (ids checked against the pinned read), decision by level,
+    mediator step, outcome, ops records admitted and read back from the published graph. L0 ends observed
+    with no marker, L1 ends drafted with no marker, L2 approved executes once and resolves, L2 rejected
+    ends rejected. acc.r3-ops-runtime.no-l3: L3 or an unknown level is refused at validate (req.pack)
+    and at run start (lab: archi.yaml set to L3 is refused, citing ADR 0002 D13; test_loop.py and
+    test_levels.py). acc.r3-ops-runtime.timeout: an unanswered L2 proposal ends timed_out with no marker
+    and a late archi ops approve is refused; with the worker down okg accepts a late approval (ask O8,
+    mitdbg/akmon#21), and on restart the run still does not execute: the mediator step re-reads the
+    escalation and refuses (its refusal is in the worker log). The mediator runs at most once across a
+    crash and replay (an attempt row before the call; a replay reports unknown). Lab r15: 107 checks,
+    all passed; full suite 2729 passed, 17 skipped. Four independent reviews; their findings are fixed.'
+- kind: executed_test
+  requirement: req.r3-ops-runtime.shadow
+  status: pass
+  command: python -m pytest python/tests/ops/test_shadow.py python/tests/ops/test_promotion.py python/tests/ops/test_loop.py
+    -q; python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md)
+  head: db2485b6c90891364710328f71ff62804618f4ff
+  at: '2026-10-26T00:03:35+00:00'
+  note: 'acc.r3-ops-runtime.score: python -m archi.ops.shadow produces the shadow report from the fixture
+    history (merged in #810, test_shadow.py). acc.r3-ops-runtime.demote: in the lab, aging the jira source
+    past its 24h limit drops a live L2 automation to shadow with "demoted to shadow: context gate failed:
+    freshness:jira.jira" on the proposal; the demotion is written to archi_ops.demotions at once, and a
+    second run with the source fresh again stays in shadow. Promotion: archi ops promote refuses without
+    a passing shadow report, otherwise opens a PACT change in the instance repo with the report and
+    thresholds and stops; the operator approves it with okg pact decide (archi never does); the runtime
+    counts an automation live only when ops.yaml says live and that change is this automation''s newest
+    promotion, approved after its last demotion. A hand-edited ops.yaml, an unapproved change, an
+    unrelated or older approved change all leave it in shadow. Every automation starts in shadow.
+    Who runs okg pact decide is not authenticated in okg 0.2.0 (ask O3, mitdbg/akmon#16).'
+- kind: executed_test
+  requirement: req.r3-ops-runtime.control
+  status: pass
+  command: python/tests/ops/scratch_ops_runtime_run.sh (a dev host, akmon-postgres v0.2.0, okg 0.2.0 worker, a clean clone of the head; log in the lane's e2e-results.md); python -m pytest python/tests/ops python/tests/cli -q
+  head: db2485b6c90891364710328f71ff62804618f4ff
+  at: '2026-10-26T00:03:35+00:00'
+  note: 'acc.r3-ops-runtime.halt: archi ops halt pauses the scanner, closes each open escalation (answered
+    reject by archi ops halt), cancels non-final runs and writes halted decisions; an approved run held
+    before its mediator step by a test-only gate ends halted with no marker, and the refusal comes from
+    the mediator step; resume un-pauses the scanner and requeues the halted signal as attempt 2. archi
+    ops status shows levels, budgets used against caps, pending escalations and shadow scores. Budgets:
+    the per-run cap stops a run before escalation, and the per-day cap refuses the next run once spent
+    (okg cost_budget scopes per automation and UTC day); the scanner runs one run per automation at a
+    time. Known limit: halt with the worker down cannot write its halted records (ask O13, mitdbg/akmon#26).'
+decisions: []

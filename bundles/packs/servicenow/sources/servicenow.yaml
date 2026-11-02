@@ -1,0 +1,58 @@
+# ServiceNow connector (cache-backed). Reads the records + meta cache that
+# `python -m archi.downloaders.servicenow` writes under ${archi_data_root}/servicenow/.
+# Credentials are read by environment-variable name only (credential_refs), by the
+# downloader, never by the source: OAuth uses SERVICENOW_CLIENT_ID and
+# SERVICENOW_CLIENT_SECRET, basic auth SERVICENOW_USERNAME and SERVICENOW_PASSWORD.
+#
+# The parsed record count is cross-checked against meta.json's record_count; a
+# mismatch withholds the completed-scope claim.
+servicenow:
+  module: archi.sources.servicenow
+  class: ServiceNowAdapter
+  ownership_id: ${deployment_name}.servicenow
+  admission_policy:
+    producer_id: ${deployment_name}.servicenow
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: servicenow
+      source_name: servicenow
+    output_signature:
+      nodes:
+        - {subtype: servicenow_incident}
+        - {subtype: servicenow_request}
+        - {subtype: servicenow_kb_article}
+        - {subtype: person}
+      edges:
+        - {src_subtype: servicenow_incident, edge_type: reported_by, dst_subtype: person}
+        - {src_subtype: servicenow_incident, edge_type: assigned_to, dst_subtype: person}
+        - {src_subtype: servicenow_request, edge_type: reported_by, dst_subtype: person}
+        - {src_subtype: servicenow_request, edge_type: assigned_to, dst_subtype: person}
+        - {src_subtype: servicenow_kb_article, edge_type: authored_by, dst_subtype: person}
+    output_scope_summary:
+      summary: ServiceNow incidents, requests, knowledge-base articles and the people on them, from the records cache
+      nodes: [servicenow_incident, servicenow_request, servicenow_kb_article, person]
+      edges:
+        - servicenow_incident reported_by person
+        - servicenow_incident assigned_to person
+        - servicenow_request reported_by person
+        - servicenow_request assigned_to person
+        - servicenow_kb_article authored_by person
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [number]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [SERVICENOW_CLIENT_ID, SERVICENOW_CLIENT_SECRET, SERVICENOW_USERNAME, SERVICENOW_PASSWORD]
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/servicenow/records.json
+    meta_path: ${archi_data_root}/servicenow/meta.json
+    instance_url: '${instance_url}'
+    auth_method: ${auth_method}
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

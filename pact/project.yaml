@@ -1,0 +1,54 @@
+# The CORPUS is v5 as of 2026-09-08: every manifest under pact/changes/ and
+# pact/archive/ carries `pact_version: 5`, migrated by okg's own `pact migrate`.
+#
+# This file stays at 4 on purpose, and okg made the same choice for their own
+# project.yaml after migrating their corpus. Two reasons: the v4 compatibility
+# reader behind `okg pact ...` still consults it, and the v5 CLI never reads it
+# at all — v5 is git-native and takes the git toplevel as its root. Bumping the
+# number here would change nothing for v5 and degrade the v4 reader.
+#
+# Author NEW changes with the v5 CLI, not `okg pact new`, or you will get a v4
+# manifest in a v5 corpus:
+#   <okg-venv>/bin/python -m pact.cli --root <repo> new <id>
+#
+# The `review_policy` and `decide/merge gate` wording below describes the v4
+# lifecycle. v5 replaces that whole flow with one `check` gate plus a
+# `Pact-Approved` git commit trailer. See AGENTS.md's PACT section.
+pact_version: 4
+project: archi
+default_change_status: proposal
+canonical_change_file: pact.yaml
+pact_defaults:
+  artifact_format_version: 4
+  target_pact_version: 4
+  review_policy: pact_v4_decision_ledger
+command_authority:
+  repo_command: okg
+  bare_okg_policy: non_authoritative_for_agent_work
+  rationale: >-
+    Archi is a consumer of OKG's PACT tooling; use the okg CLI from the
+    operator environment (e.g. the shared venv) until archi declares okg
+    as a dev dependency.
+pr_policy:
+  base: archi_v3
+  rationale: >-
+    All v3 work lands on archi_v3 (ADR 0002 D1; AGENTS.md "Where work
+    lands"). main serves live v2 deployments and receives only v2 bugfixes
+    until cutover.
+agent_install_targets:
+  - claude-code
+graph_projection:
+  deployment: archi-pact
+  stale_policy: >-
+    The archi-pact ledger deployment is interim host-local infrastructure
+    (a dev host, rootless podman; resolved via OKG_DEPLOYMENTS_DIR
+    and .okg/local.env). Treat stale or missing projection as context only;
+    live files and tests are implementation truth. Replace with a durable
+    team-reachable Postgres before other reviewers run decide/merge gates.
+generated_artifacts:
+  noncanonical:
+    - pact/changes/*/pact.md
+    - pact/archive/*/pact.md
+    - pact/changes/*/pact.yaml.lock
+    - pact/archive/*/pact.yaml.lock
+  policy: Render or lock locally as needed; do not commit generated review views or locks.

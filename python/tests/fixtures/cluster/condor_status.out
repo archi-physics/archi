@@ -1,0 +1,4 @@
+node001.example.org	Claimed	Busy	8	16384	7.50	LINUX	X86_64
+node001.example.org	Unclaimed	Idle	8	16384	7.50	LINUX	X86_64
+node002.example.org	Claimed	Busy	16	32768	15.90	LINUX	X86_64
+node003.example.org	Owner	Idle	16	32768	0.00	LINUX	X86_64

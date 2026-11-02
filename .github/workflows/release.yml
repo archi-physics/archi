@@ -1,0 +1,72 @@
+# Publish archi-kb to PyPI when a v3 release tag is pushed (ADR 0002 D2,
+# PACT r3-release-home task `publish`).
+#
+# Tags are `v3.<minor>.<patch>[a|b|rc]<n>`, e.g. v3.0.0a1. v2's tags are
+# `v2.x` and never match. The job refuses a tag that differs from the
+# version in python/pyproject.toml or archi.__version__, so a tag
+# cannot publish a wheel that calls itself something else.
+#
+# Publishing uses PyPI trusted publishing (OIDC): no API token is stored
+# anywhere. It needs, once, a pending publisher on pypi.org for project
+# `archi-kb` with owner `archi-physics`, repository `archi`, workflow
+# `release.yml` and environment `pypi`, plus a GitHub environment named
+# `pypi` on this repository.
+name: release
+
+on:
+  push:
+    tags: ["v3.*"]
+
+jobs:
+  build:
+    name: build wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tag matches the package version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          project=$(python -c "import tomllib; print(tomllib.load(open('python/pyproject.toml','rb'))['project']['version'])")
+          module=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' python/archi/__init__.py)
+          if [ "$tag" != "$project" ] || [ "$tag" != "$module" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match pyproject ${project} / archi.__version__ ${module}"
+            exit 1
+          fi
+
+      # Wheel only. The wheel force-includes ../bundles and ../skills from
+      # outside python/, and an sdist cannot carry them, so a wheel built
+      # from an sdist would be missing the bundles. The wheel is pure
+      # Python, so every platform installs it.
+      - name: Build wheel
+        working-directory: python
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir ../dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/archi-kb/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

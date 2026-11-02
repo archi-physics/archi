@@ -1,0 +1,25 @@
+name: tickets
+kind: context
+version: 0.1.0
+description: Generic tracker tickets from Redmine, any JIRA, or both, read from the records cache the tickets downloader writes.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# Tickets are what operators triage; the downloader cache may be a day old and no more.
+freshness:
+  tickets.tickets: {max_staleness: 24h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant tickets_link_<name>.
+link_coverage:
+  # Every Redmine or JIRA issue has an author (JIRA: the reporter).
+  - {name: ticket_author, from: tracker_ticket, edge: reported_by, to: person, direction: out, min_fraction: 0.9}
+search_subtypes: [tracker_ticket]
+prompt_fragment: prompt.md
+credentials: [REDMINE_API_KEY, JIRA_API_TOKEN]
+# The downloader reads public Redmine projects anonymously; the key only widens
+# what it can read. JIRA_API_TOKEN is needed only to download from a JIRA. Both
+# are read by the downloader alone: the source reads the cache, never a credential.
+needs_credentials: false

@@ -1,0 +1,114 @@
+# Indico connector: reads the Indico HTTP API live; no pre-built cache.
+#
+# The scope comes from two install answers, `--indico-event-ids` and
+# `--indico-category-ids`, each a YAML list such as '["1716863"]'. Give at
+# least one: a source with neither is refused when it is built, rather than
+# harvesting nothing quietly, except that with neither, `default_event_ids`
+# (one public event) is read, so a bare install has a scope. Category walks expand to the events they hold.
+#
+# AUTHENTICATION. Public events and categories need nothing. For protected
+# ones the connector never logs in: it reads a Netscape cookie file whose
+# PATH comes from the environment variable named in `cookie_file_env`, and
+# the value never appears here or in the manifest. Produce the file out of
+# band with CERN's Kerberos-backed tool:
+#
+#     kinit <user>@CERN.CH
+#     auth-get-sso-cookie -u https://indico.cern.ch -o ~/.indico-cookies.txt
+#     export ARCHI_INDICO_COOKIES=~/.indico-cookies.txt
+#
+# and uncomment `cookie_file_env` below.
+indico_live:
+  module: archi.sources.indico_live
+  class: IndicoLiveAdapter
+  ownership_id: ${deployment_name}.indico-live
+  admission_policy:
+    producer_id: ${deployment_name}.indico-live
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: indico
+      source_name: indico_live
+    output_signature:
+      nodes:
+        - {subtype: meeting_minutes}
+        - {subtype: document}
+        - {subtype: document_chunk}
+      edges:
+        - {src_subtype: meeting_minutes, edge_type: contains, dst_subtype: document}
+        # Only emitted with `contributions: true` (below); declared so
+        # turning the option on needs no second edit. A deployment that
+        # copied an older indico_live.yaml must add this line first, or
+        # okg refuses the edges.
+        - {src_subtype: meeting_minutes, edge_type: contains, dst_subtype: meeting_minutes}
+        - {src_subtype: document_chunk, edge_type: member_of, dst_subtype: document}
+    output_scope_summary:
+      summary: Indico events and their contributions, read live from the API
+      nodes: [meeting_minutes, document, document_chunk]
+      edges:
+        - meeting_minutes contains document
+        - meeting_minutes contains meeting_minutes
+        - document_chunk member_of document
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [event_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    base_url: '${base_url}'
+    # One or both (install answers; YAML lists).
+    event_ids: ${event_ids}
+    category_ids: ${category_ids}
+    # Read only when both lists above are empty (a bare install); any event
+    # or category id given replaces it. One public event, read in full.
+    default_event_ids: ["1716863"]
+    # cookie_file_env: ARCHI_INDICO_COOKIES
+    required: false
+    # max_events bounds a category walk while trying it out. A bounded
+    # run never claims complete scope, so leave it unset in production.
+    # max_events: 25
+    # One meeting_minutes record per talk (title, speakers, session,
+    # time, abstract, own URL, attachment names and URLs), linked from
+    # the event. Off by default: on, the event record stops carrying
+    # every talk's text inline. Attachment text is not read.
+    # contributions: true
+    # Images of talk attachments (needs contributions: true). A talk's
+    # PDF, PNG and JPEG attachments get `okg_image` URL values in its
+    # `attachment_images` attr, so an agent can open them with
+    # inspect(kind="image"): a PDF shows page 1. Nothing is downloaded
+    # at ingest; okg fetches the URL when an agent asks, so the
+    # deployment must allow the host (see below). Slide decks and other
+    # types stay names and URLs. Protected attachments and files over
+    # max_image_bytes are skipped. Off by default.
+    # attachment_images: true
+    # max_images_per_talk: 3
+    # max_image_bytes: 10485760
+    #
+    # ALSO REQUIRED, in deployment.yaml, for the images to open: okg serves
+    # the image kind only when the deployment has an `agent_surface` block,
+    # and fetches only from hosts listed in it. Read what adding the block
+    # changes before you copy it:
+    #   - `served` becomes EXACTLY the tools listed. Without any block a
+    #     read `okg mcp-serve` offers the six read tools plus `query`; the
+    #     list below reproduces that, so delete `query` only if you mean to.
+    #   - an `--allow-writes` launch is refused unless `served` also names
+    #     a write tool (for example `record`, `propose`).
+    #   - top-level `mcp:`, `mcp_instructions:` and
+    #     `tool_description_overrides:` become load errors. Move them to
+    #     `agent_surface.served`, `agent_surface.instructions` and
+    #     `agent_surface.projections.chat.description_overrides`.
+    #   - if you already have an `agent_surface` block, add only the
+    #     `images` part to it.
+    # Replace the prefix with your Indico base URL (the `base_url` above).
+    #
+    #   agent_surface:
+    #     served: [inspect, search, expand, filter, map, aggregate, query]
+    #     images:
+    #       url:
+    #         prefixes: ["https://indico.cern.ch/"]
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

@@ -1,0 +1,68 @@
+# TWiki connector: an EOS dump read from disk, the only way TWiki reaches
+# an instance. There is no live crawl and no anonymous web fallback.
+#
+# Reads raw topic .txt files (with their %META lines) from the directory
+# answered for `--twiki-eos-root` and emits topic pages, their text chunks,
+# and topic-to-topic reference edges (topic_parent / wiki_link /
+# bare_wikiword). `web_root` names the web of the DUMP ROOT: topics of that
+# web sit directly in the root, and subdirectories are subwebs. A root that
+# itself contains a <web_root>/ subdirectory double-prefixes every page id
+# (twiki:CMS:CMS:...).
+#
+# `required: true`: a missing or empty dump fails preflight loudly instead
+# of shrinking the graph quietly.
+twiki_eos:
+  module: archi.sources.twiki
+  class: TwikiEOSAdapter
+  ownership_id: ${deployment_name}.twiki-eos
+  admission_policy:
+    producer_id: ${deployment_name}.twiki-eos
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: twiki
+      source_name: twiki_eos
+    output_signature:
+      nodes:
+        - {subtype: documentation_page}
+        - {subtype: document_chunk}
+      edges:
+        - {src_subtype: documentation_page, edge_type: references, dst_subtype: documentation_page}
+        - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+    output_scope_summary:
+      summary: TWiki topics from a local EOS snapshot, their text chunks, and topic-to-topic references
+      nodes: [documentation_page, document_chunk]
+      edges:
+        - documentation_page references documentation_page
+        - documentation_page contains document_chunk
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [path]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    eos_root: '${eos_root}'
+    web_root: CMS
+    required: true
+    # Optional seeded subtree instead of the whole snapshot:
+    # seed_topics: [CMS/CompOpsHome]
+    # max_depth: 2
+    # Physics scoping, from the `--twiki-physics-filter` answer (default
+    # false; anything but true or false is refused when the reader starts): true narrows a CMS snapshot to physics topics --
+    # PAG/POG/workbook roots, their parent-topic closure, and documentation
+    # page types -- and drops the computing-operations roots the
+    # computing bundles are built around. The analysis-notes and cms-analyses
+    # packs read the same answer so they match the pages this one keeps.
+    physics_filter: ${physics_filter}
+    # Optional: also write the URL of a labelled web link
+    # ([[URL][label]] -> "label (URL)") so an identifier that sits only
+    # in the URL, such as a JIRA key in a /browse/ link, reaches the
+    # text and gets linked. Off by default (the label alone).
+    # link_urls: keep
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

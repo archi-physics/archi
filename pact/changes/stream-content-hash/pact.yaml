@@ -1,0 +1,57 @@
+pact_version: 5
+id: stream-content-hash
+title: content_hash streams cache files instead of reading each one whole
+tier: 2
+why: '`archi.auth.cache.content_hash` (python/archi/auth/cache.py) hashed each cache file
+  with `path.read_bytes()`, so it held the whole file in memory on top of the reader''s own
+  parsed copy. Cache-backed readers call it for every run''s revision, and since reference-catalog-complete-scope
+  DBS and CondDB call it again for their release-mode checkpoint. A comp-ops DBS cache is
+  719 MB; a DBS run there already failed with SourceMemoryLimitExceeded at a 4.6 GB peak,
+  so every extra whole-file copy matters.
+
+  Change: read each file in 1 MiB chunks into the same SHA-256 digest. The label, the NUL
+  separators and the sorted order are unchanged, so the digest is byte-for-byte the old one:
+  stored cursors, revisions and content hashes keep their values and nothing re-keys. okg''s
+  own ContentHashProbe already streams, so the change probe is not affected.'
+affected_code:
+- python/archi/auth/cache.py
+- python/tests/auth/test_cache.py
+requirements:
+- id: req.stream-content-hash.identical
+  statement: content_hash returns exactly the digest of the whole-file algorithm for the same
+    inputs, including an empty file, a file of exactly two chunks and a multi-MiB file that
+    ends mid-chunk.
+- id: req.stream-content-hash.streams
+  statement: content_hash never reads a cache file whole, and its peak traced memory on a
+    50 MiB file stays under 8 MiB.
+tasks:
+- id: task.stream-content-hash.identical
+  requirement: req.stream-content-hash.identical
+  verification: test_streamed_content_hash_equals_the_whole_file_hash in python/tests/auth/test_cache.py,
+    which compares against a copy of the old algorithm; the existing content_hash tests and
+    the full suite pass.
+- id: task.stream-content-hash.streams
+  requirement: req.stream-content-hash.streams
+  verification: test_content_hash_never_reads_a_whole_file (Path.read_bytes patched to raise)
+    and test_content_hash_peak_memory_stays_far_below_the_file_size (tracemalloc) pass, and
+    both fail with the cache.py of 8dbac4c0.
+evidence:
+- kind: executed_test
+  requirement: req.stream-content-hash.identical
+  status: pass
+  command: python -m pytest python/tests -q
+  head: bd8d242f76a36163898294a672f33f5a27644399
+  at: '2026-10-05T03:12:22+00:00'
+  note: 1708 passed at this commit (okg ac078aabd, a dev host), including test_streamed_content_hash_equals_the_whole_file_hash
+    (empty, small, exactly-two-chunk and 3 MiB + 4 byte files against a copy of the old algorithm)
+    and the existing content_hash and reader tests unchanged.
+- kind: executed_test
+  requirement: req.stream-content-hash.streams
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests/auth/test_cache.py
+  head: bd8d242f76a36163898294a672f33f5a27644399
+  at: '2026-10-05T03:12:23+00:00'
+  note: '15 passed at this commit. With the cache.py of 8dbac4c0, 2 failed: test_content_hash_never_reads_a_whole_file
+    (Path.read_bytes patched to raise) and test_content_hash_peak_memory_stays_far_below_the_file_size
+    (50 MiB file, tracemalloc peak must stay under 8 MiB); the equality test passes on both.'
+decisions: []

@@ -1,0 +1,168 @@
+pact_version: 5
+id: cds-connector
+title: 'A CDS connector: CMS Physics Analysis Summaries and Notes'
+tier: 2
+why: 'CDS is the CERN Document Server: it holds the published and semi-published record of
+  CMS physics -- Physics Analysis Summaries, CMS Notes, papers. It is the one source in the
+  physics expansion with no connector anywhere, in archi or in mitdbg/okg-deployments/cms,
+  so it has to be written rather than enabled. It belongs here rather than in cms-kb because
+  a CERN document server is not CMS-physics-specific: any HEP deployment on this distribution
+  wants it.
+
+
+  MEASURED BEFORE DESIGNING, 2026-09-25, because it determines the whole shape:
+
+
+  - The CDS search and REST APIs are behind an anti-bot interstitial. `GET /api/records/?q=CMS`
+  returns 200 with an HTML page titled ''Making sure you''re not a bot!'', not JSON. A connector
+  built on them would appear to work and harvest nothing.
+
+  - The OAI-PMH endpoint `/oai2d` answers properly, unauthenticated. `verb=ListSets` advertises
+  `cerncds:cms-pas` and `cerncds:cms-notes`. `verb=ListRecords&metadataPrefix=oai_dc&set=cerncds:cms-pas`
+  returns 495 records per page with a resumption token and `completeListSize=2081`.
+
+  - Records carry the report number as a `dc:identifier` (`CMS-PAS-SUS-08-005`) alongside
+  the record URL and the OAI id.
+
+
+  So: OAI-PMH harvest, not the search API. That is the design decision this measurement forces,
+  and it is recorded here so nobody re-derives it by building the wrong thing first.
+
+
+  THE REPORT NUMBER IS THE POINT. `CMS-PAS-HIG-19-001` shares its PAG-YY-NNN code with analysis
+  note `HIG-19-001`. A deployment carrying both can answer ''what was published from this
+  note'' and ''which note backs this summary''. A CDS connector that harvests titles and abstracts
+  but does not expose that key is worth much less, so the identifier parsing is a requirement
+  here rather than a nicety left to consumers.'
+affected_code:
+- python/archi/sources/cds.py
+- python/tests/sources/test_cds.py
+- python/archi/schemas/sources.yaml
+- python/archi/schemas/bridges/sources.yaml
+- bundles/cern-team/source-defaults/cds.yaml.example
+requirements:
+- id: req.cds-connector.harvest
+  statement: 'archi can harvest CMS records from CDS over OAI-PMH.
+
+
+    A reader on the current SDK (preflight / run / ConnectorRun) walks one or more OAI sets,
+    follows resumption tokens to completion, and emits one node per record with its title,
+    abstract, authors, date, report numbers, record URL and OAI identifier. Sets are configuration,
+    defaulting to cerncds:cms-pas and cerncds:cms-notes.
+
+
+    Partial harvests must not claim complete scope: a resumption chain that breaks mid-walk
+    reports the run incomplete rather than publishing a corpus missing its tail. That failure
+    is invisible otherwise -- the records that did arrive look fine.
+
+
+    Acceptance:
+
+    - acc.cds-connector.harvest: Against recorded OAI fixtures, a multi-page harvest emits
+    every record across the resumption chain; a broken chain yields completed_scope false.
+    [evidence: executed_test]
+
+    - acc.cds-connector.live: One live harvest of cerncds:cms-pas reaches completeListSize.
+    [evidence: executed_test]'
+- id: req.cds-connector.identifiers
+  statement: 'The report number is parsed, not left in a blob.
+
+
+    `CMS-PAS-HIG-19-001` is decomposed into its kind (PAS, NOTE, AN, PAPER), PAG code, year
+    and number, and exposed as attributes. A consumer can then join a summary to the analysis
+    note behind it without re-parsing strings, and cms-kb''s expansion does exactly that.
+
+
+    Records with no report number, or with several, are handled explicitly: a record is not
+    dropped for lacking one, and multiple identifiers do not silently pick the first.
+
+
+    Acceptance:
+
+    - acc.cds-connector.identifiers: Parsing covers PAS, NOTE and AN forms plus the no-identifier
+    and multiple-identifier cases, each asserted against a real harvested record. [evidence:
+    executed_test]'
+- id: req.cds-connector.bundle
+  statement: 'The connector is installable, and does not perturb anyone who does not install
+    it.
+
+
+    A schema slice declares whatever subtype the records land as, with the archetype annotation
+    that registers it (the composition-root work lost a day to narrowings referencing a class
+    that carried none). A `cds.yaml.example` ships in the cern-team bundle, off by default
+    like every other optional source there. archi''s existing suite stays green.
+
+
+    Acceptance:
+
+    - acc.cds-connector.bundle: python/tests passes with the new source present and no existing
+    test changed to accommodate it. [evidence: executed_test]'
+tasks:
+- id: task.cds-connector.reader
+  requirement: req.cds-connector.harvest
+  verification: 'Write python/archi/sources/cds.py: OAI-PMH client, resumption walk, record
+    parsing, fact emission, adapter.
+
+
+    Proof: fixture-driven tests for the multi-page walk and the broken chain, plus one live
+    harvest against cerncds:cms-pas reaching 2,081 records.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.cds-connector.identifiers
+  requirement: req.cds-connector.identifiers
+  verification: 'Parse report numbers into kind / PAG / year / number, covering the empty
+    and multiple cases.
+
+
+    Proof: tests over real harvested identifiers.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.cds-connector.bundle
+  requirement: req.cds-connector.bundle
+  verification: 'Schema slice with its archetype annotation, narrowings if the source emits
+    edges, and a cern-team source-default shipped as .example.
+
+
+    Proof: the full archi suite green.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.cds-connector.harvest
+  status: pass
+  command: python -m pytest tests -q; live harvest of cerncds:cms-pas
+  head: 319b31ac8950e507c1cb4abcdc63dd8a29bfad10
+  at: '2026-09-25T17:59:40+00:00'
+  note: 'Fixture tests cover the multi-page resumption walk, a chain that breaks mid-walk
+    (completed_scope false), max_records truncation, and cross-set dedup. Live: 2,060 records
+    over 5 pages in 53s, completed_scope true. Advertised completeListSize 2,081 = 2,060 live
+    + 21 deleted, counted not assumed.'
+- kind: executed_test
+  requirement: req.cds-connector.identifiers
+  status: pass
+  command: python -m pytest tests/sources/test_cds.py -q
+  head: 319b31ac8950e507c1cb4abcdc63dd8a29bfad10
+  at: '2026-09-25T17:59:42+00:00'
+  note: Parsing covers PAS, NOTE, AN, DP forms; the no-identifier and multiple-identifier
+    cases; and an unknown PAG token yielding an empty analysis_code rather than a key that
+    could match the wrong note. 1,939 of 2,060 live records carry a joinable code.
+- kind: executed_test
+  requirement: req.cds-connector.bundle
+  status: pass
+  command: python -m pytest tests -q
+  head: 319b31ac8950e507c1cb4abcdc63dd8a29bfad10
+  at: '2026-09-25T17:59:43+00:00'
+  note: 459 passed. cds_record carries the archetype annotation that registers it as a subtype;
+    cds.yaml.example ships off by default; no existing test was changed to accommodate the
+    source -- the bundle guards caught a hand-rolled adapter and it was replaced with archi's
+    ReaderAdapter.
+decisions: []

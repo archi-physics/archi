@@ -1,0 +1,90 @@
+# CI for the v3 distribution (ADR 14: CI from day one).
+#
+# The push trigger named `archi_v3` until 2026-10-01. That was the branch
+# in the PREDECESSOR repository, archi-physics/archi, and it does not
+# exist here -- so no push to `main` ran CI at all. Pull requests were
+# unaffected, which is why it went unnoticed.
+#
+# Since 2026-10-25 this same tree is also archi-physics/archi's `archi_v3`
+# (ADR 0002 D1), so the push trigger names both branches. Each repository
+# has only one of them. Drop `archi_v3` at cutover, when the v3 line
+# becomes archi's `main`.
+#
+# The tests import okg, so the job installs the public AKMON release wheel
+# (github.com/mitdbg/akmon, v0.4.0). The Python package and CLI are still
+# named `okg`. The URL carries the wheel's sha256, so pip refuses any other
+# okg wheel (its dependencies still resolve from PyPI). No secret is involved,
+# so fork PRs run the full suite too.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, archi_v3]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests (python 3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned deliberately: the package targets 3.12, and black cannot parse
+      # the f-strings in three connectors under anything older -- that is what
+      # made the §10 definition of done look broken.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install okg (AKMON v0.4.0 release wheel, hash-pinned)
+        run: |
+          set -euo pipefail
+          # The release is the version archi is tested against. Keep it equal
+          # to the release in the *Last updated* line of docs/okg-alignment.md;
+          # if they differ, the page is describing a build that never ran.
+          python -m pip install --upgrade pip
+          pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
+
+      - name: Install archi with dev extras
+        run: pip install -e "./python[dev]"
+
+      - name: Tests
+        run: python -m pytest python/tests -q
+
+      # Report-only. The tree predates any formatter: black would reformat 58
+      # files and isort ~47, and the connectors are kept line-comparable with
+      # the frozen canonical okg-deployments/cms copies so upstream bug reports
+      # cite matching lines. Enforcing would destroy that. Flip
+      # continue-on-error to false to enforce, once a reformat is agreed.
+      - name: Format check (report-only)
+        continue-on-error: true
+        working-directory: python
+        run: |
+          echo "::group::black"
+          black --check --diff . || true
+          echo "::endgroup::"
+          echo "::group::isort"
+          isort --check-only --diff . || true
+          echo "::endgroup::"
+
+  # The two tests that do not import okg, run without installing it. Small on
+  # purpose: a fast smoke check that the repo is coherent, not a substitute for
+  # the suite.
+  no-substrate:
+    name: substrate-free checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - name: Alignment page and comp-ops lint baseline
+        run: |
+          python -m pytest \
+            python/tests/test_alignment_page.py \
+            python/tests/test_compops_lint_recheck.py -q

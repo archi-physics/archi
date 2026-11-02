@@ -1,0 +1,18 @@
+init_questions:
+  - id: base_url
+    prompt: CDS OAI-PMH endpoint
+    type: string
+    required: false
+    default: https://cds.cern.ch/oai2d
+    description: |
+      The OAI-PMH endpoint to harvest. Leave the default for CERN's
+      Document Server.
+
+  - id: sets
+    prompt: OAI sets to harvest, as a YAML list
+    type: string
+    required: false
+    default: '["cerncds:cms-pas", "cerncds:cms-notes"]'
+    description: |
+      The OAI sets to harvest, for example '["cerncds:cms-pas"]'. The
+      default is CMS's physics analysis summaries and notes.

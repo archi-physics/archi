@@ -1,0 +1,94 @@
+# Compute nodes and their health checks.
+#
+# Owned by the node-health pack. Classes live in this file; their edge narrowings
+# are in bridges/node_health.yaml (okg's composer honours narrowings only under
+# schemas/bridges/). Person and DocumentChunk come from okg's person and
+# extraction modules.
+id: https://archi-physics.org/okg/archi/node_health
+name: archi_node_health
+title: Archi - node health subtypes
+description: Node subtypes emitted by archi.sources.node_health.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  ComputeNode:
+    description: >-
+      A compute node with the result of its latest health checks.
+    class_uri: archi:ComputeNode
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      node_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      health:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      failing_checks:
+        multivalued: true
+      warning_checks:
+        multivalued: true
+      check_count:
+        range: integer
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: node_name
+      okg_identifier_fields: node_name
+      okg_searchable_text_fields: node_name,cluster,health,failing_checks,warning_checks,text
+      okg_title_from: node_name
+      okg_last_modified_at_from: observed_at
+
+  NodeHealthCheck:
+    description: >-
+      One named health check on one compute node, with its status and detail.
+    class_uri: archi:NodeHealthCheck
+    attributes:
+      cluster:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      node_name:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      check_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      status:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      detail:
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: check_name
+      okg_searchable_text_fields: check_name,node_name,status,detail,text
+      okg_title_from: check_name
+      okg_last_modified_at_from: observed_at

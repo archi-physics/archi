@@ -1,0 +1,76 @@
+pact_version: 5
+id: twiki-empty-snapshot-refuses
+title: An empty TWiki snapshot refuses the run instead of publishing nothing
+tier: 2
+why: 'okg review of twiki_eos (okg #2896, real okg runner) found one silent hole. A missing
+  snapshot directory already fails loudly and retracts nothing. A snapshot directory that
+  EXISTS but holds no topic -- a failed sync, an empty mount point -- was read as an empty
+  wiki: the run finished healthy with zero records and zero retractions, the old pages stayed,
+  and nobody was told. In a scope_complete or reconcile run the reader claimed a complete
+  scope over zero pages, which under missing_from_completed_scope is an order to retract every
+  page the source ever ingested.
+
+
+  The opt-in physics filter has the same shape one step later: a snapshot that was read but
+  whose pages all fail the filter claimed a complete, empty scope. For the CMS mirror that
+  means the wrong web is mounted or the allow-list moved, not that physics left the wiki.
+
+
+  DECISION, recorded because it reverses an existing test: zero kept pages is never claimed
+  as a complete scope, including a seeded run whose only seed the filter drops (test_filter_composes_with_seed_topics
+  previously asserted completed_scope=True there). Emptying a source on purpose is a teardown,
+  not a filter setting; the same rule archi.sources.cmssw already applies ("a complete scope
+  over zero releases is a retraction order for the whole catalog").
+
+
+  NOT CHANGED: the revision still carries run_id. The revision is one run-wide envelope shared
+  by every page (whole-snapshot content_hash plus count), not a per-page version, and okg
+  dev''s persisted dedupe already treats a revision-only difference as unchanged (compare_attrs
+  revision_only, runner.py). Every archi source uses the same envelope; changing one reader
+  alone would diverge from the rest without a measured win.'
+affected_code:
+- python/archi/sources/twiki.py
+- python/tests/sources/test_twiki.py
+- python/tests/sources/test_twiki_physics.py
+requirements:
+- id: req.twiki-empty-snapshot-refuses.main
+  statement: 'TwikiEOSSource never claims a complete scope over zero pages.
+
+
+    Acceptance:
+
+    - acc.twiki-empty-snapshot-refuses.empty-root: A snapshot directory that is present but
+    holds no real topic (empty, or only structural/junk files) makes run() emit no facts,
+    set completed_scope=False and report health cache_missing with the directory as cache_path,
+    in scope_complete and reconcile modes; preflight() reports cache_missing too. A one-topic
+    snapshot still claims its scope. [evidence: executed_test]
+
+    - acc.twiki-empty-snapshot-refuses.physics-empty: With physics_filter=True, a snapshot
+    whose pages are all dropped by the filter makes run() emit no facts, set completed_scope=False
+    and report endpoint_failed with the kept/read counts; a filter that keeps pages still
+    claims scope. [evidence: executed_test]'
+tasks:
+- id: task.twiki-empty-snapshot-refuses.deliver
+  requirement: req.twiki-empty-snapshot-refuses.main
+  verification: 'Guard run() before and after the physics filter, align preflight(), and cover
+    both guards plus the one-topic and keeps-something controls.
+
+
+    Proof: the new tests fail on main and pass on the branch; the full archi suite passes.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.twiki-empty-snapshot-refuses.main
+  status: pass
+  command: cd python && python -m pytest tests -q
+  head: 37e76f562c5cbec31686bfac9308417fcd395d95
+  at: '2026-09-29T00:10:15+00:00'
+  note: 1066 passed at this commit. The 4 new failure-case tests (empty dir in scope_complete
+    and reconcile, skipped-pages-only dir, physics filter keeping 0 of 2) fail on main e63fc466
+    and pass here; the one-topic and keeps-something controls pass on both. test_filter_composes_with_seed_topics
+    now asserts completed_scope=False (decision in why).
+decisions: []

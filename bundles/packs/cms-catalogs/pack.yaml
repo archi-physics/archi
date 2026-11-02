@@ -1,0 +1,53 @@
+name: cms-catalogs
+kind: context
+version: 0.1.0
+description: CMS computing catalogs - CRIC, CRIC core, SITECONF, DBS, WMStats, GOCDB and CondDB.
+requires:
+  modules: [document_starter, person, extraction, dataset]
+schemas: schemas/
+sources: sources/
+playbooks: playbooks/
+skill_triggers: playbooks/skill-triggers.yaml
+init_questions: questions.yaml
+invariants: invariants.yaml
+# No template here sets a schedule (triggers are manual and reconcile), so each
+# value is how old the catalog may get before an answer is likely wrong.
+# GOCDB downtimes and WMStats workflows move within a day and operators ask
+# about them now: 24h. CRIC, CRIC core and SITECONF describe sites, which
+# change over weeks, and are refreshed by hand: 7d. DBS and the CondDB global
+# tags only grow by new entries, and their caches need a grid certificate to
+# refresh: 7d.
+freshness:
+  cms-catalogs.cric: {max_staleness: 7d}
+  cms-catalogs.cric_core: {max_staleness: 7d}
+  cms-catalogs.siteconf: {max_staleness: 7d}
+  cms-catalogs.gocdb_downtimes: {max_staleness: 24h}
+  cms-catalogs.wmstats_workflows: {max_staleness: 24h}
+  cms-catalogs.dbs_datasets: {max_staleness: 7d}
+  cms-catalogs.conddb_global_tags: {max_staleness: 7d}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant cms_catalogs_link_<name>.
+link_coverage:
+  # The CRIC source emits every storage endpoint under its site.
+  - {name: storage_endpoint_site, from: storage_endpoint, edge: contains, to: site, direction: in, min_fraction: 0.9}
+  # The CRIC source emits every compute endpoint under its site.
+  - {name: compute_endpoint_site, from: compute_endpoint, edge: contains, to: site, direction: in, min_fraction: 0.9}
+  # A SITECONF directory is named for a site; a few belong to sites CRIC no longer lists.
+  - {name: site_config_site, from: site_config, edge: contains, to: site, direction: in, min_fraction: 0.8}
+  # Most WMStats workflows read an input dataset; generator workflows read none.
+  - {name: workflow_input_dataset, from: workflow, edge: consumes, to: dataset, direction: out, min_fraction: 0.5}
+search_subtypes:
+  - site
+  - storage_endpoint
+  - compute_endpoint
+  - infrastructure_service
+  - site_config
+  - dataset
+  - workflow
+  - downtime
+  - global_tag
+prompt_fragment: prompt.md
+credentials: [CERN_GITLAB_TOKEN]
+# SITECONF reads GitLab with a token, and the CRIC, DBS and WMStats caches
+# can only be fetched with a CERN grid certificate or SSO.
+needs_credentials: true

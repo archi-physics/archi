@@ -1,64 +1,164 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
+# archi (v3 line) — working rules
 
-These instructions are for AI assistants working in this project.
+Archi **automates operations for scientific computing** (ADR 0002 §1):
+a context layer that holds what a facility knows, kept solid and cited,
+and an operations layer whose automations propose, get approval for, and
+record actions. It is built on OKG (AKMON) and ships connectors,
+schemas, enrichers, live tools, playbooks, packs, bundles and the
+automation runtime as the pip package `archi-kb` (import name `archi`),
+built from [`python/`](python/). It contains no credentials, no site
+config and no running services. It is installed onto an OKG deployment
+through a bundle; instances live in their own repositories and carry
+the configuration and secrets. Do not describe it as
+"the HEP distribution of OKG": that was the v3 program's first framing
+(ADR 0001) and undersells it.
 
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+This is `archi-physics/archi`, branch `archi_v3`. The v3 line was
+developed in `archi-physics/archi-okg` until 2026-10-25, when its `main`
+became this branch (ADR 0002 D1, PACT `r3-release-home`; the old tip of
+this branch is tag `archi_v3-pre-merge`). archi-okg takes no new commits
+and is being archived.
 
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+| | |
+|---|---|
+| `python/archi/` | The wheel: sources, enrichers, schemas. |
+| `python/tests/` | The suite — around 1,700 tests, run by CI on every PR. |
+| `bundles/` | Install bundles (e.g. `cern-team`). |
+| `skills/` | Playbooks for agents operating over the graph. |
+| `pact/changes/` | The change record. |
+| `docs/okg-alignment.md` | The okg-side program's window into this repo. |
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+> **This file is the one place working rules live.** `CLAUDE.md` is a
+> single `@AGENTS.md` import, so Claude Code loads this file; Codex reads
+> it directly. Never put rules in `CLAUDE.md`. The old one was deleted
+> because it had drifted into describing a layout that no longer
+> existed (see "What the old file got wrong" at the end).
 
-<!-- OPENSPEC:END -->
+## Where work lands
 
-# Repository Guidelines
+**PRs target `archi_v3`.** `pact/project.yaml` (`pr_policy.base`)
+says the same.
 
-## Project Structure & Module Organization
-- `src/` holds core (`src/archi`), CLI (`src/cli`), ingestion (`src/data_manager`), interfaces (`src/interfaces`), and utilities (`src/utils`).
-- `tests/` includes `smoke/` and `pr_preview_config/`.
-- `docs/` contains the mkdocs site; `requirements/` and `src/cli/templates/dockerfiles/` store base image requirements; `examples/` has sample configs.
+`main` is the v2 application, the RAG chatbot. It serves live v2
+deployments, is the repository default, and takes only v2 fixes. Never
+open v3 work against it. At cutover the v3 line becomes `main` and v2
+moves to a `v2` branch (ADR 0002 D1, PACT `r3-release`). This section
+changes then, in the same PR as the cutover.
 
-## Codebase Map
-- CLI entrypoint is `src/cli/cli_main.py`, with registries in `src/cli/service_registry.py` and `src/cli/source_registry.py`, and managers in `src/cli/managers/`.
-- Service entrypoints live in `src/bin/` and wire Flask apps from `src/interfaces/`.
-- Runtime config is loaded from `/root/archi/configs/` by `src/utils/config_loader.py`; CLI deployments render under `~/.archi/archi-<name>` (override with `Archi_DIR`).
-- Core orchestration lives in `src/archi/archi.py` with pipelines in `src/archi/pipelines/`; ingestion is in `src/data_manager/`.
+Do not open PRs against archi-okg either. Its `main` is frozen at
+`011f5d64`, the commit where this branch took the line over.
 
-## Build, Test, and Development Commands
-- `pip install -e .` installs the package in editable mode for local development.
-- `archi --help` verifies the CLI entrypoint defined in `pyproject.toml`.
-- `cd docs && mkdocs serve` previews documentation locally.
+## Standing rules
 
-## Coding Style & Naming Conventions
-- Python 3.7+; follow PEP 8 with 4-space indentation.
-- Use `snake_case` for modules/functions and `PascalCase` for classes; keep filenames descriptive (e.g., `test_interfaces.py`).
-- Import ordering is generally maintained with `isort` when formatting is applied.
-- Shell scripts under `scripts/` and `tests/smoke/` use `bash` with `set -euo pipefail`.
+- **This repository and the okg substrate (AKMON) are both public.**
+  Nothing here may carry a credential, a site hostname or an instance's
+  configuration. The tests import `okg`, so CI installs the AKMON
+  release wheel, pinned by version and sha256 in
+  `.github/workflows/ci.yml`. No secret is involved, so fork PRs run
+  the full suite.
+- **A consumer's variant is an option here, off by default.** When a
+  deployment needs a source to behave differently, add the option to
+  the source with a default that preserves existing behaviour, and let
+  the deployment turn it on in its profile. `physics_filter` and
+  `page_index_path` on `TwikiEOSSource` are both this shape. A second
+  copy of a source in a downstream repo is what this distribution
+  exists to prevent.
+- **Connectors are kept line-comparable** with the frozen canonical
+  `okg-deployments/cms` copies, so an upstream bug report cites matching
+  lines. That is why the format check is report-only: enforcing `black`
+  would reformat 58 files and destroy the correspondence.
+- **`docs/okg-alignment.md` is a contract, not a status page.** Any
+  change that touches `python/archi`'s okg imports, bumps the okg
+  commit tested against, or moves program state must update its
+  "Current state" section and its pins **in the same PR**.
+  `python/tests/test_alignment_page.py` enforces the import-surface
+  half mechanically; the prose half is on you. The AKMON release in
+  `.github/workflows/ci.yml` must equal the release in that page's
+  *Last updated* line, or the page describes a build that never ran.
 
-## Testing Guidelines
-- **Unit tests:** Run `pytest tests/unit/ -v --tb=short` (requires project dependencies: `pip install ".[all]"`).
-- **UI tests:** Run `npx playwright test` against a running deployment (set `BASE_URL` env var). Install with `npm ci && npx playwright install --with-deps chromium`.
-- **Smoke tests:** Run via `scripts/dev/run_smoke_preview.sh <name>`. Requires Ollama with a model pulled, Docker, and the archi CLI.
-- **Lint:** Run `black --check .` and `isort --check .` for formatting checks.
-- **CI:** All PR checks run on `ubuntu-latest` GitHub runners. PR CI includes lint, unit tests, smoke deployment, and Playwright UI tests.
+## Running the suite
 
-## Commit & Pull Request Guidelines
-- Recent history uses short, lowercase summaries (e.g., `fix bug`, `split data manager...`); keep commits concise and descriptive.
-- PRs should include: a brief summary, test results, and documentation impact; link related issues and include screenshots/logs when UI or API changes are involved.
+```bash
+pip install -e "./python[dev]"
+python -m pytest python/tests -q
+```
 
-## Agent Workflow
-- When changing user-facing behavior, CLI flags, configuration, or public APIs, update the relevant docs in `docs/` and/or `README.md` in the same change.
-- If no docs change is needed, note the reason briefly in the PR description or commit message.
+That is what CI runs. From a checkout that already has `okg` importable
+(a cms-kb venv, for instance), `cd python && PYTHONPATH=. python -m
+pytest tests -q` does the same thing without installing.
 
-## Deployment & Validation Policy
-- **Match the real runtime path before debugging:** Verify which code path the running service imports (workspace source vs installed `site-packages`) and patch/reload the active path.
-- **Deployment assumptions must be explicit:** State which container/service is being validated (for example `chatbot-debug` and its dependent `postgres-debug` / `data-manager-debug`).
-- **Always validate behavior after changes:** Do not stop at code edits. Run at least one end-to-end check against the running deployment and confirm expected outputs in logs/trace/events.
-- **Use source-of-truth checks for trace bugs:** Validate both streamed events and persisted DB trace rows (for example `agent_traces.events`) when debugging tool-call rendering mismatches.
-- **Iterate until intent is confirmed:** If validation fails or is inconclusive, continue debugging and re-test after each fix until the observed behavior matches the requested goal.
+## PACT
+
+Changes are recorded in `pact/changes/<id>/pact.yaml`, edited directly —
+the CLI is reactive. The corpus here is **v5**, git-native, and takes
+the git toplevel as its root:
+
+```bash
+okg pact <verb>        # from any venv carrying okg
+```
+
+Verbs: `new`, `view`, `evidence attach`, `check`, `approve`, `digest`.
+**`check` is the one gate** — it validates, binds receipts, verifies
+approval and computes the tier in one call. `approve` records approval
+as a `Pact-Approved` git commit trailer, not a ledger row.
+
+**Pass `--base origin/archi_v3` to `check`.** Without it, `check`
+diffs against `origin/HEAD`, which is v2 `main` here. That diff holds
+the whole v3 line, so the tier and the evidence-head checks describe
+the wrong change.
+
+```bash
+okg pact check <id> --base origin/archi_v3
+```
+
+Two things that will otherwise waste your time:
+
+- **A v5 task has no status field** — only `id`, `requirement` and
+  `verification`. Completion is derived from receipts bound to a
+  commit, so evidence whose `head` predates the base reads as
+  `evidence_head_before_base` even when it is otherwise correct. Attach
+  evidence *after* committing, and rebind it if you amend.
+- **`pact/project.yaml` declares `pact_version: 4` on purpose.** The v4
+  compatibility reader still uses it and v5 never reads it. Do not
+  "fix" it.
+
+Every change gets a manifest, before the branch has commits on it. The
+check that catches a missing one costs a command:
+
+```bash
+git diff --name-only origin/archi_v3...HEAD | grep '^pact/changes/' || echo "NO PACT"
+```
+
+## Reporting
+
+PR bodies and closeouts, in order: (1) what this changes, one plain
+sentence a reader who is not a substrate expert can follow;
+(2) behaviour before → after; (3) findings, ordered by severity, each
+with a `file:line`; (4) how I verified — the command and its result.
+
+No narration of how the work went, no invented nouns, no undefined
+jargon unless glossed on first use. A correct diff with an
+unintelligible description is not done.
+
+## What the old file got wrong
+
+The old `CLAUDE.md` was deleted rather than edited because most of what
+it pointed at was gone. Recorded here so nobody restores it from memory:
+
+| it said | actually |
+|---|---|
+| PRs target `archi_v3`, never `main` | false in archi-okg, where `main` was the only branch; true again here since 2026-10-25 (see "Where work lands") |
+| `docs/runbooks/agent-*.md` are the backing contracts | there is no `docs/runbooks/` |
+| `pact/AGENTS.md` holds the PACT contract | no such file |
+| `pact/project.md` is human context | no such file |
+| `.github/PULL_REQUEST_TEMPLATE.md` hard-codes the section order | no such file |
+| `docs/runbooks/plain-language-reporting.md` is the how | no such file |
+| skills are installed under `.claude/skills/` from `src/okg/substrate/pact/skills/` | skills live in `skills/`; neither path exists |
+| use `uv run okg` | there is no `uv run okg` here |
+| `okg pact gate` / `decide` / `hooks` close a task | suppressed in v5; `check` is the gate |
+
+Most of those came from a managed `okg-pact-install` block — okg's
+generic boilerplate, written for okg's own layout. It is **not**
+reproduced here: a block of dead paths is worse than no block. If
+anyone runs `okg pact install` in this repo, check its output against
+the table above before trusting it.

@@ -1,0 +1,42 @@
+# GOCDB grid downtimes (cache-backed), matched to the sites and services
+# the cric and cric_core sources emit (their caches, in this same pack).
+gocdb_downtimes:
+  module: archi.sources.gocdb
+  class: GoCDBDowntimeAdapter
+  ownership_id: ${deployment_name}.gocdb-downtimes
+  admission_policy:
+    producer_id: ${deployment_name}.gocdb-downtimes
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-catalogs
+      source_name: gocdb_downtimes
+    output_signature:
+      nodes:
+        - {subtype: downtime}
+      edges:
+        - {src_subtype: downtime, edge_type: affects, dst_subtype: site}
+        - {src_subtype: downtime, edge_type: affects, dst_subtype: infrastructure_service}
+    output_scope_summary:
+      summary: GOCDB downtimes with affects edges to known sites/services
+      nodes: [downtime]
+      edges:
+        - downtime affects site
+        - downtime affects infrastructure_service
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [downtime_id]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    # cms defaults; the cms deployment used data/cms/...
+    records_path: ${archi_data_root}/gocdb-downtimes/records.json
+    sites_path: ${archi_data_root}/cric/sites.json
+    services_path: ${archi_data_root}/cric-core/services.json
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

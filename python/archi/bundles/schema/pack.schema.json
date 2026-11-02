@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/schema/pack.schema.json",
+  "title": "Archi pack manifest (pack.yaml)",
+  "description": "The smallest installable capability (ADR 0002 section 3.1). Every path is relative to the directory holding pack.yaml and must stay inside it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "kind", "version", "description", "needs_credentials"],
+  "properties": {
+    "name": {
+      "description": "Pack name. Must equal the directory name. Source ids render as <name>.<source>; init-question flags as --<name>-<id>.",
+      "$ref": "#/$defs/name"
+    },
+    "kind": {
+      "description": "context packs bring sources, tool packs bring live tools, automation packs bring automations (ADR 0002 section 7.2).",
+      "enum": ["context", "tool", "automation"]
+    },
+    "version": {"$ref": "#/$defs/version"},
+    "description": {"type": "string", "minLength": 1},
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "description": "okg ontology modules this pack needs.",
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "uniqueItems": true
+        },
+        "packs": {
+          "description": "Other packs this pack needs; resolved transitively.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/name"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "schemas": {
+      "description": "Directory of LinkML schema slices, merged into the instance by relative path.",
+      "$ref": "#/$defs/relpath"
+    },
+    "sources": {
+      "description": "Directory of source-registry templates, one <source>.yaml per source, whose single top-level key is <source>.",
+      "$ref": "#/$defs/relpath"
+    },
+    "init_questions": {
+      "description": "YAML file with a top-level init_questions list, in okg's profile question format.",
+      "$ref": "#/$defs/relpath"
+    },
+    "invariants": {
+      "description": "YAML file with a top-level invariants list. Owned by this pack: dropping the pack drops them.",
+      "$ref": "#/$defs/relpath"
+    },
+    "freshness": {
+      "description": "Freshness SLOs keyed by rendered source id (<pack>.<source>). A context pack with sources declares one for every source; `archi doctor` compares each source's age, from okg's watermarks, to it.",
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9_]*$"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["max_staleness"],
+        "properties": {
+          "max_staleness": {
+            "description": "Longest acceptable age of the source's last successful run: a positive integer and one unit of s, m, h, d or w (36h, 7d).",
+            "type": "string",
+            "pattern": "^[1-9][0-9]*[smhdw]$"
+          }
+        }
+      }
+    },
+    "link_coverage": {
+      "description": "Link-coverage targets for the identifiers the pack carries. Composition turns each into an okg invariant named <pack>_link_<name> that is checked per generation.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "from", "edge", "to", "min_fraction"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "from": {
+            "description": "Subtype of the nodes that carry the identifier.",
+            "type": "string", "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "edge": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "to": {
+            "description": "Subtype the carriers must link to.",
+            "type": "string", "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "direction": {
+            "description": "out: from -[edge]-> to (default). in: to -[edge]-> from.",
+            "enum": ["out", "in"]
+          },
+          "min_fraction": {
+            "description": "Share of `from` nodes that must have such an edge.",
+            "type": "number", "exclusiveMinimum": 0, "maximum": 1
+          },
+          "severity": {
+            "description": "warn (default) reports a miss; error blocks the publish.",
+            "enum": ["warn", "error"]
+          },
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "playbooks": {
+      "description": "Directory of playbooks, installed into the instance's skills/ directory.",
+      "$ref": "#/$defs/relpath"
+    },
+    "skill_triggers": {
+      "description": "YAML file of skill triggers (version + intents), merged by intent id.",
+      "$ref": "#/$defs/relpath"
+    },
+    "search_subtypes": {
+      "description": "Subtypes added to the instance's `content` search profile.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "uniqueItems": true
+    },
+    "search_profiles": {
+      "description": "Named okg search profiles the pack adds to the instance (deployment.yaml search.profiles). Not `content`, which is the union of search_subtypes.",
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$", "not": {"const": "content"}},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "subtypes"],
+        "properties": {
+          "description": {"type": "string", "minLength": 1},
+          "subtypes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "live_tools": {
+      "description": "archi.tools.* entries exposed on the instance MCP server.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*(:[A-Za-z_][A-Za-z0-9_]*)?$"},
+      "uniqueItems": true
+    },
+    "idempotent_tools": {
+      "description": "Live tools (a subset of live_tools) that honour the idempotency key the runtime passes: called twice with the same key they have the effect once. A tool used as the mediator of an action class that can run at L2 must be listed here (ADR 0002 section 7.2).",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*(:[A-Za-z_][A-Za-z0-9_]*)?$"},
+      "uniqueItems": true
+    },
+    "action_classes": {
+      "description": "YAML file with a top-level action_classes mapping keyed by action-class id (ADR 0002 section 7.2). Merged by id.",
+      "$ref": "#/$defs/relpath"
+    },
+    "automation": {
+      "description": "The automation an automation pack declares (ADR 0002 section 7.2). Required for kind automation, refused for other kinds. Each action class named in `action_classes` is defined in the pack's top-level `action_classes` file.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "context_gate", "playbook", "action_classes", "proposal_schema", "budget", "default_level", "max_level"],
+      "properties": {
+        "trigger": {
+          "description": "What starts a run: type schedule (cron), ticket_queue (system, queue) or signal (source, condition). A ticket_queue names one system or a list of them; queue \"*\" means every ticket the instance's ticket sources ingest. The keys each type needs are checked by `archi bundles validate`.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {"enum": ["schedule", "ticket_queue", "signal"]},
+            "cron": {"type": "string", "minLength": 1},
+            "system": {
+              "oneOf": [
+                {"type": "string", "minLength": 1},
+                {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+              ]
+            },
+            "queue": {"type": "string", "minLength": 1},
+            "source": {"type": "string", "minLength": 1},
+            "condition": {"type": "string", "minLength": 1}
+          }
+        },
+        "context_gate": {
+          "description": "The context the automation needs (ADR 0002 section 6.3); the keys of archi.ops.context_gate.GateSpec: sources, max_staleness, min_context_eval_score (with max_age_days, default 14, at most 3650; context_eval_bundle, default the instance's only bundle; and the optional pins context_eval_k and context_eval_min_questions), invariants, published.",
+          "type": "object"
+        },
+        "playbook": {
+          "description": "Playbook file, relative to the pack's `playbooks` directory.",
+          "$ref": "#/$defs/relpath"
+        },
+        "action_classes": {
+          "description": "Ids of the action classes this automation may propose.",
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "proposal_schema": {
+          "description": "JSON Schema every proposal must satisfy. Must require summary, evidence_ids, action_class, payload, confidence and rollback, the fields of the ops_proposal record.",
+          "type": "object"
+        },
+        "budget": {
+          "description": "Spend and rate limits: cost_per_run and cost_per_day (USD, positive), runs_per_hour (positive integer).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cost_per_run", "cost_per_day", "runs_per_hour"],
+          "properties": {
+            "cost_per_run": {"type": "number"},
+            "cost_per_day": {"type": "number"},
+            "runs_per_hour": {"type": "integer"}
+          }
+        },
+        "narrow_to_selected": {
+          "description": "For an automation that can read several optional packs: keep only the context-gate sources and ticket_queue systems whose pack the instance selected, and refuse an instance that selected none of them. Without it every gate source must be installed.",
+          "type": "boolean"
+        },
+        "evidence": {
+          "description": "Opt-in for a monitor whose evidence is the state of the instance, not graph nodes: `own_signals` lets a proposal cite the incident its own run wrote, allows a context gate that asks only `published: true` (the monitor must run while sources are stale), and allows workflow steps that run at L1 (`draft_issue`). Refused unless default_level is L0 or L1. Every other automation must cite a node of the pinned read and gate on freshness, invariants or a context-eval score (ADR 0002 D12).",
+          "enum": ["own_signals"]
+        },
+        "default_level": {
+          "description": "Autonomy level the automation starts at when the instance sets none. L0, L1 or L2; anything above L2 is refused (ADR 0002 D13).",
+          "type": "string"
+        },
+        "max_level": {
+          "description": "The bundle's upper bound on the instance's level for this automation. L0, L1 or L2 (ADR 0002 D13).",
+          "type": "string"
+        }
+      }
+    },
+    "files": {
+      "description": "Files installed byte for byte at the same path in the deployment root (okg's profile `files:` allow-list applies).",
+      "type": "array",
+      "items": {"$ref": "#/$defs/relpath"},
+      "uniqueItems": true
+    },
+    "prompt_fragment": {
+      "description": "Markdown appended to the chat system prompt, in resolution order.",
+      "$ref": "#/$defs/relpath"
+    },
+    "prepare": {
+      "description": "Steps `archi init` and `archi add` run, in order, before okg's first ingest of this pack: they fetch or build the input a source reads from the data root (a records cache, for example). Each runs `python -m <module> <args>` in archi's own environment with ARCHI_DATA_ROOT set to the instance's data root and no shell. A step that exits non-zero or runs past its timeout stops the command; nothing is skipped quietly.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "module"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "module": {
+            "description": "Dotted Python module run with `python -m`.",
+            "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+          },
+          "args": {
+            "description": "Arguments, passed as given (no shell). `${id}` is replaced by the answer to the pack's init question `id` (or a base question such as archi_data_root).",
+            "type": "array", "items": {"type": "string"}
+          },
+          "timeout": {
+            "description": "Seconds before the step is stopped and counted as failed. Default 600.",
+            "type": "integer", "minimum": 1, "maximum": 3600
+          }
+        }
+      }
+    },
+    "credentials": {
+      "description": "Environment-variable NAMES the pack reads. Never values.",
+      "type": "array",
+      "items": {"$ref": "#/$defs/env_name"},
+      "uniqueItems": true
+    },
+    "needs_credentials": {
+      "description": "true when the pack cannot publish without a credential; such a pack cannot be a bundle's only default context pack.",
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"},
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+][0-9A-Za-z.-]+)?$"
+    },
+    "relpath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "(^/|^~|(^|/)\\.\\.(/|$)|\\\\)"}
+    },
+    "env_name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"}
+  }
+}

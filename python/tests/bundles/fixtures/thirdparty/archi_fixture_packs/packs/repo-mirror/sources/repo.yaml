@@ -1,0 +1,40 @@
+repo:
+  module: okg.substrate.library.sources.git_graph_files
+  class: GitFilesSource
+  ownership_id: ${deployment_name}.repo-mirror
+  admission_policy:
+    producer_id: ${deployment_name}.repo-mirror
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: repo-mirror
+      source_name: repo
+    output_signature:
+      nodes:
+        - {subtype: source_file}
+        - {subtype: git_branch}
+      edges:
+        - {src_subtype: source_file, edge_type: member_of, dst_subtype: git_branch}
+    output_scope_summary:
+      summary: tracked files of one repository and the branch they belong to
+      nodes: [source_file, git_branch]
+      edges:
+        - source_file member_of git_branch
+  source_class: discovery_crawl
+  record_identity_kind: scoped_locator
+  record_identity_fields: [repo, path]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    repo: '${name}'
+    url: '${url}'
+    manage_checkout: true
+    repo_root: '${archi_data_root}/repos/${name}'
+    include_untracked: false
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

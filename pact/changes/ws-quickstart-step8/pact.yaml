@@ -1,0 +1,86 @@
+pact_version: 5
+id: ws-quickstart-step8
+title: 'Quickstart step 8: correct the TWiki reinstall route after a real run'
+tier: 1
+why: 'Step 8 of the CERN team quickstart ("Adding a TWiki", route "Already did step 3?")
+  was run end to end on AKMON v0.2.0 over a dump of 44,627 topic files and was wrong
+  in four places. After `okg install --force --yes` the next ingest was refused with
+  `catalog_manifest_drifted`, and the guide never said to run `okg catalog ownership
+  claim`. The reinstall runs its own ingest and can end with `install failed at stage
+  ingest` (exit 1) although the data was staged, and the guide did not say what to do
+  next, nor how that differs from step 3''s "start over" rule. `--force` also resets
+  the `chat:` block of deployment.yaml to bundle defaults. The first full publish held
+  the publish lock for about 22 minutes and printed a `lock_headroom` warning.
+
+
+  This change fixes the text. It also makes the top-of-page "what is proven" paragraph
+  and the step 8 notice say which route was run (reinstall) and which was not (first
+  install), and explains why the page count is lower than the file count. Docs only;
+  no code changes.'
+affected_code:
+- docs/cern-team-quickstart.md
+requirements:
+- id: req.ws-quickstart-step8.docs
+  statement: 'Step 8 of docs/cern-team-quickstart.md separates the two routes. The
+    reinstall route says to commit, run `okg catalog ownership claim`, then
+    `okg run --once --apply`, and why. The first-install route keeps step 3''s
+    sequence (ingest, then publish) with no claim. The text says a reinstall can end
+    red at the ingest stage with data staged, and gives the check that tells this
+    from a real failure (stage name and `okg status` source counts), reconciled with
+    step 3''s teardown rule. It warns that `--force` resets the `chat:` block and how
+    to restore it, and sets expectations for the long first publish and the
+    `lock_headroom` warning. The code-symbols reinstall text is labelled as the same
+    mechanism, not run on that route. The top-of-page paragraph agrees with step 8.
+
+
+    Acceptance:
+
+    - acc.ws-quickstart-step8.commands: every command and flag added to the guide
+    (`okg catalog ownership claim --deployment`, `okg status --deployment`, `okg run
+    --once --apply`, `okg ingest --progress`) exists on AKMON v0.2.0. [evidence: manual]
+
+    - acc.ws-quickstart-step8.order: the reinstall sequence in the guide (install red
+    at ingest, commit, drift refusal, claim, publish, second ingest clean) is the order
+    that published in the run, and every number in the guide (44,627 files, 43,783
+    pages, 842 skipped, 2 empty, 1,352 s publish, 241,979 records of which 233,067
+    new) matches the run summary. [evidence: manual]
+
+    - acc.ws-quickstart-step8.labels: statements the run did not test (first-install
+    route, code-symbols reinstall, claim by deployment name, later publish time, the
+    cause of the red ingest) are marked as not run or not measured. [evidence: manual]'
+tasks:
+- id: task.ws-quickstart-step8.docs
+  requirement: req.ws-quickstart-step8.docs
+  verification: 'Edit the guide.
+
+
+    Proof: command names and flags match `okg --help` output on AKMON v0.2.0, and the
+    order and counts match the run summary. No test suite applies to prose.
+
+
+    Test plan:
+
+    - manual review of the guide against the run summary [evidence: manual]'
+evidence:
+- kind: manual
+  requirement: req.ws-quickstart-step8.docs
+  status: pass
+  command: okg catalog ownership claim --help; okg status --help; okg generation describe --help (AKMON v0.2.0)
+  head: 871d8c0c
+  at: '2026-10-21T04:00:00+00:00'
+  note: 'The flags used in the guide exist on AKMON v0.2.0. `okg status --deployment myteam`
+    was also run on a deployment and lists each source with n_node_facts. Claim by
+    directory was the form run; claim by name is accepted by --help and was not run.'
+- kind: manual
+  requirement: req.ws-quickstart-step8.docs
+  status: pass
+  command: compare the guide with the written summary of the real run (reinstall route, 2026-10-21)
+  head: 871d8c0c
+  at: '2026-10-21T04:00:00+00:00'
+  note: 'Run summary: install --force --yes ended red at stage ingest with data staged;
+    next ingest refused catalog_manifest_drifted; claim, then run --once --apply
+    published in 1,352 s with a lock_headroom warning; a second ingest exited 0 with
+    nothing new. 44,627 files gave 43,783 pages (842 skipped by name, 2 empty);
+    generation 241,979 records, +233,067. The earlier chat block was restored by
+    re-applying the commit as a patch.'
+decisions: []

@@ -1,0 +1,41 @@
+# Archi W1 — deployment-scoped schema slice (seam proof).
+# One subtype, mirrored from the proven CMS deployment schema shape.
+id: https://archi-physics.org/okg/archi/w1
+name: archi_w1_operations
+title: Archi W1 — CMSSW release subtype
+description: Deployment-scoped slice of the Archi operations schema.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  CMSSWRelease:
+    description: CMS software framework release.
+    class_uri: archi:CMSSWRelease
+    attributes:
+      release:
+        required: true
+      release_type:
+      state:
+      architecture:
+      release_date:
+      major:
+        range: integer
+      minor:
+        range: integer
+      patch:
+        range: integer
+      suffix:
+      text:
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: release
+      okg_searchable_text_fields: release,release_type,architecture,text

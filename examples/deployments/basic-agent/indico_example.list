@@ -1,8 +1,0 @@
-# Example Indico URLs for Archi
-# URLs with "indico" in the hostname and /event/ in the path are auto-detected.
-# For Indico instances without "indico" in the hostname, use the "indico-" prefix.
-
-# FCC Week 2025 (public, with slides)
-https://indico.cern.ch/event/1408515/
-
-# For protected events, ensure SSO_USERNAME and SSO_PASSWORD are set in secrets.

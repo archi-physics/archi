@@ -1,0 +1,235 @@
+pact_version: 5
+id: r3-bundle-cluster-manager
+title: 'cluster-manager bundle: ServiceNow, Slurm, HTCondor, tickets, node health'
+tier: 2
+why: 'SubMIT and similar facilities share one shape: a ticket queue, documentation, a batch
+  system and node health, with an operator who may act on the cluster. Nothing in it is CERN-specific,
+  so the bundle must work for any cluster manager. Live actions follow ADR 0001 §5.6: archi
+  ships the tool, Nomos gates each call with live_call_default: review, the instance owns
+  credentials.'
+affected_code:
+- bundles/cluster-manager/
+- bundles/packs/
+- python/archi/sources/
+- python/archi/tools/
+- python/archi/downloaders/tickets.py
+- python/tests/downloaders/
+- python/tests/sources/test_tickets.py
+- python/tests/packs/cluster_fixtures.py
+- python/tests/fixtures/cluster/
+- docs/docs/reference/connector-caches.md
+- docs/docs/library/packs/tickets.md
+- docs/docs/library/index.md
+requirements:
+- id: req.r3-bundle-cluster-manager.connectors
+  statement: 'New connectors: ServiceNow (incidents, requests, KB articles; OAuth or basic
+    auth by env ref), Slurm (partitions, nodes, reservations, job summaries via slurmrestd
+    or a cached sacct/sinfo export), HTCondor (pool snapshot). Each has fixtures, an okg adapter,
+    and a template that passes strict admission.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cluster-manager.fixtures: connector tests over recorded fixtures. [evidence:
+    pytest]
+
+    - acc.r3-bundle-cluster-manager.admission: templates pass okg profile check and strict
+    admission. [evidence: pytest]'
+- id: req.r3-bundle-cluster-manager.live
+  statement: 'Slurm live tools (read: squeue/sinfo; act: drain/resume node, requeue job) are
+    declared with boundary external_live and exposed as action classes (ADR 0002 §7.2) at
+    L2: act tools run only after an approved escalation and refuse to run without a Nomos
+    decision.
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cluster-manager.gated: an act call without approval is refused. [evidence:
+    executed_test]'
+- id: req.r3-bundle-cluster-manager.bundle
+  statement: 'bundles/cluster-manager depends on no CERN pack, defaults to docsite, tickets
+    and ops-record, offers servicenow, slurm, htcondor, git-code and node-health, and SubMIT is
+    rebuilt from it. The ticket-triage automation pack is optional in it and ships in 3.0 (board d701,
+    reversing d405); at SubMIT it replaces the v2 Redmine bot at the 3.0 cutover with no trial (board d717).
+    Mail intake stays with v2 until 3.1 (board d704), and resolution emails pause until 3.1 (board d719).
+
+
+    Acceptance:
+
+    - acc.r3-bundle-cluster-manager.install: the bundle installs and publishes in the install-and-publish
+    test (python/tests/packs/test_pack_isolation.py), plus a lab smoke run (evidenced in r3-bundle-evals).
+    [evidence: executed_test]
+
+    - acc.r3-bundle-cluster-manager.submit: SubMIT instance rebuilt from the bundle. [evidence:
+    executed_test]'
+tasks:
+- id: task.r3-bundle-cluster-manager.tickets
+  requirement: req.r3-bundle-cluster-manager.bundle
+  verification: 'Generic tickets pack over the existing JIRA/Redmine connectors.
+
+
+    Test plan:
+
+    - python/tests/packs/ [evidence: pytest]'
+- id: task.r3-bundle-cluster-manager.servicenow
+  requirement: req.r3-bundle-cluster-manager.connectors
+  verification: 'ServiceNow connector and pack.
+
+
+    Test plan:
+
+    - python/tests/sources/test_servicenow.py [evidence: pytest]'
+- id: task.r3-bundle-cluster-manager.slurm
+  requirement: req.r3-bundle-cluster-manager.live
+  verification: 'Slurm connector, live tools and pack.
+
+
+    Test plan:
+
+    - python/tests/sources/test_slurm.py; gated-call run [evidence: executed_test]'
+- id: task.r3-bundle-cluster-manager.htcondor
+  requirement: req.r3-bundle-cluster-manager.connectors
+  verification: 'HTCondor and node-health packs.
+
+
+    Test plan:
+
+    - python/tests/sources/test_htcondor.py [evidence: pytest]'
+- id: task.r3-bundle-cluster-manager.bundle
+  requirement: req.r3-bundle-cluster-manager.bundle
+  verification: 'Write the bundle.
+
+
+    Test plan:
+
+    - bundle CI job [evidence: executed_test]'
+- id: task.r3-bundle-cluster-manager.instance
+  requirement: req.r3-bundle-cluster-manager.bundle
+  verification: 'Rebuild SubMIT.
+
+
+    Test plan:
+
+    - rebuild run [evidence: executed_test]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.connectors
+  status: pass
+  command: 'python -m pytest python/tests -q (a dev host, a clean clone, network off); ARCHI_PACK_ISOLATION_DSN=...
+    python -m pytest python/tests/packs/test_pack_isolation.py'
+  head: 234014132038de4ff107557b846830930ffdf2e7
+  at: '2026-10-26T16:03:19+00:00'
+  note: 'acc.r3-bundle-cluster-manager.fixtures and .admission: new packs servicenow (incidents, requests, KB
+    articles; OAuth or basic auth by env-var name; https only; stable paging), tickets (Redmine; its URL is a
+    required init question), slurm, htcondor and node-health (a per-node check export, format in the pack
+    description). Each reads a records cache written by a downloader that takes an injected session or runner,
+    and each has a schema slice, one coverage invariant and fixtures. Connector tests over the recorded
+    fixtures pass, and the templates pass okg''s strict admission: each pack installed alone on a scratch
+    akmon-postgres v0.2.0 published with lint zero blockers, and so did the cluster-manager bundle with its
+    defaults and with every optional pack. Full suite 3361 passed, 38 skipped, 0 failed. Three independent
+    review rounds; findings fixed.'
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.live
+  status: pass
+  command: python -m pytest python/tests/tools python/tests/ops -q (fake runner; no scheduler command is ever run)
+  head: 234014132038de4ff107557b846830930ffdf2e7
+  at: '2026-10-26T16:03:19+00:00'
+  note: 'acc.r3-bundle-cluster-manager.gated: the Slurm act tools (drain_node, resume_node, requeue_job) are L2
+    mediators, declared idempotent, with explicit payload schemas. Called without an approved escalation, or with
+    an expired, future, halted or superseded one (archi.ops.escalation.may_execute plus the halt check), or with
+    a payload different from the one the approver saw (one fixed Action line in the escalation reason), each
+    refuses and runs no command; a test drives both the runtime''s mediator step and a direct call. Reads
+    (squeue, sinfo, condor_q, condor_status) have timeouts and capped output. Node and job ids are validated by
+    full match. requeue records its idempotency mark only after a confirmed requeue; resume touches only nodes
+    archi drained unless force is set; a timed-out act reports unknown. No real Slurm or HTCondor command was run.'
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.bundle
+  status: pass
+  command: 'python -m pytest python/tests/downloaders python/tests/sources/test_tickets.py python/tests/test_bundle_cluster_manager.py
+    python/tests/packs python/tests/test_docs_generated.py -q -p no:cacheprovider; python -m pytest python/tests -q
+    -p no:cacheprovider (a dev host, a clean clone, okg 0.2.0 wheel, through heavy.sh)'
+  head: fefc89acf4506bb554897e9575d38870d4d32eaa
+  at: '2026-10-27T03:20:09+00:00'
+  note: 'task.r3-bundle-cluster-manager.tickets (#735): the tickets pack reads JIRA as well as Redmine, with nothing
+    CERN-specific. archi.downloaders.tickets reads Redmine, any JIRA Server/Data Center over the REST v2 search API
+    (paged by startAt in key order, to total or, without a usable total, to an empty page; base URL and project or JQL
+    configurable; JIRA_API_TOKEN as a bearer header; a missing token refused before any request; https only), or both
+    into one cache, one record per key. JIRA records carry system: jira and ids tracker_ticket:jira:<KEY>; people are
+    display names, [~login] mentions become [~user], restricted comments are skipped by default, and email addresses
+    in text are removed at read time as on the Redmine path. Redmine stays the default. Targeted run 403 passed,
+    25 skipped. Full suite 3494 passed, 27 skipped, 1 failed: test_anonymizer.py::test_redact_email_addresses_quoted_local_part_is_linear,
+    a 1.0 s timing bound, at load average 30; it and its git_scan sibling fail the same way on unmodified archi_v3
+    a7575a81 on the same host at the same load, so it is load, not this change. at is the host clock right after
+    these runs. A live JIRA server was NOT exercised: only recorded fixtures (jira.example.org, invented people) over
+    a fake session.'
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.bundle
+  status: pass
+  command: ARCHI_PACK_ISOLATION_DSN=postgresql://postgres:...@127.0.0.1:<port>/packtest python -m pytest python/tests/packs/test_pack_isolation.py
+    -q -p no:cacheprovider -rA (a dev host, through heavy.sh; a fresh ghcr.io/mitdbg/akmon-postgres:v0.2.0 container
+    of this run's own)
+  head: fefc89acf4506bb554897e9575d38870d4d32eaa
+  at: '2026-10-27T03:43:48+00:00'
+  note: 'acc.r3-bundle-cluster-manager.install, the install-and-publish half: 26 passed in 23 min, none skipped. Every
+    context pack, tickets included, installs alone and publishes; the cluster-manager bundle installs and publishes
+    with its defaults and with every optional pack; cern-team and cms-comp-ops do too. The tickets pack is fed its
+    Redmine fixture here; its JIRA path is covered by the unit run above, not by this install. The lab smoke run is
+    evidenced in r3-bundle-evals, not here.'
+- kind: executed_test
+  requirement: req.r3-bundle-cluster-manager.bundle
+  status: pass
+  command: 'python -m archi.downloaders.slurm --cluster submit --since-days 1; archi init <name> --bundle cluster-manager
+    --without tickets --with slurm --runtime podman --answer docsite_urls=... (stopped in okg provision, finished with
+    archi.cli.init.provision, okg db role-passwords and the .env write, the steps init had left); python -m
+    archi.downloaders.static_docs --skip-gitlab --docsite-output <data root>/docsite/records.json --urls <22 public
+    pages>; okg ingest; okg run --once --apply; okg deployment lint; archi up; archi doctor --json; MCP search over 6
+    questions (on a dev host, okg 0.2.0 wheel, heavy jobs through heavy.sh)'
+  head: 6dd8f7a22735b9f40958b04ac12684e2e0fd7bd8
+  at: '2026-10-29T18:48:22+00:00'
+  note: 'acc.r3-bundle-cluster-manager.submit (#740): a new SubMIT instance was built from the cluster-manager bundle
+    beside the live v2 SubMIT deployment, which was not stopped, changed or replaced; the new instance uses its own
+    containers, database and loopback ports. Its archi source tree was checked file by file against head (787 files
+    and 84 symlinks identical, nothing extra). Packs: docsite and ops-record (bundle defaults) plus slurm. tickets, a
+    bundle default, is left out: no Redmine credential for the SubMIT tracker exists under the lab account, and the
+    tickets downloader takes an API key only, so #735 is not proven here. htcondor is left out because the pool
+    refuses condor_status from the build host. archi init did not finish on its own: its first okg provision died
+    when okg''s cache under the home directory hit the home quota; with the cache moved, the steps init had left
+    (archi''s own provision, role passwords, the .env) were run by a script that calls archi''s functions. The Slurm
+    snapshot came from read-only sinfo, scontrol and sacct; docsite holds 20 public SubMIT site pages (user guide, home and blog) plus
+    the Slurm and HTCondor manual roots. At publish (generation 2): 5,150 nodes and 10,123 edges; per source, slurm appended
+    5,082 nodes and 10,077 edges (5,000 jobs at the --max-jobs cap, 76 nodes, 4 partitions, 2 reservations) and docsite
+    68 nodes and 46 edges (22 pages, 46 chunks); no source failed. okg deployment lint (static; live checks skipped):
+    zero blockers. archi up exited 125 because graph-db and MCP were already running, but created chat-db and Open
+    WebUI; archi doctor then passed every check, with all four services healthy (before the ops runtime was turned on
+    for r3-ops-self-monitoring; instance-health later found okg-doctor failing, see that PACT). MCP search, no model,
+    6 SubMIT questions, top 10 rows each (rerun with titles on a later generation, same sources): all return rows with a source, but only 4 of 6 return relevant ones (the four
+    partitions; the backup and quota pages; the HTCondor manual and the SubMIT batch page; the one drained node ranked
+    first). For the GPU-request and node-drain how-tos only Slurm node records come back, outranking the
+    documentation. This row claims the rebuild, not answer quality. The chat site has no model wired, and the v2
+    Redmine and mailbox answer bots have no 3.0 equivalent (ticket-triage ships after 3.0, d405): the rebuild covers
+    chat and data. Found on the way (drafted for filing): the docsite refresh command writes <data root>/data/docsite/
+    while the pack reads <data root>/docsite/; archi up fails when graph-db and MCP are already running; init dies
+    when the home quota is full because okg caches under the home directory.'
+decisions:
+- digest: sha256:04c465a276724e565445ac7b643e144acab372e87610a3f851aa6d71f2f6c2da
+  reviewer: Jason Mohoney
+  at: '2026-10-30'
+  note: 'Board d701, Jason (2026-10-30 23:12Z): "Bring ticket-triage back into 3.0 (fix blocker, shadow run);
+    release waits on it." It reverses d405 for this bundle: the requirement again says ticket-triage ships in 3.0,
+    as an optional pack. Board d704, Jason: "G2: add a Luna reply drafter (answer citing the graph; posting it is
+    an approved L2 action). Mail intake and resolution email stay v2 until 3.1". The evidence notes above are
+    left as written: they record what was true when they ran.'
+- digest: sha256:d4376f5386610ca8fde5023cf45f0f1aa3b7e30632d0609cb25c1141851626d6
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Board d405, Jason (2026-10-27 17:19Z): "Drop ticket-triage from 3.0: amend both requirements, ship it later". The bundle requirement no longer says it ships
+    ticket-triage; the pack (#746, branch claude/r3-ticket-triage, parked with its review findings on
+    #746) ships after 3.0.'
+- digest: sha256:a778c39f69df6d9a84a392d384691758b953294523aa51396742c8e12f2966fe
+  reviewer: Jason Mohoney
+  at: '2026-10-27'
+  note: 'Board d380 Q7, Jason: "Yes". For #739, acc.r3-bundle-cluster-manager.install is REWORDED from
+    "bundle CI job green with smoke eval" to the install-and-publish test (python/tests/packs/test_pack_isolation.py)
+    plus a lab smoke run. This row records the rewording, not that the acceptance is met: whether it is met is
+    for the evidence rows. The lab smoke run is evidenced in r3-bundle-evals, not in this PACT. This follows
+    decision d332, which deferred the CI gate across the bundles to #619. Not a review of the code.'

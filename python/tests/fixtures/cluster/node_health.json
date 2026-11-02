@@ -1,0 +1,25 @@
+[
+  {
+    "node": "node001", "cluster": "submit", "observed_at": "2026-10-13T06:30:00Z",
+    "checks": [
+      {"name": "disk_scratch", "status": "ok", "detail": "41% used"},
+      {"name": "munge", "status": "ok", "detail": "credential decoded"},
+      {"name": "ib_link", "status": "ok", "detail": "rate 100 Gb/sec"}
+    ]
+  },
+  {
+    "node": "node042", "cluster": "submit", "observed_at": "2026-10-13T06:30:00Z",
+    "checks": [
+      {"name": "disk_scratch", "status": "fail", "detail": "100% used, 0 bytes free"},
+      {"name": "munge", "status": "ok", "detail": "credential decoded"},
+      {"name": "ib_link", "status": "warn", "detail": "rate 50 Gb/sec, expected 100"}
+    ]
+  },
+  {
+    "node": "gpu02", "cluster": "submit", "observed_at": "2026-10-13T06:30:00Z",
+    "status": "unhealthy",
+    "checks": [
+      {"name": "ping", "status": "fail", "detail": "no answer in 5 s"}
+    ]
+  }
+]

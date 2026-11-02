@@ -1,0 +1,46 @@
+pact_version: 5
+id: w3-hep-schemas
+title: 'W3: HEP schema slices and deployment bridges'
+tier: 2
+why: 'Backfills the unrecorded W3 wave, and records that its ADR done-clause is FALSE AS WRITTEN
+  rather than quietly re-scoping it. The clause reads: ''the cern-team bundle and the comp-ops
+  instance compose the same files without divergence.'' They do not, and cannot today. OPEN
+  BY DESIGN: the ADR done-clause is false as written; see docs/okg-alignment.md.
+
+
+  Small nontrivial change whose intent, task, acceptance, and proof fit the PACT fast path.'
+affected_code: []
+requirements:
+- id: req.w3-hep-schemas
+  statement: "W3: HEP schema slices and deployment bridges\n\nThe schema slices shipped: archi/schemas/operations.yaml\
+    \ and sources.yaml plus schemas/bridges/, deployment-scoped, every class and narrowing\
+    \ single-defined, shipping inside the wheel. The composition clause does NOT hold: the\
+    \ wheel's bridges/operations.yaml cannot be copied verbatim into any instance, because\
+    \ its narrowings lack optional_when_subtypes_missing and catalog load then fails with\
+    \ bridge_subtype_unknown (first failure: documentation_page_references_dataset, child\
+    \ subtype dataset). Both consumers therefore hand-prune, and prune DIFFERENTLY - the cern-team\
+    \ demo keeps only cmssw_release_supersedes_release, while cms-compops prunes the five\
+    \ narrowings owned by the ticket/service/code modules. That is divergence twice over.\
+    \ The fix has precedent in our own tree (bridges/sources.yaml already flags the MONIT\
+    \ narrowings) and is filed upstream as part of okg#1179; this change stays OPEN until\
+    \ a packaged bridge composes without hand-editing.\n\nAcceptance:\n- acc.w3-hep-schemas:\
+    \ A packaged bridge composes on both the cern-team bundle and the cms-compops instance\
+    \ with no hand-pruning, and okg catalog load is green on both from the wheel's files as\
+    \ shipped. [evidence: executed_test]\n\nScenarios:\n- scn.w3-hep-schemas.fast-path Fast-path\
+    \ work is verified\n  Given a small nontrivial change fits one requirement\n  When the\
+    \ declared verification runs\n  Then the requirement has executed proof before completion"
+tasks:
+- id: task.w3-hep-schemas
+  requirement: req.w3-hep-schemas
+  verification: 'W3: HEP schema slices and deployment bridges
+
+
+    okg catalog load --apply on both consumers using the wheel''s bridges/operations.yaml
+    unmodified (currently fails with bridge_subtype_unknown)
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence: []
+decisions: []

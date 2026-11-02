@@ -1,0 +1,6 @@
+issues:
+  module: archi.sources.jira
+  class: JiraAdapter
+  params:
+    records_path: ${archi_data_root}/beta/records.json
+    token_env: BETA_TOKEN

@@ -1,0 +1,235 @@
+# Analysis-note subtypes: analysis_note, section, note_figure, reference and
+# the physics_analysis_group hub the notes point at.
+#
+# Owned by the analysis-notes pack. The shared slices beside this file
+# (sources.yaml, operations.yaml) are the package's, linked rather than
+# copied.
+#
+# The classes cannot live in a subdirectory: okg's composer only honours
+# narrowings directly under schemas/bridges/, and a slice's classes have
+# to sit where the catalog loader reads them.
+id: https://archi-physics.org/okg/archi/analysis_notes
+name: archi_analysis_notes
+title: Archi — analysis-note subtypes
+description: Node subtypes emitted by archi.sources.analysis_notes.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  AnalysisNote:
+    description: >-
+      One CMS analysis note: a <PAG>-YY-NNN or legacy AN-YY-NNN LaTeX
+      tree mirrored from gitlab.cern.ch/tdr/notes.
+    class_uri: archi:AnalysisNote
+    attributes:
+      an_id:
+        required: true
+        description: Directory name, e.g. HIG-99-001.
+      title:
+        description: \title{...} from the main tex, or the directory name.
+      path:
+        description: Absolute path of the note's directory in the mirror.
+      directory_format:
+        description: '"pag_coded" or "legacy_an".'
+      pag_code:
+        description: Three-letter PAG token; empty for legacy AN ids.
+      n_sections:
+        range: integer
+        description: Sections emitted for this note.
+      n_references:
+        range: integer
+        description: Bibliography entries parsed for this note.
+      text:
+        description: Id and title, for full-text search and embeddings.
+      label:
+        description: Display label.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_searchable_text_fields: an_id,title,text
+      # A note's own text is its id and title, so `rank_by=self` finds it
+      # only by name. Its prose is TWO hops away -- note contains section
+      # contains document_chunk -- so the rollup names Section, and
+      # Section declares its own rollup to the chunks. Without it
+      # `okg search` with no subtype returns only chunks, and a note is
+      # findable by its id alone.
+      okg_passage_rollup:
+        edge_type: contains
+        child_subtype: Section
+
+  Section:
+    description: >-
+      One section .tex of an analysis note. Carries the section prose,
+      which is further segmented into document_chunk nodes on archi's
+      4000/200 window so note passages rank alongside TWiki passages.
+    class_uri: archi:Section
+    attributes:
+      an_id:
+        required: true
+      stem:
+        description: Filename without .tex, e.g. "03-Selection".
+      tex_path:
+        description: Filename relative to the note's directory.
+      order:
+        range: integer
+        description: Integer prefix for numerically ordered sections.
+      body:
+        description: >-
+          Section prose, capped at 200 kB by the reader. This is `body`
+          and NOT `text` on purpose. `attrs.text` is okg's DERIVED
+          search rollup, not a storage field: okg's stamper rebuilds it from
+          every declared searchable field EXCEPT `text`, which it skips
+          so a restamp stays idempotent. A class that both stores prose
+          in `text` and names another searchable field therefore has its
+          prose overwritten by the join of the other fields, and every
+          section would carry its stem instead of its body. `body` is also document_starter's own
+          field for exactly this, so the overlay now agrees with the
+          library instead of fighting it.
+      content_sha256:
+        description: Digest of the body as ingested.
+      char_length:
+        range: integer
+      chunker_name:
+        description: Identifies how the body was segmented.
+      label:
+        description: Display label.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      # document_starter already declares section.searchable_text_fields
+      # as heading,body. Without okg_extends this line would REPLACE the
+      # library's value rather than add to it, and okg now refuses the
+      # overlay outright. Extending unions the two, so a section is found
+      # by its filename stem AND by its prose -- `body` being the field
+      # the library already uses for prose.
+      okg_extends: document_starter
+      okg_searchable_text_fields: stem,body
+      # A section's prose is chunked, so passage-ranked search rolls
+      # chunk scores up to the section. archi declares the same relation
+      # on DocumentationPage (schemas/sources.yaml), which is why pages
+      # already support `rank_by=passages` and notes did not.
+      okg_passage_rollup:
+        edge_type: contains
+        child_subtype: DocumentChunk
+
+  NoteFigure:
+    description: >-
+      One figure environment of an analysis note: the authors' caption
+      and label, and the image files it places. The connector resolves
+      the images on disk and never opens them ; okg's ingest
+      renders each one to a stored PNG that `inspect(kind="image")`
+      serves. Nothing captions them, so a figure says what
+      the authors say it shows, and an agent can look for itself.
+      Contained by the section it sits in, or by the note when it sits in
+      a main tex that is not emitted as a section; referenced by every
+      document_chunk whose text \ref's one of its labels.
+
+      Named note_figure, not figure: okg's scholarly module owns
+      `figure` (a paper's figure, with required figure_id /
+      parent_section_ref / ordinal), and an instance composing that module
+      for papers later must not collide with this.
+    class_uri: archi:NoteFigure
+    attributes:
+      an_id:
+        required: true
+      latex_label:
+        description: >-
+          The \label the figure is referred to by (the one after its
+          \caption; else its first). Empty when it has none. Figure
+          numbers are not recorded: LaTeX assigns them at compile time and
+          the mirror carries no .aux to recover them.
+      latex_labels:
+        multivalued: true
+        description: Every \label in the environment, subfigures included.
+      caption:
+        description: >-
+          The \caption argument as the authors wrote it, whitespace
+          collapsed, LaTeX kept, capped at 4,000 characters.
+      tex_path:
+        description: The .tex it sits in, relative to the note's directory.
+      order:
+        range: integer
+        description: 1-based position among the figures of that file.
+      panel_count:
+        range: integer
+      panels_missing:
+        range: integer
+        description: Panels whose file is not in the mirror (never committed, or named by a macro).
+      panels:
+        description: >-
+          One entry per \includegraphics, in order: {include (the
+          argument as written), path (resolved, relative to the note's
+          directory, or null), format, bytes, exists}. A list of objects;
+          okg stores attributes as JSON.
+      images:
+        multivalued: true
+        description: >-
+          One okg image value per panel found on disk, in panel order:
+          {"okg_image": "file", "path": "<note dir>/<path>"}, relative to
+          the mirror root. Ingest completes each with the stored PNG
+          (`png`) or the reason it could not be rendered (`error`).
+      label:
+        description: Display label.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_searchable_text_fields: latex_label,caption
+
+  Reference:
+    description: >-
+      One bibliography entry, deduplicated across notes by bib key. The
+      first note to cite a key defines the node; later disagreeing
+      fields are ignored rather than overwriting it.
+    class_uri: archi:Reference
+    attributes:
+      bib_key:
+        required: true
+      entry_type:
+        description: BibTeX entry type, lowercased (article, techreport, ...).
+      title:
+      authors:
+      year:
+      journal:
+      url:
+      doi:
+      report_number:
+      howpublished:
+      first_seen_an:
+        description: The note whose bibliography defined this entry.
+      text:
+        description: Title, authors, journal and year joined, for search.
+      label:
+        description: Display label.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_alias_fields: doi
+      okg_searchable_text_fields: bib_key,title,authors,text
+
+  PhysicsAnalysisGroup:
+    description: >-
+      A CMS Physics Analysis Group (HIG, TOP, SUS, ...), a hub both the
+      analysis-notes source (from the PAG token in a note's directory
+      name) and the cms-analyses vocabulary source emit.
+    class_uri: archi:PhysicsAnalysisGroup
+    attributes:
+      code:
+        required: true
+        description: Three-letter PAG token.
+      name:
+        description: Human-readable group name.
+      text:
+      label:
+    annotations:
+      # A PAG is an organising body, not a document: actor.
+      archetype: actor
+      transient: "false"
+      okg_searchable_text_fields: code,text

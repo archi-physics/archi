@@ -1,0 +1,17 @@
+name: cmssw-releases
+kind: context
+version: 0.1.0
+description: The CMSSW release catalog, from the public cms-bot releases.map.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# New releases arrive over days to weeks; a week bounds how long a new one goes unseen.
+freshness:
+  cmssw-releases.cmssw_releases: {max_staleness: 7d}
+search_subtypes: [cmssw_release]
+prompt_fragment: prompt.md
+# The release map is public.
+needs_credentials: false

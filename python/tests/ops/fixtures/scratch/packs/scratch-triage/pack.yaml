@@ -1,0 +1,36 @@
+name: scratch-triage
+kind: automation
+version: 0.1.0
+description: Scratch-run automation (stub proposer, marker mediator) for the ops runtime end-to-end run. Not shipped.
+requires:
+  packs: [scratch-tools]
+playbooks: playbooks/
+action_classes: action_classes.yaml
+needs_credentials: false
+automation:
+  trigger:
+    type: signal
+    source: archi_ops.signals
+    condition: new row
+  context_gate:
+    sources: [jira.jira]
+    max_staleness: 24h
+  playbook: triage.md
+  action_classes: [draft_reply, write_marker]
+  proposal_schema:
+    type: object
+    required: [summary, evidence_ids, action_class, payload, confidence, rollback]
+    additionalProperties: false
+    properties:
+      summary: {type: string, minLength: 1}
+      evidence_ids: {type: array, minItems: 1, items: {type: string}}
+      action_class: {type: string}
+      payload: {type: object}
+      confidence: {type: number, minimum: 0, maximum: 1}
+      rollback: {type: string}
+  budget:
+    cost_per_run: 0.5
+    cost_per_day: 10
+    runs_per_hour: 60
+  default_level: L0
+  max_level: L2

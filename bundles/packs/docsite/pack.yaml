@@ -1,0 +1,31 @@
+name: docsite
+kind: context
+version: 0.2.0
+description: Documentation sites, read from the records cache the static-docs downloader writes.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# Documentation sites change weekly at most, and the downloader is run by
+# hand: 7d.
+freshness:
+  docsite.docsite: {max_staleness: 7d}
+search_subtypes: [documentation_page, software_repository, document_chunk]
+prompt_fragment: prompt.md
+# `archi init` and `archi add` write the records cache before the first
+# ingest, from the pages the `urls` answer names (default: two small public
+# CERN documentation sites). The step fails loudly if a page cannot be read.
+prepare:
+  - name: records-cache
+    module: archi.downloaders.static_docs
+    args:
+      - --skip-gitlab
+      - --docsite-output
+      - ${archi_data_root}/docsite/records.json
+      - --urls
+      - ${urls}
+    timeout: 300
+# The downloader fetches public pages; no credential is read.
+needs_credentials: false

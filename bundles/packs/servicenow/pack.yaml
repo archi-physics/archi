@@ -1,0 +1,26 @@
+name: servicenow
+kind: context
+version: 0.1.0
+description: ServiceNow incidents, requests and knowledge-base articles, read from the records cache the ServiceNow downloader writes.
+requires:
+  modules: [document_starter, person, extraction]
+schemas: schemas/
+sources: sources/
+init_questions: questions.yaml
+invariants: invariants.yaml
+# Tickets are what operators triage; the downloader cache may be a day old and no more.
+freshness:
+  servicenow.servicenow: {max_staleness: 24h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant servicenow_link_<name>.
+link_coverage:
+  # An incident names who opened it; the odd one is opened by an integration with no person.
+  - {name: incident_reporter, from: servicenow_incident, edge: reported_by, to: person, direction: out, min_fraction: 0.8}
+search_subtypes: [servicenow_incident, servicenow_request, servicenow_kb_article]
+prompt_fragment: prompt.md
+# OAuth (client id and secret) or basic auth (user name and password): the
+# `auth_method` answer picks one pair. Only the downloader reads them.
+credentials: [SERVICENOW_CLIENT_ID, SERVICENOW_CLIENT_SECRET, SERVICENOW_USERNAME, SERVICENOW_PASSWORD]
+# The download needs a ServiceNow account: a ServiceNow instance has no anonymous
+# read, so without a credential nobody can write the cache this pack publishes from.
+needs_credentials: true

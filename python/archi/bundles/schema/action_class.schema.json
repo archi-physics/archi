@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/archi-physics/archi/blob/archi_v3/python/archi/bundles/schema/action_class.schema.json",
+  "title": "Archi action class (one entry of a pack's action_classes file)",
+  "description": "A typed action an automation may propose (ADR 0002 section 7.2). The file's top-level `action_classes:` mapping is keyed by the action-class id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payload_schema", "mediator", "reversible", "blast_radius", "max_level"],
+  "properties": {
+    "description": {"type": "string", "minLength": 1},
+    "payload_schema": {
+      "description": "JSON Schema (an object schema) the proposal payload must satisfy.",
+      "type": "object"
+    },
+    "mediator": {
+      "description": "What carries the action out: a live tool entry (archi.tools.x:fn) of this pack or a required pack, or the name of a workflow step.",
+      "type": "string",
+      "minLength": 1
+    },
+    "reversible": {"type": "boolean"},
+    "blast_radius": {
+      "description": "What the action can touch if it goes wrong.",
+      "type": "string",
+      "minLength": 1
+    },
+    "max_level": {
+      "description": "Highest autonomy level the class may have: L0, L1 or L2. Anything above L2 is refused (ADR 0002 D13).",
+      "type": "string"
+    }
+  }
+}

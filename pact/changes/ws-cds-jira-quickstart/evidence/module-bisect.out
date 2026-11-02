@@ -1,0 +1,6 @@
+okg catalog load --deployment <copy of myteam> (dry run, no --apply), AKMON v0.2.0, modules after the bundle four + code_graph:
+full list (agent_sessions quality_evidence ci reasoning compute_env agent_memory openspec): loads
+dropping quality_evidence, reasoning, agent_memory: loads
+minimal: code_graph agent_sessions ci compute_env openspec: loads
+code_graph alone: bridge_subtype_unknown tool_use_event (needs agent_sessions)
+minimal without ci: test_case unknown; without compute_env: remote_host unknown; without openspec: open_spec_change unknown; without agent_sessions: tool_use_event unknown

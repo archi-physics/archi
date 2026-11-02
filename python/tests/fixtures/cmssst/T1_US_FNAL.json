@@ -1,0 +1,596 @@
+{
+ "time": 1791383941,
+ "alert": "",
+ "msg": "",
+ "url": "http://cmssst.web.cern.ch/siteStatus/",
+ "reload": 900,
+ "site": "T1_US_FNAL",
+ "ggus": [
+  [
+   1003499,
+   1785852955
+  ],
+  [
+   1003889,
+   1789473399
+  ]
+ ],
+ "metrics": {
+  "FTSsite": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "ooooooooowwoooooooooooooooooooooooooooooooooooowoooooooooooo"
+   ],
+   "pweek": [
+    "ooooooooooooooowoooowwwu",
+    "wooowowowooowwwwoooowoow",
+    "owoowwowwwwoowwowwwooowo",
+    "wowwoowwowowoowwoowwwoow",
+    "oowowooowowwwwoowoowowoo",
+    "oooooooooooooooooooooooo",
+    "ooooooooooooowwwooowoouu"
+   ],
+   "yesterday": [
+    "wwwoowooooowoooooooooooooooowwoooowwwowooowwowww",
+    "ooooooooooooooowwoowowoowoooooowwooooooooooooooo"
+   ],
+   "today": [
+    "owwoowwoowooooooooooooooooooooooooooooooooowoooo",
+    "ooooooooouuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "SAMsite": {
+   "pmonth": [
+    "ooooooooooooeeoooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooouu"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "ooooooooouuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "SiteReadiness": {
+   "pmonth": [
+    "ooooooooooooeeoooooooooooooooooooooooooooooooooooooooooooooo",
+    "ooooooooowwoooooooooooooooooooooooooooooooooooowoooooooooooo"
+   ],
+   "pweek": [
+    "ooooooooooooooowoooowwwu",
+    "wooowowowooowwwwoooowoow",
+    "owoowwowwwwoowwowwwooowo",
+    "wowwoowwowowoowwoowwwoow",
+    "oowowooowowwwwoowoowowoo",
+    "oooooooooooooooooooooooo",
+    "ooooooooooooowwwooowoouu"
+   ],
+   "yesterday": [
+    "wwwoowooooowoooooooooooooooowwoooowwwowooowwowww",
+    "ooooooooooooooowwoowowoowoooooowwooooooooooooooo"
+   ],
+   "today": [
+    "owwoowwoowooooooooooooooooooooooooooooooooowoooo",
+    "oooooooouuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "FTS1day": {
+   "pmonth": [
+    "oooooooooooowwwwoooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooowwwwoooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "wwwwwwwwwwwwwwwwwwwwwwww",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "SAM1day": {
+   "pmonth": [
+    "ooooooooooooeeeeoooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "SR1day": {
+   "pmonth": [
+    "ooooooooooooeeeeoooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooowwwwoooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "wwwwwwwwwwwwwwwwwwwwwwww",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "LifeStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "ProdStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "CrabStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "RucioStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "manLifeStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "ouuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "manProdStatus": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "fweek": [
+    "ouuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "manCrabStatus": {
+   "pmonth": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "pweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "yesterday": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "manRucioStatus": {
+   "pmonth": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "pweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "yesterday": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "Summary": {
+   "pmonth": [
+    "ooooooooooooeeoooooooooooooooooooooooooooooooooooooooooooooo",
+    "ooooooooowwoooooooooooooooooooooooooooooooooooowoooooooooooo"
+   ],
+   "pweek": [
+    "ooooooooooooooowoooowwwu",
+    "wooowowowooowwwwoooowoow",
+    "owoowwowwwwoowwowwwooowo",
+    "wowwoowwowowoowwoowwwoow",
+    "oowowooowowwwwoowoowowoo",
+    "oooooooooooooooooooooooo",
+    "ooooooooooooowwwooowoouu"
+   ],
+   "yesterday": [
+    "wwwoowooooowoooooooooooooooowwoooowwwowooowwowww",
+    "ooooooooooooooowwoowowoowoooooowwooooooooooooooo"
+   ],
+   "today": [
+    "owwoowwoowooooooooooooooooooooooooooooooooowoooo",
+    "oooooooouuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "HammerCloud": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooouu"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "ooooooooouuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "HC1day": {
+   "pmonth": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "pweek": [
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo",
+    "oooooooooooooooooooooooo"
+   ],
+   "yesterday": [
+    "oooooooooooooooooooooooooooooooooooooooooooooooo",
+    "oooooooooooooooooooooooooooooooooooooooooooooooo"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  },
+  "Downtime": {
+   "pmonth": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "pweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "yesterday": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "today": [
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+   ],
+   "fweek": [
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuu"
+   ]
+  }
+ }
+}

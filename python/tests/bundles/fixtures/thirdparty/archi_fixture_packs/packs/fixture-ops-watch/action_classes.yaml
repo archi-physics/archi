@@ -1,0 +1,12 @@
+action_classes:
+  look_up_condor:
+    description: Query HTCondor monitoring for a site.
+    payload_schema:
+      type: object
+      required: [site]
+      properties:
+        site: {type: string}
+    mediator: archi.tools.monit:archi_monit_condor_search
+    reversible: true
+    blast_radius: Read-only query.
+    max_level: L2

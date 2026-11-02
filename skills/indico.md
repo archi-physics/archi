@@ -1,65 +1,60 @@
-# Indico MCP server — domain knowledge
+# Indico events in the OKG
 
-You have access to a set of `INDICO_*` tools backed by [Indico](https://indico.cern.ch),
-CERN's event-management system. Use them for **live, precise lookups** about specific
-events, contributions, categories, or attached materials.
+Indico (https://indico.cern.ch) is CERN's event-management system. On this
+deployment its content arrives through the `indico` connector
+(`archi.sources.indico`), which projects configured categories/events into the
+graph — there is no live Indico API tool on a v3 instance; answer from the
+graph, and say so when the graph's snapshot is older than the question needs.
 
-## Tool selection
+## What the connector puts in the graph
 
-- **Event by ID** (e.g. user mentions a number like `137346` or pastes an Indico URL):
-  `INDICO_get_event_details`. Pass `include_contributions: true` only when the user wants
-  the agenda; otherwise the response is much shorter without it.
-- **Search by free-text title/keyword across all categories**: `INDICO_search_events_by_term`.
-- **List events under a known category** (e.g. weekly meetings): `INDICO_search_events_by_category_id`.
-  If you don't know the category ID, walk the tree with `INDICO_search_categories_by_id`
-  starting from `"0"` (root) — don't guess IDs.
-- **Talks/contributions inside an event**: `INDICO_get_event_contributions`. Set
-  `include_subcontributions: true` for sessions broken into sub-talks.
-- **Materials/slides attached to an event** — two modes:
-  - **List only** (default): `INDICO_get_files(event_id, download_files=false)`. Returns
-    filenames, sizes, and API paths. Use this when the user just wants to know *what's
-    attached* to an event.
-  - **Download + ingest** (for "what's in the slides" questions): see the next section.
-- **Who am I / what perms do I have**: `INDICO_get_user_info`.
+- `meeting_minutes` nodes per ingested event (title, date, category, canonical
+  `https://indico.cern.ch/event/<event_id>/` URL in attrs).
+- With the live source's `contributions: true` option, every talk is ALSO a
+  `meeting_minutes` node with `event_type: "contribution"` (title, speakers,
+  session, time, abstract, its own URL, `parent_event_id`/`parent_event_url`),
+  linked from its event by a `contains` edge. Filter on `event_type` to tell
+  them apart: a question about whole meetings, counts, or the latest meeting
+  in a series wants events (`event_type` other than `contribution`); a question
+  about a talk, speaker or session wants `event_type: "contribution"`. Talks
+  carry their event's category, so an unfiltered category search returns both.
+  Attachment names and URLs are in attrs; attachment text is not.
+  With `attachment_images: true`, a talk's PDF/PNG/JPEG attachments are also
+  `okg_image` URL values in its `attachment_images` attr: open one with
+  `inspect(target={"kind":"image","node_id":<talk id>})` (a PDF shows page 1;
+  `panel` picks another). It works only if the deployment allows the Indico
+  host for images; an unavailable panel says why.
+- `document` nodes for PDF attachments whose text was extracted, with
+  `contains` edges from the meeting, and `document_chunk` nodes carrying the
+  extracted text (`member_of` / `contains` chunk edges). Non-PDF attachments
+  appear only as URLs in the meeting's attrs — their contents are not in the
+  graph.
+- Cross-references: when the deployment's extraction rules are configured for
+  it, chunks that mention JIRA keys, releases, or sites gain `references`
+  edges, linking meetings into the operational graph — verify with a `trace`
+  before promising such links exist.
 
-## Making slides searchable: pair with `ingest_indico_event`
+## How to answer Indico questions
 
-When the user wants the *contents* of an event (slide text, agenda body) — not just
-metadata — use the authenticated MCP path. **Do NOT** use `ingest_url` on Indico URLs:
-the agent's `ingest_url` is wired with a routing rule that refuses Indico event URLs
-and points you back here (it cannot authenticate against CERN SSO with the anonymous
-LinkScraper). If you ever see that refusal, follow it — don't retry.
+- **Event by ID or pasted URL**: extract the integer event id from the URL
+  path and `search` for it (event ids and Indico URLs are indexed); `trace`
+  the `meeting_minutes` node to walk its documents and chunks.
+- **"What was discussed about X"**: `search` for the topic, filter to
+  `meeting_minutes` / `document_chunk` subtypes, then expand promising chunks
+  to their parent meeting for date/context before synthesizing.
+- **"Latest <recurring meeting>"**: search the meeting-series name, order hits
+  by the meeting date attr, excluding `event_type: "contribution"` (a talk is dated later than its meeting starts), and check the pinned generation's freshness — if
+  the newest meeting in the graph predates the series cadence, the snapshot is
+  behind; report that explicitly instead of presenting the newest ingested
+  meeting as current.
+- **Attachment contents**: the chunks ARE the attachment text. Quote from
+  chunks and cite the parent document + meeting URL.
 
-1. `INDICO_get_files(event_id, download_files=true)` — the MCP server authenticates
-   with CERN, downloads each attachment to a shared volume (`/shared/indico-downloads/<event_id>/`),
-   and reports per-file status. This is the only step that hits the network.
-2. `ingest_indico_event(event_id=<id>, event_url=<canonical Indico URL>)` — asks the
-   data-manager to chunk + embed + index everything that just landed in the shared
-   dir. Stamps `event_id`, `url`, and `scraper=indico` into resource metadata.
-3. Retrieve DETERMINISTICALLY with `search_metadata_index` using `event_id:<id>`,
-   then `fetch_catalog_document` by hash. Do **not** loop on `search_vectorstore_hybrid`
-   — exact-match metadata lookups always surface a freshly-ingested event; vector
-   similarity does not.
+## When NOT to lean on this data
 
-Limit: upstream `INDICO_get_files` truncates to ~10 attachments per event. If a
-large event is missing pieces, the response will say so — surface that to the user.
-
-## Indico URL shape
-
-URLs look like `https://indico.cern.ch/event/<event_id>/` and
-`https://indico.cern.ch/category/<category_id>/`. Extract the integer ID from the path
-when the user pastes a URL — don't ask them to repeat it.
-
-## When NOT to call these tools
-
-- Questions about general physics topics, deadlines, slack threads, or repo code: this
-  server is *only* for Indico.
-- Broad historical queries like "what did the SUSY group discuss last year" — that's
-  better served by the vectorstore, which already has scraped slide content indexed.
-  Only fall through to `INDICO_search_events_by_term` if vectorstore results are sparse.
-
-## Errors
-
-If a tool returns "❌ Please configure the Indico connection first", the sidecar's env
-vars (`BEARER_TOKEN` / `API_KEY` / `API_SECRET`) are missing — surface this to the user
-rather than retrying.
+- Live/administrative Indico actions (registering, uploading, permissions)
+  are out of scope — point the user at the Indico UI.
+- Events outside the configured categories are not in the graph; absence of a
+  meeting is evidence of scope, not of the event's nonexistence. Name the
+  configured scope when reporting a miss (the `indico` registry entry's
+  params show which categories/events are ingested).

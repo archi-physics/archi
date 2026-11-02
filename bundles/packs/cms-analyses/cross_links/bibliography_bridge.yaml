@@ -1,0 +1,31 @@
+# Bibliography bridge: how a legacy note reaches the published corpus.
+#
+# The direct CDS-to-note link (cds_analysis_notes.yaml) matches on an
+# analysis code, and only PAG-coded notes (HIG-99-001) have one. Legacy
+# AN-YY-NNN notes share no vocabulary with a CDS report number.
+#
+# But those notes CITE published analyses. The analysis-notes source parses
+# the PAG-coded CMS report number out of a bib entry's comma-joined
+# reportnumber field (CMS-TOP-99-012, CERN-EP-2099-078 -> TOP-99-012). So a
+# legacy note reaches the published corpus in two hops:
+#
+#     analysis_note --cites--> reference --> cds_record
+#
+# without its own id ever matching anything.
+#
+# The code is empty for a conference record (CMS-CR-2099-213) or a bare
+# CERN preprint number, so those find no partner rather than a wrong one.
+rules:
+  - id: cms_analyses_reference_names_cds_record
+    src:
+      subtype: reference
+      field: analysis_code
+    dst:
+      subtype: cds_record
+      field: analysis_code
+    matcher: exact
+    edge: references
+    # One-way: a published summary linking back to every bibliography
+    # entry that ever cited it would swamp its neighbourhood, and the
+    # useful direction is note -> citation -> publication.
+    bidirectional: false

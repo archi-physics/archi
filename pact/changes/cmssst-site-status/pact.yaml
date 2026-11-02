@@ -1,0 +1,137 @@
+pact_version: 5
+id: cmssst-site-status
+title: 'A CMS Site Support Team site-status source: one citable page per site'
+tier: 2
+why: 'Benchmark question q008 cites the CMS Site Support Team (CMS SST) site status page https://cmssst.web.cern.ch/siteStatus/detail.html?site=<SITE>
+  as its gold source. No archi source reads that page, so the graph cannot hold or cite it
+  and an agent cannot answer from it. Jason decision `s6src A` (2026-10-07): add a comp-ops
+  source for the current CMS SST site status, current state only, no history.
+
+
+  MEASURED BEFORE DESIGNING (samples fetched 2026-10-07): the detail page is an empty shell
+  that loads https://cmssst.web.cern.ch/siteStatus/data/<SITE>.json (public, no login, about
+  190 KB, refreshed every 900 s). The site list is the JavaScript file data/summary.js (`var
+  siteStatusData = [ { site: "T0_CH_CERN", ...}, ...]`, 91 sites). Each site JSON holds a
+  snapshot time, GGUS tickets as [ticket id, opened epoch] pairs, 18 site-level metrics (LifeStatus,
+  ProdStatus, CrabStatus, RucioStatus, their manual overrides, SiteReadiness, SAMsite, FTSsite,
+  HammerCloud, Downtime, Summary and the 1-day variants), each a set of time bins (pmonth,
+  pweek, yesterday, today, fweek) of one-letter status codes, plus a large per-host `elements`
+  list. The letters have no text meaning in the data: the page''s renderer, detail_lib.js,
+  maps each to a colour, and detail.html''s legend names the colours. The decoding here is
+  read off those two files.
+
+
+  SHAPE: follow the cache-backed pattern (gocdb): a downloader writes data/cmssst-site-status/records.json,
+  a reader turns it into facts, a snapshot GroupSpec packs it. Facts reuse the existing documentation_page
+  and document_chunk subtypes (no schema change), with the detail URL as the page url so a
+  retrieved passage cites the gold page. The only site link is the existing narrowing documentation_page_references_site
+  (archi/schemas/bridges/operations.yaml), emitted only to sites a configured CRIC sites cache
+  proves exist.'
+affected_code:
+- python/archi/downloaders/cmssst.py
+- python/archi/downloaders/__init__.py
+- python/archi/sources/cmssst.py
+- python/archi/snapshot/groups.py
+- docs/docs/reference/connector-caches.md
+- docs/cache-snapshot.md
+- python/tests/downloaders/test_downloader_cmssst.py
+- python/tests/sources/test_cmssst.py
+- python/tests/snapshot/test_snapshot_builder.py
+- python/tests/fixtures/cmssst/summary.js
+- python/tests/fixtures/cmssst/T1_US_FNAL.json
+- python/tests/fixtures/cmssst/T2_US_MIT.json
+- python/tests/fixtures/cmssst/T2_CH_CERN.json
+requirements:
+- id: req.cmssst-site-status.download
+  statement: 'A downloader, `python -m archi.downloaders.cmssst`, fetches summary.js, parses
+    its site list, fetches each site''s JSON and writes data/cmssst-site-status/records.json
+    under ARCHI_DATA_ROOT: a JSON list, one object per site, holding the site-level fields
+    the reader reads (site, time, alert, msg, ggus, metrics) and not the per-host `elements`
+    list. It uses no credentials and a bounded per-request timeout. It fails loudly and writes
+    nothing when summary.js has no site list (parsed only inside the siteStatusData array,
+    comments ignored) or an invalid site name, when any site fetch fails or returns an error-shaped
+    body, or when the result would be empty: the reader claims a complete scope, so a partial
+    cache would retract the missing sites.'
+- id: req.cmssst-site-status.reader
+  statement: A reader `archi.sources.cmssst.CMSSSTSiteStatusSource` (adapter `CMSSSTSiteStatusAdapter`)
+    emits, per site, one documentation_page whose url is https://cmssst.web.cern.ch/siteStatus/detail.html?site=<SITE>
+    and whose title is "<SITE> site status", plus document_chunk nodes joined by `contains`
+    edges. The page text states, in plain words from the page's own legend, the status at
+    the snapshot time of Life, Prod, CRAB and Rucio status and their manual overrides, Site
+    Readiness, SAM, FTS, HammerCloud, Downtime and Summary (Downtime and the manual overrides
+    read at the snapshot quarter hour only, where unknown means none in effect), and the listed
+    GGUS ticket ids. The snapshot time is the observed_at attribute, never page text, so a
+    refresh whose statuses did not change yields identical text and chunk ids. Record identity
+    is the site name, the revision is the cache content hash, and deletion is missing_from_completed_scope.
+    A missing, empty, truncated or error-shaped cache gives no facts and no complete scope
+    (cache_missing / endpoint_failed) in preflight and run alike; a malformed record is skipped
+    and stops the scope claim. With an optional CRIC sites cache configured, the page `references`
+    the matching `site` node, and only when that cache lists the site.
+- id: req.cmssst-site-status.snapshot
+  statement: archi.snapshot knows a `cmssst-site-status` group (data/cmssst-site-status, records.json,
+    a list) whose schema keeps every field the reader reads, whose identity check refuses
+    a record without a CMS site name, and which the existing snapshot builder tests (every
+    group built, addresses removed, malformed record refused, byte-identical rebuild) cover.
+tasks:
+- id: task.cmssst-site-status.download
+  requirement: req.cmssst-site-status.download
+  verification: python/tests/downloaders/test_downloader_cmssst.py passes with no network
+    (fetches are injected), against the real summary.js sample (91 sites) and real site JSON
+    samples, including the failure cases (no site list, bad site name, error-shaped site body,
+    a failed fetch, empty result) writing nothing.
+- id: task.cmssst-site-status.reader
+  requirement: req.cmssst-site-status.reader
+  verification: python/tests/sources/test_cmssst.py passes against the real T1_US_FNAL, T2_US_MIT
+    and T2_CH_CERN samples (decoded words, URL, title, GGUS ids, identity stable across a
+    content change, site edge only to a known site) and the empty, malformed and error-shaped
+    cache refusals; the bundle adapter and full archi suite stay green.
+- id: task.cmssst-site-status.snapshot
+  requirement: req.cmssst-site-status.snapshot
+  verification: python/tests/snapshot/test_snapshot_builder.py passes with the new group in
+    its fixture, its planted address and its malformed-record case.
+evidence:
+- kind: executed_test
+  requirement: req.cmssst-site-status.download
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests/downloaders/test_downloader_cmssst.py
+    --junitxml=pact/changes/cmssst-site-status/evidence/download.xml
+  artifact: pact/changes/cmssst-site-status/evidence/download.xml
+  sha256: 9b61ee6df063bb662c1b63581a6dc506edeb9fcdeafdaa5e46266203f25f19c7
+  head: ee5d8ef7b1056235f74b69f0fe805ff42fb4df2f
+  at: '2026-10-07T15:21:59+00:00'
+  note: 16 passed at ee5d8ef7, no network (fetches injected). Real summary.js parses to 91
+    sites; the parse is bounded to the siteStatusData array and ignores // and /* */ comments
+    (a commented-out site and a trailing second array are not read; an unclosed array is refused;
+    both tests fail on 2a909ddf); elements dropped; error page, empty list, bad site name,
+    error-shaped/HTML/list site bodies, a 404 and an empty result each raise DownloadError
+    and leave the previous cache byte-identical.
+- kind: executed_test
+  requirement: req.cmssst-site-status.reader
+  status: pass
+  command: 'cd python && PYTHONPATH=. python -m pytest -q tests/sources/test_cmssst.py tests/test_bundle_source_adapters.py
+    tests/test_alignment_page.py --junitxml=pact/changes/cmssst-site-status/evidence/reader.xml;
+    full suite: PYTHONPATH=. python -m pytest -q tests'
+  artifact: pact/changes/cmssst-site-status/evidence/reader.xml
+  sha256: d472c8a0ac83d5e1e61905f3de01190955a93ba813d821737025b5e3107cc3b7
+  head: ee5d8ef7b1056235f74b69f0fe805ff42fb4df2f
+  at: '2026-10-07T15:21:59+00:00'
+  note: '94 passed at ee5d8ef7 on the real FNAL, MIT, CERN samples: legend words, current
+    statuses, GGUS ids, URL and title, stable identity, site edge only to CRIC-listed sites,
+    cache refusals in run and preflight. Review fixes, each test failing on 2a909ddf: an override
+    that ended earlier today (manProdStatus 20 e then u) reports no override; a 15-minute
+    refresh with unchanged statuses gives identical page/chunk text and chunk ids (snapshot
+    time only in observed_at). Full suite with okg f6d668f4fc2 (descends from CI pin ac078aabd):
+    1757 passed; wheel-build tests excluded (no hatchling in this venv).'
+- kind: executed_test
+  requirement: req.cmssst-site-status.snapshot
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest -q tests/snapshot/test_snapshot_builder.py
+    --junitxml=pact/changes/cmssst-site-status/evidence/snapshot.xml
+  artifact: pact/changes/cmssst-site-status/evidence/snapshot.xml
+  sha256: 889fea7482734b27b432f990c6fbdcb918687542883933686e9c6ddfa5ff54db
+  head: ee5d8ef7b1056235f74b69f0fe805ff42fb4df2f
+  at: '2026-10-07T15:21:59+00:00'
+  note: '392 passed at ee5d8ef7 with the cmssst-site-status group in the fixture: built with
+    a lock row, planted address removed, elements/url dropped and metrics kept whole, a record
+    without a CMS site name refuses only that group, archives byte-identical across two builds.'
+decisions: []

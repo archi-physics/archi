@@ -1,0 +1,43 @@
+# Skill triggers copied from skills/skill-triggers.yaml (PACT r3-bundle-cms-comp-ops).
+# test_packs.py holds each intent equal to the library's.
+version: 1
+intents:
+  rucio_command:
+    skill: rucio_command
+    description: Return canonical Rucio CLI syntax before CMS-specific examples.
+    subtypes:
+    - dataset
+    - storage_endpoint
+    - documentation_page
+    - document_chunk
+    - jira_issue
+  rucio_dataset_hosting:
+    skill: rucio_dataset_hosting
+    description: Traverse RSE, storage endpoint, dataset hosting, replica, and impact
+      evidence.
+    subtypes:
+    - storage_endpoint
+    - dataset
+    - site
+    - monitoring_snapshot
+    - jira_issue
+  cms_site_profile:
+    skill: site_profile
+    description: Separate and arbitrate site, RSE, monitoring, ticket, and documentation
+      facts.
+    subtypes:
+    - site
+    - storage_endpoint
+    - monitoring_snapshot
+    - jira_issue
+    - documentation_page
+  cms_incident_root_cause:
+    skill: incident_root_cause
+    description: Cluster incident evidence and distinguish confirmed cause, suspected cause,
+      symptom, and mitigation.
+    subtypes:
+    - jira_issue
+    - monitoring_snapshot
+    - site
+    - workflow
+    - dataset

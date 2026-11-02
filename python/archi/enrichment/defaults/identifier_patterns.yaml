@@ -1,0 +1,44 @@
+# Identifier patterns for HEP/CMS text extraction.
+#
+# Provenance: okg-deployments main@f33a9c4, cms/identifier_patterns.yaml
+# (verbatim; this header added).
+#
+# Loaded by `okg catalog load --apply` into
+# `okg.identifier_patterns`; the extractor and MCP identifier tools
+# use these patterns to detect structured CMS mentions before alias
+# resolution links them to canonical nodes.
+
+patterns:
+  - id_type: cms_site
+    regex: '\bT[0-3]_[A-Z]{2}(?:_[A-Za-z0-9]+)+\b'
+    description: CMS computing site name such as T2_US_MIT
+
+  - id_type: cms_jira_key
+    # PRCAMPAIGNS is the one CMS computing JIRA project whose key does
+    # not start with CMS; it is named outright so the rule stays narrow.
+    regex: '\b(?:CMS[A-Z0-9]*|PRCAMPAIGNS)-[0-9]+\b'
+    description: CERN JIRA key for CMS projects such as CMSCOMPPR-67026 or PRCAMPAIGNS-93
+
+  - id_type: cmssw_release
+    regex: '\bCMSSW_[0-9]+_[0-9]+_[0-9]+(?:_[A-Za-z0-9]+)*\b'
+    description: CMSSW release string such as CMSSW_15_0_15_patch4
+
+  - id_type: global_tag
+    regex: '\b(?:auto:)?[0-9A-Za-z]+(?:_[0-9A-Za-z]+){2,}(?:::[0-9A-Za-z_]+)?\b'
+    description: CMS conditions global tag string
+
+  - id_type: cms_repo
+    regex: '\b(?:cms-sw|dmwm|cms-data|cms-l1t-offline)/[A-Za-z0-9_.-]+\b'
+    description: CMS GitHub or GitLab repository slug
+
+  - id_type: cms_dataset
+    regex: '\B/[A-Za-z0-9][A-Za-z0-9._-]+/[A-Za-z0-9][A-Za-z0-9._-]+/[A-Z0-9-]+\b'
+    description: CMS DBS dataset path
+
+  - id_type: cms_run_number
+    regex: '\b[1-9][0-9]{5,6}\b'
+    description: CMS six- or seven-digit data-taking run number
+
+  - id_type: cms_hostname
+    regex: '\b[A-Za-z0-9][A-Za-z0-9.-]*\.(?:cern\.ch|fnal\.gov|edu|org|net|com|it|de|fr|uk|ch|es|tw|kr|br|in|ru)\b'
+    description: Infrastructure hostname seen in CMS operations data

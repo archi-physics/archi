@@ -1,0 +1,8 @@
+architecture=slc3_ia32_gcc323;label=CMSSW_1_3_0;type=Production;state=Deprecated;prodarch=1;
+architecture=slc4_ia32_gcc345;label=CMSSW_1_3_0;type=Production;state=Deprecated;prodarch=1;
+architecture=el8_aarch64_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=0;
+architecture=el8_ppc64le_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=0;
+architecture=el9_aarch64_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=0;
+architecture=el9_amd64_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=0;
+architecture=el8_amd64_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=1;
+architecture=slc7_amd64_gcc12;label=CMSSW_14_0_0;type=Production;state=Announced;prodarch=0;

@@ -1,0 +1,54 @@
+# Init questions every rendered profile carries, whatever packs it holds.
+#
+# Pack templates may reference these ids directly (`${archi_data_root}`).
+# A pack's own questions are namespaced `<pack>_<id>` when rendered, so
+# their flags read `--<pack>-<id>` (ADR 0002 section 3.3). The two chat
+# questions take their defaults from the bundles' chat scalars.
+
+init_questions:
+  - id: deployment_name
+    prompt: deployment name (also used as the deployments/<name>/ dir)
+    type: slug
+    required: true
+    description: |
+      Slug for the deployment directory and the catalog's
+      `deployment_name`. Use lowercase letters, digits and dashes.
+
+  - id: postgres_dsn
+    prompt: Postgres DSN (postgresql://...)
+    type: string
+    required: true
+    description: |
+      Substrate Postgres DSN. The instance owns its own database; do
+      not point this at another instance's database. `${OKG_DSN}` is
+      accepted verbatim: okg interpolates `${VAR}` references when it
+      runs, so the credential is never written to disk.
+
+  - id: archi_data_root
+    prompt: data root for connector caches
+    type: string
+    required: false
+    default: data
+    description: |
+      Root for connector caches and repository checkouts. Give an
+      absolute path outside the deployment directory, which
+      `okg install --force` deletes. A relative root is read from the
+      directory okg runs from.
+
+  - id: chat_site_name
+    prompt: name for the chat site
+    type: string
+    required: false
+    default: Team knowledge chat
+    description: |
+      Shown as the site title and the assistant's display name.
+
+  - id: chat_model
+    prompt: model the chat should offer
+    type: string
+    required: false
+    default: llama3.1:8b
+    description: |
+      One model name, as your provider spells it. The provider itself is
+      configured inside the chat app with your own key; it is never
+      written here.

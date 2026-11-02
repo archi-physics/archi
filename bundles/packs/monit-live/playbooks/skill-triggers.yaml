@@ -1,0 +1,13 @@
+# Skill triggers copied from skills/skill-triggers.yaml (PACT r3-bundle-cms-comp-ops).
+# test_packs.py holds each intent equal to the library's.
+version: 1
+intents:
+  cms_condor_monitoring_snapshot:
+    skill: monitoring_condor_snapshot
+    description: Answer job, workflow, site, and Condor monitoring questions from
+      generation-pinned snapshots.
+    subtypes:
+    - monitoring_snapshot
+    - workflow
+    - site
+    - jira_issue

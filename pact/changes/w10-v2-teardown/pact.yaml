@@ -1,0 +1,54 @@
+pact_version: 5
+id: w10-v2-teardown
+title: 'W10: delete the v2 application from the v3 line'
+tier: 2
+why: 'Backfills the unrecorded W10 wave. The deletions executed as PR #611 without a PACT
+  change and without the LOC delta the ADR and section 10 both require; that number is recorded
+  here. The wave stays open because its done-clause is the section 14 cutover, which does
+  not hold. OPEN BY DESIGN: deletions done; cutover conditions unmet (W7 parity delegated,
+  W9 unstarted).
+
+
+  Small nontrivial change whose intent, task, acceptance, and proof fit the PACT fast path.'
+affected_code: []
+requirements:
+- id: req.w10-v2-teardown
+  statement: "W10: delete the v2 application from the v3 line\n\nThe superseded v2 application\
+    \ is removed from the archi_v3 line: src/ (including data_manager), configs/, tests/,\
+    \ examples/, scripts/, requirements/, the root build files, the v2 CI workflows and the\
+    \ accidentally-committed profiles/w1-scratch. LOC DELTA (the ADR asks for it per PR and\
+    \ #611 did not report it): 433 files changed, 39 insertions, 106,475 deletions. v2 continues\
+    \ to serve live deployments from main until cutover. The wave is NOT done: section 14's\
+    \ cutover conditions require W7 parity - which the maintainer has handed to the comp-ops\
+    \ team - and the W9 chat migration, which has not started.\n\nAcceptance:\n- acc.w10-v2-teardown:\
+    \ The v3 branch line contains no v2 application code (guarded by python/tests/test_packaging.py::test_v2_tree_removed)\
+    \ AND the section 14 cutover conditions hold. [evidence: executed_test]\n\nScenarios:\n\
+    - scn.w10-v2-teardown.fast-path Fast-path work is verified\n  Given a small nontrivial\
+    \ change fits one requirement\n  When the declared verification runs\n  Then the requirement\
+    \ has executed proof before completion"
+tasks:
+- id: task.w10-v2-teardown
+  requirement: req.w10-v2-teardown
+  verification: 'W10: delete the v2 application from the v3 line
+
+
+    pytest python/tests/test_packaging.py -q (v2 tree absent) + section 14 cutover conditions
+    (W7 parity, W9 chat) - currently unmet
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.w10-v2-teardown
+  status: pass
+  command: <okg-venv>/bin/python -m pytest python/tests/test_packaging.py
+    -q
+  artifact: python/tests/test_packaging.py
+  sha256: c43d0d986e0c0dcd4ab63eda1862e8f8f900a31d5271b2933c02feb4c7970d76
+  at: '2026-08-25T01:59:20.482904+00:00'
+  note: 'test_v2_tree_removed asserts src/, setup.py and configs/ are absent from the v3 line.
+    LOC delta of the teardown (PR #611): 433 files, +39 / -106475. Cutover conditions (section
+    14) remain unmet by design.'
+decisions: []

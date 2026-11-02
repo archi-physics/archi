@@ -1,0 +1,132 @@
+# HTCondor pool, machine and schedd snapshot records.
+#
+# Owned by the htcondor pack. Classes live in this file; their edge narrowings
+# are in bridges/htcondor.yaml (okg's composer honours narrowings only under
+# schemas/bridges/). Person and DocumentChunk come from okg's person and
+# extraction modules.
+id: https://archi-physics.org/okg/archi/htcondor
+name: archi_htcondor
+title: Archi - HTCondor subtypes
+description: Node subtypes emitted by archi.sources.htcondor.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  CondorPool:
+    description: >-
+      An HTCondor pool in a snapshot, with its CPU totals by slot state.
+    class_uri: archi:CondorPool
+    attributes:
+      pool_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      machine_count:
+        range: integer
+      schedd_count:
+        range: integer
+      claimed_cpus:
+        range: integer
+      unclaimed_cpus:
+        range: integer
+      owner_cpus:
+        range: integer
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: pool_name
+      okg_searchable_text_fields: pool_name,text
+      okg_title_from: pool_name
+      okg_last_modified_at_from: observed_at
+
+  CondorMachine:
+    description: >-
+      An HTCondor machine (its slots summed) in a pool snapshot.
+    class_uri: archi:CondorMachine
+    attributes:
+      pool_name:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      machine_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      state:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      activity:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      cpus:
+        range: integer
+      memory_mb:
+        range: integer
+      load_avg:
+        range: float
+      opsys:
+      arch:
+      slots:
+        range: integer
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: machine_name
+      okg_identifier_fields: machine_name
+      okg_searchable_text_fields: machine_name,pool_name,state,activity,text
+      okg_title_from: machine_name
+      okg_last_modified_at_from: observed_at
+
+  CondorSchedd:
+    description: >-
+      An HTCondor schedd in a pool snapshot, with its job counts.
+    class_uri: archi:CondorSchedd
+    attributes:
+      pool_name:
+        annotations:
+          filterable: 'true'
+          value_type: text
+      schedd_name:
+        required: true
+        annotations:
+          filterable: 'true'
+          value_type: text
+      running_jobs:
+        range: integer
+      idle_jobs:
+        range: integer
+      held_jobs:
+        range: integer
+      observed_at:
+        annotations:
+          filterable: 'true'
+          value_type: ts
+      text:
+    annotations:
+      archetype: artifact
+      transient: "true"
+      okg_alias_fields: schedd_name
+      okg_searchable_text_fields: schedd_name,pool_name,text
+      okg_title_from: schedd_name
+      okg_last_modified_at_from: observed_at

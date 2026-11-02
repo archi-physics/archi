@@ -1,0 +1,101 @@
+pact_version: 5
+id: twiki-analysis-id
+title: TWiki pages carry the hyphenated CMS analysis id read from the topic name
+tier: 2
+why: 'CMS TWiki topics are named by the analysis id without hyphens (an invented
+  example: HIG29991, or B2G28992Review). Users and agents write the id as HIG-29-991
+  or CMS-HIG-29-991. A lexical index treats those as different tokens, so ranked
+  search for the hyphenated form did not return the page in the top 5, while the
+  unhyphenated name returned it first. A measured miss in a chat evaluation failed
+  this way.
+
+
+  Measured 2026-10-21 on the CMS dump (43,431 topic names): 4,282 names carry an id
+  under the pattern below, none carries two. The reader now reads the id from the
+  name and writes it in the forms people type.'
+affected_code:
+- python/archi/sources/_twiki_analysis_id.py
+- python/archi/sources/twiki.py
+- python/tests/sources/test_twiki_analysis_id.py
+- python/archi/schemas/sources.yaml
+- bundles/cern-team/schemas/sources.yaml
+- docs/docs/reference/connector-caches.md
+requirements:
+- id: req.twiki-analysis-id.pattern
+  statement: 'The analysis id is read from the topic name only. The name must hold a
+    code from the fixed list (B2G BPH BTV CAT CFT EGM EWK EXO FSQ FTR FWD GEN HCA HIG HIN
+    JME LUM MLG MUO NPS PFT PRF QCD SMP SUS TAU TDR TOP TRG TRK), uppercase, then a
+    two-digit year 07 to 29, then a three-digit number 001 to 999, with optional
+    hyphens or underscores between the parts. The character after the number is not a
+    digit. Anything else may surround the code (Review, CWR, QA, CMS, a leading
+    digit). Dates (SUS20990305), six-digit runs, analysis
+    note numbers (B2GAN99310), other codes (HWW22998), lowercase names and names with
+    no digits give no id. The id is written CODE-YY-NNN.
+
+
+    Acceptance:
+
+    - acc.twiki-analysis-id.pattern: Synthetic topic names give the expected ids,
+    including two ids in one name, and the negative cases above give none.
+    [evidence: executed_test]'
+- id: req.twiki-analysis-id.record
+  statement: 'A documentation_page record for a topic with an id carries the attribute
+    analysis_id (comma-separated when the name holds more than one) and its text gains
+    "HIG-29-991 CMS-HIG-29-991" (no label word, which would add common terms to
+    every record). Chunks are not touched: chunk text and chunk ids are the same
+    with and without this change, for every topic. A topic without an id has no
+    attribute and its page text is unchanged. Node ids do not change. The change
+    probe fingerprints the pattern module, so a later edit to the code list
+    re-emits every page. Both
+    copies of sources.yaml declare the attribute and list it in the searchable text
+    fields.
+
+
+    Acceptance:
+
+    - acc.twiki-analysis-id.record: A run over a fixture snapshot gives the page
+    attribute and both spellings in the page text; chunk text is the same as
+    before; a topic without an id is unchanged. [evidence: executed_test]'
+tasks:
+- id: task.twiki-analysis-id.pattern
+  requirement: req.twiki-analysis-id.pattern
+  verification: 'Add _twiki_analysis_id.py and parametrized positive and negative
+    tests.
+
+
+    Test plan:
+
+    - python/tests/sources/test_twiki_analysis_id.py [evidence: pytest]'
+- id: task.twiki-analysis-id.record
+  requirement: req.twiki-analysis-id.record
+  verification: 'Carry analysis_ids on TwikiRecord, emit the attribute and text, declare
+    the attribute in both schema copies, add reader-level tests.
+
+
+    Proof: twiki tests and the full suite pass; a count over the dump topic names lists
+    the matches.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.twiki-analysis-id.pattern
+  status: pass
+  command: 'PYTHONPATH=python pytest python/tests/sources/test_twiki_analysis_id.py python/tests/sources/test_twiki.py python/tests/sources/test_twiki_physics.py python/tests/sources/test_twiki_page_index.py python/tests/test_bundle_cern_team.py python/tests/test_passage_rollup_declarations.py python/tests/test_catalog_handle_fields.py python/tests/test_bundle_source_adapters.py -> 261 passed (test_twiki_analysis_id.py 40 cases, all new)'
+  artifact: pact/changes/twiki-analysis-id/evidence/twiki_analysis_id.junit.xml
+  sha256: 2b08450b2a0ea2ffecb9c530f8f4498d1c6fc1723fc7fe646b41674ed0dcd3ea
+  head: 623abb5f5221e97ba49b0dde45d9639d91bd74c2
+  at: '2026-10-21T14:40:00+00:00'
+  note: 'Run on a lab host. Over the 43,431 CMS topic names, 4,282 match; 20 random matches and the doubtful ones were read by hand (see the lane report).'
+- kind: executed_test
+  requirement: req.twiki-analysis-id.record
+  status: pass
+  command: 'PYTHONPATH=python pytest python/tests -> 1883 passed'
+  artifact: pact/changes/twiki-analysis-id/evidence/twiki_analysis_id.junit.xml
+  sha256: 2b08450b2a0ea2ffecb9c530f8f4498d1c6fc1723fc7fe646b41674ed0dcd3ea
+  head: 623abb5f5221e97ba49b0dde45d9639d91bd74c2
+  at: '2026-10-21T14:40:00+00:00'
+  note: 'Full suite run on a lab host with hatchling added to the test environment. One timing test (test_redact_email_addresses_quoted_local_part_is_linear) failed in two-worker full runs while the host load average was about 18; it passes alone, and the serial full run passed. The artifact is the targeted junit file, not the full run.'
+decisions: []

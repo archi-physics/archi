@@ -1,0 +1,172 @@
+pact_version: 5
+id: jira-email-redaction
+title: Restore email-address removal in the JIRA source
+tier: 2
+why: 'The comp-ops JIRA source moves from okg-deployments (cms/cms_sources/jira.py) to archi-okg.
+  The cms source has removed email addresses from every string it reads since okg-deployments
+  commit b25e36f06c: its text helper _pg_text calls redact_email_addresses. The archi port
+  kept the NUL-to-space half of _pg_text and dropped the redaction, so addresses in summaries,
+  descriptions, comments, names, labels and components reached jira_issue and person attrs
+  and document_chunk text. archi''s Anonymizer exists but no source calls it.
+
+
+  This is a parity fix. It adds redact_email_addresses to archi.enrichment.anonymizer and
+  calls it from _pg_text. It does not call Anonymizer.anonymize, which also deletes greeting
+  and sign-off lines, [~user] mentions and names -- the cms source never did that.
+
+
+  It deliberately differs from the cms helper. The cms helper decodes &amp;, &commat;, &#64;
+  and &#x40; in the whole string before matching, so it also rewrites text that holds no address
+  (AT&amp;T becomes AT&T), which changes that chunk''s text, content hash and chunk id; and
+  it lets through a non-ASCII local part or one with = (only the part after the last unsupported
+  character was removed, leaving a prefix such as uber.mu or list-bounces+bob=), zero-padded
+  or semicolon-less &#064; / &#x0040; / &#64, URL %2540, fullwidth or small @, encoded or
+  fullwidth dots, and addresses with soft hyphens or zero-width characters. It also removes
+  version pins such as numpy@1.26.4.
+
+
+  The archi helper decodes nothing. It finds each separator with one regex pass, then scans
+  the local part leftwards back to the previous separator or match and the domain rightwards
+  to the first character that cannot be in a domain, so it runs in linear time and removes
+  an address that directly follows another one (|bob@cern.ch|alice@fnal.gov|). A domain must
+  end in a label with a letter, so all-numeric version strings are not addresses. The only
+  change to a string is the removal of each address-shaped token. Anonymizer''s own pattern
+  is unchanged.
+
+
+  CARRIED SIDE EFFECT, same as cms: a person whose display name is only an address gets no
+  person node or role edge; a display name containing an address changes that person''s node
+  id; chunks whose text held an address get new chunk ids. A graph built from this source
+  re-keys those nodes on its next ingest.'
+affected_code:
+- python/archi/sources/jira.py
+- python/archi/enrichment/anonymizer.py
+- python/tests/sources/test_jira.py
+- python/tests/enrichment/test_anonymizer.py
+requirements:
+- id: req.jira-email-redaction.main
+  statement: 'Every text field the JIRA source emits has email addresses removed, as in the
+    okg-deployments cms source.
+
+
+    Covered: every string read from the records cache (key, summary, description, environment,
+    status, priority, resolution, issue type, project, dates, assignee and reporter names,
+    labels, components, fix versions, comment authors and bodies), in both the flat and the
+    JIRA REST record shapes, and so every jira_issue and person attr and every document_chunk
+    text. An address-shaped token is LOCAL SEP DOMAIN. SEP is @, fullwidth or small @, URL
+    %40 or %2540, or &commat; / &#64; / &#x40; with any leading zeros and an optional semicolon,
+    behind any number of &amp; layers. LOCAL is a quoted string on one line, or a run of Unicode
+    letters, digits, combining marks, soft hyphen and zero-width characters, the punctuation
+    .!#$%&''*+^`{|}~-= and &amp; or encoded-dot entities (not / or ?). DOMAIN is the same
+    letters, digits, marks and invisible characters plus - and dots (., fullwidth dot, or
+    an encoded &#46; / &#x2e; / &period;), with at least one dot, ending in a label that contains
+    a letter. Each whole token is removed with no placeholder, including one that directly
+    follows another; the surrounding text, including HTML entities around it, is kept byte
+    for byte. No entity is decoded, so text containing no address-shaped token is returned
+    byte-identical and its chunk text and chunk id do not change.
+
+
+    Accepted over-removal (fail closed): characters of the local-part set next to an address
+    go with it. A whole query string before an address goes, not only a mail= key
+    (?project=CMS&assignee=bob@cern.ch and ?mail=bob%40cern.ch both leave ?); JIRA table
+    separators around an address go (|bob@cern.ch|alice@fnal.gov| leaves |); and
+    address-shaped non-mail tokens are removed (image@2x.png, the user@host part of
+    git@github.com:org/x and https://user@host/x).
+
+
+    Known gaps, not covered (verified at 619e2ab):
+
+    - An IP-literal domain (bob@[127.0.0.1]), MIME =40 header encoding, and a domain with no
+    dot (bob@localhost).
+
+    - A letter written as an HTML character reference: jdo&#101;@cern.ch, bob@&#99;ern.ch and
+    fully entity-encoded addresses are not removed; an encoded soft hyphen (b&shy;ob@cern.ch,
+    b&#173;ob@cern.ch) leaves b&shy; or b&#173;.
+
+    - Ideographic and halfwidth dots (U+3002, U+FF61) and the URL-encoded dot %2E are not dots,
+    so bob@cern<U+3002>ch, bob@cern<U+FF61>ch and bob%40cern%2Ech pass through.
+
+    - Invisible characters outside the handled set (soft hyphen, U+200B-U+200D, U+2060) cut
+    the address: U+FEFF, U+200E or U+2062 inside bob leaves bo and that character.
+
+    - Two separators: bob@lxplus@cern.ch leaves bob@. A quoted local part with an escaped
+    quote ("bob\"x"@cern.ch) leaves "bob\, and one that contains @ ("a@b"@cern.ch) is not
+    removed at all.
+
+
+    Acceptance:
+
+    - acc.jira-email-redaction.fields: A cached issue with a distinct address in each field
+    emits no fact whose attrs or record id contain any of them; the same test fails on main
+    with all twelve leaked. An issue whose text holds HTML entities and no address is emitted
+    verbatim, one whose assignee is only a non-ASCII address gets no person and leaves no
+    fragment of it, and two adjacent addresses in JIRA table markup are both removed. [evidence:
+    executed_test]
+
+    - acc.jira-email-redaction.forms: redact_email_addresses removes each address form whole
+    (including adjacent addresses, = in the local part, encoded and fullwidth dots, and invisible
+    characters), keeps entities around an address, keeps version pins such as numpy@1.26.4,
+    leaves address-free text (including &amp;, &commat;, &#64; and fullwidth @ on their own)
+    byte-identical, agrees with a slow single-regex definition of the same grammar on 20,000
+    random strings (plain ASCII without the digits 4, 6, 0 or quotes, so it shows the
+    scanner follows its rules, not that the rules catch every address), and runs in linear time on long runs with and without separators. [evidence:
+    executed_test]'
+tasks:
+- id: task.jira-email-redaction.deliver
+  requirement: req.jira-email-redaction.main
+  verification: 'Add redact_email_addresses to archi/enrichment/anonymizer.py, call it from
+    _pg_text in archi/sources/jira.py, and cover each field and each address form.
+
+
+    Proof: the new tests fail against main and pass with the change, and the full archi suite
+    passes.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.jira-email-redaction.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: a2bfeb6fa2cd0ab8f8291bcb1853ef52eaa2f03a
+  at: '2026-09-28T02:15:07+00:00'
+  note: '446 passed at a2bfeb6 (okg 5b2fd076c, Python 3.12), including 12 new tests: 2 JIRA
+    emission tests (one address per field, flat and REST shapes) and 10 redact_email_addresses
+    form tests. The same new tests against main''s jira.py and anonymizer.py (7b5b911): both
+    JIRA tests fail with all 12 addresses leaked, and the anonymizer tests fail at import
+    (helper absent).'
+- kind: executed_test
+  requirement: req.jira-email-redaction.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 77219e6791f601320c5792eb84dd7657ff99f856
+  at: '2026-09-28T04:37:32+00:00'
+  note: '467 passed at 77219e6 (okg origin/dev 5760f6ee18 exported source, Python 3.12, hatchling
+    on the path for the wheel tests), including 21 new tests: 13 address forms removed whole
+    (non-ASCII NFC/NFD local part and domain, &#064;, &#x0040;, &#64 and &#x40 without semicolon,
+    %40, %2540, fullwidth and small @, &amp; inside the local part, &amp;commat;), 4 address-free
+    strings byte-identical (AT&amp;T, &commat;/&#64;/&#x40; alone, &amp;amp;, fullwidth @
+    alone), entities kept around an address, a linear-time run test, and 2 JIRA emission tests
+    (entities without an address emitted verbatim; a non-ASCII address as assignee leaves
+    no person and no fragment). Against the previous helper (1351be7) the same run gives 17
+    of the 21 new tests failing and all 55 earlier JIRA and anonymizer tests passing; the
+    4 that already passed are %40, &amp; in the local part, &amp;commat;, and the address-free
+    string with only &lt; and fullwidth @.'
+- kind: executed_test
+  requirement: req.jira-email-redaction.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 672a2b96bae20a7656893eadeb236ee54cc9aff2
+  at: '2026-09-28T05:03:30+00:00'
+  note: '492 passed at 672a2b9 (okg origin/dev 1fed800bba exported source, Python 3.12, hatchling
+    on the path for the wheel tests). JIRA and anonymizer tests: 101 passed. Against the 9bb8cd3
+    helper the same two files give 25 failed: the 5 adjacent-address cases, the JIRA table-markup
+    test, the 3 = cases, 3 version pins, encoded/hex/fullwidth dots, 3 invisible-character
+    cases, bob@cern.ch.123, the random reference check, the linear-time test with separator-heavy
+    runs, and 4 expectation changes where mail= before an address is now removed too. Against
+    1351be7: 34 failed. An extra ad hoc run found 0 differences from the slow reference regex
+    over 210,000 random strings (8,795 changed by redaction), and 100,000-200,000-character
+    worst cases each took under 0.1 s.'
+decisions: []

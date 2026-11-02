@@ -1,0 +1,31 @@
+# Edge narrowings for the node-health pack's source emissions.
+#
+# The composer honours narrowings only under schemas/bridges/. A narrowing
+# anywhere else is silently ignored and fails at ingest with
+# ProducerPolicyViolation. Person is okg's (person module); the other classes
+# are in ../node_health.yaml.
+id: https://archi-physics.org/okg/archi/bridges/node_health
+name: archi_node_health_narrowings
+title: Archi node-health bridge narrowings
+description: Narrowings for archi.sources.node_health emissions.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for archi.sources.node_health emissions.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      compute_node_contains_node_health_check:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: ComputeNode
+          dst_subtypes: NodeHealthCheck

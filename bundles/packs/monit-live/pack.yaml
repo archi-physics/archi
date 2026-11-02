@@ -1,0 +1,44 @@
+name: monit-live
+kind: context
+version: 0.1.0
+description: CERN MONIT monitoring snapshots (SAM, HTCondor, Rucio) and the live MONIT query tools.
+requires:
+  modules: [document_starter, person, extraction, dataset]
+  # Every edge these sources emit starts at a CRIC site or storage endpoint.
+  packs: [cms-catalogs]
+schemas: schemas/
+sources: sources/
+playbooks: playbooks/
+skill_triggers: playbooks/skill-triggers.yaml
+invariants: invariants.yaml
+# Each source is a daily snapshot over the last 24 hours (from_time now-24h),
+# so a run a day apart is on schedule; 36h allows one late run before the
+# snapshot stops covering the present.
+freshness:
+  monit-live.monit_condor: {max_staleness: 36h}
+  monit-live.monit_rucio_datasets: {max_staleness: 36h}
+  monit-live.monit_rucio_transfer: {max_staleness: 36h}
+  monit-live.monit_sam: {max_staleness: 36h}
+# Link-coverage targets (ADR 0002 section 6.1): each becomes the warn-level
+# invariant monit_live_link_<name>.
+link_coverage:
+  # A snapshot is per site; sites missing from CRIC leave a few unlinked.
+  - {name: snapshot_site, from: monitoring_snapshot, edge: hosts, to: site, direction: in, min_fraction: 0.8}
+  # A transfer job runs between sites; sites missing from CRIC leave a few unlinked.
+  - {name: transfer_site, from: transfer_job, edge: hosts, to: site, direction: in, min_fraction: 0.8}
+search_subtypes: [monitoring_snapshot, transfer_job]
+live_tools:
+  - archi.tools.monit:archi_monit_rucio_search
+  - archi.tools.monit:archi_monit_rucio_aggregate
+  - archi.tools.monit:archi_monit_condor_search
+  - archi.tools.monit:archi_monit_condor_aggregate
+# Read-only MONIT queries: a repeat with the same key has the same effect (none).
+idempotent_tools:
+  - archi.tools.monit:archi_monit_rucio_search
+  - archi.tools.monit:archi_monit_rucio_aggregate
+  - archi.tools.monit:archi_monit_condor_search
+  - archi.tools.monit:archi_monit_condor_aggregate
+prompt_fragment: prompt.md
+credentials: [MONIT_GRAFANA_TOKEN]
+# The snapshots and the live tools both query MONIT with a Grafana token.
+needs_credentials: true

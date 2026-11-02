@@ -1,0 +1,27 @@
+action_classes:
+  draft_reply:
+    description: Draft a cited reply for a person to send.
+    payload_schema:
+      type: object
+      required: [ticket_key, body]
+      additionalProperties: false
+      properties:
+        ticket_key: {type: string}
+        body: {type: string}
+    mediator: draft_reply
+    reversible: true
+    blast_radius: Writes a draft; nothing is sent.
+    max_level: L1
+  set_ticket_status:
+    description: Change a ticket's status.
+    payload_schema:
+      type: object
+      required: [ticket_key, status]
+      additionalProperties: false
+      properties:
+        ticket_key: {type: string}
+        status: {enum: [open, in_progress, closed]}
+    mediator: archi.tools.fixture:set_ticket_status
+    reversible: true
+    blast_radius: One ticket's status field.
+    max_level: L2

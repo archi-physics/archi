@@ -1,0 +1,7 @@
+node001|cpu*|mixed|64|256000|(null)|avx2|12.30|120000|none
+node002|cpu*|allocated|64|256000|(null)|avx2|63.10|8000|none
+node003|cpu*|idle|64|256000|(null)|avx2|0.00|250000|none
+node003|debug|idle|64|256000|(null)|avx2|0.00|250000|none
+node042|cpu*|drained|64|256000|(null)|avx2|0.01|250000|archi[run-77]: scratch full [root@2026-10-12T09:41:00]
+gpu01|gpu|mixed|32|512000|gpu:a100:4|avx512,a100|5.00|400000|none
+gpu02|gpu|down*|32|512000|gpu:a100:4|avx512,a100|0.00|0|Not responding [slurm@2026-10-13T06:00:00]

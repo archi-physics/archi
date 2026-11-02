@@ -1,0 +1,63 @@
+pact_version: 5
+id: akmon-v020-public-okg
+title: CI and the quickstart use the public AKMON v0.2.0 release instead of private okg
+tier: 2
+why: 'okg is now public as AKMON (github.com/mitdbg/akmon, release v0.2.0, commit e2c618010b,
+  cut from okg 54e6cf44ee). CI authenticated to private mitdbg/okg with the read-only deploy
+  key OKG_DEPLOY_KEY, so fork pull requests could not run the tests and reported "skipped".
+  The quickstart told readers to clone the private repo and build the Postgres image
+  locally. This change installs the hash-pinned release wheel in CI, needs no secret, and
+  points the quickstart at the tagged public clone and the published Postgres image.
+  The package and the okg command keep their names, so no import changes. Supersedes
+  okg-deploy-key-ci.'
+affected_code:
+- .github/workflows/ci.yml
+- AGENTS.md
+- docs/okg-alignment.md
+- docs/cern-team-quickstart.md
+requirements:
+- id: req.akmon-v020-public-okg.main
+  statement: 'The tests job installs okg only from the AKMON v0.2.0 release wheel, checked
+    by sha256, with no repository secret, and the archi suite passes against it, except `test_redact_email_addresses_quoted_local_part_is_linear` (a 1-second timing test that also fails on unmodified main on a loaded host).
+
+
+    Acceptance:
+
+    - acc.akmon-v020-public-okg.install: ci.yml has no secrets reference and no fork guard,
+    and installs okg-0.2.0-py3-none-any.whl with sha256 72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12.
+    [evidence: executed_test]
+
+    - acc.akmon-v020-public-okg.page: The alignment page''s Last updated line names AKMON
+    v0.2.0 and the same release as ci.yml. [evidence: executed_test]'
+tasks:
+- id: task.akmon-v020-public-okg.deliver
+  requirement: req.akmon-v020-public-okg.main
+  verification: 'Install the exact ci.yml line into a fresh Python 3.12 venv, install archi
+    with dev extras and run the full suite; start the quickstart step 2 container from
+    ghcr.io/mitdbg/akmon-postgres:v0.2.0 and list its extensions.
+
+
+    Proof: 1795 passed, 1 failed (a 1-second timing assertion in test_anonymizer.py that
+    also fails on unmodified main on a loaded host); the container accepted connections and
+    loaded timescaledb, pg_cron, pg_textsearch, vector and btree_gist.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.akmon-v020-public-okg.main
+  status: pass
+  command: python -m pytest python/tests -q
+  head: 4a43a3f1f3642b8e42146168ce1cca18f0e3f85f
+  at: '2026-10-20T11:20:02+00:00'
+  note: '1795 passed, 1 failed against okg 0.2.0 installed from the release wheel by URL
+    and sha256 (Python 3.12, a dev host; the docs-only edits since that run do not touch
+    python/); the failure is test_redact_email_addresses_quoted_local_part_is_linear,
+    a 1-second timing test that also fails on unmodified main on a loaded host and passes
+    alone. A wrong sha256 was rejected by pip. Quickstart step 2 container from
+    ghcr.io/mitdbg/akmon-postgres:v0.2.0 listed timescaledb, pg_cron, pg_textsearch, vector
+    and btree_gist among its extensions. Written by hand: okg pact evidence attach could
+    not run because the worktree''s .git file points outside the synced folder.'
+decisions: []

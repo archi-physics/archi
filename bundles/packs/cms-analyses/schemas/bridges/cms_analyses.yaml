@@ -1,0 +1,113 @@
+# Narrowings for the cms-analyses connective layer.
+#
+# Every edge here is derived by the declarative cross-linker, or matched
+# by the physics-entities source, from identifiers and aliases the records
+# already carry; none is inferred. Without these narrowings the output
+# fails admission with ProducerPolicyViolation.
+#
+# CDSRecord and DocumentationPage are archi's (schemas/sources.yaml);
+# AnalysisNote, Reference and PhysicsAnalysisGroup are the analysis-notes
+# pack's; PhysicsObjectGroup and the entity classes are this pack's.
+id: https://archi-physics.org/okg/archi/bridges/cms_analyses
+name: archi_cms_analyses_narrowings
+title: Archi — cms-analyses narrowings
+description: Narrowings for the derived cross-source edges.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Narrowings for derived cross-source edges.
+    annotations:
+      okg_edge_narrowings: 'true'
+    attributes:
+      # CDS record to note, both directions: the rule is bidirectional because "what
+      # was published from this note" and "which note backs this
+      # summary" are both real questions.
+      cds_record_references_analysis_note:
+        annotations:
+          edge_archetype: references
+          src_subtypes: CDSRecord
+          dst_subtypes: AnalysisNote
+      analysis_note_references_cds_record:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: CDSRecord
+      # The bibliography bridge. A reference naming a
+      # published analysis links to the CDS record for it, so a legacy
+      # note reaches the published corpus through its own citations.
+      reference_references_cds_record:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Reference
+          dst_subtypes: CDSRecord
+      # The TWiki layer joins the same spine as the notes.
+      documentation_page_references_pag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: PhysicsAnalysisGroup
+      documentation_page_references_pog:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: PhysicsObjectGroup
+      # CDS record to PAG, one direction only.
+      cds_record_references_pag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: CDSRecord
+          dst_subtypes: PhysicsAnalysisGroup
+      # The entity layer. Both document kinds point at all
+      # three entity kinds, which is six narrowings and no shortcuts:
+      # okg matches a narrowing on the exact (src, edge, dst) triple, so
+      # an undeclared one fails admission for the WHOLE emission.
+      documentation_page_references_technique:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: PhysicsTechnique
+      documentation_page_references_concept:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: PhysicsConcept
+      documentation_page_references_topic:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: PhysicsTopic
+      analysis_note_references_technique:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: PhysicsTechnique
+      analysis_note_references_concept:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: PhysicsConcept
+      analysis_note_references_topic:
+        annotations:
+          edge_archetype: references
+          src_subtypes: AnalysisNote
+          dst_subtypes: PhysicsTopic
+      # The same group under its two names, both directions.
+      pag_references_pog:
+        annotations:
+          edge_archetype: references
+          src_subtypes: PhysicsAnalysisGroup
+          dst_subtypes: PhysicsObjectGroup
+      pog_references_pag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: PhysicsObjectGroup
+          dst_subtypes: PhysicsAnalysisGroup

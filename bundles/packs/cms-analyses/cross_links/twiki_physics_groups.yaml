@@ -1,0 +1,87 @@
+# TWiki pages to the PAG and POG hubs.
+#
+# Many TWiki pages carry PAG-coded titles (HIG-99-001..., TOP99019...) and
+# many name a POG root (MuonPOG..., JetMET...). cms_analyses'
+# physics_vocabulary source declares all 17 PAGs and all 8 POGs as hubs, so
+# both kinds of page can be linked.
+#
+# Titles are matched with derive_from_path because a page title CONTAINS
+# the code rather than equalling it: "HIG-99-001", "HIG99001Analysis" and
+# "TOP99019Observation" all name TOP/HIG work. The regexes accept the
+# hyphenated and run-together spellings physicists actually use.
+#
+# NOT ANCHORED. An anchored rule (`^`) links only a title that STARTS with a
+# group's spelling, and a large share of real titles carry the group in the
+# middle: 20XXMuonCertification, B2GMuonContactComments,
+# AdditionalMuonTimingChecksEXO12037. `multi_capture: true` switches the
+# matcher from `re.match` to `re.findall`, which is unanchored AND returns
+# every match, so a page naming two groups links to both --
+# B2GBTVContactComments reaches B2G and BTV rather than neither.
+#
+# NO word-boundary guard. A `(?<![a-z])` lookbehind looks prudent but drops
+# many real hits, because CMS titles are CamelCase after a lowercase word far
+# more often than not: SWGuideMuonId, CosmicMuonGenerator, CmsMuonIB. The
+# guard is also redundant: the roots are capitalised, so `Muon` cannot match
+# inside a lowercase run like `premuonstuff` anyway.
+#
+# The residual risk is a title where the root is an ordinary word -- a `Tau`
+# beginning `Tautology`. A page whose title carries a group's name is
+# reasonable evidence it concerns that group, which is all this edge claims.
+rules:
+  - id: cms_analyses_documentation_page_in_pag
+    src:
+      subtype: documentation_page
+      field: title
+    dst:
+      subtype: physics_analysis_group
+      field: code
+      derive_from_path:
+        attr: title
+        regex: '(HIG|TOP|SUS|SMP|B2G|BPH|BTV|EXO|FTR|HIN|JME|MUO|TAU|TRK|EGM|PPS|FSQ)[-_]?[0-9]'
+        capture_field: code
+        multi_capture: true
+    matcher: derive_from_path
+    edge: references
+    bidirectional: false
+
+  # Two POG rules, not one. derive_from_path compares the captured string
+  # to ONE field value by exact lookup and does not expand a list field, so
+  # matching against `title_roots` would link nothing. Each rule captures
+  # the spelling a page title actually carries and compares it to a scalar
+  # on the hub.
+  - id: cms_analyses_documentation_page_in_pog
+    src:
+      subtype: documentation_page
+      field: title
+    dst:
+      subtype: physics_object_group
+      field: title_root
+      derive_from_path:
+        attr: title
+        # The capture must be the whole root so it can equal the hub's
+        # `title_root`.
+        regex: '(Muon|Egamma|JetMET|BTag|Tau|Tracking|Trigger|AlCa)'
+        capture_field: title_root
+        multi_capture: true
+    matcher: derive_from_path
+    edge: references
+    bidirectional: false
+
+  # The second spelling, where a group has one. Today that is b-tagging,
+  # which physicists write as both BTag and BTV, and the jet energy
+  # corrections group, written JetMET and JERC.
+  - id: cms_analyses_documentation_page_in_pog_alt
+    src:
+      subtype: documentation_page
+      field: title
+    dst:
+      subtype: physics_object_group
+      field: title_root_alt
+      derive_from_path:
+        attr: title
+        regex: '(BTV|JERC)'
+        capture_field: title_root_alt
+        multi_capture: true
+    matcher: derive_from_path
+    edge: references
+    bidirectional: false

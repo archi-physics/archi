@@ -1,0 +1,1 @@
+../../../../skills/operator_knowledge.md

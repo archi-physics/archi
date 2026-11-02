@@ -1,0 +1,53 @@
+# The CMS physics organisational vocabulary: 17 PAGs and 8 POGs.
+#
+# Declared in code (archi.sources.physics_vocabulary), not harvested. Nothing
+# publishes this list as data, and left to the analysis-note source the PAG
+# hubs would be a side effect of whichever notes happened to be ingested, so
+# the spine would be a function of the corpus rather than of CMS, and POGs
+# would have no home at all.
+#
+# Cheap: 25 nodes, no network, no cache.
+physics_vocabulary:
+  module: archi.sources.physics_vocabulary
+  class: PhysicsVocabularyAdapter
+  ownership_id: ${deployment_name}.physics-vocabulary
+  admission_policy:
+    producer_id: ${deployment_name}.physics-vocabulary
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: cms-analyses
+      source_name: physics_vocabulary
+    output_signature:
+      nodes:
+        - {subtype: physics_analysis_group}
+        - {subtype: physics_object_group}
+      edges: []
+    output_scope_summary:
+      summary: CMS Physics Analysis Groups and Physics Object Groups as hub nodes
+      nodes: [physics_analysis_group, physics_object_group]
+      edges: []
+  # ORDERING. The analysis-notes source also emits `pag:*` hubs, for a note
+  # installed without this pack. Where both are installed this source runs
+  # after it, so the producers of one id have a defined order, and the
+  # vocabulary's fuller record (name, POG twin) is the last write. (The
+  # other order would make analysis-notes depend on this pack, which
+  # already requires it.)
+  predecessor_source: ${deployment_name}.analysis-notes
+  source_class: reference_catalog
+  # domain_key, not scoped_locator: a PAG code identifies the group itself,
+  # not a position inside some scope. The reference_catalog profile refuses
+  # the locator form, and is right to.
+  record_identity_kind: domain_key
+  record_identity_fields: [code]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: false
+  params:
+    required: true
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

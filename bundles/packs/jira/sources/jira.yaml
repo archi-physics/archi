@@ -1,0 +1,88 @@
+# JIRA connector (cache-backed). Reads the records + meta cache that
+# `python -m archi.downloaders.jira` writes under ${archi_data_root}/jira/.
+# The download is anonymous unless CERN_JIRA_TOKEN is set; anonymous, it
+# sees only public projects. The token is read by environment-variable
+# reference only (credential_refs), never as a value.
+#
+# The parsed record count is cross-checked against meta.json's
+# record_count; a mismatch withholds the completed-scope claim.
+jira:
+  module: archi.sources.jira
+  class: JiraIssueAdapter
+  ownership_id: ${deployment_name}.jira
+  admission_policy:
+    producer_id: ${deployment_name}.jira
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: jira
+      source_name: jira
+    output_signature:
+      nodes:
+        - {subtype: jira_issue}
+        - {subtype: person}
+        - {subtype: document_chunk}
+        # Uncomment together with `comment_records: true` below:
+        # - {subtype: jira_comment}
+      edges:
+        - {src_subtype: jira_issue, edge_type: assigned_to, dst_subtype: person}
+        - {src_subtype: jira_issue, edge_type: reported_by, dst_subtype: person}
+        - {src_subtype: jira_issue, edge_type: contains, dst_subtype: document_chunk}
+        - {src_subtype: document_chunk, edge_type: references, dst_subtype: jira_issue}
+        # Uncomment together with `issue_link_edges: true` below:
+        # - {src_subtype: jira_issue, edge_type: linked_to, dst_subtype: jira_issue}
+        # Uncomment together with `comment_records: true` below:
+        # - {src_subtype: jira_issue, edge_type: has_comment, dst_subtype: jira_comment}
+        # - {src_subtype: jira_comment, edge_type: authored_by, dst_subtype: person}
+    output_scope_summary:
+      summary: JIRA issues, participants, and issue-text chunks from the records cache
+      nodes: [jira_issue, person, document_chunk]
+      edges:
+        - jira_issue assigned_to person
+        - jira_issue reported_by person
+        - jira_issue contains document_chunk
+        - document_chunk references jira_issue
+        # - jira_issue linked_to jira_issue
+        # With comment_records, add jira_comment to nodes above and:
+        # - jira_issue has_comment jira_comment
+        # - jira_comment authored_by person
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [issue_key]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [CERN_JIRA_TOKEN]
+  credential_aliases:
+    CERN_JIRA_TOKEN: [JIRA_CERN_TOKEN]
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/jira/records.json
+    meta_path: ${archi_data_root}/jira/meta.json
+    base_url: https://its.cern.ch/jira
+    # Optional: bound issue-key extraction to your team's projects.
+    # Without it, extraction is bounded to the project prefixes of
+    # the issue keys present in the records cache.
+    # project_keys: [MYPROJECT, MYOTHERPROJECT]
+    # Optional: emit issue links and sub-task parents as
+    # jira_issue linked_to jira_issue edges, one per ordered pair
+    # (attrs link_kind: child, blocks, duplicates, clones, gantt or
+    # relates; link_type: the exact JIRA name). Needs the two
+    # linked_to lines above.
+    # issue_link_edges: true
+    # Optional: emit each comment as a jira_comment record
+    # (jira_issue has_comment jira_comment, jira_comment authored_by
+    # person), named by a hash of its content, and comment_count on
+    # each issue. The chunks do not change. Needs the jira_comment and
+    # comment lines above. Access rules on the project or the source
+    # match comments; a rule on one issue's record does not. Do not
+    # turn this on until the okg in use passes its
+    # test_comment_lineage_filter.py. An edited comment gets a new id:
+    # a cursor run keeps the old copy beside it until the next
+    # scope_complete or reconcile run retracts it.
+    # comment_records: true
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

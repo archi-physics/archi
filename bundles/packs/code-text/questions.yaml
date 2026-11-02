@@ -1,0 +1,16 @@
+init_questions:
+  - id: extractors_dir
+    prompt: directory holding extractors.yaml for the code-text source (leave the default)
+    type: string
+    required: false
+    default: ${deployment_dir}
+    description: |
+      The code-text source stores the code itself (function bodies) and
+      reads its parser and chunk-size settings from the extractors.yaml this
+      pack installs in the deployment directory.
+
+      Leave the default. It is the literal text ${deployment_dir}: the
+      installer does not expand it, and okg replaces it with the deployment
+      directory each time it reads the source registry, so the deployment
+      can move. Give an absolute path only to use an extractors.yaml of
+      your own.

@@ -1,0 +1,61 @@
+# Smoke questions for the bare cern-team bundle (PACT r3-bundle-evals).
+#
+# Run with `archi eval --bundle cern-team` on an instance made by
+# `archi init <name> --bundle cern-team` with no changes: the defaults read the
+# FTS3 and Rucio documentation pages (docsite pack) and Indico event 1716863
+# (indico pack). Each question passes when the model's answer names a node a
+# tool returned from the right source and holds the required strings. No LLM
+# judge: the checks are plain string and id checks.
+#
+# This is the stop-gap harness. The eval framework tracked in #619 replaces it
+# and the CI gate on bundle changes waits for it.
+#
+# pass_threshold starts at 7 of 10. It is a starting value, to be raised once
+# there are results from more than one model; it was not tuned to a model.
+bundle: cern-team
+pass_threshold: 7
+corpus: >-
+  docsite: https://fts3-docs.web.cern.ch/fts3-docs/ (introduction page) and
+  https://rucio.readthedocs.io/en/latest/ (the page that says the docs moved);
+  indico: event 1716863, Knowledge Bases and Agents for CERN (2026-10-19 to 2026-10-23).
+questions:
+  - id: fts3-what-is
+    question: What is FTS3 responsible for, according to the documentation?
+    must_cite: {sources: [docsite]}
+    must_contain: [WLCG]
+  - id: fts3-level
+    question: Is FTS3 a high level or a low level service, and what does it do for files?
+    must_cite: {sources: [docsite]}
+    must_contain: [low level]
+  - id: fts3-version
+    question: Which FTS version does the FTS3 documentation describe?
+    must_cite: {sources: [docsite]}
+    must_contain: ["3.12"]
+  - id: fts3-site-control
+    question: What do participating sites control when files are transferred with FTS3?
+    must_cite: {sources: [docsite]}
+    must_contain: [network]
+  - id: fts3-features
+    question: Name some features listed in the FTS3 documentation, such as how it handles tape or multihop transfers.
+    must_cite: {sources: [docsite]}
+    must_contain_any: [Multihop, Optimizer, Staging, "Third Party"]
+  - id: rucio-moved
+    question: Where has the Rucio documentation moved to?
+    must_cite: {sources: [docsite]}
+    must_contain: [rucio.cern.ch/documentation]
+  - id: workshop-what
+    question: What is the Knowledge Bases and Agents for CERN workshop?
+    must_cite: {sources: [indico-live]}
+    must_contain: [workshop]
+  - id: workshop-dates
+    question: When did the Knowledge Bases and Agents for CERN workshop take place?
+    must_cite: {sources: [indico-live]}
+    must_contain_any: ["2026-10-19", "19 October", "October 19", "Oct 19"]
+  - id: workshop-opensearch
+    question: Who spoke about OpenSearch at the Knowledge Bases and Agents for CERN workshop?
+    must_cite: {sources: [indico-live]}
+    must_contain: [Papadopoulos]
+  - id: workshop-vision-language
+    question: Who presented the benchmark for vision-language models in CMS data quality monitoring?
+    must_cite: {sources: [indico-live]}
+    must_contain: [Soha]

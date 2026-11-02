@@ -1,0 +1,38 @@
+name: fixture-triage
+kind: automation
+version: 0.1.0
+description: Test automation pack for the manifest tests; not shipped.
+requires:
+  packs: [fixture-tools]
+playbooks: playbooks/
+action_classes: action_classes.yaml
+needs_credentials: false
+automation:
+  trigger:
+    type: ticket_queue
+    system: redmine
+    queue: fixture-queue
+  context_gate:
+    sources: [fixture-tools.status]
+    max_staleness: 24h
+    min_context_eval_score: 0.8
+    invariants: [fixture_coverage]
+  playbook: triage.md
+  action_classes: [draft_reply, set_ticket_status]
+  proposal_schema:
+    type: object
+    required: [summary, evidence_ids, action_class, payload, confidence, rollback]
+    additionalProperties: false
+    properties:
+      summary: {type: string, minLength: 1}
+      evidence_ids: {type: array, minItems: 1, items: {type: string}}
+      action_class: {type: string}
+      payload: {type: object}
+      confidence: {type: number, minimum: 0, maximum: 1}
+      rollback: {type: string}
+  budget:
+    cost_per_run: 0.5
+    cost_per_day: 10
+    runs_per_hour: 20
+  default_level: L1
+  max_level: L2

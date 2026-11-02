@@ -1,0 +1,90 @@
+pact_version: 5
+id: r3-mcp-clients
+title: 'Bring your own agent: archi connect, external MCP servers, external packs'
+tier: 2
+why: 'The workshop''s position: every layer replaceable, Archi the glue. Open WebUI is one
+  built-in client; Claude Code, codex, openclaw and custom harnesses must work as well, and
+  the new ingestion and MCP working groups need a way to plug their packages in without landing
+  them in this repo. ADR 0002 D5, §4.'
+affected_code:
+- python/archi/cli/connect.py
+- python/archi/bundles/
+- docs/
+requirements:
+- id: req.r3-mcp-clients.connect
+  statement: '`archi connect open-webui|claude-code|codex|openclaw|mcp` writes the client
+    config for the instance MCP endpoint and token; each recipe is exercised by a scripted
+    call of the instance''s search tool.
+
+
+    Acceptance:
+
+    - acc.r3-mcp-clients.recipes: one recorded run per client. [evidence: executed_test]'
+- id: req.r3-mcp-clients.external
+  statement: 'An instance''s archi.yaml can declare external MCP servers (mcp_servers:) that
+    archi connect registers alongside the instance server; an external package can ship a
+    pack via the archi.packs entry point, following a documented contribution contract.
+
+
+    Acceptance:
+
+    - acc.r3-mcp-clients.mcp: an external MCP server fixture is reachable from a connected
+    client. [evidence: executed_test]
+
+    - acc.r3-mcp-clients.pack: an external pack package installs and publishes. [evidence:
+    executed_test]'
+tasks:
+- id: task.r3-mcp-clients.connect
+  requirement: req.r3-mcp-clients.connect
+  verification: 'Implement the five recipes.
+
+
+    Test plan:
+
+    - per-client runs [evidence: executed_test]'
+- id: task.r3-mcp-clients.external-mcp
+  requirement: req.r3-mcp-clients.external
+  verification: 'mcp_servers block.
+
+
+    Test plan:
+
+    - fixture run [evidence: executed_test]'
+- id: task.r3-mcp-clients.external-pack
+  requirement: req.r3-mcp-clients.external
+  verification: 'Contribution contract doc and fixture package.
+
+
+    Test plan:
+
+    - fixture run [evidence: executed_test]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-mcp-clients.connect
+  status: pass
+  command: 'on a dev host from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file; webui_check.py for open-webui; python -m pytest python/tests -q (network off)'
+  head: 819e65cd84db7fa237e89a7b94b7636864f27160
+  at: '2026-10-26T03:37:02+00:00'
+  note: 'acc.r3-mcp-clients.recipes: one recorded run per client, each a scripted search call through the
+    config exactly as written, with no model involved: claude-code (.mcp.json, the shape the installed
+    claude CLI writes; ${OKG_CHAT_MCP_TOKEN} by default, a literal token only with --embed-token and
+    only into a git-ignored file), codex (config.toml mcp_servers with bearer_token_env_var, merged without
+    dropping the user''s own keys), openclaw (from its documentation only; not run against OpenClaw), mcp
+    (generic JSON), and open-webui (the URL okg chat sync registered, searched from inside the webui
+    container). Every search returned cited rows. Files are written mode 0600 and merged idempotently.
+    Full suite 2819 passed, 29 skipped, network off. Raw transcripts are kept with the lane''s lab results.
+    Two independent reviews; findings fixed.'
+- kind: executed_test
+  requirement: req.r3-mcp-clients.external
+  status: pass
+  command: 'on a dev host from a clean clone of the head (bare cern-team instance, podman-compose, okg 0.2.0): archi connect <client> --write, then python/tests/connect/recipe_check.py on the written file, with an echo MCP server fixture declared under mcp_servers in archi.yaml; pip install of the archi-fixture-packs package, then archi add repo-mirror'
+  head: 819e65cd84db7fa237e89a7b94b7636864f27160
+  at: '2026-10-26T03:37:02+00:00'
+  note: 'acc.r3-mcp-clients.mcp: with the fixture server declared in archi.yaml (header secrets named by
+    environment variable, never a value), the connected client reached both the instance (search, cited
+    rows) and the external server (echo); an unset variable is named in the error. acc.r3-mcp-clients.pack:
+    an external package registering a pack through the archi.packs entry point installed, archi bundles
+    list shows its provider, and archi add published it with the instance repo left clean (archi add now
+    commits archi.lock and profiles/ with the deployment change, limited to those paths); the new records
+    appear in search. The contribution contract is docs/contributing-packs.md.'
+decisions: []

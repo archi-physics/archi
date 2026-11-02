@@ -1,1 +1,0 @@
-Scripts to analyze the output of the `archi evaluate` benchmarking.

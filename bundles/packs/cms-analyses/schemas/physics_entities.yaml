@@ -1,0 +1,181 @@
+# The physics entity layer.
+#
+# 180 entities that documents are linked to, so two documents naming the
+# same thing become reachable from each other. Declared in code at
+# python/archi/sources/_physics_entities_vocabulary.py; emitted, with the
+# edges, by python/archi/sources/physics_entities.py.
+#
+# Three kinds rather than one, because the distinction is the one an
+# analyst makes. A TECHNIQUE is something an analysis does (b-tagging,
+# gen matching); it is the valuable kind, because it is where a TWiki
+# recipe and the notes implementing it meet. A CONCEPT is a
+# reconstructed or physical object (W boson, b jet, MET) -- distinct
+# from a physics OBJECT GROUP, since a muon has a POG and a Z boson
+# does not, yet both are things an analysis handles. A TOPIC is a
+# search target finer-grained than a PAG (dark matter within EXO).
+#
+# `text` here is a short derived label, never prose: okg's stamper
+# rebuilds attrs.text from the other declared searchable fields, so
+# prose put there is silently overwritten.
+id: https://archi-physics.org/okg/archi/physics_entities
+name: archi_physics_entities
+title: Archi — physics entity subtypes
+description: Techniques, concepts and topics that documents name.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+default_prefix: archi
+
+classes:
+  PhysicsTechnique:
+    description: >-
+      Something an analysis does — b tagging, gen matching, unfolding,
+      tag and probe. Where a TWiki recipe and its implementations meet.
+    class_uri: archi:PhysicsTechnique
+    attributes:
+      code:
+        required: true
+        description: Stable slug, e.g. "b_tagging".
+      label:
+        description: Human name, e.g. "b tagging".
+      name:
+        description: Same as label; the substrate's conventional field.
+      entity_kind:
+        description: Always "technique"; carried so one query spans all three.
+      alias_count:
+        range: integer
+        description: How many alias patterns select this entity.
+      notes_reached:
+        range: integer
+        description: >-
+          Analysis notes naming this entity, counted in the run that
+          emitted it. Not provenance — a ranker needs it: a generic
+          entity such as `jet` is named by most notes, so OR-ing entities
+          selects almost the whole corpus.
+      pages_reached:
+        range: integer
+        description: TWiki pages naming this entity, same run.
+      documents_reached:
+        range: integer
+        description: notes_reached + pages_reached.
+      selectivity:
+        description: >-
+          "broad" (>=1000 documents, cannot narrow a search alone),
+          "useful", or "rare" (<=150, identifies a handful of analyses).
+      text:
+        description: Short derived label. Never prose.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_searchable_text_fields: code,label,name
+
+  PhysicsConcept:
+    description: >-
+      A reconstructed or physical object an analysis handles — W boson,
+      b jet, missing transverse momentum, B meson. Distinct from a
+      physics object group: a muon has a POG, a Z boson does not.
+    class_uri: archi:PhysicsConcept
+    attributes:
+      code:
+        required: true
+      label:
+      name:
+      entity_kind:
+        description: Always "concept".
+      alias_count:
+        range: integer
+      notes_reached:
+        range: integer
+        description: Analysis notes naming this entity, counted in the emitting run.
+      pages_reached:
+        range: integer
+        description: TWiki pages naming this entity, same run.
+      documents_reached:
+        range: integer
+        description: notes_reached + pages_reached.
+      selectivity:
+        description: '"broad" (>=1000 documents), "useful", or "rare" (<=150).'
+      text:
+        description: Short derived label. Never prose.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_searchable_text_fields: code,label,name
+
+  PhysicsTopic:
+    description: >-
+      A search target or measurement type, finer-grained than a physics
+      analysis group — dark matter searches within EXO, rare B decays
+      within BPH.
+    class_uri: archi:PhysicsTopic
+    attributes:
+      code:
+        required: true
+      label:
+      name:
+      entity_kind:
+        description: Always "topic".
+      alias_count:
+        range: integer
+      notes_reached:
+        range: integer
+        description: Analysis notes naming this entity, counted in the emitting run.
+      pages_reached:
+        range: integer
+        description: TWiki pages naming this entity, same run.
+      documents_reached:
+        range: integer
+        description: notes_reached + pages_reached.
+      selectivity:
+        description: '"broad" (>=1000 documents), "useful", or "rare" (<=150).'
+      text:
+        description: Short derived label. Never prose.
+    annotations:
+      archetype: artifact
+      transient: "false"
+      okg_searchable_text_fields: code,label,name
+
+  PhysicsObjectGroup:
+    description: >-
+      A CMS Physics Object Group or detector-performance group (Muon,
+      Egamma, JetMET, b tagging, Tau, Tracking, Trigger, AlCa).
+      Declared by archi.sources.physics_vocabulary rather than harvested:
+      the list is a fact about how CMS is organised, not a record in any
+      upstream system.
+    class_uri: archi:PhysicsObjectGroup
+    attributes:
+      code:
+        required: true
+        description: Hub key, e.g. MUON.
+      name:
+        description: Human-readable group name.
+      title_roots:
+        description: >-
+          Title prefixes TWiki pages use for this group, carried so the
+          page-to-hub rule can match what physicists write
+          ("MuonPOGRecipes", not "MUO").
+      title_root:
+        description: >-
+          The primary title prefix, as a scalar. The declarative linker
+          compares a captured string to one field value and does not
+          expand a list.
+      title_root_alt:
+        description: The second title prefix, where a group has two (BTag and BTV).
+      pag_code:
+        description: >-
+          The token the same group carries in the analysis-code
+          namespace (BTV for the b tagging POG). Absent for Trigger and
+          AlCa, which have no PAG twin.
+      text:
+      label:
+    annotations:
+      archetype: actor
+      transient: "false"
+      okg_searchable_text_fields: code,name,text

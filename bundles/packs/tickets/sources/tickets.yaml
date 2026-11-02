@@ -1,0 +1,52 @@
+# Generic tickets connector (cache-backed). Reads the records + meta cache that
+# `python -m archi.downloaders.tickets` (Redmine, JIRA or both) or
+# `python -m archi.downloaders.redmine` writes under ${archi_data_root}/tickets/ (any
+# tracker can fill the same cache). A Redmine download is anonymous unless
+# REDMINE_API_KEY is set; a JIRA download needs JIRA_API_TOKEN. Both are named by
+# environment variable only (credential_refs) and read by the downloader, never by
+# the source.
+#
+# The parsed record count is cross-checked against meta.json's record_count; a
+# mismatch withholds the completed-scope claim.
+tickets:
+  module: archi.sources.tickets
+  class: TicketAdapter
+  ownership_id: ${deployment_name}.tickets
+  admission_policy:
+    producer_id: ${deployment_name}.tickets
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: tickets
+      source_name: tickets
+    output_signature:
+      nodes:
+        - {subtype: tracker_ticket}
+        - {subtype: person}
+      edges:
+        - {src_subtype: tracker_ticket, edge_type: reported_by, dst_subtype: person}
+        - {src_subtype: tracker_ticket, edge_type: assigned_to, dst_subtype: person}
+    output_scope_summary:
+      summary: Tracker tickets and the people on them, from the records cache
+      nodes: [tracker_ticket, person]
+      edges:
+        - tracker_ticket reported_by person
+        - tracker_ticket assigned_to person
+  source_class: mutable_api
+  record_identity_kind: remote_id
+  record_identity_fields: [system, ticket_id]
+  source_revision_kind: updated_at
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  credential_refs: [REDMINE_API_KEY, JIRA_API_TOKEN]
+  required_for_baseline: true
+  params:
+    records_path: ${archi_data_root}/tickets/records.json
+    meta_path: ${archi_data_root}/tickets/meta.json
+    system: ${system}
+    base_url: '${base_url}'
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

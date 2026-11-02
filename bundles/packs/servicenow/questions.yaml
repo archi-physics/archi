@@ -1,0 +1,20 @@
+init_questions:
+  - id: instance_url
+    prompt: ServiceNow instance URL
+    type: string
+    required: true
+    description: |
+      The instance the downloader reads and the links on each record point to,
+      for example https://example.service-now.com. No trailing path.
+
+  - id: auth_method
+    prompt: ServiceNow authentication, oauth or basic
+    type: string
+    required: false
+    default: oauth
+    description: |
+      How the downloader signs in. `oauth` reads SERVICENOW_CLIENT_ID and
+      SERVICENOW_CLIENT_SECRET from the environment; `basic` reads
+      SERVICENOW_USERNAME and SERVICENOW_PASSWORD. The values never enter
+      the configuration: only these names do. Fill the cache with
+      `python -m archi.downloaders.servicenow` before the first ingest.

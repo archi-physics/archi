@@ -1,0 +1,631 @@
+# Archi W2 — bridge narrowings for the catalog/feed sources
+# (req.w2.sources-catalogs).
+#
+# Copied wholesale from the proven cms deployment bridge
+# okg-deployments cms/schemas/bridges/cms_narrowings.yaml at
+# main@f33a9c4, adapting only the id/name headers to archi naming
+# (attribute content verbatim). Thirteen narrowings the cms file also
+# carried are NOT here because they already ship (same or equivalent
+# name) in archi/schemas/bridges/sources.yaml — keep ONE definition
+# each, in sources.yaml:
+#   jira_issue_assigned_to_person, jira_issue_reported_by_person,
+#   jira_issue_contains_chunk, chunk_references_jira_issue,
+#   documentation_page_contains_chunk,
+#   documentation_page_references_documentation_page,
+#   chunk_references_release (as chunk_references_cmssw_release),
+#   repository_contains_documentation_page
+#     (as repo_contains_documentation_page),
+#   and — landed with the MONIT port — site_hosts_monitoring_snapshot,
+#   site_hosts_transfer_job, transfer_site_to_site, site_hosts_dataset,
+#   storage_endpoint_hosts_dataset (declared there with
+#   optional_when_subtypes_missing so the sources slice composes green
+#   without this file).
+# Copy this file into the deployment as
+# <deployment>/schemas/bridges/operations.yaml alongside
+# archi/schemas/operations.yaml -> <deployment>/schemas/operations.yaml
+# (the catalog composer only honors narrowings under schemas/bridges/).
+
+id: https://archi-physics.org/okg/archi/bridges/operations
+name: archi_operations_narrowings
+title: Archi W2 — operations bridge narrowings
+description: Narrowings needed by the ported catalog/feed source adapters.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  archi: https://archi-physics.org/okg/archi/
+
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+  EdgeNarrowings:
+    description: Archi operations edge narrowings.
+    annotations:
+      okg_edge_narrowings: "true"
+    attributes:
+
+      facility_contains_site:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Facility
+          dst_subtypes: Site
+
+      site_contains_storage_endpoint:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Site
+          dst_subtypes: StorageEndpoint
+
+      site_contains_site_config:
+        description: CMS site owns its SITECONF configuration record.
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Site
+          dst_subtypes: SiteConfig
+
+      site_contains_compute_endpoint:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Site
+          dst_subtypes: ComputeEndpoint
+
+      site_contains_infrastructure_service:
+        annotations:
+          edge_archetype: contains
+          src_subtypes: Site
+          dst_subtypes: InfrastructureService
+
+      site_member_of_federation:
+        annotations:
+          edge_archetype: member_of
+          src_subtypes: Site
+          dst_subtypes: Federation
+
+      operator_responsible_for_site:
+        annotations:
+          edge_archetype: responsible_for
+          src_subtypes: Operator
+          dst_subtypes: Site
+
+      operator_has_identity:
+        annotations:
+          edge_archetype: has_identity
+          src_subtypes: Operator
+          dst_subtypes: Identity
+
+      person_responsible_for_site:
+        annotations:
+          edge_archetype: responsible_for
+          src_subtypes: Person
+          dst_subtypes: Site
+
+      team_responsible_for_site:
+        annotations:
+          edge_archetype: responsible_for
+          src_subtypes: Team
+          dst_subtypes: Site
+
+      documentation_page_references_site:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: Site
+
+      documentation_page_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: JiraIssue
+
+      documentation_page_references_infrastructure_service:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: InfrastructureService
+
+      documentation_page_references_release:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: CMSSWRelease
+
+      documentation_page_references_global_tag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: GlobalTag
+
+      documentation_page_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      documentation_page_references_workflow:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: Workflow
+
+      documentation_page_references_run:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentationPage
+          dst_subtypes: Run
+
+      forum_thread_contains_chunk:
+        description: HyperNews/forum body chunked with DocumentChunk.
+        annotations:
+          edge_archetype: contains
+          src_subtypes: ForumThread
+          dst_subtypes: DocumentChunk
+
+      forum_thread_references_site:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: Site
+
+      forum_thread_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: JiraIssue
+
+      forum_thread_references_infrastructure_service:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: InfrastructureService
+
+      forum_thread_references_release:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: CMSSWRelease
+
+      forum_thread_references_global_tag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: GlobalTag
+
+      forum_thread_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      forum_thread_references_workflow:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: Workflow
+
+      forum_thread_references_run:
+        annotations:
+          edge_archetype: references
+          src_subtypes: ForumThread
+          dst_subtypes: Run
+
+      meeting_minutes_contains_chunk:
+        description: Indico agenda/notes/PDF text chunked with DocumentChunk.
+        annotations:
+          edge_archetype: contains
+          src_subtypes: MeetingMinutes
+          dst_subtypes: DocumentChunk
+
+      meeting_minutes_contains_document:
+        description: Indico event owns parsed attachment documents.
+        annotations:
+          edge_archetype: contains
+          src_subtypes: MeetingMinutes
+          dst_subtypes: Document
+
+      meeting_minutes_contains_meeting_minutes:
+        description: An Indico event owns one record per talk (indico_live with contributions on).
+        annotations:
+          edge_archetype: contains
+          src_subtypes: MeetingMinutes
+          dst_subtypes: MeetingMinutes
+
+      meeting_minutes_references_site:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: Site
+
+      meeting_minutes_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: JiraIssue
+
+      meeting_minutes_references_infrastructure_service:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: InfrastructureService
+
+      meeting_minutes_references_release:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: CMSSWRelease
+
+      meeting_minutes_references_global_tag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: GlobalTag
+
+      meeting_minutes_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      meeting_minutes_references_workflow:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: Workflow
+
+      meeting_minutes_references_run:
+        annotations:
+          edge_archetype: references
+          src_subtypes: MeetingMinutes
+          dst_subtypes: Run
+
+      document_references_site:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: Site
+
+      document_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: JiraIssue
+
+      document_references_infrastructure_service:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: InfrastructureService
+
+      document_references_release:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: CMSSWRelease
+
+      document_references_global_tag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: GlobalTag
+
+      document_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      document_references_workflow:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: Workflow
+
+      document_references_run:
+        annotations:
+          edge_archetype: references
+          src_subtypes: Document
+          dst_subtypes: Run
+
+      chunk_references_site:
+        description: Extracted references from chunk text to CMS sites.
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: Site
+
+      chunk_references_infrastructure_service:
+        description: Extracted references from chunk text to services.
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: InfrastructureService
+
+      repository_references_generic_repo:
+        annotations:
+          edge_archetype: references
+          src_subtypes: SoftwareRepository
+          dst_subtypes: Repo
+          optional_when_subtypes_missing: 'true'
+
+      service_exposes_infrastructure_service:
+        annotations:
+          edge_archetype: exposes
+          src_subtypes: Service
+          dst_subtypes: InfrastructureService
+          optional_when_subtypes_missing: 'true'
+
+      infrastructure_service_exposes_endpoint:
+        annotations:
+          edge_archetype: exposes
+          src_subtypes: InfrastructureService
+          dst_subtypes: Endpoint
+          optional_when_subtypes_missing: 'true'
+
+      jira_issue_references_ticket:
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: Ticket
+          optional_when_subtypes_missing: 'true'
+
+      jira_issue_references_site:
+        description: JIRA issue inherits site mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: Site
+
+      jira_issue_references_jira_issue:
+        description: JIRA issue inherits cross-ticket mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: JiraIssue
+
+      jira_issue_references_infrastructure_service:
+        description: JIRA issue inherits service mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: InfrastructureService
+
+      jira_issue_references_release:
+        description: JIRA issue inherits CMSSW release mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: CMSSWRelease
+
+      jira_issue_references_global_tag:
+        description: JIRA issue inherits global tag mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: GlobalTag
+
+      jira_issue_references_dataset:
+        description: JIRA issue inherits dataset mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      jira_issue_references_workflow:
+        description: JIRA issue inherits workflow mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: Workflow
+
+      jira_issue_references_run:
+        description: JIRA issue inherits run-number mentions from its text chunks.
+        annotations:
+          edge_archetype: references
+          src_subtypes: JiraIssue
+          dst_subtypes: Run
+
+      jira_issue_has_comment:
+        annotations:
+          edge_archetype: has_comment
+          src_subtypes: JiraIssue
+          dst_subtypes: Comment
+          optional_when_subtypes_missing: 'true'
+
+      jira_issue_affects_site:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: JiraIssue
+          dst_subtypes: Site
+
+      jira_issue_affects_infrastructure_service:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: JiraIssue
+          dst_subtypes: InfrastructureService
+
+      jira_issue_affects_workflow:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: JiraIssue
+          dst_subtypes: Workflow
+
+      cmssw_release_supersedes_release:
+        annotations:
+          edge_archetype: supersedes
+          src_subtypes: CMSSWRelease
+          dst_subtypes: CMSSWRelease
+
+      global_tag_supersedes_global_tag:
+        annotations:
+          edge_archetype: supersedes
+          src_subtypes: GlobalTag
+          dst_subtypes: GlobalTag
+
+      global_tag_depends_on_release:
+        annotations:
+          edge_archetype: depends_on
+          src_subtypes: GlobalTag
+          dst_subtypes: CMSSWRelease
+
+      workflow_depends_on_release:
+        annotations:
+          edge_archetype: depends_on
+          src_subtypes: Workflow
+          dst_subtypes: CMSSWRelease
+
+      workflow_depends_on_global_tag:
+        annotations:
+          edge_archetype: depends_on
+          src_subtypes: Workflow
+          dst_subtypes: GlobalTag
+
+      workflow_consumes_dataset:
+        annotations:
+          edge_archetype: consumes
+          src_subtypes: Workflow
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      workflow_produces_dataset:
+        annotations:
+          edge_archetype: produces
+          src_subtypes: Workflow
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      dataset_derived_from_dataset:
+        annotations:
+          edge_archetype: derives_from
+          src_subtypes: Dataset
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      document_derived_from_source_file:
+        description: A parsed Document derives from its filesystem source file (doc-corpus).
+        annotations:
+          edge_archetype: derived_from
+          src_subtypes: Document
+          dst_subtypes: SourceFile
+          optional_when_subtypes_missing: 'true'
+
+      # storage_endpoint_hosts_dataset / site_hosts_dataset: see
+      # archi/schemas/bridges/sources.yaml (single definition, landed
+      # with the MONIT port).
+
+      site_executes_workflow:
+        annotations:
+          edge_archetype: executes
+          src_subtypes: Site
+          dst_subtypes: Workflow
+
+      compute_endpoint_executes_workflow:
+        annotations:
+          edge_archetype: executes
+          src_subtypes: ComputeEndpoint
+          dst_subtypes: Workflow
+
+      downtime_affects_site:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: Downtime
+          dst_subtypes: Site
+
+      downtime_affects_infrastructure_service:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: Downtime
+          dst_subtypes: InfrastructureService
+
+      sam_test_affects_site:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: SAMTest
+          dst_subtypes: Site
+
+      sam_test_affects_infrastructure_service:
+        annotations:
+          edge_archetype: affects
+          src_subtypes: SAMTest
+          dst_subtypes: InfrastructureService
+
+      data_certification_recorded_during_run:
+        annotations:
+          edge_archetype: recorded_during
+          src_subtypes: DataCertification
+          dst_subtypes: Run
+
+      data_certification_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DataCertification
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      transfer_job_consumes_dataset:
+        annotations:
+          edge_archetype: consumes
+          src_subtypes: TransferJob
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      transfer_job_produces_dataset:
+        annotations:
+          edge_archetype: produces
+          src_subtypes: TransferJob
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      # site_hosts_transfer_job / transfer_site_to_site /
+      # site_hosts_monitoring_snapshot: see
+      # archi/schemas/bridges/sources.yaml (single definition, landed
+      # with the MONIT port).
+
+      infrastructure_service_hosts_monitoring_snapshot:
+        annotations:
+          edge_archetype: hosts
+          src_subtypes: InfrastructureService
+          dst_subtypes: MonitoringSnapshot
+
+      chunk_references_global_tag:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: GlobalTag
+
+      chunk_references_dataset:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: Dataset
+          optional_when_subtypes_missing: 'true'
+
+      chunk_references_workflow:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: Workflow
+
+      chunk_references_run:
+        annotations:
+          edge_archetype: references
+          src_subtypes: DocumentChunk
+          dst_subtypes: Run
+
+      # A git commit whose message names a Jira key (CMSTRANSF-974) links
+      # to that ticket: the cms_jira_key extractor route for git_commit in
+      # enrichment/defaults/linker_config.yaml. The target is matched
+      # exactly (ProjectionAliasBackend); a key with no ticket in the graph
+      # makes no edge and stays an unresolved link_retry row.
+      # Optional so a deployment without the git_graph module composes.
+      git_commit_references_jira_issue:
+        annotations:
+          edge_archetype: references
+          src_subtypes: GitCommit
+          dst_subtypes: JiraIssue
+          optional_when_subtypes_missing: 'true'
