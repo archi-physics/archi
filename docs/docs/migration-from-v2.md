@@ -114,7 +114,7 @@ need them in the next sections.
    ```bash
    python3 -m venv ~/archi3-venv
    . ~/archi3-venv/bin/activate
-   pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
+   pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
    archi --help
    ```
 
@@ -125,6 +125,9 @@ need them in the next sections.
    (here `NAME3`). Ports are chosen free at `init` time and bound to
    127.0.0.1, so they do not collide with v2. The instance lives in its own
    directory and its own containers and volumes.
+
+   The 3.0 name takes lowercase letters, digits and `-` only (no `_`, no capitals),
+   so pick another `NAME3` if your v2 name has either.
 
    ```bash
    NAME3=${NAME}-v3

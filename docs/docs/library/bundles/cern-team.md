@@ -6,9 +6,9 @@ A generic CERN team knowledge instance - documentation, meetings, wiki, document
 
 | Field | Value |
 |---|---|
-| Version | `0.3.0` |
+| Version | `0.4.0` |
 | Extends | nothing |
-| Okg versions it supports | `>=0.2.0,<0.3` |
+| Okg versions it supports | `>=0.4.0,<0.5` |
 
 ## Packs
 

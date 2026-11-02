@@ -6,9 +6,9 @@ A cluster manager's knowledge instance - documentation, tickets, operational mem
 
 | Field | Value |
 |---|---|
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Extends | nothing |
-| Okg versions it supports | `>=0.2.0,<0.3` |
+| Okg versions it supports | `>=0.4.0,<0.5` |
 
 ## Packs
 

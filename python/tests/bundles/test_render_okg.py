@@ -121,6 +121,28 @@ def test_rendered_deployment_defaults_carry_the_bundle_chat(cern, tmp_path):
     assert defaults["chat"]["preset"]["suggestions"] == bundle.chat["suggestions"]
 
 
+def test_doc_text_nodes_is_declared_only_when_a_pack_writes_doc_records(cern, tmp_path):
+    # okg 0.4.0 does not recognise archi's code_text module as a document source,
+    # so without the key its MCP instructions leave out the doc: records.
+    plain = render(resolve(cern, ["cern-team"]), tmp_path / "plain")
+    with_text = render(resolve(cern, ["cern-team"], with_packs=["git-code", "code-text"]),
+                       tmp_path / "text")
+    read = lambda out: yaml.safe_load((out.profile_dir / "deployment-defaults.yaml").read_text())
+    assert "mcp" not in read(plain)
+    assert read(with_text)["mcp"] == {"doc_text_nodes": True}
+
+
+@pytest.mark.parametrize("line", [
+    "  module: archi.sources.code_text",
+    '  module: "archi.sources.code_text"',
+    "  module: 'archi.sources.code_text'  # file texts",
+])
+def test_doc_text_modules_reads_quoted_and_commented_module_lines(line):
+    from archi.bundles.compose import Composition, doc_text_modules
+    comp = Composition(sources={"x": f"x:\n{line}\n", "y": "y:\n  module: archi.sources.docs\n"})
+    assert doc_text_modules(comp) == ["archi.sources.code_text"]
+
+
 # ---------------------------------------------------------------------------
 # No trace
 # ---------------------------------------------------------------------------

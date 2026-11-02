@@ -353,6 +353,19 @@ def compose(resolution: Resolution) -> Composition:
 #: The module okg's worker imports to get the ops loop (archi.ops.workflow).
 OPS_WORKFLOW_MODULE = "archi.ops.workflow"
 
+#: archi source modules that write file-text `doc:` records. okg 0.4.0 names
+#: `doc:` records in its MCP instructions only for a document source it
+#: recognises in the registry, and it does not recognise these, so a profile
+#: that selects one sets `mcp.doc_text_nodes: true`.
+DOC_TEXT_MODULES = frozenset({"archi.sources.code_text", "archi.sources.indico"})
+_MODULE_LINE = re.compile(r"""^\s*module:\s*["']?([\w.]+)["']?\s*(?:#.*)?$""", re.MULTILINE)
+
+
+def doc_text_modules(comp: Composition) -> list[str]:
+    """The selected source modules that write `doc:` records, sorted."""
+    found = {m for text in comp.sources.values() for m in _MODULE_LINE.findall(text)}
+    return sorted(found & DOC_TEXT_MODULES)
+
 
 def deployment_defaults(resolution: Resolution, comp: Composition, profile_name: str) -> dict:
     """The base deployment defaults with the pack- and bundle-decided parts filled."""
@@ -382,4 +395,6 @@ def deployment_defaults(resolution: Resolution, comp: Composition, profile_name:
         # before `okg install`: editing `runtime:` afterwards makes publish refuse
         # (CatalogOwnershipMismatch) until `okg catalog load --apply`.
         data["runtime"] = {"enabled": True, "workflows": [OPS_WORKFLOW_MODULE]}
+    if doc_text_modules(comp):
+        data.setdefault("mcp", {})["doc_text_nodes"] = True
     return data

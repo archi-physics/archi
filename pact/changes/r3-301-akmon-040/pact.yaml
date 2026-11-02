@@ -1,0 +1,136 @@
+pact_version: 5
+id: r3-301-akmon-040
+title: 'archi-kb 3.0.1: run on AKMON 0.4.0'
+tier: 2
+why: 'archi-kb 3.0.0 is pinned to AKMON okg 0.2.0; AKMON 0.4.0 is current. Reading
+  okg 0.4.0 found two breaks. (1) The MCP server now names doc: text records in its
+  instructions only when it recognises a document source in the registry, and it does
+  not recognise archi.sources.code_text (a DocCorpusSource subclass), so code-text
+  instances lose that guidance unless the manifest sets mcp.doc_text_nodes. (2) okg
+  chat sync now refuses deployment names outside [a-z0-9][a-z0-9-]*, while archi init
+  accepts "_", so `archi init my_team` succeeds and `archi up` fails. Jason asked for
+  3.0.1 on 0.4.0 (2026-11-02) and set the order: 3.0.1, then the cutover to main.
+  The release-notes links pointed at main (v2) and 404ed on the 3.0.0 GitHub release;
+  they are pinned to the tag and a test keeps them so.'
+affected_code:
+- python/archi/bundles/compose.py
+- python/archi/cli/init.py
+- python/archi/bundles/base/questions.yaml
+- python/archi/__init__.py
+- python/pyproject.toml
+- python/README.md
+- python/tests/
+- bundles/
+- .github/workflows/ci.yml
+- .github/workflows/nightly-e2e.yml
+- README.md
+- CHANGELOG.md
+- docs/
+requirements:
+- id: req.r3-301-akmon-040.okg040
+  statement: 'archi runs on AKMON okg 0.4.0: CI, the nightly and every install page
+    install the 0.4.0 wheel pinned by sha256; the bundles declare okg >=0.4.0,<0.5; the
+    alignment page names 0.4.0; the full suite passes on 0.4.0.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.suite: python -m pytest python/tests on okg 0.4.0 passes. [evidence: pytest]
+
+    - acc.r3-301-akmon-040.e2e: the empty-machine path (init, up, doctor) passes on 0.4.0. [evidence: executed_test]'
+- id: req.r3-301-akmon-040.doctext
+  statement: 'A profile that selects a source module archi knows creates doc: text
+    records (archi.sources.code_text, archi.sources.indico) sets mcp.doc_text_nodes:
+    true; other profiles leave the key out.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.doctext: a compose test renders both cases. [evidence: pytest]'
+- id: req.r3-301-akmon-040.names
+  statement: 'archi init refuses an instance name okg chat sync would refuse (anything
+    outside a lowercase letter followed by lowercase letters, digits and -), before it
+    creates anything.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.names: an init test refuses my_team and accepts my-team. [evidence: pytest]'
+- id: req.r3-301-akmon-040.release
+  statement: 'Version 3.0.1 with release notes; release-notes links name their own tag,
+    never main, enforced by a test.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.links: test_package_metadata checks every release-notes file. [evidence: pytest]'
+tasks:
+- id: task.r3-301-akmon-040.okg040
+  requirement: req.r3-301-akmon-040.okg040
+  verification: 'Move the pin; run the suite and the e2e path on 0.4.0.
+
+
+    Test plan:
+
+    - full suite on okg 0.4.0 [evidence: pytest]
+
+    - init, up, doctor on okg 0.4.0 [evidence: executed_test]'
+- id: task.r3-301-akmon-040.doctext
+  requirement: req.r3-301-akmon-040.doctext
+  verification: 'Set mcp.doc_text_nodes in deployment_defaults.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_compose.py [evidence: pytest]'
+- id: task.r3-301-akmon-040.names
+  requirement: req.r3-301-akmon-040.names
+  verification: 'Tighten NAME_RE.
+
+
+    Test plan:
+
+    - init tests [evidence: pytest]'
+- id: task.r3-301-akmon-040.release
+  requirement: req.r3-301-akmon-040.release
+  verification: 'Bump the version, write release notes, fix links.
+
+
+    Test plan:
+
+    - python/tests/test_package_metadata.py [evidence: pytest]'
+evidence:
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.okg040
+  status: pass
+  command: "CI run 41496573673 (ci.yml, job tests (python 3.12)): pip install the AKMON v0.4.0 wheel (sha256 18ccec94...1abc) and ./python[dev]; python -m pytest python/tests -q -> 4112 passed, 45 skipped, 0 failed"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+  note: "acc.r3-301-akmon-040.suite. The full suite on okg 0.4.0 in CI. The suite includes the tests for the other three requirements: tests/bundles/test_render_okg.py and tests/bundles/test_companions.py (doc_text_nodes at init and on archi add), tests/cli/test_init.py (my_team refused, nothing created), tests/test_package_metadata.py (release-notes links name their own tag)."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.okg040
+  status: pass
+  command: "CI run 41484374513 (nightly-e2e.yml on the PR, job 'empty runner to a cited answer'): user commands from the quickstart on a clean runner with the AKMON v0.4.0 wheel: archi init, archi up, archi doctor, a cited answer"
+  head: 531fcfe473be02dcdc931baa79005988196f81fa
+  at: "2026-11-02T16:55:46+00:00"
+  note: "acc.r3-301-akmon-040.e2e on cern-team without code-text. Run at 531fcfe4; the later commits change tests, docs, the release plan, archi add's mcp merge and the module match, none of which this path runs. The e2e re-run on 657f5cfa was still queued when this row was written."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.doctext
+  status: pass
+  command: "CI run 41496573673: tests/bundles/test_render_okg.py::test_doc_text_nodes_is_declared_only_when_a_pack_writes_doc_records, ::test_doc_text_modules_reads_quoted_and_commented_module_lines, tests/bundles/test_companions.py::test_archi_add_git_code_brings_code_text"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+  note: "acc.r3-301-akmon-040.doctext. Not run end to end with code-text on a live okg 0.4.0 instance."
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.names
+  status: pass
+  command: "CI run 41496573673: tests/cli/test_init.py::test_an_underscore_name_is_refused_before_anything_is_created"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+- kind: executed_test
+  requirement: req.r3-301-akmon-040.release
+  status: pass
+  command: "CI run 41496573673: tests/test_package_metadata.py (release_notes_link_to_their_own_tag, install_lines_pin_this_version, install_lines_use_the_okg_wheel_ci_tests)"
+  head: 657f5cfada1a38bc805f926cf5cafb315db38675
+  at: "2026-11-02T18:08:39+00:00"
+decisions: []

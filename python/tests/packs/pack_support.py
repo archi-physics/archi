@@ -56,7 +56,7 @@ def solo_catalog(tmp_path: Path, pack: str):
                 "version": "0.1.0",
                 "description": f"{pack} alone on the base.",
                 "packs": {"default": [pack]},
-                "okg": ">=0.2.0,<0.3",
+                "okg": ">=0.4.0,<0.5",
             }
         )
     )

@@ -231,3 +231,11 @@ pacts:
       task.r3-release.r1: "R1: inventory live v2 deployments and owners"
       task.r3-release.cutover: "Cutover: v3 line becomes main, v2 branch kept"
       task.r3-release.tag: "Tag and publish archi-kb 3.0.0; announce"
+  r3-301-akmon-040:
+    milestone: "3.0 · M7 Docs & release"
+    labels: []
+    tasks:
+      task.r3-301-akmon-040.okg040: "3.0.1: run on AKMON okg 0.4.0"
+      task.r3-301-akmon-040.doctext: "3.0.1: declare doc: records for code-text profiles"
+      task.r3-301-akmon-040.names: "3.0.1: archi init refuses _ in instance names"
+      task.r3-301-akmon-040.release: "3.0.1: version, release notes, links to their own tag"

@@ -318,14 +318,14 @@ def test_last_bundle_given_wins_over_an_earlier_child(catalog_copy):
 
 def test_okg_ranges_intersect():
     r = resolve(load_catalog(CATALOG), ["child-bundle"])
-    assert canonical(r.okg_range) == "<0.3,>=0.2.0"
+    assert canonical(r.okg_range) == "<0.5,>=0.4.0"
 
 
 def test_empty_okg_intersection_stops(catalog_copy):
-    write_bundle(catalog_copy, "future", packs={"default": ["alpha"]}, okg=">=0.3")
+    write_bundle(catalog_copy, "future", packs={"default": ["alpha"]}, okg=">=0.5")
     err = _conflict(lambda: resolve(load_catalog(catalog_copy), ["base-bundle", "future"]),
                     "okg_range_empty")
-    assert err.data["ranges"] == {"base-bundle": ">=0.2.0,<0.3", "future": ">=0.3"}
+    assert err.data["ranges"] == {"base-bundle": ">=0.4.0,<0.5", "future": ">=0.5"}
 
 
 @pytest.mark.parametrize(

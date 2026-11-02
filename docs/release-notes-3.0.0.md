@@ -68,8 +68,8 @@ and its `v2.x` tags.
 - Level L3. Document upload in the chat UI. SSO-page and Helm support.
 
 The full list, and what each missing piece means for a v2 deployment, is in
-[Moving from v2 to 3.0](https://github.com/archi-physics/archi/blob/main/docs/docs/migration-from-v2.md). Every item is
-tracked in the [changelog](https://github.com/archi-physics/archi/blob/main/CHANGELOG.md).
+[Moving from v2 to 3.0](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/migration-from-v2.md). Every item is
+tracked in the [changelog](https://github.com/archi-physics/archi/blob/v3.0.0/CHANGELOG.md).
 
 Built and tested against okg 0.2.0 (AKMON). The asks filed with AKMON for what
 Archi works around are listed in the changelog.
@@ -97,7 +97,7 @@ archi doctor --json
 ```
 
 Then ask a question in the chat that `archi up` printed, or connect an agent
-with `archi connect claude-code`. The [quickstart](https://github.com/archi-physics/archi/blob/main/docs/docs/quickstart.md)
+with `archi connect claude-code`. The [quickstart](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/quickstart.md)
 explains each command, including the check that an answer cites graph records.
 
 ## Upgrade from v2
@@ -106,9 +106,9 @@ There is no in-place upgrade. Back up v2, stand 3.0 up beside it under another
 name, move each source, compare answers, and move your users when ready. v2 is
 never touched, so you can stop at any step.
 
-- [Moving from v2 to 3.0](https://github.com/archi-physics/archi/blob/main/docs/docs/migration-from-v2.md): what to back up,
+- [Moving from v2 to 3.0](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/migration-from-v2.md): what to back up,
   how to run both, how each source moves, what has no equivalent, how to roll
   back.
 - If you run a v2 deployment, tell the maintainers. The
-  [cutover runbook](https://github.com/archi-physics/archi/blob/main/docs/docs/operating/cutover.md) waits for every live
+  [cutover runbook](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/operating/cutover.md) waits for every live
   deployment to have an owner and a decision.

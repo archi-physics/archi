@@ -4,7 +4,7 @@ From an empty machine to a cited answer from your team's knowledge graph,
 with the `cern-team` bundle: five user commands, the same ones the nightly
 build runs (the `cd` is not counted, and the fifth is a check).
 
-**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; okg 0.2.0 does not install on 3.14),
+**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; okg 0.4.0 does not install on 3.14),
 and `git`. No account, key or root access.
 
 With rootless podman, container health checks run from systemd user timers.
@@ -13,7 +13,7 @@ shared hosts), the checks may never run, and then `archi up` waits with no time 
 Use docker there, or log in to a session with a systemd user manager.
 
 ```bash
-pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
+pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
 archi init myteam --bundle cern-team
 cd myteam
 archi up
@@ -38,7 +38,7 @@ What each command does:
 5. **The last command asks a question over MCP** and succeeds only when the
    answer cites graph records. The script is in the Archi repository, so set
    `ARCHI_CHECKOUT` to a clone of this release
-   (`git clone --branch v3.0.0 https://github.com/archi-physics/archi`).
+   (`git clone --branch v3.0.1 https://github.com/archi-physics/archi`).
    It needs the `mcp` Python package. In daily use you ask in the chat
    instead, or
    [connect an agent](connecting-an-agent.md).

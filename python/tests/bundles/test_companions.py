@@ -106,7 +106,7 @@ def test_an_unknown_companion_stops_resolution_naming_its_trigger(companions):
 
     catalog = load_catalog(companions)
     catalog.bundles["broken"] = Bundle(companions / "broken", {
-        "name": "broken", "version": "0.1.0", "description": "x", "okg": ">=0.2.0,<0.3",
+        "name": "broken", "version": "0.1.0", "description": "x", "okg": ">=0.4.0,<0.5",
         "packs": {"default": ["alpha"], "companions": {"alpha": ["nope"]}},
     })
     err = _conflict(lambda: resolve(catalog, ["broken"]), "unknown_pack")
@@ -246,6 +246,9 @@ def test_archi_add_git_code_brings_code_text(tmp_path):
     lock = read_lock(instance)
     assert lock["selection"]["with"] == ["git-code"]
     assert {"git-code", "code-text"} <= set(lock["packs"])
+    # code-text writes doc: records; okg 0.4.0 names them only when the manifest says so.
+    manifest = yaml.safe_load((deployment / "deployment.yaml").read_text())
+    assert manifest["mcp"]["doc_text_nodes"] is True
 
 
 def test_archi_add_git_code_respects_an_earlier_opt_out(tmp_path):

@@ -5,4 +5,4 @@ packs:
   default: [repo-mirror]
 chat:
   site_name: Mirror chat
-okg: ">=0.2.0,<0.3"
+okg: ">=0.4.0,<0.5"

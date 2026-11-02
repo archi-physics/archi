@@ -110,6 +110,14 @@ def test_a_non_empty_directory_and_a_bad_name_are_refused(tmp_path, shipped):
              data_root=tmp_path / "d", run_okg=False, echo=lambda _: None)
 
 
+def test_an_underscore_name_is_refused_before_anything_is_created(tmp_path, shipped):
+    # okg 0.4.0 `chat sync` refuses "_" in a deployment name, so `archi up` would fail.
+    with pytest.raises(InitError, match="no _"):
+        init("my_team", bundles=["cern-team"], catalog=shipped, directory=tmp_path / "x",
+             data_root=tmp_path / "d", run_okg=False, echo=lambda _: None)
+    assert not (tmp_path / "x").exists()
+
+
 # ---------------------------------------------------------------------------
 # the instance directory (no okg, no containers)
 # ---------------------------------------------------------------------------
