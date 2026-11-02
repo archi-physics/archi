@@ -31,7 +31,7 @@ on:
       - "python/archi/cli/evaluate.py"
       - ".github/workflows/nightly-e2e.yml"
   push:
-    branches: [archi_v3]
+    branches: [main]
     paths:
       - "python/archi/cli/**"
       - "python/archi/stack/**"
