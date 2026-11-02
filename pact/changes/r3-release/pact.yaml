@@ -120,7 +120,7 @@ evidence:
     Supported AKMON range as announced in docs/release-notes-3.0.0.md: okg 0.2.0 only. AKMON 0.4.0 is
     not supported by 3.0.0 (two breaks found; follow-up 3.0.1). The cutover requirement is not evidenced.
 - kind: manual
-  requirement: req.r3-release.cutover
+  requirement: req.r3-release.inventory
   status: pass
   command: >-
     Jason's written acceptance of the six cutover losses (runbook docs/docs/operating/cutover.md step 2),
@@ -128,7 +128,8 @@ evidence:
   head: f20471904fadec1846b95754b6610fb290b8c8f6
   at: '2026-11-02T18:49:11+00:00'
   note: >-
-    Step 2 only: condition 3 holds by written acceptance, not parity. Losses: ticket-triage with no shadow
+    Runbook step 2 keeps the acceptance with the inventory, so it is recorded here and not under
+    req.r3-release.cutover, which steps 4 and 7 prove. Condition 3 holds by written acceptance, not parity. Losses: ticket-triage with no shadow
     trial (d717); mail intake stays on v2 until 3.1, SubMIT's -mailer the named exception to condition 2
     (d704); no resolution emails until 3.1 (d719), with no notice needed because SubMIT users do not use them
     (Jason, desk chat, 2026-11-02: "No they don't use this"); comp-ops and SubMIT not rebuilt from bundles; smoke sets on
