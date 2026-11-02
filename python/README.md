@@ -4,18 +4,18 @@
 knowledge graph from what a facility already writes down, such as
 documentation, meetings, tickets, wikis, catalogs, monitoring and code. Agents
 answer from that graph and cite the records they used. Automations read the
-same graph and propose actions. A person approves each action, and a separate
-component carries it out. No agent holds a credential that can change an
-external system.
+same graph and propose actions. A person approves each action, and only then
+does the automation runtime, a separate process, carry it out. No agent holds
+a credential that can change an external system.
 
 This package is Archi. You import it as `archi`. Do not install `archi` from
 PyPI: that name belongs to an unrelated package.
 
 ## Install
 
-Archi runs on the `okg` graph engine, which is not on PyPI. Install it from
-its release file, in a Python 3.12 virtual environment, with `docker` or
-`podman` (with `compose`) and `git`:
+You need Python 3.12, `docker` or `podman` (with `compose`), and `git`.
+Archi runs on the `okg` graph engine, which is not on PyPI, so it is
+installed from its release file. In a virtual environment:
 
 ```bash
 pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
@@ -30,19 +30,29 @@ archi up                               # starts the graph, the MCP server and th
 archi doctor                           # checks the instance; each failure names its fix
 ```
 
-`archi up` prints the chat address and the MCP endpoint. The chat needs a
-language model: point it at a local ollama, or add one in the chat's admin
-settings. Agents such as Claude Code connect over MCP with
-`archi connect claude-code --write`, and need no model from Archi.
+`archi up` prints the chat address, the admin login and the MCP endpoint.
+MCP (Model Context Protocol) is how agents call the graph's tools.
+
+- **Chat** needs a language model. `archi up` uses an ollama running on the
+  same host, or the one you name with `--ollama-url`. You can also add a model
+  under Settings > Admin > Connections in the chat.
+- **Agents** such as Claude Code bring their own model. In the instance
+  directory, run `archi connect claude-code --write`, then export
+  `OKG_CHAT_MCP_TOKEN` from the instance's `.env` in the shell that starts
+  the agent.
 
 ## Bundles
 
 | Bundle | For |
 |---|---|
 | `cern-team` | Any CERN team: documentation and meetings, with no credentials needed to start. |
-| `cms-physics` | CMS physics: analysis notes, published summaries, physics TWiki pages. |
-| `cms-comp-ops` | CMS computing operations: sites, storage, datasets, workflows and past incidents. |
+| `cms-physics` | CMS physics: `cern-team` plus analysis notes, CDS records and physics TWiki pages. Needs CERN credentials. |
+| `cms-comp-ops` | CMS computing operations: `cern-team` plus sites, storage, datasets, workflows and past incidents. Needs CERN credentials. |
 | `cluster-manager` | Any cluster operator: documentation, tickets, and optionally Slurm, HTCondor and ServiceNow. |
+
+Automations are optional packs. For example, `--with ticket-triage` adds
+cited ticket triage to `cms-comp-ops` or `cluster-manager`. They run in an
+`okg runtime worker` that you start yourself, as the documentation describes.
 
 ## Documentation
 

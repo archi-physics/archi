@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -13,6 +13,7 @@ requires-python = ">=3.12"
 # because a published version's page cannot be changed afterwards.
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "requests>=2.31",
     "pyyaml>=6.0",
@@ -47,7 +48,7 @@ dev = [
     "pytest>=8.0",
     "black>=24.0",
     "isort>=5.13",
-    "hatchling>=1.21",
+    "hatchling>=1.27",
 ]
 # The JIRA downloader (archi.downloaders.jira) needs the `jira` client. It is
 # optional: only operators who run that downloader install it

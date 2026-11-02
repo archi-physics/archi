@@ -71,8 +71,8 @@ knowledge graph and the automation runtime cannot be replaced in 3.0.
 | Ingestion | Archi connectors | Any pip package that registers packs through the `archi.packs` entry point. See [Contributing a pack](contributing-a-pack.md). |
 | Tools | The instance's OKG MCP server plus Archi live tools | Any MCP server declared in the instance. See [Connecting an agent](connecting-an-agent.md). |
 | Automation runtime | OKG deployment workflows | An external runner using the proposal API. This waits on an upstream OKG change. |
-| Agent and chat | Open WebUI, built in | Anything that speaks MCP: Claude Code, codex, openclaw, your own. |
-| Language model | Whatever the agent is configured with | Agent-side configuration. Archi never stores it. |
+| Agent and chat | Open WebUI, built in | Anything that speaks MCP: Claude Code, Codex, OpenClaw, your own. |
+| Language model | Chat: a local ollama model (default `llama3.1:8b`). Agents over MCP: the agent's own model. | Chat: `--answer chat_model=`, `--ollama-url`, or a connection added in Open WebUI. Agents: their own configuration. Archi stores no model API key. |
 
 ## Who it is for
 
