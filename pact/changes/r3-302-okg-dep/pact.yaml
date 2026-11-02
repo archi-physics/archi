@@ -1,0 +1,60 @@
+pact_version: 5
+id: r3-302-okg-dep
+title: 'archi-kb 3.0.2: depend on okg from PyPI, so one pip install sets up Archi'
+tier: 2
+why: 'Until 3.0.1, okg (AKMON) was published only as a wheel on GitHub releases, and PyPI rejects
+  packages that depend on a URL, so archi-kb declared no okg dependency. `pip install archi-kb`
+  then succeeded with no graph engine, and every install page carried the AKMON wheel URL and its
+  sha256. Jason chose to publish okg on PyPI (board d1009, d1010, d1011); lane a4 publishes AKMON
+  v0.5.0 and the tested 0.4.0 wheel there (d1016). 3.0.2 declares okg>=0.4.0,<0.5, the range archi
+  is tested on, and the install becomes one line.'
+affected_code:
+- python/pyproject.toml
+- python/archi/__init__.py
+- python/README.md
+- python/tests/
+- .github/workflows/nightly-e2e.yml
+- README.md
+- CHANGELOG.md
+- docs/
+requirements:
+- id: req.r3-302-okg-dep.dependency
+  statement: 'archi-kb declares okg>=0.4.0,<0.5 as a dependency; the okg release CI installs
+    satisfies it.
+
+
+    Acceptance:
+
+    - acc.r3-302-okg-dep.meta: test_package_metadata checks the declared range against the
+    CI pin. [evidence: pytest]'
+- id: req.r3-302-okg-dep.install
+  statement: 'Every install page says `pip install archi-kb==3.0.2` and nothing else to install
+    okg, and the nightly installs the checkout with no separate okg step, so okg comes from PyPI.
+
+
+    Acceptance:
+
+    - acc.r3-302-okg-dep.pages: test_package_metadata and test_docs_quickstart. [evidence: pytest]
+
+    - acc.r3-302-okg-dep.e2e: the nightly passes with okg resolved from PyPI. [evidence: executed_test]'
+tasks:
+- id: task.r3-302-okg-dep.dependency
+  requirement: req.r3-302-okg-dep.dependency
+  verification: 'Declare the dependency; bump to 3.0.2.
+
+
+    Test plan:
+
+    - python/tests/test_package_metadata.py [evidence: pytest]'
+- id: task.r3-302-okg-dep.install
+  requirement: req.r3-302-okg-dep.install
+  verification: 'One-line install pages and nightly step 1.
+
+
+    Test plan:
+
+    - python/tests/test_docs_quickstart.py [evidence: pytest]
+
+    - nightly-e2e on this branch once okg 0.4.0 is on PyPI [evidence: executed_test]'
+evidence: []
+decisions: []
