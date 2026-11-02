@@ -7,4 +7,4 @@ packs:
 chat:
   site_name: Base chat
   suggestions: ["What is in alpha?"]
-okg: ">=0.2.0,<0.3"
+okg: ">=0.4.0,<0.5"

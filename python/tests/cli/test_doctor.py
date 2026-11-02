@@ -24,6 +24,7 @@ from archi.cli.doctor import doctor
 from archi.cli.init import commit_all, init
 from archi.stack.checks import CHECKS, FAIL, PASS, WARN, Context, Probes, run_checks
 from archi.stack.instance import Instance, read_env, write_env
+from archi.stack.okg import okg_version
 
 REPO = Path(__file__).resolve().parents[3]
 LEDGER = REPO / "docs" / "docs" / "operating" / "footguns.md"
@@ -129,7 +130,7 @@ def healthy_probes(**overrides) -> Probes:
         okg_json=healthy_okg,
         mcp=lambda url, token: {"tools": ["inspect", "search"], "is_error": False, "text": "ok"},
         environ={},
-        installed_okg=lambda: "0.2.0",
+        installed_okg=okg_version,  # the instance records the okg it was made with
     )
     probes.update(overrides)
     return Probes(**probes)

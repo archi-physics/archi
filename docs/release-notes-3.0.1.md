@@ -39,7 +39,7 @@ release. Do not `pip install archi`: that name belongs to an unrelated package.
 
 An instance records the okg version it was made with, and `archi doctor` fails
 when the installed okg differs. Keep a 3.0.0 instance's environment on
-`archi-kb==3.0.0` with okg 0.2.0, or make the instance again with 3.0.1.
+archi-kb 3.0.0 with okg 0.2.0, or make the instance again with 3.0.1.
 Moving an existing instance's database from AKMON 0.2.0 to 0.4.0 is not tested
 in 3.0.1. AKMON's upgrade deletes data it no longer uses, so back up first.
 
