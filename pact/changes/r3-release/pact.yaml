@@ -142,7 +142,7 @@ evidence:
   command: >-
     gh pr view 896 (merged 2026-11-02T19:13:46Z by JasonMoho as a merge commit); git ls-remote origin main v2
     and tag v2.6.0; gh api repos/archi-physics/archi --jq .default_branch; CUTOVER.sh step7-pr (read-only)
-  head: aea56cb8ba890336709604a131a01cea2150b19d
+  head: d109a2fcd4376dd6c1a1bcdce4d6b63bdd518559
   at: '2026-11-02T19:14:23+00:00'
   note: >-
     acc.r3-release.main holds: by Jason's choice the swap was a PR, not the runbook's renames ("I don't care about
