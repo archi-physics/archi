@@ -3,7 +3,7 @@
 Archi 3.0.1 runs on AKMON 0.4.0, the current release of the graph engine.
 3.0.0 ran on AKMON 0.2.0. The package is `archi-kb` on PyPI. You import it as
 `archi`. Everything in [3.0.0](https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.0.md)
-is still here, and so is everything it lacked.
+is still here, and so are its gaps.
 
 ## What changed
 

@@ -358,7 +358,7 @@ OPS_WORKFLOW_MODULE = "archi.ops.workflow"
 #: recognises in the registry, and it does not recognise these, so a profile
 #: that selects one sets `mcp.doc_text_nodes: true`.
 DOC_TEXT_MODULES = frozenset({"archi.sources.code_text", "archi.sources.indico"})
-_MODULE_LINE = re.compile(r"^\s*module:\s*([\w.]+)\s*$", re.MULTILINE)
+_MODULE_LINE = re.compile(r"""^\s*module:\s*["']?([\w.]+)["']?\s*(?:#.*)?$""", re.MULTILINE)
 
 
 def doc_text_modules(comp: Composition) -> list[str]:
@@ -396,5 +396,5 @@ def deployment_defaults(resolution: Resolution, comp: Composition, profile_name:
         # (CatalogOwnershipMismatch) until `okg catalog load --apply`.
         data["runtime"] = {"enabled": True, "workflows": [OPS_WORKFLOW_MODULE]}
     if doc_text_modules(comp):
-        data["mcp"] = {"doc_text_nodes": True}
+        data.setdefault("mcp", {})["doc_text_nodes"] = True
     return data

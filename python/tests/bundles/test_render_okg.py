@@ -132,6 +132,17 @@ def test_doc_text_nodes_is_declared_only_when_a_pack_writes_doc_records(cern, tm
     assert read(with_text)["mcp"] == {"doc_text_nodes": True}
 
 
+@pytest.mark.parametrize("line", [
+    "  module: archi.sources.code_text",
+    '  module: "archi.sources.code_text"',
+    "  module: 'archi.sources.code_text'  # file texts",
+])
+def test_doc_text_modules_reads_quoted_and_commented_module_lines(line):
+    from archi.bundles.compose import Composition, doc_text_modules
+    comp = Composition(sources={"x": f"x:\n{line}\n", "y": "y:\n  module: archi.sources.docs\n"})
+    assert doc_text_modules(comp) == ["archi.sources.code_text"]
+
+
 # ---------------------------------------------------------------------------
 # No trace
 # ---------------------------------------------------------------------------

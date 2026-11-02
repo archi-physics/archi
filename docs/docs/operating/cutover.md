@@ -1,7 +1,8 @@
 # Cutover runbook: Archi 3.0 becomes `main`
 
 This page is the order of work for the day the 3.0 line replaces v2 as
-`archi-physics/archi` `main`, and `archi-kb` 3.0.0 reaches PyPI. It follows
+`archi-physics/archi` `main`, and `archi-kb` 3.0.1 is tagged and published (3.0.0 reached PyPI on
+2026-11-02, before the cutover). It follows
 [ADR 0002](../reference/adr.md) decision D1 and the cutover rules of ADR 0001
 section 14. Each step has the exact commands, a check that proves it, and a
 way back.
@@ -16,7 +17,7 @@ Run the steps in order. Do not start step 7 (the branch swap) until steps 1 to
 ## State of the conditions
 
 ADR 0001 section 14 says the cutover happens when four things hold, "and not
-before". Where each stands when 3.0.0 is prepared:
+before". Where each stands when 3.0.1 is prepared:
 
 | Condition | State | What closes it |
 |---|---|---|
@@ -54,7 +55,7 @@ private copy of the repository (branch protection not exercised; see step 7).
 `ticket-triage` (#746) is in 3.0 and replaces SubMIT's v2 Redmine bot at the
 cutover (board d717); mail intake stays with v2 until 3.1 (board d704), and
 resolution emails pause from the cutover until 3.1 (board d719). If anything else
-lands before the freeze in step 3, update the "not in 3.0.0" lists in the
+lands before the freeze in step 3, update the "not in 3.0" lists in the
 changelog, the release notes and the [v2 guide](../migration-from-v2.md) first.
 
 ## Step 0. Look at the starting point
@@ -116,7 +117,7 @@ for each deployment exists.
 ## Step 2. Accept the losses in writing
 
 `JASON`. Condition 3 holds only with parity, or with the losses accepted in
-writing. 3.0.0 does not have parity. Write the acceptance and keep it with the
+writing. 3.0 does not have parity. Write the acceptance and keep it with the
 inventory. It lists the known limits in the changelog, which are the canonical
 list, and the v2 features in [what has no equivalent yet](../migration-from-v2.md#what-has-no-equivalent-yet). In short:
 
@@ -626,7 +627,7 @@ merge the fix, and tag again.
 
 **Rollback once something was uploaded.** A published version stays on PyPI.
 Do not reuse the number. `JASON` yanks the release on pypi.org (Manage,
-Releases, Options, Yank), fixes the problem, and releases `3.0.1`. Delete the
+Releases, Options, Yank), fixes the problem, and releases `3.0.2`. Delete the
 GitHub release (`gh release delete v3.0.1 --yes`) only if you also delete the
 tag, and only when nobody has installed it.
 

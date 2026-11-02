@@ -445,6 +445,11 @@ def _merge_into_deployment(plan, deployment_dir: Path, new_sources: list[str],
     for subtype in subtypes:
         if subtype not in live_subtypes:
             live_subtypes.append(subtype)
+    # A pack that writes doc: records (code-text) sets mcp.doc_text_nodes in the
+    # defaults; okg 0.4.0 reads it from the manifest, so `archi add` carries it over.
+    # A value the operator set by hand is kept.
+    for key, value in (plan.deployment_defaults.get("mcp") or {}).items():
+        manifest.setdefault("mcp", {}).setdefault(key, value)
     answers = manifest.setdefault("profile", {}).setdefault("init_answers", {})
     answers.update(new_answers)
     _dump_yaml(manifest_path, manifest)

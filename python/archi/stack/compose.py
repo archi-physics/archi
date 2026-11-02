@@ -33,8 +33,8 @@ GRAPH_DB_IMAGE = "ghcr.io/mitdbg/akmon-postgres:v{okg_version}"
 PRELOAD_LIBRARIES = ("timescaledb", "pg_cron", "pg_textsearch")
 #: The 64 MB container default is too small for okg's index builds.
 GRAPH_DB_SHM = "2g"
-#: PGDATA inside ghcr.io/mitdbg/akmon-postgres:v0.2.0 (`podman image inspect`
-#: shows PGDATA=/home/postgres/pgdata/data). The graph volume must cover its
+#: PGDATA inside ghcr.io/mitdbg/akmon-postgres (`podman image inspect` of v0.2.0
+#: shows PGDATA=/home/postgres/pgdata/data; not re-inspected on v0.4.0). The graph volume must cover its
 #: parent; mounted anywhere else it holds nothing and the graph dies with the
 #: container. Re-check when GRAPH_DB_IMAGE changes.
 GRAPH_DB_PGDATA = "/home/postgres/pgdata/data"  # container-internal path

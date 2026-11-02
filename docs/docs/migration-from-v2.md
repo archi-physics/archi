@@ -126,6 +126,9 @@ need them in the next sections.
    127.0.0.1, so they do not collide with v2. The instance lives in its own
    directory and its own containers and volumes.
 
+   The 3.0 name takes lowercase letters, digits and `-` only (no `_`, no capitals),
+   so pick another `NAME3` if your v2 name has either.
+
    ```bash
    NAME3=${NAME}-v3
    archi init $NAME3 --bundle cern-team --dir ~/archi3/$NAME3

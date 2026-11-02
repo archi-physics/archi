@@ -246,6 +246,9 @@ def test_archi_add_git_code_brings_code_text(tmp_path):
     lock = read_lock(instance)
     assert lock["selection"]["with"] == ["git-code"]
     assert {"git-code", "code-text"} <= set(lock["packs"])
+    # code-text writes doc: records; okg 0.4.0 names them only when the manifest says so.
+    manifest = yaml.safe_load((deployment / "deployment.yaml").read_text())
+    assert manifest["mcp"]["doc_text_nodes"] is True
 
 
 def test_archi_add_git_code_respects_an_earlier_opt_out(tmp_path):

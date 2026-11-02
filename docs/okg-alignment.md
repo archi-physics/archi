@@ -193,7 +193,7 @@ profile. The historical CMSSW cache is still unavailable; unit fixtures are not
 real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
 *Last updated 2026-11-02, tested against AKMON v0.4.0 @ `5567c79a54` (archi-kb 3.0.1); archi branch
-`archi_v3` @ `b0abe604`. Before: AKMON v0.2.0 @ `e2c618010b` (2026-10-20).*
+`claude/x5-301-akmon-040` (PR #893), cut from `archi_v3` @ `b0abe604`. Before: AKMON v0.2.0 @ `e2c618010b` (2026-10-20).*
 
 **Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15).** The fork was
 synced to okg `dev` first; it had no commits of its own. Full archi suite
