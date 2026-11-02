@@ -247,7 +247,7 @@ commit and run the same `archi restart` again.
 ## Step 5. Merge the release-readiness change into `archi_v3`
 
 A maintainer merges the pull request that holds this page and the version
-bump to 3.0.0, after CI is green, not before:
+bump to 3.0.1, after CI is green, not before:
 
 ```bash
 gh pr checks <number> --repo archi-physics/archi
@@ -261,7 +261,7 @@ you check first.
 Then stop merging to `archi_v3` as well. Announce that in the tracking issue.
 
 **Check:** on `archi_v3`, `grep '^version' python/pyproject.toml` prints
-`version = "3.0.0"`, and `grep __version__ python/archi/__init__.py` prints
+`version = "3.0.1"`, and `grep __version__ python/archi/__init__.py` prints
 the same.
 **Rollback:** `git revert -m 1 <merge sha>` on `archi_v3`, as a pull request.
 
@@ -294,22 +294,22 @@ publisher is how `release.yml` publishes without a token.
 3. **Install the wheel before the irreversible upload.** Build it exactly as
    `release.yml` does, install it into a clean virtual environment, and smoke
    test it. Outside the repository, in a scratch directory. archi needs
-   Python 3.12 (3.13 is untested; okg 0.2.0 refuses 3.14); on a host whose `python3` is older (3.9 on some
+   Python 3.12 (3.13 is untested; okg 0.4.0 refuses 3.14); on a host whose `python3` is older (3.9 on some
    lab hosts) the wheel still builds but the install fails on an okg
    dependency, so name the interpreter:
 
    ```bash
-   PY=python3.12; "$PY" --version         # 3.12; okg 0.2.0 refuses 3.14
+   PY=python3.12; "$PY" --version         # 3.12; okg 0.4.0 refuses 3.14
    W=$(mktemp -d)
    git clone --branch archi_v3 https://github.com/archi-physics/archi.git "$W/src"
    (cd "$W/src/python" && "$PY" -m venv "$W/build-venv" && "$W/build-venv/bin/pip" install build \
        && "$W/build-venv/bin/python" -m build --wheel --outdir "$W/dist")
-   ls "$W/dist"                          # archi_kb-3.0.0-py3-none-any.whl
+   ls "$W/dist"                          # archi_kb-3.0.1-py3-none-any.whl
    "$PY" -m venv "$W/venv"
    "$W/venv/bin/pip" install \
-       "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" \
-       "$W"/dist/archi_kb-3.0.0-py3-none-any.whl
-   "$W/venv/bin/python" -c "import archi; print(archi.__version__)"   # 3.0.0
+       "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" \
+       "$W"/dist/archi_kb-3.0.1-py3-none-any.whl
+   "$W/venv/bin/python" -c "import archi; print(archi.__version__)"   # 3.0.1
    "$W/venv/bin/archi" bundles validate                              # exits 0
    "$W/venv/bin/archi" bundles list                                  # 4 bundles, then the packs
    rm -rf "$W"
@@ -319,7 +319,7 @@ publisher is how `release.yml` publishes without a token.
    switch for another index, so this local install is the rehearsal.
 
 **Check:** the environment list prints `pypi`; the wheel is named
-`archi_kb-3.0.0-py3-none-any.whl`; the smoke commands succeed. The pending
+`archi_kb-3.0.1-py3-none-any.whl`; the smoke commands succeed. The pending
 publisher itself is first exercised by step 9.
 **Rollback:** `gh api --method DELETE repos/archi-physics/archi/environments/pypi`;
 delete the pending publisher on pypi.org. Nothing has been published.
@@ -551,7 +551,7 @@ has no `nightly-e2e.yml`. Check its first scheduled run the next day with
 <https://archi-physics.github.io/archi/> shows the 3.0 pages.
 **Rollback:** revert the pull request.
 
-## Step 9. Tag 3.0.0 and publish
+## Step 9. Tag 3.0.1 and publish
 
 `JASON` for the tag, because pushing it publishes to PyPI at once and a
 published version cannot be reused. Only after step 7's checks pass.
@@ -563,9 +563,9 @@ Make the local `main` the remote one, and prove it:
 git fetch origin
 git switch -C main origin/main
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" && echo "HEAD is origin/main"
-grep '^version' python/pyproject.toml          # version = "3.0.0"
-git tag -a v3.0.0 -m "archi-kb 3.0.0"
-git push origin v3.0.0
+grep '^version' python/pyproject.toml          # version = "3.0.1"
+git tag -a v3.0.1 -m "archi-kb 3.0.1"
+git push origin v3.0.1
 ```
 
 The tag starts `release.yml`. It refuses when the tag differs from the version
@@ -583,8 +583,8 @@ in the run.
 Then create the GitHub release from the release notes:
 
 ```bash
-gh release create v3.0.0 --repo archi-physics/archi --verify-tag \
-    --title "archi 3.0.0" --notes-file docs/release-notes-3.0.0.md
+gh release create v3.0.1 --repo archi-physics/archi --verify-tag \
+    --title "archi 3.0.1" --notes-file docs/release-notes-3.0.1.md
 ```
 
 **Check (this is the `r3-release` acceptance):** in an empty directory and a
@@ -599,8 +599,8 @@ Docker some files in the data root may belong to root; remove those with
 ```bash
 PY=python3.12; V=$(mktemp -d)
 "$PY" -m venv "$V/venv"
-"$V/venv/bin/pip" install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
-"$V/venv/bin/python" -c "import archi; print(archi.__version__)"     # 3.0.0
+"$V/venv/bin/pip" install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+"$V/venv/bin/python" -c "import archi; print(archi.__version__)"     # 3.0.1
 "$V/venv/bin/archi" init cutover-check --dir "$V/instance" --data-root "$V/data"
 "$V/venv/bin/archi" up --instance "$V/instance"       # the first start loads an embedding model: minutes
 "$V/venv/bin/archi" doctor --instance "$V/instance"; echo "doctor exit $?"   # must print 0
@@ -613,7 +613,7 @@ rm -rf "$V"
 **If the workflow fails before anything is uploaded.** The `build` job (tag does
 not match the version, build error) or the `publish` job before upload (the
 pending publisher or the `pypi` environment is wrong) leaves nothing on PyPI.
-Check `https://pypi.org/project/archi-kb/` shows no 3.0.0. Then fix the cause
+Check `https://pypi.org/project/archi-kb/` shows no 3.0.1. Then fix the cause
 (the settings in step 6, or a pull request for the version) and, if the tag is
 still the right commit, re-run the failed jobs without moving the tag:
 
@@ -621,13 +621,13 @@ still the right commit, re-run the failed jobs without moving the tag:
 gh run rerun --failed --repo archi-physics/archi <run id>
 ```
 
-If the fix needs a code change, delete the tag (`git push origin :refs/tags/v3.0.0`),
+If the fix needs a code change, delete the tag (`git push origin :refs/tags/v3.0.1`),
 merge the fix, and tag again.
 
 **Rollback once something was uploaded.** A published version stays on PyPI.
 Do not reuse the number. `JASON` yanks the release on pypi.org (Manage,
 Releases, Options, Yank), fixes the problem, and releases `3.0.1`. Delete the
-GitHub release (`gh release delete v3.0.0 --yes`) only if you also delete the
+GitHub release (`gh release delete v3.0.1 --yes`) only if you also delete the
 tag, and only when nobody has installed it.
 
 ## Step 9a. Switch SubMIT's ticket replies to `ticket-triage`
@@ -741,8 +741,8 @@ again. The approved promotion still counts.
 `JASON` sends it. Include:
 
 - where to start ([quickstart](../quickstart.md)) and the
-  [release notes](https://github.com/archi-physics/archi/blob/main/docs/release-notes-3.0.0.md);
-- the supported AKMON version (okg 0.2.0) and what 3.0.0 does not have
+  [release notes](https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md);
+- the supported AKMON version (okg 0.4.0) and what 3.0.1 does not have
   (step 2);
 - **what changed for v2 users.** `main` is now 3.0 and `v2` is v2. A v2
   checkout must run `git fetch && git switch v2`. Do not `git pull` on `main`.
@@ -766,5 +766,5 @@ are approved.
 | A v2 owner needs a fix. | Open the pull request against the `v2` branch. Tag `v2.<n>`. The owner pins the new tag as in step 4, route B. |
 | A v2 deployment must be rebuilt. | `git checkout v2.6.0` (or its pinned tag), then the restore steps in [Moving from v2 to 3.0](../migration-from-v2.md#roll-back). |
 | Someone's clone is confused by the renames. | Step 7d, or a fresh clone. |
-| 3.0.0 has a bad bug. | Fix on `main`, bump to `3.0.1`, tag `v3.0.1`. Yank 3.0.0 only if it is harmful. |
+| 3.0.1 has a bad bug. | Fix on `main`, bump to `3.0.2`, tag `v3.0.2`. Yank 3.0.1 only if it is harmful. |
 | The branch swap itself was wrong. | The rollback of step 7. It is safe until people push to the new `main`. After that, talk first. |

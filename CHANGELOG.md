@@ -4,6 +4,29 @@ All notable changes to `archi-kb` (import name `archi`). Numbers like #786
 are pull requests on `archi-physics/archi`. The v2 line (`v2.x` tags, branch
 `v2` after the cutover) is not covered here.
 
+## 3.0.1
+
+Runs on AKMON 0.4.0 instead of 0.2.0. See the
+[release notes](docs/release-notes-3.0.1.md).
+
+- CI, the nightly and every install line use the AKMON 0.4.0 wheel, pinned
+  by sha256. The four bundles declare `okg >=0.4.0,<0.5` and go up one minor
+  version (cern-team 0.4.0; cms-physics, cms-comp-ops and cluster-manager 0.2.0).
+- A profile that selects a source writing `doc:` text records
+  (`archi.sources.code_text`, `archi.sources.indico`) sets
+  `mcp.doc_text_nodes: true`. AKMON 0.4.0 does not recognise these modules as
+  document sources, and without the key it leaves `doc:` records out of the
+  agent instructions.
+- `archi init` refuses `_` in an instance name. AKMON 0.4.0's `okg chat sync`
+  refuses it in a deployment name, so `archi up` failed after `init` had
+  succeeded.
+- `docs/release-notes-3.0.0.md` links to the `v3.0.0` tag instead of `main`,
+  which holds v2 until the cutover. A test now requires every release-notes link
+  into this repository to name its own tag.
+- An instance made with 3.0.0 records okg 0.2.0, and `archi doctor` fails under
+  okg 0.4.0. Keep its environment on 3.0.0, or make it again. Moving its
+  database to 0.4.0 is not tested.
+
 ## 3.0.0
 
 Archi 3.0 is a new product, not an upgrade of v2. It automates operations

@@ -18,7 +18,7 @@ Archi runs on the `okg` graph engine, which is not on PyPI, so it is
 installed from its release file. In a virtual environment:
 
 ```bash
-pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
+pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
 ```
 
 ## First instance
@@ -56,9 +56,9 @@ cited ticket triage to `cms-comp-ops` or `cluster-manager`. They run in an
 
 ## Documentation
 
-- [Quickstart](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/quickstart.md)
-- [Documentation](https://github.com/archi-physics/archi/tree/v3.0.0/docs/docs)
-- [Release notes for 3.0.0](https://github.com/archi-physics/archi/blob/v3.0.0/docs/release-notes-3.0.0.md)
-- [Moving from Archi v2](https://github.com/archi-physics/archi/blob/v3.0.0/docs/docs/migration-from-v2.md)
+- [Quickstart](https://github.com/archi-physics/archi/blob/v3.0.1/docs/docs/quickstart.md)
+- [Documentation](https://github.com/archi-physics/archi/tree/v3.0.1/docs/docs)
+- [Release notes for 3.0.1](https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md)
+- [Moving from Archi v2](https://github.com/archi-physics/archi/blob/v3.0.1/docs/docs/migration-from-v2.md)
 
 Archi is released under the MIT License.

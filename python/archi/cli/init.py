@@ -58,7 +58,10 @@ from archi.stack.instance import (
 )
 from archi.stack.okg import Okg, OkgError, answer_flags, okg_version, role_password
 
-NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
+#: okg 0.4.0 `chat sync` refuses a deployment name outside [a-z0-9][a-z0-9-]*, and
+#: the instance name is the deployment name, so "_" is refused here, before init
+#: creates anything.
+NAME_RE = re.compile(r"^[a-z][a-z0-9-]{0,62}$")
 #: Question ids whose answers are filesystem paths.
 PATH_SUFFIXES = ("_root", "_path", "_dir")
 DATA_ROOT_QUESTION = "archi_data_root"
@@ -405,8 +408,8 @@ def init(
 ) -> Instance:
     if not NAME_RE.match(name):
         raise InitError(
-            f"{name!r} is not a valid instance name: lowercase letters, digits, - and _, "
-            "starting with a letter"
+            f"{name!r} is not a valid instance name: lowercase letters, digits and -, "
+            "starting with a letter (no _: the chat refuses it)"
         )
     cwd = Path.cwd()
     instance_dir = (Path(directory) if directory else cwd / name).resolve()

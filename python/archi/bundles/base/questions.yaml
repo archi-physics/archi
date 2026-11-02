@@ -12,7 +12,7 @@ init_questions:
     required: true
     description: |
       Slug for the deployment directory and the catalog's
-      `deployment_name`. Use lowercase, dashes or underscores.
+      `deployment_name`. Use lowercase letters, digits and dashes.
 
   - id: postgres_dsn
     prompt: Postgres DSN (postgresql://...)

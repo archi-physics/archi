@@ -20,6 +20,18 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
+**archi-kb 3.0.1 moves to AKMON 0.4.0 (2026-11-02).** 3.0.0 shipped on PyPI
+on AKMON 0.2.0. Reading okg 0.4.0 found two changes archi had to follow, and no
+import in `python/archi` changed. (1) The MCP server names `doc:` records in its
+instructions only for a document source its registry scan recognises
+(`okg.substrate.mcp.server.resolve_id_families`). It does not recognise
+`archi.sources.code_text`, so archi now sets the manifest key
+`mcp.doc_text_nodes: true` when a profile selects that module or
+`archi.sources.indico` (`archi.bundles.compose.DOC_TEXT_MODULES`). (2) `okg chat
+sync` refuses deployment names outside `[a-z0-9][a-z0-9-]*`, so `archi init`
+refuses `_`. Ask for AKMON: a source module could declare the id families it
+writes, so a subclass of a stock source needs no manifest key.
+
 **The code-text pack subclasses okg's DocCorpusSource (2026-10-31).**
 `archi.sources.code_text.SecretScreenedDocCorpusSource` is okg's
 `DocCorpusSource` with `_walk_files` overridden: it reads each selected file
@@ -180,8 +192,8 @@ path and SHA256 binding that never fetches in frozen mode. It preserves the live
 profile. The historical CMSSW cache is still unavailable; unit fixtures are not
 real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-10-20, tested against AKMON v0.2.0 @ `e2c618010b` (cut from okg `54e6cf44ee`); archi branch
-`main` @ `e1c28860`.*
+*Last updated 2026-11-02, tested against AKMON v0.4.0 @ `5567c79a54` (archi-kb 3.0.1); archi branch
+`archi_v3` @ `b0abe604`. Before: AKMON v0.2.0 @ `e2c618010b` (2026-10-20).*
 
 **Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15).** The fork was
 synced to okg `dev` first; it had no commits of its own. Full archi suite

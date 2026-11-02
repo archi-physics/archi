@@ -66,6 +66,18 @@ def test_this_versions_release_notes_exist_and_are_linked():
     assert f"docs/release-notes-{VERSION}.md" in pypi_readme()
 
 
+def test_release_notes_link_to_their_own_tag():
+    # 3.0.0's notes linked to main, which held v2, and the links 404ed on the
+    # GitHub release page. Each notes file must name its own tag instead.
+    repo_link = re.compile(r"https://github\.com/archi-physics/archi/(?:blob|tree)/([^/]+)/")
+    notes = sorted((REPO / "docs").glob("release-notes-*.md"))
+    assert notes
+    for path in notes:
+        version = path.stem.removeprefix("release-notes-")
+        refs = repo_link.findall(path.read_text(encoding="utf-8"))
+        assert refs and set(refs) == {f"v{version}"}, (path.name, sorted(set(refs)))
+
+
 def test_install_lines_pin_this_version():
     for rel in INSTALL_PAGES:
         pins = re.findall(r"archi-kb==([0-9][^\s\"`]*)", text(rel))

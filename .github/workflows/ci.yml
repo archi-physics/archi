@@ -11,7 +11,7 @@
 # becomes archi's `main`.
 #
 # The tests import okg, so the job installs the public AKMON release wheel
-# (github.com/mitdbg/akmon, v0.2.0). The Python package and CLI are still
+# (github.com/mitdbg/akmon, v0.4.0). The Python package and CLI are still
 # named `okg`. The URL carries the wheel's sha256, so pip refuses any other
 # okg wheel (its dependencies still resolve from PyPI). No secret is involved,
 # so fork PRs run the full suite too.
@@ -40,14 +40,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install okg (AKMON v0.2.0 release wheel, hash-pinned)
+      - name: Install okg (AKMON v0.4.0 release wheel, hash-pinned)
         run: |
           set -euo pipefail
           # The release is the version archi is tested against. Keep it equal
           # to the release in the *Last updated* line of docs/okg-alignment.md;
           # if they differ, the page is describing a build that never ran.
           python -m pip install --upgrade pip
-          pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12"
+          pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"

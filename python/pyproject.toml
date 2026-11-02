@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 # The distribution is `archi-kb` (ADR 0002 D2): the name `archi` on PyPI
 # belongs to an unrelated package. The import name stays `archi`.
 name = "archi-kb"
-version = "3.0.0"
+version = "3.0.1"
 description = "Operations automation for scientific computing: agents propose actions, people approve them, and every step cites the facility's own knowledge"
 requires-python = ">=3.12"
 # The PyPI project page shows this file. Its links point at this version's tag,
@@ -23,8 +23,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/archi-physics/archi"
-Documentation = "https://github.com/archi-physics/archi/tree/v3.0.0/docs/docs"
-"Release notes" = "https://github.com/archi-physics/archi/blob/v3.0.0/docs/release-notes-3.0.0.md"
+Documentation = "https://github.com/archi-physics/archi/tree/v3.0.1/docs/docs"
+"Release notes" = "https://github.com/archi-physics/archi/blob/v3.0.1/docs/release-notes-3.0.1.md"
 Issues = "https://github.com/archi-physics/archi/issues"
 
 [project.scripts]
