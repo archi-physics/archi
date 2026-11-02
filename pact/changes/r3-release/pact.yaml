@@ -109,10 +109,10 @@ evidence:
     TAG-AND-PUBLISH.sh accept: in a clean podman container on submit75, python3.12 -m venv; pip install
     "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12"
     archi-kb==3.0.0 (from PyPI); archi init cutover-check; archi up; archi doctor; archi down --purge --yes
-  head: b0abe604a8c822f98ae4b23eb977c2d0e906aafe
+  head: df17d7d9a98aaa383cebd34de0fb1444405c9b4b
   at: '2026-11-02T16:18:50+00:00'
   note: >-
-    acc.r3-release.pypi. Tag v3.0.0 points to b0abe604 (pushed 2026-11-02T16:06:21Z after Jason's "yes
+    acc.r3-release.pypi. head df17d7d9 differs from the tested tag commit b0abe604 only in pact/. Tag v3.0.0 points to b0abe604 (pushed 2026-11-02T16:06:21Z after Jason's "yes
     d926" at the desk). Release run 41478188684 published archi_kb-3.0.0-py3-none-any.whl to PyPI at
     16:10:01Z; its sha256 ad4c5a6a6a6d57e727cf4b4cea15bc718c03bf979659d90a5c35ebd86e571a7b equals the
     pre-tag rehearsal build. GitHub release v3.0.0 exists; its docs links were repointed from main to
