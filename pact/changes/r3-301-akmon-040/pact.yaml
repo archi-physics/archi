@@ -1,0 +1,103 @@
+pact_version: 5
+id: r3-301-akmon-040
+title: 'archi-kb 3.0.1: run on AKMON 0.4.0'
+tier: 2
+why: 'archi-kb 3.0.0 is pinned to AKMON okg 0.2.0; AKMON 0.4.0 is current. Reading
+  okg 0.4.0 found two breaks. (1) The MCP server now names doc: text records in its
+  instructions only when it recognises a document source in the registry, and it does
+  not recognise archi.sources.code_text (a DocCorpusSource subclass), so code-text
+  instances lose that guidance unless the manifest sets mcp.doc_text_nodes. (2) okg
+  chat sync now refuses deployment names outside [a-z0-9][a-z0-9-]*, while archi init
+  accepts "_", so `archi init my_team` succeeds and `archi up` fails. Jason asked for
+  3.0.1 on 0.4.0 (2026-11-02) and set the order: 3.0.1, then the cutover to main.
+  The release-notes links pointed at main (v2) and 404ed on the 3.0.0 GitHub release;
+  they are pinned to the tag and a test keeps them so.'
+affected_code:
+- python/archi/bundles/compose.py
+- python/archi/cli/init.py
+- python/archi/bundles/base/questions.yaml
+- python/archi/__init__.py
+- python/pyproject.toml
+- python/README.md
+- python/tests/
+- bundles/
+- .github/workflows/ci.yml
+- .github/workflows/nightly-e2e.yml
+- README.md
+- CHANGELOG.md
+- docs/
+requirements:
+- id: req.r3-301-akmon-040.okg040
+  statement: 'archi runs on AKMON okg 0.4.0: CI, the nightly and every install page
+    install the 0.4.0 wheel pinned by sha256; the bundles declare okg >=0.4.0,<0.5; the
+    alignment page names 0.4.0; the full suite passes on 0.4.0.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.suite: python -m pytest python/tests on okg 0.4.0 passes. [evidence: pytest]
+
+    - acc.r3-301-akmon-040.e2e: the empty-machine path (init, up, doctor) passes on 0.4.0. [evidence: executed_test]'
+- id: req.r3-301-akmon-040.doctext
+  statement: 'A profile that selects a source module archi knows creates doc: text
+    records (archi.sources.code_text, archi.sources.indico) sets mcp.doc_text_nodes:
+    true; other profiles leave the key out.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.doctext: a compose test renders both cases. [evidence: pytest]'
+- id: req.r3-301-akmon-040.names
+  statement: 'archi init refuses an instance name okg chat sync would refuse (anything
+    outside a lowercase letter followed by lowercase letters, digits and -), before it
+    creates anything.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.names: an init test refuses my_team and accepts my-team. [evidence: pytest]'
+- id: req.r3-301-akmon-040.release
+  statement: 'Version 3.0.1 with release notes; release-notes links name their own tag,
+    never main, enforced by a test.
+
+
+    Acceptance:
+
+    - acc.r3-301-akmon-040.links: test_package_metadata checks every release-notes file. [evidence: pytest]'
+tasks:
+- id: task.r3-301-akmon-040.okg040
+  requirement: req.r3-301-akmon-040.okg040
+  verification: 'Move the pin; run the suite and the e2e path on 0.4.0.
+
+
+    Test plan:
+
+    - full suite on okg 0.4.0 [evidence: pytest]
+
+    - init, up, doctor on okg 0.4.0 [evidence: executed_test]'
+- id: task.r3-301-akmon-040.doctext
+  requirement: req.r3-301-akmon-040.doctext
+  verification: 'Set mcp.doc_text_nodes in deployment_defaults.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_compose.py [evidence: pytest]'
+- id: task.r3-301-akmon-040.names
+  requirement: req.r3-301-akmon-040.names
+  verification: 'Tighten NAME_RE.
+
+
+    Test plan:
+
+    - init tests [evidence: pytest]'
+- id: task.r3-301-akmon-040.release
+  requirement: req.r3-301-akmon-040.release
+  verification: 'Bump the version, write release notes, fix links.
+
+
+    Test plan:
+
+    - python/tests/test_package_metadata.py [evidence: pytest]'
+evidence: []
+decisions: []
