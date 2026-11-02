@@ -6,9 +6,8 @@
 # unaffected, which is why it went unnoticed.
 #
 # Since 2026-10-25 this same tree is also archi-physics/archi's `archi_v3`
-# (ADR 0002 D1), so the push trigger names both branches. Each repository
-# has only one of them. Drop `archi_v3` at cutover, when the v3 line
-# becomes archi's `main`.
+# (ADR 0002 D1), so the push trigger named both branches until the cutover,
+# when the v3 line became archi's `main` and `archi_v3` was dropped (runbook step 8).
 #
 # The tests import okg, so the job installs the public AKMON release wheel
 # (github.com/mitdbg/akmon, v0.4.0). The Python package and CLI are still
@@ -20,7 +19,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main, archi_v3]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
