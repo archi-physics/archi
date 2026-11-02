@@ -143,7 +143,7 @@ evidence:
     tag-301 TAG-AND-PUBLISH.sh accept: in a clean podman container on submit75, python3.12 -m venv; pip install
     "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
     archi-kb==3.0.1 (from PyPI); archi init; archi up; archi doctor; archi down --purge --yes
-  head: HEAD_TO_BIND
+  head: fcd81d547ef0c4b116d7300836404fd1de1fdd04
   at: '2026-11-02T19:42:29+00:00'
   note: >-
     acc.r3-release.pypi for 3.0.1, the release that ships with the cutover. Tag v3.0.1 points to 86978f7565
