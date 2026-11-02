@@ -8,9 +8,10 @@ without the other fails.
 
 The documented differences, and only these, are normalised away:
 
-- Command 1 installs `archi-kb` from a git URL on the page. The nightly
-  installs the checkout it is testing (`./python`). The okg wheel must be the
-  same file, minus the sha256 pin the workflow adds.
+- Command 1 installs `archi-kb==<version>` from PyPI on the page, where
+  `<version>` is the package's own version. The nightly installs the checkout
+  it is testing (`./python`). The okg wheel must be the same file, with the
+  same sha256 pin.
 - The nightly's instance is `gp`; the page calls it `myteam`.
 - The nightly sets a working directory per step; the page uses `cd myteam`.
 - The nightly pipes output to `tee` and reads its question from `$QUESTION`;
@@ -29,7 +30,8 @@ REPO = Path(__file__).resolve().parents[2]
 PAGE = REPO / "docs" / "docs" / "quickstart.md"
 WORKFLOW = REPO / ".github" / "workflows" / "nightly-e2e.yml"
 
-ARCHI_GIT = "archi-kb @ git+https://github.com/archi-physics/archi@archi_v3#subdirectory=python"
+VERSION = re.search(r'^version = "([^"]+)"', (REPO / "python" / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
+ARCHI_PYPI = f"archi-kb=={VERSION}"
 
 
 def page_commands() -> list[list[str]]:
@@ -51,7 +53,7 @@ def nightly_steps() -> tuple[dict[str, str], list[dict]]:
 
 def nightly_as_typed() -> list[list[str]]:
     env, steps = nightly_steps()
-    wheel = env["OKG_WHEEL"].split("#sha256=")[0]
+    wheel = env["OKG_WHEEL"]
     commands: list[list[str]] = []
     cwd = None
     for step in steps:
@@ -66,7 +68,7 @@ def nightly_as_typed() -> list[list[str]]:
         if where is not None:
             cwd = where
         run = run.replace("$OKG_WHEEL", wheel).replace('"$QUESTION"', shlex.quote(env["QUESTION"]))
-        run = run.replace("./python", f'"{ARCHI_GIT}"').replace("$GITHUB_WORKSPACE", "$ARCHI_CHECKOUT")
+        run = run.replace("./python", ARCHI_PYPI).replace("$GITHUB_WORKSPACE", "$ARCHI_CHECKOUT")
         run = re.sub(r"\bgp\b", "myteam", run)
         commands.append(shlex.split(run))
     return commands
@@ -84,5 +86,5 @@ def test_nightly_runs_five_user_commands():
 def test_page_names_the_pinned_okg_wheel_and_the_script():
     env, _ = nightly_steps()
     text = PAGE.read_text(encoding="utf-8")
-    assert env["OKG_WHEEL"].split(" @ ")[1].split("#")[0] in text
+    assert env["OKG_WHEEL"].split(" @ ")[1] in text  # the wheel URL with its sha256 pin
     assert "python/tests/cli/mcp_cited_answer.py" in text

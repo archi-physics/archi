@@ -7,9 +7,13 @@ proposal, a separate component carries it out; in 3.0 no automation acts on
 its own. Every step is grounded in your facility's own knowledge, and its
 result is written back into that knowledge.
 
-Today Archi ships the context layer, the automation runtime and one
-automation, `instance-health`, which watches the Archi instance itself. The
-first automation for operations work, `ticket-triage`, is in progress.
+Archi 3.0 ships the context layer, the automation runtime and two
+automations. [`ticket-triage`](library/packs/ticket-triage.md) triages new and
+updated Redmine, JIRA and ServiceNow tickets: it drafts a cited reply for a
+person to send, or proposes a status change, assignment or reply that runs
+only after a person approves it.
+[`instance-health`](library/packs/instance-health.md) watches the Archi
+instance itself.
 
 Archi is built on OKG, a knowledge graph with a publish step, a set of read
 tools and a review ledger. You do not need to know OKG to start. This site
@@ -58,8 +62,8 @@ to a cited answer with the `cern-team` bundle.
 
 ## Parts you can replace
 
-Every component can be swapped. Archi is the glue, and its defaults work out
-of the box.
+Most parts can be replaced, and the defaults work out of the box. The
+knowledge graph and the automation runtime cannot be replaced in 3.0.
 
 | Part | Default in 3.0 | How you replace it |
 |---|---|---|
@@ -67,8 +71,8 @@ of the box.
 | Ingestion | Archi connectors | Any pip package that registers packs through the `archi.packs` entry point. See [Contributing a pack](contributing-a-pack.md). |
 | Tools | The instance's OKG MCP server plus Archi live tools | Any MCP server declared in the instance. See [Connecting an agent](connecting-an-agent.md). |
 | Automation runtime | OKG deployment workflows | An external runner using the proposal API. This waits on an upstream OKG change. |
-| Agent and chat | Open WebUI, built in | Anything that speaks MCP: Claude Code, codex, openclaw, your own. |
-| Language model | Whatever the agent is configured with | Agent-side configuration. Archi never stores it. |
+| Agent and chat | Open WebUI, built in | Anything that speaks MCP: Claude Code, Codex, OpenClaw, your own. |
+| Language model | Chat: a local ollama model (default `llama3.1:8b`). Agents over MCP: the agent's own model. | Chat: `--answer chat_model=`, `--ollama-url`, or a connection added in Open WebUI. Agents: their own configuration. Archi stores no model API key. |
 
 ## Who it is for
 

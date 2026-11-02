@@ -13,7 +13,7 @@ shared hosts), the checks may never run, and then `archi up` waits with no time 
 Use docker there, or log in to a session with a systemd user manager.
 
 ```bash
-pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl" "archi-kb @ git+https://github.com/archi-physics/archi@archi_v3#subdirectory=python"
+pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
 archi init myteam --bundle cern-team
 cd myteam
 archi up
@@ -24,9 +24,9 @@ python "$ARCHI_CHECKOUT/python/tests/cli/mcp_cited_answer.py" "What is the Knowl
 What each command does:
 
 1. **Install.** `okg` is the knowledge-graph engine. `archi-kb` is Archi. The
-   import name is `archi`. `archi-kb` is not on PyPI yet, so it comes from
-   git. Do not `pip install archi`: that name on PyPI is an unrelated
-   package. Use a virtual environment.
+   import name is `archi`. `archi-kb` comes from PyPI. `okg` is not on PyPI,
+   so it comes from its release file. Do not `pip install archi`: that name
+   on PyPI is an unrelated package. Use a virtual environment.
 2. **`archi init myteam --bundle cern-team`** creates `./myteam` as a git
    repository. It writes the settings, generates every secret into `.env`,
    starts the graph database and publishes a first graph. The default packs
@@ -37,8 +37,10 @@ What each command does:
    Each failure carries a fix line. Leave out `--json` for plain lines.
 5. **The last command asks a question over MCP** and succeeds only when the
    answer cites graph records. The script is in the Archi repository, so set
-   `ARCHI_CHECKOUT` to a clone of it. It needs the `mcp` Python package. In
-   daily use you ask in the chat instead, or
+   `ARCHI_CHECKOUT` to a clone of this release
+   (`git clone --branch v3.0.0 https://github.com/archi-physics/archi`).
+   It needs the `mcp` Python package. In daily use you ask in the chat
+   instead, or
    [connect an agent](connecting-an-agent.md).
 
 ## Check the result

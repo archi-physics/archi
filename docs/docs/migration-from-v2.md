@@ -118,9 +118,7 @@ need them in the next sections.
    archi --help
    ```
 
-   If `pip` reports no matching distribution for `archi-kb`, the PyPI release
-   is not out yet. Use the git install in the [quickstart](quickstart.md)
-   instead. Check that `archi --help` lists `init` and `up`. If it lists
+   Check that `archi --help` lists `init` and `up`. If it lists
    `create`, you are still in the v2 environment.
 
 2. **Make the instance under another name.** Pick a name that v2 does not use
