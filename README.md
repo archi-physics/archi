@@ -4,7 +4,7 @@
 
 # Archi
 
-[![Docs](https://img.shields.io/badge/docs-online-blue)](https://archi-physics.github.io/archi/)
+[![Docs](https://img.shields.io/badge/docs-3.0-blue)](docs/docs/index.md)
 
 **Archi automates operations for scientific computing.** It serves the teams
 that keep research infrastructure running: experiment computing operations,
@@ -14,9 +14,11 @@ component carries it out; in 3.0 no automation acts on its own. Every step
 cites the facility's own knowledge, and its outcome is written back into that
 knowledge, so the next proposal can see what happened last time.
 
-Today Archi ships the context layer, the automation runtime and one
-automation, `instance-health`, which watches the Archi instance itself. The
-first automation for operations work, `ticket-triage`, is in progress.
+Archi 3.0 ships the context layer, the automation runtime and two
+automations. `ticket-triage` triages new and updated Redmine, JIRA and
+ServiceNow tickets: it drafts a cited reply for a person to send, or proposes
+a status change, assignment or reply that runs only after a person approves
+it. `instance-health` watches the Archi instance itself.
 
 ## How it works
 
@@ -61,15 +63,16 @@ automations can ship as packs from your own package.
 
 ## Start here
 
-Archi is not on PyPI yet; the [quickstart](docs/docs/quickstart.md) gives the
-install command. Then:
+Archi is on PyPI as `archi-kb`. It runs on the `okg` graph engine, which
+comes from its own release file. In a Python 3.12 virtual environment:
 
 ```bash
+pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.2.0/okg-0.2.0-py3-none-any.whl#sha256=72bac3b67cf29cccd27e77e58ad309104f19fcce255a04a4a6f23b8318b88e12" archi-kb==3.0.0
 archi init myteam && cd myteam && archi up && archi doctor
 ```
 
-The quickstart takes an empty machine to a cited answer. The full documentation is published at
-<https://archi-physics.github.io/archi/> and built from [`docs/docs/`](docs/docs/).
+The [quickstart](docs/docs/quickstart.md) takes an empty machine to a cited
+answer. The documentation is in [`docs/docs/`](docs/docs/index.md).
 
 ## How it is built
 
