@@ -95,7 +95,7 @@ def test_render_writes_the_lock(tmp_path):
     render_and_lock(catalog, tmp_path, ["child-bundle"])
     lock = read_lock(tmp_path)
     assert lock["selection"] == {"bundles": ["child-bundle"], "with": [], "without": []}
-    assert lock["okg"]["range"] == "<0.3,>=0.2.0"
+    assert lock["okg"]["range"] == "<0.5,>=0.4.0"
     assert lock["okg"]["rendered_with"]
     assert {k: v["version"] for k, v in lock["bundles"].items()} == {
         "base-bundle": "0.1.0", "child-bundle": "0.1.0"
