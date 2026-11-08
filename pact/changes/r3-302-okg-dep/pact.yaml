@@ -106,7 +106,7 @@ evidence:
   command: "CI run 42507327037 (ci.yml, job tests (python 3.12)): pip install the akmon v0.6.0 release wheel (sha256 baec0d63...c244, the same file as on PyPI) and ./python[dev]; python -m pytest python/tests -q -> 4149 passed, 28 skipped, 0 failed"
   head: fb7a83cd8dd1fb207406459c790e58de303046bf
   at: "2026-11-08T18:00:52+00:00"
-  note: "acc.r3-302-okg-dep.meta: tests/test_package_metadata.py in this run (test_archi_kb_declares_an_akmon_range_that_holds_the_akmon_ci_tests, test_shipped_bundles_support_the_akmon_ci_tests)."
+  note: "acc.r3-302-okg-dep.meta: tests/test_package_metadata.py in this run (test_archi_kb_declares_an_akmon_range_that_holds_the_akmon_ci_tests, test_shipped_bundles_support_the_akmon_ci_tests). Like every pull_request run here, it tested GitHub's merge of this head onto main @ 495bfab7; this branch already contains main, so the tree is the head's."
 - kind: executed_test
   requirement: req.r3-302-okg-dep.rename
   status: pass
@@ -120,7 +120,7 @@ evidence:
   command: "CI run 42506204868 (nightly-e2e.yml on the PR, job 'empty runner to a cited answer'): `pip install ./python` downloaded akmon-0.6.0 from PyPI; archi init pulled ghcr.io/mitdbg/akmon-postgres:v0.6.0; archi up built the MCP image from the v0.6.0 release asset; archi doctor ok (okg-version: okg 0.6.0, as the stack runs); a cited answer from gp.docsite and gp.indico-live"
   head: 9af5a9f87f115a1a754384cfa4b90118a04a5827
   at: "2026-11-08T17:54:10+00:00"
-  note: "acc.r3-302-okg-dep.e2e. Run at 9af5a9f8; fb7a83cd changes only python/tests/evaluation/test_raw_sandbox.py, which this path does not run."
+  note: "acc.r3-302-okg-dep.e2e. Run at 9af5a9f8 (GitHub's merge onto main @ 495bfab7); fb7a83cd changes only python/tests/evaluation/test_raw_sandbox.py, which this path does not run. The job's report-only step 'bundle smoke eval' (continue-on-error) scored 0/10 with qwen2.5:1.5b-instruct, threshold 7; main's nightly on okg 0.4.0 scored the same 0/10 (run 42362603851, 2026-11-07), so it is not a change from this PR."
 - kind: executed_test
   requirement: req.r3-302-okg-dep.install
   status: pass
