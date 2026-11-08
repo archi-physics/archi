@@ -65,7 +65,13 @@ def clone_pack(root: Path, source: str, name: str, change=None) -> Path:
 def write_bundle(root: Path, name: str, **fields) -> Path:
     data = {"name": name, "version": "0.1.0", "description": f"{name} test bundle."}
     data.update(fields)
-    data.setdefault("okg", ">=0.4.0,<0.5")
+    if "okg" not in data:
+        # resolve intersects a bundle's okg range with its parents', so a test
+        # bundle that extends one under `root` (often a copy of a shipped bundle,
+        # whose range moves with each AKMON release) takes the parent's range.
+        parents = [root / p / "bundle.yaml" for p in data.get("extends") or []]
+        parent = next((p for p in parents if p.is_file()), None)
+        data["okg"] = yaml.safe_load(parent.read_text())["okg"] if parent else ">=0.4.0,<0.5"
     bdir = root / name
     bdir.mkdir(parents=True, exist_ok=True)
     (bdir / "bundle.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
