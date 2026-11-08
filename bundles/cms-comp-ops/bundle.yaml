@@ -1,5 +1,5 @@
 name: cms-comp-ops
-version: 0.2.0
+version: 0.3.0
 description: A CMS computing operations knowledge instance - sites, storage, datasets and workflows from the CMS catalogs, site status, CMSSW releases, and the operational memory of past incidents.
 # ADR 0002 section 5. Extends cern-team for its documentation, meetings and
 # generic playbooks; the comp-ops catalogs go on top. The Rucio, site and
@@ -26,4 +26,4 @@ chat:
     - Which storage endpoints does a given site have, and what is its status?
     - Which workflows read a given dataset, and where is it hosted?
     - Which downtimes are scheduled for a site, and what happened the last time it had one?
-okg: ">=0.4.0,<0.5"
+okg: ">=0.6.0,<0.7"

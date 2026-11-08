@@ -58,13 +58,28 @@ def tree_digest(directory: Path) -> str:
     return "sha256:" + h.hexdigest()
 
 
-def _okg_version() -> Optional[str]:
+#: The graph engine's distribution names, newest first. AKMON renamed its
+#: distribution from `okg` to `akmon` in 0.6.0; the import and the command are
+#: still `okg`, so only metadata lookups need both names.
+OKG_DISTRIBUTIONS = ("akmon", "okg")
+
+
+def _okg_distributions() -> dict[str, str]:
+    """{distribution name: version} for each engine distribution installed here."""
     from importlib.metadata import PackageNotFoundError, version
 
-    try:
-        return version("okg")
-    except PackageNotFoundError:
-        return None
+    found: dict[str, str] = {}
+    for name in OKG_DISTRIBUTIONS:
+        try:
+            found[name] = version(name)
+        except PackageNotFoundError:
+            continue
+    return found
+
+
+def _okg_version() -> Optional[str]:
+    """The installed engine's version: `akmon` if installed, else `okg`."""
+    return next(iter(_okg_distributions().values()), None)
 
 
 def _archi_version() -> Optional[str]:

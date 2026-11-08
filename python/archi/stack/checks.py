@@ -91,6 +91,7 @@ class Probes:
     mcp: Callable[[str, str], dict[str, Any]] = _mcp_probe
     environ: Optional[Mapping[str, str]] = None
     installed_okg: Optional[Callable[[], Optional[str]]] = None
+    okg_distributions: Optional[Callable[[], dict[str, str]]] = None
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
 
 
@@ -264,7 +265,7 @@ def profiles_env(ctx: Context) -> Result:
 
 @check("okg-version", "FG-01")
 def okg_version_check(ctx: Context) -> Result:
-    from archi.stack.okg import okg_version
+    from archi.stack.okg import okg_distributions, okg_version
 
     installed = (ctx.probes.installed_okg or okg_version)()
     want = ctx.instance.okg_version
@@ -275,6 +276,16 @@ def okg_version_check(ctx: Context) -> Result:
         return Result("okg-version", FAIL,
                       f"okg {installed} is installed; the instance's MCP image and graph database run {want}",
                       f"pip install {stack_compose.okg_wheel(want)}  (or re-init on {installed})")
+    found = (ctx.probes.okg_distributions or okg_distributions)()
+    if len(found) > 1:
+        # AKMON 0.6.0 renamed the distribution okg -> akmon. Both install the
+        # same `okg` package and command, so removing one deletes files the
+        # other needs.
+        both = ", ".join(f"{name} {version}" for name, version in found.items())
+        return Result("okg-version", WARN,
+                      f"okg {installed}, as the stack runs, but two engine packages are installed ({both})",
+                      "they share files, so `pip uninstall okg` alone breaks akmon: "
+                      f"pip uninstall -y okg akmon && pip install {stack_compose.okg_wheel(installed)}")
     return Result("okg-version", PASS, f"okg {installed}, as the stack runs")
 
 

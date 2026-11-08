@@ -327,6 +327,18 @@ FIXTURES = {
 WARNS = {"profiles-env"}
 
 
+def test_okg_version_warns_when_okg_and_akmon_are_both_installed(instance):
+    # AKMON 0.6.0 renamed the distribution okg -> akmon. Upgrading without
+    # `pip uninstall okg` leaves both installed over the same files.
+    installed = okg_version()
+    result = results(instance, healthy_probes(
+        okg_distributions=lambda: {"akmon": installed, "okg": "0.4.0"}))["okg-version"]
+    assert result.status == WARN, result
+    assert "akmon" in result.message and "okg 0.4.0" in result.message
+    assert "pip uninstall -y okg akmon" in result.remediation
+    assert "\n" not in result.remediation
+
+
 @pytest.mark.parametrize("check_id", sorted(FIXTURES))
 def test_each_check_has_a_failing_fixture(instance, check_id):
     overrides = FIXTURES[check_id](instance) or {}

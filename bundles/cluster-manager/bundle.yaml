@@ -1,5 +1,5 @@
 name: cluster-manager
-version: 0.2.0
+version: 0.3.0
 description: A cluster manager's knowledge instance - documentation, tickets, operational memory and, optionally, ServiceNow, Slurm, HTCondor, node health and code.
 # ADR 0002 section 5. No pack that belongs to a lab's own bundles, in the defaults or among the
 # options: it has to work for any cluster operator. docsite, tickets (Redmine) and ops-record
@@ -26,4 +26,4 @@ chat:
     - How do I drain a node in Slurm, and what does the documentation say about it?
     - Which tickets mention a node that is currently down?
     - Have we seen this error before, and what fixed it?
-okg: ">=0.4.0,<0.5"
+okg: ">=0.6.0,<0.7"

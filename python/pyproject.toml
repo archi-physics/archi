@@ -15,10 +15,11 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
-    # The graph engine, AKMON. Declared since archi-kb 3.0.2, once okg was on PyPI (board
-    # d1011, d1016); before that it came only from the AKMON release wheel, a URL, which PyPI
-    # does not allow as a dependency.
-    "okg>=0.4.0,<0.5",
+    # The graph engine, AKMON. Declared since archi-kb 3.0.2, once AKMON was on PyPI (board
+    # d1011, d1323); before that it came only from the AKMON release wheel, a URL, which PyPI
+    # does not allow as a dependency. The distribution is `akmon` from 0.6.0 (board d1141);
+    # the import and the command are still `okg`.
+    "akmon>=0.6.0,<0.7",
     "requests>=2.31",
     "pyyaml>=6.0",
     "jsonschema>=4.18",

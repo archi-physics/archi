@@ -422,7 +422,8 @@ def init(
     check_data_root(root, instance_dir)
     version = okg_version()
     if version is None:
-        raise InitError("okg is not installed in this Python environment; install the AKMON wheel")
+        raise InitError("okg is not installed in this Python environment; "
+                        "`pip install archi-kb` installs it (PyPI package akmon)")
     if run_okg:
         runtime = stack_compose.detect_runtime(runtime, runner=compose_runner)
     runtime = runtime or "docker"

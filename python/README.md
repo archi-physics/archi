@@ -14,8 +14,9 @@ PyPI: that name belongs to an unrelated package.
 ## Install
 
 You need Python 3.12, `docker` or `podman` (with `compose`), and `git`.
-Archi runs on the `okg` graph engine (AKMON), which pip installs with it. In a
-virtual environment:
+Archi runs on the `okg` graph engine from AKMON (PyPI package `akmon`), which pip
+installs with it. In a new virtual environment (an environment that still has
+the old `okg` package needs `pip uninstall okg` first):
 
 ```bash
 pip install archi-kb==3.0.2

@@ -92,6 +92,20 @@ def test_mcp_dockerfile_pins_the_host_okg_and_installs_git(instance):
     assert "safe.directory" in text
 
 
+@pytest.mark.parametrize("version, dist", [
+    ("0.2.0", "okg"), ("0.4.0", "okg"), ("0.5.0", "okg"),
+    ("0.6.0", "akmon"), ("0.6.0rc1", "akmon"), ("0.7.1", "akmon"),
+])
+def test_mcp_dockerfile_names_the_engine_distribution_of_its_version(version, dist):
+    # AKMON 0.6.0 renamed the distribution (and the wheel file) okg -> akmon.
+    # pip refuses `okg @ <akmon wheel>`, so the requirement name must follow.
+    text = stack_compose.render_dockerfile(version)
+    wheel = f"https://github.com/mitdbg/akmon/releases/download/v{version}/{dist}-{version}-py3-none-any.whl"
+    assert f"ARG OKG_WHEEL={wheel}\n" in text
+    assert f'pip install --no-cache-dir "{dist} @ ${{OKG_WHEEL}}"' in text
+    assert stack_compose.okg_wheel(version) == wheel
+
+
 def _runner(results):
     calls = []
     kwargs = []

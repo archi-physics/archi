@@ -10,7 +10,8 @@ The documented differences, and only these, are normalised away:
 
 - Command 1 installs `archi-kb==<version>` from PyPI on the page, where
   `<version>` is the package's own version. The nightly installs the checkout
-  it is testing (`./python`). Both get okg from PyPI as archi-kb's dependency.
+  it is testing (`./python`). Both get the graph engine from PyPI as
+  archi-kb's dependency (the `akmon` package, which provides `okg`).
 - The nightly's instance is `gp`; the page calls it `myteam`.
 - The nightly sets a working directory per step; the page uses `cd myteam`.
 - The nightly pipes output to `tee` and reads its question from `$QUESTION`;
@@ -83,5 +84,6 @@ def test_nightly_runs_five_user_commands():
 
 def test_page_installs_from_pypi_alone_and_names_the_script():
     text = PAGE.read_text(encoding="utf-8")
-    assert "okg @ " not in text  # okg comes with archi-kb from PyPI; no wheel URL to copy
+    # akmon (okg) comes with archi-kb from PyPI; no wheel URL to copy
+    assert "okg @ " not in text and "akmon @ " not in text
     assert "python/tests/cli/mcp_cited_answer.py" in text

@@ -4,7 +4,7 @@ From an empty machine to a cited answer from your team's knowledge graph,
 with the `cern-team` bundle: five user commands, the same ones the nightly
 build runs (the `cd` is not counted, and the fifth is a check).
 
-**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; okg 0.4.0 does not install on 3.14),
+**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; akmon 0.6.0 does not install on 3.14),
 and `git`. No account, key or root access.
 
 With rootless podman, container health checks run from systemd user timers.
@@ -23,10 +23,12 @@ python "$ARCHI_CHECKOUT/python/tests/cli/mcp_cited_answer.py" "What is the Knowl
 
 What each command does:
 
-1. **Install.** `okg` is the knowledge-graph engine. `archi-kb` is Archi. The
-   import name is `archi`. Both come from PyPI: installing `archi-kb` installs a
-   matching `okg` (0.4.x). Do not `pip install archi`: that name
-   on PyPI is an unrelated package. Use a virtual environment.
+1. **Install.** `okg` is the knowledge-graph engine; its PyPI package is
+   `akmon`. `archi-kb` is Archi. The import name is `archi`. Both come from
+   PyPI: installing `archi-kb` installs a matching `akmon` (0.6.x). Do not
+   `pip install archi`: that name on PyPI is an unrelated package. Use a new
+   virtual environment: one that still has the old `okg` package needs
+   `pip uninstall okg` first, because both install the same files.
 2. **`archi init myteam --bundle cern-team`** creates `./myteam` as a git
    repository. It writes the settings, generates every secret into `.env`,
    starts the graph database and publishes a first graph. The default packs

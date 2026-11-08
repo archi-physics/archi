@@ -7,8 +7,10 @@ afterwards, so these are checked before the tag:
 - every readme link is absolute, because PyPI cannot resolve a relative one;
 - every versioned link, release-notes file and install line names the version
   being released;
-- archi-kb declares okg, in a range that holds the okg wheel CI tests, and no
-  install line asks for that wheel by URL (okg comes from PyPI with archi-kb).
+- archi-kb declares the graph engine as `akmon` (AKMON's distribution name
+  from 0.6.0; the import is still `okg`), in a range that holds the wheel CI
+  tests, and so does every shipped bundle; no install line asks for that wheel
+  by URL (it comes from PyPI with archi-kb).
 """
 from __future__ import annotations
 
@@ -85,21 +87,40 @@ def test_install_lines_pin_this_version():
         assert pins and set(pins) == {VERSION}, (rel, pins)
 
 
-def test_archi_kb_declares_an_okg_range_that_holds_the_okg_ci_tests():
+def ci_tested_akmon() -> str:
+    tested = re.search(r"akmon @ https://\S+/akmon-([0-9][^-/]*)-py3-none-any\.whl#sha256=[0-9a-f]{64}\"", CI)
+    assert tested, "ci.yml pins the akmon wheel it tests by URL and sha256"
+    return tested.group(1)
+
+
+def test_archi_kb_declares_an_akmon_range_that_holds_the_akmon_ci_tests():
     from packaging.requirements import Requirement
 
-    okg = [r for r in map(Requirement, PROJECT["dependencies"]) if r.name == "okg"]
-    assert len(okg) == 1, "archi-kb declares okg exactly once"
-    tested = re.search(r"okg @ https://\S+/okg-([0-9][^-/]*)-py3-none-any\.whl#sha256=[0-9a-f]{64}", CI)
-    assert tested, "ci.yml pins the okg wheel it tests by URL and sha256"
-    assert tested.group(1) in okg[0].specifier, (str(okg[0]), tested.group(1))
+    deps = list(map(Requirement, PROJECT["dependencies"]))
+    akmon = [r for r in deps if r.name == "akmon"]
+    assert len(akmon) == 1, "archi-kb declares akmon exactly once"
+    # `okg` is the engine's pre-0.6.0 distribution name; declaring it too would
+    # make pip install both, and they overwrite each other's files.
+    assert not [r for r in deps if r.name == "okg"], "archi-kb must not also declare okg"
+    assert ci_tested_akmon() in akmon[0].specifier, (str(akmon[0]), ci_tested_akmon())
 
 
-def test_install_lines_need_no_okg_wheel():
-    # okg is on PyPI and archi-kb depends on it, so a page that still asks for
-    # the wheel URL is out of date.
+def test_shipped_bundles_support_the_akmon_ci_tests():
+    import yaml
+    from packaging.specifiers import SpecifierSet
+
+    manifests = sorted((REPO / "bundles").glob("*/bundle.yaml"))
+    assert manifests
+    for path in manifests:
+        supported = SpecifierSet(yaml.safe_load(path.read_text(encoding="utf-8"))["okg"])
+        assert ci_tested_akmon() in supported, (path.parent.name, str(supported))
+
+
+def test_install_lines_need_no_engine_wheel():
+    # akmon is on PyPI and archi-kb depends on it, so a page that still asks
+    # for the wheel URL is out of date.
     for rel in INSTALL_PAGES:
-        assert "okg @ " not in text(rel), rel
+        assert "okg @ " not in text(rel) and "akmon @ " not in text(rel), rel
 
 
 def test_no_install_page_says_archi_is_unpublished():

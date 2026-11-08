@@ -53,7 +53,7 @@ manifest files. This page says what your package must contain and how to test it
   when a source's output signature, record identity or a question id changes: an
   instance's `archi.lock` records the selection and `archi diff` reports drift.
 - Each bundle states the okg range it supports in `okg:` (PEP 440, for example
-  `">=0.4.0,<0.5"`). A pack inherits the check through the bundles that use it.
+  `">=0.6.0,<0.7"`). A pack inherits the check through the bundles that use it.
 - The wheel's version is yours. Pin the range of `archi-kb` you were tested
   against in your own `dependencies`.
 

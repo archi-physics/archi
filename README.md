@@ -63,8 +63,9 @@ automations can ship as packs from your own package.
 
 ## Start here
 
-Archi is on PyPI as `archi-kb`. It runs on the `okg` graph engine (AKMON), which
-pip installs with it. In a Python 3.12 virtual environment:
+Archi is on PyPI as `archi-kb`. It runs on the `okg` graph engine from AKMON
+(PyPI package `akmon`), which pip installs with it. In a new Python 3.12
+virtual environment:
 
 ```bash
 pip install archi-kb==3.0.2

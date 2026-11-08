@@ -243,5 +243,6 @@ pacts:
     milestone: "3.0 · M7 Docs & release"
     labels: []
     tasks:
-      task.r3-302-okg-dep.dependency: "3.0.2: declare okg>=0.4.0,<0.5 as a dependency"
+      task.r3-302-okg-dep.dependency: "3.0.2: declare akmon>=0.6.0,<0.7 as a dependency"
+      task.r3-302-okg-dep.rename: "3.0.2: read the engine as akmon or okg; MCP wheel per version"
       task.r3-302-okg-dep.install: "3.0.2: one-line pip install archi-kb"

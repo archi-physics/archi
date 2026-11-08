@@ -10,10 +10,12 @@
 # when the v3 line became archi's `main` and `archi_v3` was dropped (runbook step 8).
 #
 # The tests import okg, so the job installs the public AKMON release wheel
-# (github.com/mitdbg/akmon, v0.4.0). The Python package and CLI are still
-# named `okg`. The URL carries the wheel's sha256, so pip refuses any other
-# okg wheel (its dependencies still resolve from PyPI). No secret is involved,
-# so fork PRs run the full suite too.
+# (github.com/mitdbg/akmon, v0.6.0). From 0.6.0 the distribution is named
+# `akmon`; the Python package and CLI are still named `okg`. The URL carries
+# the wheel's sha256, so pip refuses any other akmon wheel (its dependencies
+# still resolve from PyPI). The PyPI file archi-kb's dependency resolves to is
+# the same wheel (AKMON's pypi.yml uploads the release asset). No secret is
+# involved, so fork PRs run the full suite too.
 name: ci
 
 on:
@@ -39,14 +41,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install okg (AKMON v0.4.0 release wheel, hash-pinned)
+      - name: Install akmon (AKMON v0.6.0 release wheel, hash-pinned)
         run: |
           set -euo pipefail
           # The release is the version archi is tested against. Keep it equal
           # to the release in the *Last updated* line of docs/okg-alignment.md;
           # if they differ, the page is describing a build that never ran.
+          # The sha256 is filled from the published v0.6.0 release asset (lane
+          # a4, board d1323); until then this step fails on purpose.
           python -m pip install --upgrade pip
-          pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc"
+          pip install "akmon @ https://github.com/mitdbg/akmon/releases/download/v0.6.0/akmon-0.6.0-py3-none-any.whl#sha256=FILL-FROM-THE-PUBLISHED-V0.6.0-RELEASE"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"

@@ -1,51 +1,92 @@
 pact_version: 5
 id: r3-302-okg-dep
-title: 'archi-kb 3.0.2: depend on okg from PyPI, so one pip install sets up Archi'
+title: 'archi-kb 3.0.2: depend on akmon (AKMON) from PyPI, so one pip install sets up Archi'
 tier: 2
-why: 'Until 3.0.1, okg (AKMON) was published only as a wheel on GitHub releases, and PyPI rejects
-  packages that depend on a URL, so archi-kb declared no okg dependency. `pip install archi-kb`
-  then succeeded with no graph engine, and every install page carried the AKMON wheel URL and its
-  sha256. Jason chose to publish okg on PyPI (board d1009, d1010, d1011); lane a4 publishes AKMON
-  v0.5.0 and the tested 0.4.0 wheel there (d1016). 3.0.2 declares okg>=0.4.0,<0.5, the range archi
-  is tested on, and the install becomes one line.'
+why: 'Until 3.0.1, the graph engine okg (AKMON) was published only as a wheel on GitHub releases,
+  and PyPI rejects packages that depend on a URL, so archi-kb declared no engine dependency.
+  `pip install archi-kb` then succeeded with no graph engine, and every install page carried the
+  AKMON wheel URL and its sha256. Jason chose to publish AKMON on PyPI (board d1009, d1010, d1011).
+  Its first PyPI release is 0.6.0, which renames the distribution from okg to akmon and keeps the
+  `okg` import and command (board d1141 "Rename only the distribution"; publish item d1323);
+  0.4.0 and 0.5.0 stay GitHub-only, so the earlier plan (okg 0.4.0 on PyPI, d1016) is replaced.
+  The rename breaks archi where it reads distribution metadata: with akmon 0.6.0 installed,
+  `archi init` refused ("okg is not installed") because it looked up `okg` only, and the MCP
+  image would ask pip for `okg @ <akmon wheel>`. 3.0.2 declares akmon>=0.6.0,<0.7, reads either
+  name, names the right wheel per engine version, and the install becomes one line.'
 affected_code:
 - python/pyproject.toml
 - python/archi/__init__.py
+- python/archi/bundles/lock.py
+- python/archi/stack/
+- python/archi/cli/init.py
 - python/README.md
 - python/tests/
+- bundles/
+- .github/workflows/ci.yml
 - .github/workflows/nightly-e2e.yml
 - README.md
 - CHANGELOG.md
 - docs/
 requirements:
 - id: req.r3-302-okg-dep.dependency
-  statement: 'archi-kb declares okg>=0.4.0,<0.5 as a dependency; the okg release CI installs
-    satisfies it.
+  statement: 'archi-kb declares akmon>=0.6.0,<0.7 as a dependency and does not declare okg; the
+    akmon wheel CI installs, pinned by URL and sha256, lies inside that range and inside every
+    shipped bundle''s okg range.
 
 
     Acceptance:
 
-    - acc.r3-302-okg-dep.meta: test_package_metadata checks the declared range against the
-    CI pin. [evidence: pytest]'
+    - acc.r3-302-okg-dep.meta: test_package_metadata checks the declared range and every bundle
+    range against the CI pin. [evidence: pytest]'
+- id: req.r3-302-okg-dep.rename
+  statement: 'archi reads the installed engine version from the akmon distribution, else okg; the
+    instance''s MCP image installs the AKMON release wheel named for the instance''s engine
+    version (akmon from 0.6.0, okg before); archi doctor warns when both distributions are
+    installed.
+
+
+    Acceptance:
+
+    - acc.r3-302-okg-dep.lookup: test_lock, test_stack and test_doctor cover the lookup order, the
+    wheel name per version and the warning. [evidence: pytest]
+
+    - acc.r3-302-okg-dep.wheel: the affected tests pass with the akmon 0.6.0 wheel installed and
+    no okg distribution. [evidence: executed_test]'
 - id: req.r3-302-okg-dep.install
   statement: 'Every install page says `pip install archi-kb==3.0.2` and nothing else to install
-    okg, and the nightly installs the checkout with no separate okg step, so okg comes from PyPI.
+    the engine, and the nightly installs the checkout with no separate engine step, so akmon
+    comes from PyPI.
 
 
     Acceptance:
 
     - acc.r3-302-okg-dep.pages: test_package_metadata and test_docs_quickstart. [evidence: pytest]
 
-    - acc.r3-302-okg-dep.e2e: the nightly passes with okg resolved from PyPI. [evidence: executed_test]'
+    - acc.r3-302-okg-dep.e2e: the nightly passes with akmon resolved from PyPI. [evidence: executed_test]'
 tasks:
 - id: task.r3-302-okg-dep.dependency
   requirement: req.r3-302-okg-dep.dependency
-  verification: 'Declare the dependency; bump to 3.0.2.
+  verification: 'Declare akmon; bump to 3.0.2; bundle ranges to >=0.6.0,<0.7; CI pins the
+    published akmon 0.6.0 wheel by sha256 (the value a4 reports after d1323).
 
 
     Test plan:
 
     - python/tests/test_package_metadata.py [evidence: pytest]'
+- id: task.r3-302-okg-dep.rename
+  requirement: req.r3-302-okg-dep.rename
+  verification: 'Read either distribution name; per-version wheel name in the MCP Dockerfile;
+    doctor warning.
+
+
+    Test plan:
+
+    - python/tests/bundles/test_lock.py, python/tests/cli/test_stack.py, python/tests/cli/test_doctor.py
+    [evidence: pytest]
+
+    - the affected set (test_package_metadata, test_docs_quickstart, test_alignment_page,
+    test_release_plan, tests/bundles, tests/cli) and the full suite on submit75 with the akmon
+    0.6.0 wheel [evidence: executed_test]'
 - id: task.r3-302-okg-dep.install
   requirement: req.r3-302-okg-dep.install
   verification: 'One-line install pages and nightly step 1.
@@ -55,6 +96,6 @@ tasks:
 
     - python/tests/test_docs_quickstart.py [evidence: pytest]
 
-    - nightly-e2e on this branch once okg 0.4.0 is on PyPI [evidence: executed_test]'
+    - nightly-e2e on this branch once akmon 0.6.0 is on PyPI [evidence: executed_test]'
 evidence: []
 decisions: []
