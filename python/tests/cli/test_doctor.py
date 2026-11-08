@@ -366,6 +366,23 @@ def test_okg_version_fixes_name_the_package_of_the_instances_engine(instance):
     assert newer.remediation == 'pip install "akmon==0.6.0"  (or re-init on 0.6.1)'
 
 
+def test_an_okg_instance_with_no_engine_installed_is_not_told_to_install_the_okg_wheel(instance):
+    _edit_yaml(instance.dir / "archi.yaml", lambda d: d.update(okg_version="0.4.0"))
+    result = results(instance, healthy_probes(
+        installed_okg=lambda: None, okg_distributions=lambda: {}))["okg-version"]
+    assert result.status == FAIL, result
+    assert "okg-0.4.0" not in result.remediation and "separate environment" in result.remediation
+    assert 'pip install "akmon>=0.6.0,<0.7"' in result.remediation
+
+
+@pytest.mark.parametrize("recorded", ["", "latest"])
+def test_an_instance_with_no_valid_okg_version_fails_the_check(instance, recorded):
+    _edit_yaml(instance.dir / "archi.yaml", lambda d: d.update(okg_version=recorded))
+    result = results(instance)["okg-version"]
+    assert result.status == FAIL, result
+    assert "no valid okg version" in result.message and "archi init" in result.remediation
+
+
 @pytest.mark.parametrize("check_id", sorted(FIXTURES))
 def test_each_check_has_a_failing_fixture(instance, check_id):
     overrides = FIXTURES[check_id](instance) or {}
