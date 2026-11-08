@@ -214,8 +214,9 @@ path and SHA256 binding that never fetches in frozen mode. It preserves the live
 profile. The historical CMSSW cache is still unavailable; unit fixtures are not
 real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-11-08, tested against AKMON v0.6.0 @ `fce9474c72` (okg tag `v0.6.0-rc1`, akmon 0.6.0 wheel
-built from its public export; archi-kb 3.0.2); archi branch `claude/x5-302-okg-dep` (PR #900), cut from `main` @
+*Last updated 2026-11-08, tested against AKMON v0.6.0 @ `9d93182df2` (akmon 0.6.0 wheel from PyPI, sha256
+`baec0d63…c244`, whose code is byte-identical to the wheel built on submit75 from okg tag `v0.6.0-rc1` @
+`fce9474c72`; archi-kb 3.0.2); archi branch `claude/x5-302-okg-dep` (PR #900), cut from `main` @
 `495bfab7`. Before: AKMON v0.4.0 @ `5567c79a54` (2026-11-02).*
 
 **Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15).** The fork was

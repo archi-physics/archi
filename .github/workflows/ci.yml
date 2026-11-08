@@ -47,10 +47,10 @@ jobs:
           # The release is the version archi is tested against. Keep it equal
           # to the release in the *Last updated* line of docs/okg-alignment.md;
           # if they differ, the page is describing a build that never ran.
-          # The sha256 is filled from the published v0.6.0 release asset (lane
-          # a4, board d1323); until then this step fails on purpose.
+          # The sha256 is the published v0.6.0 release asset's, which PyPI's
+          # akmon 0.6.0 file has too (board d1323, checked 2026-11-08).
           python -m pip install --upgrade pip
-          pip install "akmon @ https://github.com/mitdbg/akmon/releases/download/v0.6.0/akmon-0.6.0-py3-none-any.whl#sha256=FILL-FROM-THE-PUBLISHED-V0.6.0-RELEASE"
+          pip install "akmon @ https://github.com/mitdbg/akmon/releases/download/v0.6.0/akmon-0.6.0-py3-none-any.whl#sha256=baec0d63fc8772a77fa8db250733fc9568bd362837ea6e0289396afded12c244"
 
       - name: Install archi with dev extras
         run: pip install -e "./python[dev]"
