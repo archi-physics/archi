@@ -20,15 +20,21 @@ reimplementation of OKG services.
 
 ## Current state (update this section when it changes)
 
-**archi-kb 3.0.2 depends on okg from PyPI (2026-11-02).** AKMON publishes okg on
-PyPI from v0.5.0 on, through a dispatch-only `pypi.yml` with trusted publishing
-(lane a4; board d1016), and also publishes the 0.4.0 release wheel archi is
-tested on (sha256 `18ccec94…1abc`). archi-kb now declares `okg>=0.4.0,<0.5`, so
-`pip install archi-kb` installs both, and no install page names the wheel URL.
-CI still installs that exact wheel first; `test_package_metadata` checks it is
-inside the declared range. No import in `python/archi` changed. The range stops
-below 0.5: archi has not been run against okg 0.5 (its dev branch could not be
-built on the shared host).
+**archi-kb 3.0.2 depends on akmon from PyPI (2026-11-08).** AKMON's first PyPI
+release is 0.6.0, published under the distribution name `akmon` through a
+dispatch-only `pypi.yml` with trusted publishing (lane a4; board d1141: only the
+distribution is renamed, `import okg` and the `okg` command stay; publish item
+d1323). 0.4.0 and 0.5.0 stay GitHub-only, named `okg`. archi-kb declares
+`akmon>=0.6.0,<0.7`, so `pip install archi-kb` installs the engine, and no
+install page names the wheel URL. The rename reached archi in two places, both
+fixed: archi read the engine version from the `okg` distribution only, so
+`archi init` refused on 0.6.0, and the MCP Dockerfile asked pip for
+`okg @ <wheel>`, which pip refuses for an akmon wheel. No import in
+`python/archi` changed. CI installs the akmon 0.6.0 release wheel by sha256
+first; `test_package_metadata` checks it is inside archi-kb's and every
+bundle's range. Before publication, archi was tested against a wheel built on
+submit75 from okg tag `v0.6.0-rc1` through the public-mirror export; 0.5.0 was
+never run with archi on its own.
 
 **archi-kb 3.0.1 moves to AKMON 0.4.0 (2026-11-02).** 3.0.0 shipped on PyPI
 on AKMON 0.2.0. Reading okg 0.4.0 found two changes archi had to follow, and no
@@ -202,8 +208,9 @@ path and SHA256 binding that never fetches in frozen mode. It preserves the live
 profile. The historical CMSSW cache is still unavailable; unit fixtures are not
 real-deployment baseline evidence. See [frozen CMSSW inputs](frozen-cmssw-input.md).
 
-*Last updated 2026-11-02, tested against AKMON v0.4.0 @ `5567c79a54` (archi-kb 3.0.1); archi branch
-`claude/x5-301-akmon-040` (PR #893), cut from `archi_v3` @ `b0abe604`. Before: AKMON v0.2.0 @ `e2c618010b` (2026-10-20).*
+*Last updated 2026-11-08, tested against AKMON v0.6.0 @ `fce9474c72` (okg tag `v0.6.0-rc1`, akmon 0.6.0 wheel
+built from its public export; archi-kb 3.0.2); archi branch `claude/x5-302-okg-dep` (PR #900), cut from `main` @
+`495bfab7`. Before: AKMON v0.4.0 @ `5567c79a54` (2026-11-02).*
 
 **Pin bumped `34efbad1b` → `5b2fd076c` (2026-09-15).** The fork was
 synced to okg `dev` first; it had no commits of its own. Full archi suite
