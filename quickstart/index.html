@@ -184,13 +184,13 @@
 <p>From an empty machine to a cited answer from your team's knowledge graph,
 with the <code>cern-team</code> bundle: five user commands, the same ones the nightly
 build runs (the <code>cd</code> is not counted, and the fifth is a check).</p>
-<p><strong>You need:</strong> <code>docker</code> or <code>podman</code> (with <code>compose</code>), Python 3.12 (CI tests 3.12; okg 0.4.0 does not install on 3.14),
+<p><strong>You need:</strong> <code>docker</code> or <code>podman</code> (with <code>compose</code>), Python 3.12 (CI tests 3.12; akmon 0.6.0 does not install on 3.14),
 and <code>git</code>. No account, key or root access.</p>
 <p>With rootless podman, container health checks run from systemd user timers.
 Where there is no systemd user session (inside a container, or on some
 shared hosts), the checks may never run, and then <code>archi up</code> waits with no time limit.
 Use docker there, or log in to a session with a systemd user manager.</p>
-<pre><code class="language-bash">pip install &quot;okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc&quot; archi-kb==3.0.1
+<pre><code class="language-bash">pip install archi-kb==3.0.2
 archi init myteam --bundle cern-team
 cd myteam
 archi up
@@ -199,10 +199,12 @@ python &quot;$ARCHI_CHECKOUT/python/tests/cli/mcp_cited_answer.py&quot; &quot;Wh
 </code></pre>
 <p>What each command does:</p>
 <ol>
-<li><strong>Install.</strong> <code>okg</code> is the knowledge-graph engine. <code>archi-kb</code> is Archi. The
-   import name is <code>archi</code>. <code>archi-kb</code> comes from PyPI. <code>okg</code> is not on PyPI,
-   so it comes from its release file. Do not <code>pip install archi</code>: that name
-   on PyPI is an unrelated package. Use a virtual environment.</li>
+<li><strong>Install.</strong> <code>okg</code> is the knowledge-graph engine; its PyPI package is
+   <code>akmon</code>. <code>archi-kb</code> is Archi. The import name is <code>archi</code>. Both come from
+   PyPI: installing <code>archi-kb</code> installs a matching <code>akmon</code> (0.6.x). Do not
+   <code>pip install archi</code>: that name on PyPI is an unrelated package. Use a new
+   virtual environment: one that still has the old <code>okg</code> package needs
+   <code>pip uninstall okg</code> first, because both install the same files.</li>
 <li><strong><code>archi init myteam --bundle cern-team</code></strong> creates <code>./myteam</code> as a git
    repository. It writes the settings, generates every secret into <code>.env</code>,
    starts the graph database and publishes a first graph. The default packs
@@ -214,7 +216,7 @@ python &quot;$ARCHI_CHECKOUT/python/tests/cli/mcp_cited_answer.py&quot; &quot;Wh
 <li><strong>The last command asks a question over MCP</strong> and succeeds only when the
    answer cites graph records. The script is in the Archi repository, so set
    <code>ARCHI_CHECKOUT</code> to a clone of this release
-   (<code>git clone --branch v3.0.1 https://github.com/archi-physics/archi</code>).
+   (<code>git clone --branch v3.0.2 https://github.com/archi-physics/archi</code>).
    It needs the <code>mcp</code> Python package. In daily use you ask in the chat
    instead, or
    <a href="../connecting-an-agent/">connect an agent</a>.</li>

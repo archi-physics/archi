@@ -208,7 +208,7 @@ archi delete that cover (ADR 0002 D7).</p>
 <td>FG-01</td>
 <td>§1: okg had to be <code>pip install -e</code> from a clone, or publish refused with a message about <code>release.pin.code_repository</code></td>
 <td>absorbed; filed (ask 1: <a href="https://github.com/mitdbg/akmon/issues/3">mitdbg/akmon#3</a>, #798)</td>
-<td>archi installs the AKMON v0.2.0 release wheel; the published path was run from the wheel. PyPI wheels are ask 1</td>
+<td>archi-kb depends on <code>akmon</code> from PyPI (AKMON 0.6.0 renamed its distribution from <code>okg</code>; the import and command are still <code>okg</code>), which meets ask 1; the MCP image installs the release wheel named for the instance's engine version; the published path was run from the wheel</td>
 <td><code>okg-version</code> check; golden-path run (PACT evidence)</td>
 </tr>
 <tr>
