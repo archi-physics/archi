@@ -19,6 +19,11 @@ class OkgError(Exception):
         self.result = result
 
 
+#: archi-kb's dependency on the graph engine, as python/pyproject.toml declares
+#: it (test_package_metadata keeps the two equal).
+ENGINE_REQUIREMENT = "akmon>=0.6.0,<0.7"
+
+
 def okg_version() -> Optional[str]:
     """The installed engine's version, from the `akmon` distribution (AKMON
     0.6.0 on) or else the `okg` one (before 0.6.0)."""

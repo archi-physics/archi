@@ -18,8 +18,13 @@ One command installs Archi, on AKMON 0.6.0 instead of 0.4.0. See the
 - Archi reads the engine version from the `akmon` distribution, else `okg`.
   `archi init` refused on 0.6.0 without this (it looked up `okg` only). The MCP
   container installs `akmon @ …/akmon-<v>-…whl` from 0.6.0 and `okg @ …` before.
-- `archi doctor`'s okg-version check warns when `okg` and `akmon` are both
-  installed: they share files.
+- `archi doctor`'s okg-version check reports when `okg` and `akmon` are both
+  installed (they share files), names `pip install "akmon==<v>"` as the fix
+  from 0.6.0, and never suggests the okg wheel inside an akmon environment.
+  An instance whose recorded engine version is missing or invalid is refused
+  instead of rendering a broken wheel URL.
+- `requires-python` is `>=3.12,<3.14`, as akmon's. A pack test's fake graph
+  read now also stands in for `query_strict`, which 0.6.0's linker uses.
 - The four bundles declare `okg: ">=0.6.0,<0.7"` (cern-team 0.5.0; cms-comp-ops,
   cluster-manager, cms-physics 0.3.0).
 - The install pages say `pip install archi-kb==3.0.2`. The nightly installs

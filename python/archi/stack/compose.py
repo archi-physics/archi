@@ -86,11 +86,20 @@ def okg_distribution(version: str) -> str:
     try:
         return "okg" if Version(version).release < (0, 6) else "akmon"
     except InvalidVersion:
-        return "akmon"
+        raise ComposeError(
+            f"archi.yaml records no valid okg version ({version!r}); `archi init` writes it"
+        ) from None
 
 
 def okg_wheel(version: str) -> str:
     return OKG_WHEEL.format(v=version, dist=okg_distribution(version))
+
+
+def okg_install_hint(version: str) -> str:
+    """The pip command for engine `version`: akmon from PyPI (0.6.0 on), else okg's release wheel."""
+    if okg_distribution(version) == "akmon":
+        return f'pip install "akmon=={version}"'
+    return f"pip install {okg_wheel(version)}"
 
 
 def render_dockerfile(okg_version: str) -> str:

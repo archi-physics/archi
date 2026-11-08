@@ -11,8 +11,10 @@ why: 'Until 3.0.1, the graph engine okg (AKMON) was published only as a wheel on
   0.4.0 and 0.5.0 stay GitHub-only, so the earlier plan (okg 0.4.0 on PyPI, d1016) is replaced.
   The rename breaks archi where it reads distribution metadata: with akmon 0.6.0 installed,
   `archi init` refused ("okg is not installed") because it looked up `okg` only, and the MCP
-  image would ask pip for `okg @ <akmon wheel>`. 3.0.2 declares akmon>=0.6.0,<0.7, reads either
-  name, names the right wheel per engine version, and the install becomes one line.'
+  Dockerfile built `.../v0.6.0/okg-0.6.0-py3-none-any.whl` under the name okg, a file the
+  release does not ship. 0.6.0 also reads linker fields through `_chronos.query_strict`, which
+  one pack test did not fake. 3.0.2 declares akmon>=0.6.0,<0.7, reads either name, names the
+  right wheel per engine version, and the install becomes one line.'
 affected_code:
 - python/pyproject.toml
 - python/archi/__init__.py

@@ -8,7 +8,9 @@ build-backend = "hatchling.build"
 name = "archi-kb"
 version = "3.0.2"
 description = "Operations automation for scientific computing: agents propose actions, people approve them, and every step cites the facility's own knowledge"
-requires-python = ">=3.12"
+# akmon 0.6.0 requires >=3.12,<3.14; without the upper bound pip on 3.14 says only
+# that no akmon matches, not that the Python is too new.
+requires-python = ">=3.12,<3.14"
 # The PyPI project page shows this file. Its links point at this version's tag,
 # because a published version's page cannot be changed afterwards.
 readme = "README.md"

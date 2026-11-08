@@ -269,23 +269,39 @@ def okg_version_check(ctx: Context) -> Result:
 
     installed = (ctx.probes.installed_okg or okg_version)()
     want = ctx.instance.okg_version
+    try:
+        want_dist = stack_compose.okg_distribution(want)
+    except stack_compose.ComposeError as exc:
+        return Result("okg-version", FAIL, str(exc), "make the instance again with `archi init`")
     if installed is None:
         return Result("okg-version", FAIL, "okg is not installed in this environment",
-                      f"pip install the AKMON wheel: {stack_compose.okg_wheel(want)}")
-    if installed != want:
-        return Result("okg-version", FAIL,
-                      f"okg {installed} is installed; the instance's MCP image and graph database run {want}",
-                      f"pip install {stack_compose.okg_wheel(want)}  (or re-init on {installed})")
+                      stack_compose.okg_install_hint(want))
+    # AKMON 0.6.0 renamed the distribution okg -> akmon. Both install the same
+    # `okg` package and command, so removing one deletes files the other needs.
     found = (ctx.probes.okg_distributions or okg_distributions)()
+    both = ""
     if len(found) > 1:
-        # AKMON 0.6.0 renamed the distribution okg -> akmon. Both install the
-        # same `okg` package and command, so removing one deletes files the
-        # other needs.
-        both = ", ".join(f"{name} {version}" for name, version in found.items())
-        return Result("okg-version", WARN,
-                      f"okg {installed}, as the stack runs, but two engine packages are installed ({both})",
+        both = "; two engine packages are installed (" + ", ".join(
+            f"{name} {version}" for name, version in found.items()) + ")"
+    if installed != want:
+        message = f"okg {installed} is installed; the instance's MCP image and graph database run {want}{both}"
+        try:
+            same_package = stack_compose.okg_distribution(installed) == want_dist
+        except stack_compose.ComposeError:
+            same_package = False
+        if same_package:
+            fix = f"{stack_compose.okg_install_hint(want)}  (or re-init on {installed})"
+        else:
+            # okg (before 0.6.0) and akmon cannot share one environment, so
+            # installing the instance's engine here would overwrite this one.
+            fix = (f"this instance was made on okg {want}: run it from a separate environment that has "
+                   f"okg {want} and the archi-kb release made for it, or make a new instance here "
+                   "with `archi init`")
+        return Result("okg-version", FAIL, message, fix)
+    if both:
+        return Result("okg-version", WARN, f"okg {installed}, as the stack runs{both}",
                       "they share files, so `pip uninstall okg` alone breaks akmon: "
-                      f"pip uninstall -y okg akmon && pip install {stack_compose.okg_wheel(installed)}")
+                      f"pip uninstall -y okg akmon && {stack_compose.okg_install_hint(installed)}")
     return Result("okg-version", PASS, f"okg {installed}, as the stack runs")
 
 

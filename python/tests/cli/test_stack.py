@@ -106,6 +106,13 @@ def test_mcp_dockerfile_names_the_engine_distribution_of_its_version(version, di
     assert stack_compose.okg_wheel(version) == wheel
 
 
+@pytest.mark.parametrize("version", ["", "latest"])
+def test_an_instance_without_a_valid_okg_version_is_refused_not_guessed(version):
+    # An empty version used to render ".../download/v/okg--py3-none-any.whl".
+    with pytest.raises(ComposeError, match="no valid okg version"):
+        stack_compose.render_dockerfile(version)
+
+
 def _runner(results):
     calls = []
     kwargs = []

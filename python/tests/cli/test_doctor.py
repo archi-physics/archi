@@ -131,6 +131,7 @@ def healthy_probes(**overrides) -> Probes:
         mcp=lambda url, token: {"tools": ["inspect", "search"], "is_error": False, "text": "ok"},
         environ={},
         installed_okg=okg_version,  # the instance records the okg it was made with
+        okg_distributions=lambda: {"akmon": okg_version() or ""},  # one engine package
     )
     probes.update(overrides)
     return Probes(**probes)
@@ -336,7 +337,33 @@ def test_okg_version_warns_when_okg_and_akmon_are_both_installed(instance):
     assert result.status == WARN, result
     assert "akmon" in result.message and "okg 0.4.0" in result.message
     assert "pip uninstall -y okg akmon" in result.remediation
+    assert f'pip install "akmon=={installed}"' in result.remediation
     assert "\n" not in result.remediation
+
+
+def test_an_instance_made_on_okg_never_gets_an_okg_wheel_fix_in_an_akmon_environment(instance):
+    # A 3.0.1 instance (okg 0.4.0) after `pip install archi-kb==3.0.2` in the
+    # same environment: akmon 0.6.0 sits over okg 0.4.0. Installing the okg
+    # wheel again would overwrite akmon's files, so the fix must not say that.
+    _edit_yaml(instance.dir / "archi.yaml", lambda d: d.update(okg_version="0.4.0"))
+    result = results(instance, healthy_probes(
+        installed_okg=lambda: "0.6.0",
+        okg_distributions=lambda: {"akmon": "0.6.0", "okg": "0.4.0"}))["okg-version"]
+    assert result.status == FAIL, result
+    assert "run 0.4.0" in result.message and "two engine packages" in result.message
+    assert "pip install" not in result.remediation
+    assert "separate environment" in result.remediation and "archi init" in result.remediation
+    assert "\n" not in result.remediation
+
+
+def test_okg_version_fixes_name_the_package_of_the_instances_engine(instance):
+    _edit_yaml(instance.dir / "archi.yaml", lambda d: d.update(okg_version="0.6.0"))
+    missing = results(instance, healthy_probes(installed_okg=lambda: None))["okg-version"]
+    assert missing.status == FAIL and missing.remediation == 'pip install "akmon==0.6.0"'
+    newer = results(instance, healthy_probes(
+        installed_okg=lambda: "0.6.1", okg_distributions=lambda: {"akmon": "0.6.1"}))["okg-version"]
+    assert newer.status == FAIL
+    assert newer.remediation == 'pip install "akmon==0.6.0"  (or re-init on 0.6.1)'
 
 
 @pytest.mark.parametrize("check_id", sorted(FIXTURES))

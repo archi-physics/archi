@@ -103,6 +103,10 @@ def test_archi_kb_declares_an_akmon_range_that_holds_the_akmon_ci_tests():
     # make pip install both, and they overwrite each other's files.
     assert not [r for r in deps if r.name == "okg"], "archi-kb must not also declare okg"
     assert ci_tested_akmon() in akmon[0].specifier, (str(akmon[0]), ci_tested_akmon())
+    # `archi init` names the same requirement when the engine is missing.
+    from archi.stack.okg import ENGINE_REQUIREMENT
+
+    assert Requirement(ENGINE_REQUIREMENT) == akmon[0], (ENGINE_REQUIREMENT, str(akmon[0]))
 
 
 def test_shipped_bundles_support_the_akmon_ci_tests():
