@@ -75,7 +75,10 @@ def test_a_large_allocation_is_stopped(corpus):
     if "python3" not in box.tools:
         pytest.skip("no python3 on this host to allocate with")
     result = box.run("python3 -c 'b = bytearray(3 * 1024 ** 3); print(\"ALLOCATED\")'")
-    assert "ALLOCATED" not in result.text and "MemoryError" in result.text and not result.ok
+    # A newer python3 quotes the -c source line in its traceback
+    # (`); print("ALLOCATED")`), so look for the printed line, not the word.
+    printed = [line.strip() for line in result.text.splitlines()]
+    assert "ALLOCATED" not in printed and "MemoryError" in result.text and not result.ok
 
 
 @needs_bwrap
