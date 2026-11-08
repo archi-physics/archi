@@ -4,6 +4,34 @@ All notable changes to `archi-kb` (import name `archi`). Numbers like #786
 are pull requests on `archi-physics/archi`. The v2 line (`v2.x` tags, branch
 `v2` after the cutover) is not covered here.
 
+## 3.0.2
+
+One command installs Archi, on AKMON 0.6.0 instead of 0.4.0. See the
+[release notes](docs/release-notes-3.0.2.md).
+
+- `archi-kb` declares `akmon>=0.6.0,<0.7`. AKMON's first PyPI release is 0.6.0,
+  which renames its distribution from `okg` to `akmon` (board d1141, d1323);
+  the `okg` command and `import okg` are unchanged. `pip install archi-kb` now
+  installs a matching graph engine. Before, the engine came only from AKMON's
+  release wheel, a URL, which PyPI does not allow as a dependency, and the
+  install line named that wheel.
+- Archi reads the engine version from the `akmon` distribution, else `okg`.
+  `archi init` refused on 0.6.0 without this (it looked up `okg` only). The MCP
+  container installs `akmon @ …/akmon-<v>-…whl` from 0.6.0 and `okg @ …` before.
+- `archi doctor`'s okg-version check reports when `okg` and `akmon` are both
+  installed (they share files), names `pip install "akmon==<v>"` as the fix
+  from 0.6.0, and never suggests the okg wheel inside an akmon environment.
+  An instance whose recorded engine version is missing or invalid is refused
+  instead of rendering a broken wheel URL.
+- `requires-python` is `>=3.12,<3.14`, as akmon's. A pack test's fake graph
+  read now also stands in for `query_strict`, which 0.6.0's linker uses.
+- The four bundles declare `okg: ">=0.6.0,<0.7"` (cern-team 0.5.0; cms-comp-ops,
+  cluster-manager, cms-physics 0.3.0).
+- The install pages say `pip install archi-kb==3.0.2`. The nightly installs
+  the checkout with no separate engine step. CI still installs the exact akmon
+  wheel it tests first, and tests check that wheel is inside archi-kb's and
+  every bundle's declared range.
+
 ## 3.0.1
 
 Runs on AKMON 0.4.0 instead of 0.2.0. See the

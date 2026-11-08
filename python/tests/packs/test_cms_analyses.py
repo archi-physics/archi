@@ -266,8 +266,9 @@ def test_the_pack_ships_the_rules_the_linker_loads():
 def graph(corpus, monkeypatch):
     """The fixture corpus as the sources emit it, queryable by okg's linker.
 
-    Replaces only the database read (`_chronos.query`) with an in-memory
-    table of node rows; the linker's own field reading and matching run.
+    Replaces only the database read (`_chronos.query` and `query_strict`)
+    with an in-memory table of node rows; the linker's own field reading and
+    matching run.
     """
     from okg.substrate.library.linkers import _chronos
 
@@ -295,6 +296,9 @@ def graph(corpus, monkeypatch):
         ]
 
     monkeypatch.setattr(_chronos, "query", query)
+    # AKMON 0.6.0's linker reads fields through query_strict (a failed read
+    # raises instead of returning no rows); the same table answers it.
+    monkeypatch.setattr(_chronos, "query_strict", query)
     return nodes
 
 

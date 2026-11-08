@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from archi.bundles.lock import LockError, _okg_executable
+from archi.bundles.lock import LockError, _okg_distributions, _okg_executable, _okg_version
 from archi.stack.instance import Instance, host_env
 
 
@@ -19,13 +19,20 @@ class OkgError(Exception):
         self.result = result
 
 
-def okg_version() -> Optional[str]:
-    from importlib.metadata import PackageNotFoundError, version
+#: archi-kb's dependency on the graph engine, as python/pyproject.toml declares
+#: it (test_package_metadata keeps the two equal).
+ENGINE_REQUIREMENT = "akmon>=0.6.0,<0.7"
 
-    try:
-        return version("okg")
-    except PackageNotFoundError:
-        return None
+
+def okg_version() -> Optional[str]:
+    """The installed engine's version, from the `akmon` distribution (AKMON
+    0.6.0 on) or else the `okg` one (before 0.6.0)."""
+    return _okg_version()
+
+
+def okg_distributions() -> dict[str, str]:
+    """{distribution name: version} for each engine distribution installed."""
+    return _okg_distributions()
 
 
 def executable() -> str:

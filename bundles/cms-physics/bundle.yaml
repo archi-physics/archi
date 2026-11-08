@@ -1,5 +1,5 @@
 name: cms-physics
-version: 0.2.0
+version: 0.3.0
 description: A CMS physics knowledge instance - physics TWiki pages, CDS records, CMSSW releases, analysis notes, and the analysis ids, groups and techniques that link them.
 # ADR 0002 section 5. Extends cern-team for its documentation, meetings and
 # generic playbooks; the physics sources are added on top.
@@ -22,4 +22,4 @@ chat:
     - Which analysis note backs a given CMS physics analysis summary?
     - Which analyses use b tagging, and what do the TWiki recipes say about it?
     - What does the Muon POG documentation cover?
-okg: ">=0.4.0,<0.5"
+okg: ">=0.6.0,<0.7"

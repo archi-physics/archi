@@ -277,3 +277,25 @@ def test_add_needs_a_deployment(cern, tmp_path):
     render_and_lock(cern, instance, ["cern-team"])
     with pytest.raises(LockError, match="pass --deployment"):
         add(instance, cern, "repo-mirror", {}, run_okg=False)
+
+
+@pytest.mark.parametrize("installed, want", [
+    ({"akmon": "0.6.0"}, "0.6.0"),
+    ({"okg": "0.4.0"}, "0.4.0"),
+    ({"akmon": "0.6.0", "okg": "0.4.0"}, "0.6.0"),
+    ({}, None),
+])
+def test_engine_version_reads_akmon_then_okg(monkeypatch, installed, want):
+    # AKMON 0.6.0 renamed its distribution okg -> akmon; `import okg` stays.
+    import importlib.metadata as md
+
+    from archi.bundles import lock as lock_mod
+
+    def version(name):
+        if name in installed:
+            return installed[name]
+        raise md.PackageNotFoundError(name)
+
+    monkeypatch.setattr(md, "version", version)
+    assert lock_mod._okg_version() == want
+    assert lock_mod._okg_distributions() == {n: installed[n] for n in ("akmon", "okg") if n in installed}

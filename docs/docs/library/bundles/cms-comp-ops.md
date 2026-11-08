@@ -6,9 +6,9 @@ A CMS computing operations knowledge instance - sites, storage, datasets and wor
 
 | Field | Value |
 |---|---|
-| Version | `0.2.0` |
+| Version | `0.3.0` |
 | Extends | [`cern-team`](cern-team.md) |
-| Okg versions it supports | `>=0.4.0,<0.5` |
+| Okg versions it supports | `>=0.6.0,<0.7` |
 
 ## Packs
 

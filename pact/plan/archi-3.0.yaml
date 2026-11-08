@@ -239,3 +239,10 @@ pacts:
       task.r3-301-akmon-040.doctext: "3.0.1: declare doc: records for code-text profiles"
       task.r3-301-akmon-040.names: "3.0.1: archi init refuses _ in instance names"
       task.r3-301-akmon-040.release: "3.0.1: version, release notes, links to their own tag"
+  r3-302-okg-dep:
+    milestone: "3.0 · M7 Docs & release"
+    labels: []
+    tasks:
+      task.r3-302-okg-dep.dependency: "3.0.2: declare akmon>=0.6.0,<0.7 as a dependency"
+      task.r3-302-okg-dep.rename: "3.0.2: read the engine as akmon or okg; MCP wheel per version"
+      task.r3-302-okg-dep.install: "3.0.2: one-line pip install archi-kb"

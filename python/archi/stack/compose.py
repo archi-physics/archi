@@ -50,8 +50,10 @@ MCP_CONTAINER_PORT = 8765
 #: Open WebUI loads a sentence-embedding model on first start; that alone
 #: overran okg's 120 s default ready timeout in the quickstart.
 WEBUI_READY_SECONDS = 600
+#: AKMON's release wheel for one version. Its file and distribution are named
+#: `akmon` from 0.6.0 and `okg` before; the import and the command stay `okg`.
 OKG_WHEEL = (
-    "https://github.com/mitdbg/akmon/releases/download/v{v}/okg-{v}-py3-none-any.whl"
+    "https://github.com/mitdbg/akmon/releases/download/v{v}/{dist}-{v}-py3-none-any.whl"
 )
 
 COMPOSE_HEADER = (
@@ -68,7 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \\
  && rm -rf /var/lib/apt/lists/* \\
  && git config --system --add safe.directory '*'
 ARG OKG_WHEEL={wheel}
-RUN pip install --no-cache-dir "okg @ ${{OKG_WHEEL}}"
+RUN pip install --no-cache-dir "{dist} @ ${{OKG_WHEEL}}"
 ENTRYPOINT ["okg"]
 """
 
@@ -77,12 +79,31 @@ class ComposeError(Exception):
     """The container runtime is missing or a compose step failed."""
 
 
+def okg_distribution(version: str) -> str:
+    """The engine's distribution name at `version`: `akmon` from 0.6.0, `okg` before."""
+    from packaging.version import InvalidVersion, Version
+
+    try:
+        return "okg" if Version(version).release < (0, 6) else "akmon"
+    except InvalidVersion:
+        raise ComposeError(
+            f"archi.yaml records no valid okg version ({version!r}); `archi init` writes it"
+        ) from None
+
+
 def okg_wheel(version: str) -> str:
-    return OKG_WHEEL.format(v=version)
+    return OKG_WHEEL.format(v=version, dist=okg_distribution(version))
+
+
+def okg_install_hint(version: str) -> str:
+    """The pip command for engine `version`: akmon from PyPI (0.6.0 on), else okg's release wheel."""
+    if okg_distribution(version) == "akmon":
+        return f'pip install "akmon=={version}"'
+    return f"pip install {okg_wheel(version)}"
 
 
 def render_dockerfile(okg_version: str) -> str:
-    return DOCKERFILE.format(wheel=okg_wheel(okg_version))
+    return DOCKERFILE.format(wheel=okg_wheel(okg_version), dist=okg_distribution(okg_version))
 
 
 def chat_settings(deployment_dir: Path) -> dict[str, Any]:

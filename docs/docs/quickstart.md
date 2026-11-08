@@ -4,7 +4,7 @@ From an empty machine to a cited answer from your team's knowledge graph,
 with the `cern-team` bundle: five user commands, the same ones the nightly
 build runs (the `cd` is not counted, and the fifth is a check).
 
-**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; okg 0.4.0 does not install on 3.14),
+**You need:** `docker` or `podman` (with `compose`), Python 3.12 (CI tests 3.12; akmon 0.6.0 does not install on 3.14),
 and `git`. No account, key or root access.
 
 With rootless podman, container health checks run from systemd user timers.
@@ -13,7 +13,7 @@ shared hosts), the checks may never run, and then `archi up` waits with no time 
 Use docker there, or log in to a session with a systemd user manager.
 
 ```bash
-pip install "okg @ https://github.com/mitdbg/akmon/releases/download/v0.4.0/okg-0.4.0-py3-none-any.whl#sha256=18ccec94040e23bccae9b51274b6aafb5bfbb9d512dc6c37506d27fac31c1abc" archi-kb==3.0.1
+pip install archi-kb==3.0.2
 archi init myteam --bundle cern-team
 cd myteam
 archi up
@@ -23,10 +23,12 @@ python "$ARCHI_CHECKOUT/python/tests/cli/mcp_cited_answer.py" "What is the Knowl
 
 What each command does:
 
-1. **Install.** `okg` is the knowledge-graph engine. `archi-kb` is Archi. The
-   import name is `archi`. `archi-kb` comes from PyPI. `okg` is not on PyPI,
-   so it comes from its release file. Do not `pip install archi`: that name
-   on PyPI is an unrelated package. Use a virtual environment.
+1. **Install.** `okg` is the knowledge-graph engine; its PyPI package is
+   `akmon`. `archi-kb` is Archi. The import name is `archi`. Both come from
+   PyPI: installing `archi-kb` installs a matching `akmon` (0.6.x). Do not
+   `pip install archi`: that name on PyPI is an unrelated package. Use a new
+   virtual environment: one that still has the old `okg` package needs
+   `pip uninstall okg` first, because both install the same files.
 2. **`archi init myteam --bundle cern-team`** creates `./myteam` as a git
    repository. It writes the settings, generates every secret into `.env`,
    starts the graph database and publishes a first graph. The default packs
@@ -38,7 +40,7 @@ What each command does:
 5. **The last command asks a question over MCP** and succeeds only when the
    answer cites graph records. The script is in the Archi repository, so set
    `ARCHI_CHECKOUT` to a clone of this release
-   (`git clone --branch v3.0.1 https://github.com/archi-physics/archi`).
+   (`git clone --branch v3.0.2 https://github.com/archi-physics/archi`).
    It needs the `mcp` Python package. In daily use you ask in the chat
    instead, or
    [connect an agent](connecting-an-agent.md).

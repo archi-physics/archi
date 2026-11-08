@@ -56,7 +56,7 @@ from archi.stack.instance import (
     graph_dsn,
     write_env,
 )
-from archi.stack.okg import Okg, OkgError, answer_flags, okg_version, role_password
+from archi.stack.okg import ENGINE_REQUIREMENT, Okg, OkgError, answer_flags, okg_version, role_password
 
 #: okg 0.4.0 `chat sync` refuses a deployment name outside [a-z0-9][a-z0-9-]*, and
 #: the instance name is the deployment name, so "_" is refused here, before init
@@ -422,7 +422,8 @@ def init(
     check_data_root(root, instance_dir)
     version = okg_version()
     if version is None:
-        raise InitError("okg is not installed in this Python environment; install the AKMON wheel")
+        raise InitError("okg is not installed in this Python environment; install AKMON's "
+                        f'package: pip install "{ENGINE_REQUIREMENT}"')
     if run_okg:
         runtime = stack_compose.detect_runtime(runtime, runner=compose_runner)
     runtime = runtime or "docker"
