@@ -433,3 +433,11 @@ def test_progress_goes_to_stderr_once_per_status_and_stdout_stays_the_summary(
         f"wmstats: {status} {index}/9" for index, status in enumerate(DEFAULT_STATUSES, start=1)
     ]
     assert "running-open 5/9, 1 workflows" in lines[4]
+
+
+def test_a_refused_first_run_leaves_at_most_the_lock(tmp_path, proxy, upstream):
+    nameless = {k: v for k, v in COMPLETED.items() if k != "RequestName"}
+    upstream.answers[_url("completed")] = {"result": [{COMPLETED["RequestName"]: nameless}]}
+    output = tmp_path / "wmstats-workflows"
+    assert _main(output) == 1
+    assert {p.name for p in output.iterdir()} <= {".lock"}

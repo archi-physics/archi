@@ -604,3 +604,10 @@ def test_progress_goes_to_stderr_and_stdout_stays_the_summary(tmp_path, proxy, m
         "dbs: 450/450",
     ]
     assert "201 requests" in lines[0]
+
+
+def test_a_refused_first_run_leaves_at_most_the_lock(tmp_path, proxy, wmstats_records, upstream):
+    upstream.answers[_summary_url(AOD)] = _summary(40, "unknown", 1)
+    output = tmp_path / "dbs-datasets"
+    assert _main(output) == 1
+    assert {p.name for p in output.iterdir()} <= {".lock"}
