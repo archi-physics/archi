@@ -47,9 +47,11 @@ requirements:
     leaves the previous cache untouched and exits non-zero with a message naming the endpoint.
     [evidence: executed_test]'
 - id: req.catalog-downloaders.auth
-  statement: 'DBS and WMStats authenticate with the grid proxy named by X509_USER_PROXY (default
-    /tmp/x509up_u<uid>); a missing or expired proxy stops the run before any request, with a
-    message that names voms-proxy-init. Public upstreams need no credential.
+  statement: 'CMS CRIC, DBS and WMStats authenticate with a grid proxy: the file --proxy names,
+    else X509_USER_PROXY, else /tmp/x509up_u<uid> (CMS CRIC needs it because its facility and
+    site-responsibilities endpoints redirect an anonymous request to a login page). A missing or
+    expired proxy stops the run before any request, with a message that names voms-proxy-init.
+    WLCG CRIC core and GOCDB need no credential.
 
 
     Acceptance:
