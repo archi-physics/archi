@@ -6,5 +6,12 @@ with its ``source-download-manifest.yaml``) and ``sso_login``
 (``sso-login.py``). ``cmssst`` (CMS Site Support Team site status) is new
 here and needs no credentials. Each runs as
 ``python -m archi.downloaders.<name>``. They need network access, the first
-three need CERN credentials, and none imports anything from okg.
+three need CERN credentials, and none of them imports anything from okg.
+
+The cms-catalogs downloaders (issue #903) share :mod:`._catalog` (fetch JSON
+with an optional X.509 proxy, write a cache file or a group of cache files
+atomically). ``cric`` (CMS CRIC topology, needs an X.509 proxy) and
+``cric_core`` (WLCG CRIC core services and federations, anonymous) are the
+first. ``_catalog`` reuses :mod:`archi.auth` (the readers' ``data_root`` and
+the preflight's proxy-expiry decoder), so these do import okg through it.
 """

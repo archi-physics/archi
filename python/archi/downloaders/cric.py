@@ -83,7 +83,7 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> dict[str, Any]
     urls = {name: base + path for name, path in ENDPOINTS.items()}
     payloads = {name: fetch(url) for name, url in urls.items()}
 
-    sites = _keyed_objects(payloads["sites.json"], urls["sites.json"])
+    sites = keyed_objects(payloads["sites.json"], urls["sites.json"])
     for name, site in sites.items():
         if not CMS_SITE_NAME.match(name):
             raise DownloadError(f"{urls['sites.json']}: not a CMS site name: {name!r}")
@@ -93,7 +93,7 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> dict[str, Any]
                 f"{urls['sites.json']}: site {name} has no integer tier_level"
             )
 
-    storage_units = _keyed_objects(
+    storage_units = keyed_objects(
         payloads["storage_units.json"], urls["storage_units.json"]
     )
     for name, unit in storage_units.items():
@@ -104,9 +104,9 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> dict[str, Any]
                 "'site' object with a name"
             )
 
-    _keyed_objects(payloads["compute_units.json"], urls["compute_units.json"])
+    keyed_objects(payloads["compute_units.json"], urls["compute_units.json"])
 
-    facilities = _keyed_objects(payloads["facilities.json"], urls["facilities.json"])
+    facilities = keyed_objects(payloads["facilities.json"], urls["facilities.json"])
     for name, facility in facilities.items():
         if not isinstance(facility.get("cmssites", []), list):
             raise DownloadError(
@@ -119,7 +119,7 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> dict[str, Any]
     return payloads
 
 
-def _keyed_objects(payload: Any, url: str) -> dict[str, dict[str, Any]]:
+def keyed_objects(payload: Any, url: str) -> dict[str, dict[str, Any]]:
     """A CRIC ``name -> object`` answer, or :class:`DownloadError`."""
     if not isinstance(payload, dict):
         raise DownloadError(
