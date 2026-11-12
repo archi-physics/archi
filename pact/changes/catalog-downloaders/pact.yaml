@@ -27,13 +27,21 @@ why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmsta
   URL; conddb_global_tags keeps reading whatever cache an operator places.
 
 
-  NOT CHANGED: the readers, their cache contracts and the snapshot builder. dqm and indico
+  DECISION (captain, 2026-11-12): one reader change. WMStatsWorkflowSource.cache_paths lists
+  authority.json when it sits beside records.json, because the reader already opens it for the
+  record-count check; the downloaders accept a staged file only when the reader lists it. An
+  instance that has the file sees its stored content hash change once.
+
+
+  NOT CHANGED: the other readers, their cache contracts and the snapshot builder. dqm and indico
   are out of scope. Reader gaps found on live data (GOCDB hosted_by is a GOCDB site name, not
   a CMS site; WMStats reads only the top-level InputDataset of chain requests) go to a
   separate issue.'
 affected_code:
 - python/archi/downloaders/
 - python/tests/downloaders/
+- python/archi/sources/wmstats.py
+- python/tests/sources/test_wmstats.py
 - docs/docs/reference/connector-caches.md
 - bundles/cms-comp-ops/README.md
 requirements:
