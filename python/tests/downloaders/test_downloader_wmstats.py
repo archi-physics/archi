@@ -345,7 +345,7 @@ def test_a_failed_fetch_writes_nothing(tmp_path, proxy, upstream, capsys, status
     old = _old_cache(output)
     assert _main(output) == 1
     err = capsys.readouterr().err
-    assert err.startswith("wmstats download failed, cache not written: ")
+    assert err.splitlines()[-1].startswith("wmstats download failed, cache not written: ")
     assert _url(status) in err
     assert message in err
     assert str(proxy) not in err
@@ -403,3 +403,33 @@ def test_a_payload_the_reader_refuses_writes_nothing(tmp_path, proxy, upstream, 
     assert _url("completed") in err
     assert ".staging." not in err
     _assert_untouched(output, old)
+
+
+def test_a_workflow_seen_under_three_statuses_is_merged_twice(tmp_path, proxy, monkeypatch, capsys):
+    answers = _answers(STEPCHAIN)
+    for status in ("running-open", "running-closed", "force-complete"):
+        answers[_url(status)] = _answer({**RERECO, "RequestStatus": status})
+    patch_session_get(monkeypatch, answers)
+    output = tmp_path / "wmstats-workflows"
+    assert _main(output) == 0
+
+    payloads = _read(output, "records.json")["status_payloads"]
+    assert payloads["running-open"] == {"result": []}
+    assert payloads["running-closed"] == {"result": []}
+    assert payloads["force-complete"] == answers[_url("force-complete")]
+    assert _read(output, "authority.json")["record_count"] == 2
+    assert _read(output, "authority.json")["deliberate_merge_count"] == 2
+    assert json.loads(capsys.readouterr().out)["deliberate_merge_count"] == 2
+
+
+def test_progress_goes_to_stderr_once_per_status_and_stdout_stays_the_summary(
+    tmp_path, proxy, upstream, capsys
+):
+    assert _main(tmp_path / "wmstats-workflows") == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out)["records"] == 3
+    lines = [line for line in err.splitlines() if line.startswith("wmstats: ")]
+    assert [line.split(",")[0] for line in lines] == [
+        f"wmstats: {status} {index}/9" for index, status in enumerate(DEFAULT_STATUSES, start=1)
+    ]
+    assert "running-open 5/9, 1 workflows" in lines[4]

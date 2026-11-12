@@ -31,10 +31,17 @@ force-complete, completed, closed-out. ``--status`` (repeatable) picks
 others from WMCore's ``ACTIVE_STATUS``; they are always queried in that
 list's order, which follows the request state machine. A request that
 moves forward between two GETs therefore shows up in the later answer
-(perhaps in both), never in neither. One seen twice keeps only its later
-answer, its latest status: the earlier copy is removed and counted in
-``deliberate_merge_count``. The reader refuses a repeated name as a
-contradiction, so the merge must happen here.
+(perhaps in both), never in neither. The exception is the state machine's
+one backward step: with ``--status failed``, a request that moves from
+failed back to assigned after the assigned GET and before the failed one
+is in neither answer, and is missing until the next run. One seen twice
+or more keeps only its last answer, its latest status: each earlier copy
+is removed and counted in ``deliberate_merge_count``. The reader refuses a
+repeated name as a contradiction, so the merge must happen here.
+
+After each status, a progress line (the status, its place in the run, the
+workflows it holds, seconds elapsed) goes to stderr; stdout holds only the
+JSON summary.
 
 Narrowing ``--status`` narrows the scope: the reader claims a complete
 scope over the file and the graph retracts any workflow missing from it.
@@ -55,6 +62,8 @@ failure exits 1 naming the URL and leaves the old files untouched.
 from __future__ import annotations
 
 import argparse
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -126,9 +135,19 @@ def collect(fetch: Fetch, urls: dict[str, str]) -> tuple[dict[str, Any], dict[st
     status to its URL in query order.
     """
     cutoff = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    answers = {status: fetch(url) for status, url in urls.items()}
-    for status, answer in answers.items():
-        _check_answer(answer, urls[status])
+    started = time.monotonic()
+    answers: dict[str, Any] = {}
+    for index, (status, url) in enumerate(urls.items(), start=1):
+        answer = fetch(url)
+        _check_answer(answer, url)
+        answers[status] = answer
+        found = sum(len(entry) for entry in answer["result"])
+        print(
+            f"wmstats: {status} {index}/{len(urls)}, {found} workflows, "
+            f"{time.monotonic() - started:.0f}s",
+            file=sys.stderr,
+            flush=True,
+        )
     merged = _merge_repeats(answers)
     count = sum(len(entry) for answer in answers.values() for entry in answer["result"])
     if not count:
