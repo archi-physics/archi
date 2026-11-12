@@ -49,7 +49,7 @@ manifest or answer file.
 
 | Pack | Credential or input |
 |---|---|
-| `cms-catalogs` | `CERN_GITLAB_TOKEN` for SITECONF. The CRIC, CRIC core, DBS, WMStats, GOCDB and CondDB caches are files under `archi_data_root`; fetching CRIC, DBS and WMStats needs a CERN grid certificate or SSO. |
+| `cms-catalogs` | `CERN_GITLAB_TOKEN` for SITECONF. The CRIC, CRIC core, DBS, WMStats, GOCDB and CondDB caches are files under `archi_data_root`, written by the downloaders below; CondDB has none yet. CRIC, WMStats and DBS need an X.509 grid proxy (`voms-proxy-init -voms cms`, read from `X509_USER_PROXY` or `/tmp/x509up_u<uid>`). |
 | `cmssst` | none; the cmssst downloader fills its cache from public data |
 | `cmssw-releases` | none |
 | `ops-record` | none; records arrive through okg admission |
@@ -62,6 +62,25 @@ manifest or answer file.
 A bare install is not credential-free: `cms-catalogs` is a default and its
 SITECONF source reads GitLab with `CERN_GITLAB_TOKEN`. Run `archi init
 myops --bundle cms-comp-ops --without cms-catalogs` to start without it.
+
+## Refreshing the catalog caches
+
+The `cms-catalogs` readers read caches; these commands write them. Run them
+in this order, with `ARCHI_DATA_ROOT` set to the instance's data root, then
+`archi ingest --publish`:
+
+```bash
+python -m archi.downloaders.cric        # X.509 proxy
+python -m archi.downloaders.cric_core   # no credential
+python -m archi.downloaders.gocdb       # no credential; needs the two CRIC caches
+python -m archi.downloaders.wmstats     # X.509 proxy
+python -m archi.downloaders.dbs         # X.509 proxy; looks up the WMStats datasets
+```
+
+Each one replaces its cache only when the pack's reader accepts the new
+files, and otherwise keeps the old cache. Off a grid host, pass `--ca-path`
+to the CRIC downloaders. CondDB global tags have no downloader yet.
+`docs/docs/reference/connector-caches.md` has the details.
 
 ## Playbooks
 

@@ -1,8 +1,8 @@
 # CRIC topology (cache-backed): facilities, sites, storage and compute
 # endpoints, and the operators responsible for each site. Reads the JSON
 # caches under ${archi_data_root}/cric/ (docs/docs/reference/connector-caches.md has
-# their shape). Nothing in archi downloads them yet; the CRIC API needs a
-# CERN grid certificate or SSO.
+# their shape). `python -m archi.downloaders.cric` writes them; it needs an
+# X.509 grid proxy (CRIC's facility and responsibility endpoints need a login).
 cric:
   module: archi.sources.cric
   class: CRICAdapter

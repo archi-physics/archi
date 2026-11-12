@@ -1,5 +1,7 @@
 # GOCDB grid downtimes (cache-backed), matched to the sites and services
 # the cric and cric_core sources emit (their caches, in this same pack).
+# Written by `python -m archi.downloaders.gocdb` (public GOCDB, no credential),
+# after the two CRIC downloaders.
 gocdb_downtimes:
   module: archi.sources.gocdb
   class: GoCDBDowntimeAdapter

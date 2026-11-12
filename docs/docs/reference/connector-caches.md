@@ -19,6 +19,10 @@ needs to know exactly what to produce. That is this page.
 
 - Paths in a registry entry's `params` are **relative to the deployment
   directory** (or to `ARCHI_DATA_ROOT`), e.g. `data/cric/sites.json`.
+  The `data/` prefix in the tables below is that older layout. On an
+  instance made by `archi init`, the packs read `<archi_data_root>/cric/sites.json`,
+  and `ARCHI_DATA_ROOT` is set to the same directory, so a downloader's
+  default output (`$ARCHI_DATA_ROOT/cric/`) is where the pack reads.
 - A cache file that is **configured but missing** makes the connector
   fail loudly. It never silently ingests nothing — an empty scope claim
   would retract every record the connector previously published.
@@ -30,7 +34,13 @@ needs to know exactly what to produce. That is this page.
   own name and a normalized one (for example DBS `dataset` or
   `dataset_name`). Where that is true it is noted; either works.
 
-## The eight without a downloader
+## Cache shapes
+
+These eight readers were the ones without a downloader. Five now have one
+(see [the table below](#the-ones-that-do-have-tooling)): `cric`,
+`cric_core`, `dbs_datasets`, `gocdb_downtimes` and `wmstats_workflows`.
+`conddb_global_tags`, `dqm` and `indico` still read a cache that someone
+else places.
 
 ### `cric` — CRIC topology
 Files, all JSON objects keyed by name:
@@ -54,7 +64,7 @@ rather than being read as "nobody is responsible for anything".
 | file | keyed by | value keys read |
 |---|---|---|
 | `data/cric-core/services.json` | service name | `endpoint`, `type`, `state`, `rcsite` |
-| `data/cric-core/rcsites.json` | site name | `country`, `infrastructure`, `tier_level`, `vos` |
+| `data/cric-core/rcsites.json` | site name | `sites` (the CMS sites of each rcsite, used to link services to sites) |
 | `data/cric-core/federations.json` | federation name | `accounting_name`, `country`, `infrastructure`, `pledges`, `rcsites`, `tier_level`, `vos` |
 
 Service `endpoint` values may carry a scheme (`https://host:port/path`)
@@ -99,8 +109,12 @@ was extracted become documents in the graph; other attachments appear as
 URLs only.
 
 ### `wmstats_workflows` — production workflows
-`data/wmstats-workflows/records.json`, a JSON **list** of request docs,
-upstream or normalized names: `RequestName` / `request_name` /
+`data/wmstats-workflows/records.json`: either a JSON **list** of request
+docs, or the collection the downloader writes,
+`{cutoff_utc, status_payloads: {<status>: {"result": [{<RequestName>: <request doc>}]}}}`.
+Beside it, an optional `authority.json` carries `record_count`; when it is
+present the reader requires the file to hold exactly that many requests.
+Keys read, upstream or normalized names: `RequestName` / `request_name` /
 `workflow_name`, `RequestType` / `request_type`, `RequestStatus` /
 `status`, `RequestPriority` / `priority`, `Campaign` / `campaign`,
 `CMSSWVersion` / `cmssw_version`, `PrepID` / `prep_id`, `InputDataset` /
@@ -119,6 +133,17 @@ upstream or normalized names: `RequestName` / `request_name` /
 | `twiki_eos` | an EOS snapshot path | whatever populates that EOS area |
 | `analysis_notes` | a directory of `<PAG>-YY-NNN/` and `AN-YY-NNN/` LaTeX trees | a clone of `gitlab.cern.ch/tdr/notes`, which needs a CERN account and a `CERN_GITLAB_TOKEN`; the commands are in `bundles/packs/analysis-notes/README.md` |
 | `monit_*` | none — queried live | a MONIT/Grafana token |
+| `cric` | `cric/{sites,storage_units,compute_units,facilities,responsibilities}.json` | `python -m archi.downloaders.cric`, from the CMS CRIC API (`cms-cric.cern.ch`: `/api/cms/{site,storageunit,computeunit,facility}/query/?json` and `/api/accounts/user/query/?json&preset=site-responsibilities`). Needs an X.509 proxy, because the facility and responsibility endpoints redirect an anonymous request to a login page: `--proxy`, else `X509_USER_PROXY`, else `/tmp/x509up_u<uid>`; make one with `voms-proxy-init -voms cms`. Off a grid host pass `--ca-path` (the server uses the CERN Grid CA). |
+| `cric_core` | `cric-core/{services,rcsites,federations}.json` | `python -m archi.downloaders.cric_core`, from WLCG CRIC (`wlcg-cric.cern.ch/api/core/{service,rcsite,federation}/query/?json`). No credential; `--ca-path` off a grid host. |
+| `gocdb_downtimes` | `gocdb-downtimes/records.json` | `python -m archi.downloaders.gocdb`, from the public GOCDB interface (`get_downtime`, no credential): every downtime overlapping 7 days back to 60 days ahead (`--days-back`, `--days-ahead`), in one answer. One row per affected service, dates in ISO 8601 UTC. Run it after `cric` and `cric_core`: the reader matches against their caches, and the downloader stops before any request without them. An empty window exits 1 and keeps the old cache. |
+| `wmstats_workflows` | `wmstats-workflows/records.json` and `authority.json` | `python -m archi.downloaders.wmstats`, one GET per status to ReqMgr2 on cmsweb (`/reqmgr2/data/request?status=<s>`), whole request documents. Default statuses: assigned, staging, staged, acquired, running-open, running-closed, force-complete, completed, closed-out (`--status` to choose). A request seen under two statuses keeps the later one, and `authority.json` counts it in `deliberate_merge_count`. Needs an X.509 proxy, as `cric`. The local cache holds requestor names and DNs; the snapshot builder drops the DNs. |
+| `dbs_datasets` | `dbs-datasets/records.json` | `python -m archi.downloaders.dbs`, dataset **metadata** only (never file listings) from the DBS global reader on cmsweb: `datasets?detail=1` and `filesummaries?validFileOnly=1`, one of each per dataset. Looks up the input and output datasets the WMStats cache names (run `wmstats` first), plus the VALID datasets matching each `--pattern`. A dataset DBS does not know is skipped and counted; the run fails only when none resolves. `--limit N` makes a trial run and refuses to write the pack's cache. Needs an X.509 proxy, as `cric`. Progress goes to stderr. |
+
+The five downloaders above share one rule: they write nothing unless the
+real reader accepts the staged files (health `ok` and a complete scope),
+and they keep the previous cache byte for byte on any failure. Each cache
+directory also holds a `.lock` file (two runs cannot write at once) and,
+during a write, a `.staging.*` directory.
 
 Upgrade note for `cmssw_releases`: release records now carry `production_architecture`. An instance installed earlier keeps its own copy of `schemas/operations.yaml`; copy the new file over it (or reinstall) so the field is declared and searchable. After copying, commit the deployment config, then run `okg catalog ownership claim --deployment .` and `okg catalog load --apply` from the deployment directory before the next ingest: without the load, ingest refuses with `catalog_applied_version_absent`. Then re-ingest `cmssw_releases` and publish; about 2,365 release records update.
 

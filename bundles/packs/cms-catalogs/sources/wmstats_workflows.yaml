@@ -1,6 +1,7 @@
 # WMStats production workflows (cache-backed): one workflow node per
 # request, linked to the datasets it reads and writes. Reads
-# ${archi_data_root}/wmstats-workflows/records.json.
+# ${archi_data_root}/wmstats-workflows/records.json and authority.json, written
+# by `python -m archi.downloaders.wmstats` (an X.509 grid proxy).
 wmstats_workflows:
   module: archi.sources.wmstats
   class: WMStatsWorkflowAdapter
