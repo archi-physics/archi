@@ -20,9 +20,12 @@ needs to know exactly what to produce. That is this page.
 - Paths in a registry entry's `params` are **relative to the deployment
   directory** (or to `ARCHI_DATA_ROOT`), e.g. `data/cric/sites.json`.
   The `data/` prefix in the tables below is that older layout. On an
-  instance made by `archi init`, the packs read `<archi_data_root>/cric/sites.json`,
-  and `ARCHI_DATA_ROOT` is set to the same directory, so a downloader's
-  default output (`$ARCHI_DATA_ROOT/cric/`) is where the pack reads.
+  instance made by `archi init`, the packs read `<archi_data_root>/cric/sites.json`.
+  archi sets `ARCHI_DATA_ROOT` to that directory only for the commands it
+  runs itself (`archi ingest`, prepare steps). Before running a downloader
+  by hand, export `ARCHI_DATA_ROOT` to the instance's data root (`data_root`
+  in `archi.yaml`, default `~/.local/share/archi/<name>`); unset, a
+  downloader writes under the current directory.
 - A cache file that is **configured but missing** makes the connector
   fail loudly. It never silently ingests nothing — an empty scope claim
   would retract every record the connector previously published.
@@ -136,8 +139,8 @@ Keys read, upstream or normalized names: `RequestName` / `request_name` /
 | `cric` | `cric/{sites,storage_units,compute_units,facilities,responsibilities}.json` | `python -m archi.downloaders.cric`, from the CMS CRIC API (`cms-cric.cern.ch`: `/api/cms/{site,storageunit,computeunit,facility}/query/?json` and `/api/accounts/user/query/?json&preset=site-responsibilities`). Needs an X.509 proxy, because the facility and responsibility endpoints redirect an anonymous request to a login page: `--proxy`, else `X509_USER_PROXY`, else `/tmp/x509up_u<uid>`; make one with `voms-proxy-init -voms cms`. Off a grid host pass `--ca-path` (the server uses the CERN Grid CA). |
 | `cric_core` | `cric-core/{services,rcsites,federations}.json` | `python -m archi.downloaders.cric_core`, from WLCG CRIC (`wlcg-cric.cern.ch/api/core/{service,rcsite,federation}/query/?json`). No credential; `--ca-path` off a grid host. |
 | `gocdb_downtimes` | `gocdb-downtimes/records.json` | `python -m archi.downloaders.gocdb`, from the public GOCDB interface (`get_downtime`, no credential): every downtime overlapping 7 days back to 60 days ahead (`--days-back`, `--days-ahead`), in one answer. One row per affected service, dates in ISO 8601 UTC. Run it after `cric` and `cric_core`: the reader matches against their caches, and the downloader stops before any request without them. An empty window exits 1 and keeps the old cache. |
-| `wmstats_workflows` | `wmstats-workflows/records.json` and `authority.json` | `python -m archi.downloaders.wmstats`, one GET per status to ReqMgr2 on cmsweb (`/reqmgr2/data/request?status=<s>`), whole request documents. Default statuses: assigned, staging, staged, acquired, running-open, running-closed, force-complete, completed, closed-out (`--status` to choose). A request seen under two statuses keeps the later one, and `authority.json` counts it in `deliberate_merge_count`. Needs an X.509 proxy, as `cric`. The local cache holds requestor names and DNs; the snapshot builder drops the DNs. |
-| `dbs_datasets` | `dbs-datasets/records.json` | `python -m archi.downloaders.dbs`, dataset **metadata** only (never file listings) from the DBS global reader on cmsweb: `datasets?detail=1` and `filesummaries?validFileOnly=1`, one of each per dataset. Looks up the input and output datasets the WMStats cache names (run `wmstats` first), plus the VALID datasets matching each `--pattern`. A dataset DBS does not know is skipped and counted; the run fails only when none resolves. `--limit N` makes a trial run and refuses to write the pack's cache. Needs an X.509 proxy, as `cric`. Progress goes to stderr. |
+| `wmstats_workflows` | `wmstats-workflows/records.json` and `authority.json` | `python -m archi.downloaders.wmstats`, one GET per status to ReqMgr2 on cmsweb (`/reqmgr2/data/request?status=<s>`), whole request documents. Default statuses: assigned, staging, staged, acquired, running-open, running-closed, force-complete, completed, closed-out (`--status` to choose). A request seen under two statuses keeps the later one, and `authority.json` counts it in `deliberate_merge_count`. Needs an X.509 proxy and, off a grid host, `--ca-path`, as `cric` (cmsweb uses the CERN Grid CA). The local cache holds requestor names and DNs; the snapshot builder drops the DNs. |
+| `dbs_datasets` | `dbs-datasets/records.json` | `python -m archi.downloaders.dbs`, dataset **metadata** only (never file listings) from the DBS global reader on cmsweb: `datasets?detail=1` and `filesummaries?validFileOnly=1`, one of each per dataset. Looks up the input and output datasets the WMStats cache names (run `wmstats` first), plus the VALID datasets matching each `--pattern`. A dataset DBS does not know is skipped and counted; the run fails only when none resolves. `--limit N` makes a trial run and refuses to write the pack's cache. Needs an X.509 proxy and, off a grid host, `--ca-path`, as `cric`. Progress goes to stderr. |
 
 The five downloaders above share one rule: they write nothing unless the
 real reader accepts the staged files (health `ok` and a complete scope),

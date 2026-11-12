@@ -42,6 +42,14 @@ affected_code:
 - python/tests/downloaders/
 - python/archi/sources/wmstats.py
 - python/tests/sources/test_wmstats.py
+- python/archi/auth/preflight.py
+- python/tests/auth/test_preflight.py
+- python/tests/support/
+- python/tests/fixtures/cric/
+- python/tests/fixtures/cric-core/
+- python/tests/fixtures/gocdb/
+- bundles/packs/cms-catalogs/pack.yaml
+- bundles/packs/cms-catalogs/sources/
 - docs/docs/reference/connector-caches.md
 - bundles/cms-comp-ops/README.md
 requirements:

@@ -66,7 +66,8 @@ myops --bundle cms-comp-ops --without cms-catalogs` to start without it.
 ## Refreshing the catalog caches
 
 The `cms-catalogs` readers read caches; these commands write them. Run them
-in this order, with `ARCHI_DATA_ROOT` set to the instance's data root, then
+in this order, with `ARCHI_DATA_ROOT` exported to the instance's data root
+(`data_root` in `archi.yaml`, default `~/.local/share/archi/<name>`), then
 `archi ingest --publish`:
 
 ```bash
@@ -79,7 +80,8 @@ python -m archi.downloaders.dbs         # X.509 proxy; looks up the WMStats data
 
 Each one replaces its cache only when the pack's reader accepts the new
 files, and otherwise keeps the old cache. Off a grid host, pass `--ca-path`
-to the CRIC downloaders. CondDB global tags have no downloader yet.
+(a bundle holding the CERN Grid CA) to `cric`, `cric_core`, `wmstats` and
+`dbs`; `gocdb` verifies with the system store. CondDB global tags have no downloader yet.
 `docs/docs/reference/connector-caches.md` has the details.
 
 ## Playbooks
