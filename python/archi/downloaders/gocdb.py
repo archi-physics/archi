@@ -29,7 +29,8 @@ directory when that variable is unset), which is where the cms-catalogs
 pack's ``gocdb_downtimes`` source reads it.
 
 Fail closed: the reader also needs the CRIC ``sites.json`` and CRIC-core
-``services.json`` caches (``--sites-path``/``--services-path``, default
+``services.json`` caches (``--sites-path``/``--services-path``, relative to
+``ARCHI_DATA_ROOT`` as the reader takes them; default
 where the pack reads them), so a run without them stops before any request.
 An answer that is not a GOCDB ``results`` document (an ``<error>`` body, a
 plain-text error, malformed XML, a DTD), a row without an integer ``ID`` or
@@ -49,7 +50,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from archi.auth.cache import data_root
+from archi.auth.cache import data_root, resolve_repo_path
 from archi.downloaders._catalog import (
     CatalogClient,
     DownloadError,
@@ -169,7 +170,9 @@ def _is_decimal(text: str) -> bool:
 
 
 def _head(body: bytes) -> str:
-    return body[:200].decode("utf-8", errors="replace").strip()
+    """The body's start on one line (NULs dropped, so UTF-16 text reads)."""
+    text = body[:200].decode("utf-8", errors="replace").replace("\x00", "")
+    return " ".join(text.split())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -188,13 +191,15 @@ def main(argv: list[str] | None = None) -> int:
         "--sites-path",
         default=None,
         help="The CRIC sites cache the reader matches against. "
-        "Default: cric/sites.json under ARCHI_DATA_ROOT.",
+        "A relative path is taken under ARCHI_DATA_ROOT, as the reader takes it. "
+        "Default: cric/sites.json.",
     )
     parser.add_argument(
         "--services-path",
         default=None,
         help="The CRIC-core services cache the reader matches against. "
-        "Default: cric-core/services.json under ARCHI_DATA_ROOT.",
+        "A relative path is taken under ARCHI_DATA_ROOT, as the reader takes it. "
+        "Default: cric-core/services.json.",
     )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
@@ -205,12 +210,11 @@ def main(argv: list[str] | None = None) -> int:
         "/etc/grid-security/certificates when present, else requests' bundle.",
     )
     args = parser.parse_args(argv)
-    root = data_root()
-    output = Path(args.output_dir) if args.output_dir else root / "gocdb-downtimes"
-    sites = Path(args.sites_path) if args.sites_path else root / "cric" / "sites.json"
-    services = (
-        Path(args.services_path) if args.services_path else root / "cric-core" / "services.json"
-    )
+    output = Path(args.output_dir) if args.output_dir else data_root() / "gocdb-downtimes"
+    # One absolute path for the existence check and the reader: a relative
+    # one is taken against the data root, as the reader would take it.
+    sites = resolve_repo_path(args.sites_path or "cric/sites.json").resolve()
+    services = resolve_repo_path(args.services_path or "cric-core/services.json").resolve()
 
     def make_reader(directory: Path) -> Any:
         from archi.sources.gocdb import GoCDBDowntimeSource
@@ -244,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
             check=reader_check(make_reader, origins={CACHE_NAME: url}),
         )
         return {
-            "output": str(output / CACHE_NAME),
+            "output": str(output),
             "url": url,
             "window": [start.isoformat(), end.isoformat()],
             "rows": len(rows),
