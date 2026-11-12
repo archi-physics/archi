@@ -1,6 +1,6 @@
 pact_version: 5
 id: catalog-downloaders
-title: Downloaders for the six cms-catalogs caches (CRIC, CRIC core, DBS, WMStats, GOCDB, CondDB)
+title: Downloaders for five cms-catalogs caches (CRIC, CRIC core, DBS, WMStats, GOCDB)
 tier: 2
 why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmstats_workflows,
   gocdb_downtimes, conddb_global_tags) read a local cache file that nothing in archi writes.
@@ -22,8 +22,15 @@ why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmsta
   --pattern adds more.
 
 
+  DECISION (operator, 2026-11-12): CondDB is skipped for now. Its web API is behind CERN SSO,
+  and the anonymous route (Frontier, the conddb CLI''s own path) is plain HTTP with SQL in the
+  URL; conddb_global_tags keeps reading whatever cache an operator places.
+
+
   NOT CHANGED: the readers, their cache contracts and the snapshot builder. dqm and indico
-  are out of scope.'
+  are out of scope. Reader gaps found on live data (GOCDB hosted_by is a GOCDB site name, not
+  a CMS site; WMStats reads only the top-level InputDataset of chain requests) go to a
+  separate issue.'
 affected_code:
 - python/archi/downloaders/
 - python/tests/downloaders/
@@ -41,7 +48,7 @@ requirements:
 
     Acceptance:
 
-    - acc.catalog-downloaders.roundtrip: for each of the six, a downloader run against recorded
+    - acc.catalog-downloaders.roundtrip: for each of the five, a downloader run against recorded
     upstream answers produces a cache that the existing reader reads with health ok, a complete
     scope and the expected node count. [evidence: executed_test]
 
@@ -71,7 +78,7 @@ requirements:
     - acc.catalog-downloaders.dbs-scope: the dataset set requested equals the WMStats-named
     datasets plus the pattern matches, each once. [evidence: executed_test]'
 - id: req.catalog-downloaders.docs
-  statement: 'connector-caches.md moves the six readers to "The ones that do have tooling" with
+  statement: 'connector-caches.md moves the five readers to "The ones that do have tooling" with
     each command, credential and upstream; the cms-comp-ops README names the commands.
 
 
