@@ -49,7 +49,7 @@ from typing import Any, Mapping
 import requests
 
 from archi.auth.cache import data_root as _reader_data_root
-from archi.auth.preflight import _x509_not_after
+from archi.auth.preflight import x509_not_after
 
 #: The IGTF CA directory on grid hosts; CERN services present certificates
 #: from the CERN Grid CA, which it holds.
@@ -133,7 +133,7 @@ def require_proxy(env: Mapping[str, str] | None = None) -> Path:
     path = Path(raw).expanduser() if raw else DEFAULT_PROXY_DIR / f"x509up_u{os.getuid()}"
     if not path.is_file():
         raise DownloadError(f"no X.509 proxy at {path}; {PROXY_HINT}")
-    expiry = _x509_not_after(path)
+    expiry = x509_not_after(path)
     if expiry is None:
         raise DownloadError(
             f"the X.509 proxy at {path} could not be read as a certificate; "
