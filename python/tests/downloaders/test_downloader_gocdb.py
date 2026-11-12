@@ -402,3 +402,13 @@ def test_primary_key_comes_from_the_downtime_attribute(root, upstream):
     rows = json.loads(_records(root).read_text(encoding="utf-8"))
     keys = {(r["downtime_id"], r["primary_key"]) for r in rows}
     assert keys == {(9101, "900101G0"), (9102, ""), (9103, "900103G0")}
+
+
+def test_a_refused_first_run_leaves_no_cache_file(root, upstream, capsys):
+    # No previous cache: the target may keep the write lock file, nothing else.
+    upstream.answer = FakeResponse(200, XML.replace('ID="9103"', 'ID="0"'))
+    assert _main() == 1
+    assert "the reader refuses the downloaded answers" in capsys.readouterr().err
+    directory = _records(root).parent
+    if directory.exists():
+        assert [p.name for p in directory.iterdir()] == [".lock"]
