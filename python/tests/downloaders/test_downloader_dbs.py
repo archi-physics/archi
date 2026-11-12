@@ -278,7 +278,55 @@ def test_patterns_alone_need_no_wmstats_cache(tmp_path, proxy, upstream, monkeyp
     assert sorted(url for url, _ in upstream.calls) == sorted(
         [_pattern_url(PATTERN), *(_summary_url(name) for name in PATTERN_HITS)]
     )
-    assert json.loads(capsys.readouterr().out)["workflow_datasets"] == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["workflow_datasets"] == 0
+    missing = tmp_path / "empty-root" / "wmstats-workflows" / "records.json"
+    assert summary["workflow_datasets_skipped"] == f"no WMStats cache at {missing}"
+
+
+def test_an_explicit_wmstats_cache_that_is_missing_fails_even_with_patterns(
+    tmp_path, proxy, upstream, capsys
+):
+    output = tmp_path / "dbs-datasets"
+    old = _old_cache(output)
+    missing = tmp_path / "nowhere" / "records.json"
+    assert _main(output, "--wmstats-records", str(missing), "--pattern", PATTERN) == 1
+    err = capsys.readouterr().err
+    assert f"no WMStats cache at {missing}" in err
+    assert upstream.calls == []
+    _assert_untouched(output, old)
+
+
+def test_a_relative_archi_data_root_finds_the_wmstats_cache(
+    tmp_path, proxy, wmstats_records, upstream, monkeypatch, capsys
+):
+    # Review finding: the existence check and the reader resolved the
+    # relative path against different bases (cwd vs data/data/...).
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ARCHI_DATA_ROOT", "root")
+    assert _main(tmp_path / "dbs-datasets") == 0
+    assert {record["dataset"] for record in _records(tmp_path / "dbs-datasets")} == {
+        RAW,
+        AOD,
+        MINIAOD,
+    }
+    assert json.loads(capsys.readouterr().out)["workflow_datasets"] == 4
+
+
+def test_a_relative_wmstats_records_path_is_taken_under_the_data_root(
+    tmp_path, proxy, upstream, monkeypatch
+):
+    # Review finding: it only existed under the data root, so the old check
+    # missed it and wrote a pattern-only catalog.
+    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "root"))
+    _wmstats_cache(tmp_path / "root" / "elsewhere", *WORKFLOWS)
+    elsewhere = tmp_path / "cwd"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    output = tmp_path / "dbs-datasets"
+    relative = "elsewhere/wmstats-workflows/records.json"
+    assert _main(output, "--wmstats-records", relative, "--pattern", PATTERN) == 0
+    assert {record["dataset"] for record in _records(output)} == {RAW, AOD, MINIAOD, *PATTERN_HITS}
 
 
 def test_every_request_carries_the_proxy(tmp_path, proxy, wmstats_records, upstream):
@@ -322,6 +370,31 @@ def test_limit_caps_the_datasets_looked_up_and_needs_an_explicit_output(
         ]
     )
     assert json.loads(capsys.readouterr().out)["limit"] == 3
+
+
+def test_limit_refuses_a_relative_output_dir_named_dbs_datasets(
+    tmp_path, proxy, wmstats_records, upstream, monkeypatch, capsys
+):
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    with pytest.raises(SystemExit) as exc:
+        dbs.main(["--base-url", BASE, "--limit", "2", "--output-dir", "dbs-datasets"])
+    assert exc.value.code == 2
+    assert upstream.calls == []
+    assert "--limit" in capsys.readouterr().err
+
+
+def test_limit_refuses_a_symlink_to_a_dbs_datasets_dir(tmp_path, proxy, wmstats_records, upstream, capsys):
+    real = tmp_path / "other-root" / "dbs-datasets"
+    real.mkdir(parents=True)
+    link = tmp_path / "trial"
+    link.symlink_to(real, target_is_directory=True)
+    with pytest.raises(SystemExit) as exc:
+        _main(link, "--limit", "2")
+    assert exc.value.code == 2
+    assert upstream.calls == []
+    assert "--limit" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("explicit_default", [False, True])
@@ -409,7 +482,7 @@ def test_a_failed_fetch_writes_nothing(
     old = _old_cache(output)
     assert _main(output) == 1
     err = capsys.readouterr().err
-    assert err.startswith("dbs download failed, cache not written: ")
+    assert err.splitlines()[-1].startswith("dbs download failed, cache not written: ")
     assert url in err
     assert message in err
     assert str(proxy) not in err
@@ -476,3 +549,58 @@ def test_a_payload_the_reader_refuses_writes_nothing(tmp_path, proxy, wmstats_re
     assert BASE in err
     assert ".staging." not in err
     _assert_untouched(output, old)
+
+
+def test_a_summary_row_with_null_counts_is_kept_and_reads_as_zero(
+    tmp_path, proxy, wmstats_records, upstream
+):
+    # DBS answers null events and size when no file has an event count.
+    upstream.answers[_summary_url(MINIAOD)] = [
+        {"num_file": 3, "num_lumi": None, "num_block": 1, "num_event": None, "file_size": None}
+    ]
+    output = tmp_path / "dbs-datasets"
+    assert _main(output) == 0
+    record = {r["dataset"]: r for r in _records(output)}[MINIAOD]
+    assert (record["nfiles"], record["nevents"], record["dataset_size"]) == (3, None, None)
+    run = DBSDatasetSource(records_path=str(output / "records.json")).run("r", mode="scope_complete")
+    node = {f.node_id: f.attrs for f in run.facts if isinstance(f, NodeFact)}[f"dataset:{MINIAOD}"]
+    assert (node["total_files"], node["total_events"], node["total_size_bytes"]) == (3, 0, 0)
+
+
+def test_names_and_patterns_are_url_encoded(tmp_path, proxy, monkeypatch):
+    odd = "/Fake+PD/Run2026A-v1#2/RAW"
+    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "root"))
+    _wmstats_cache(tmp_path / "root", _wf("fakeuser_ReReco_Odd_000009", odd, []))
+    pattern = "/Fake+PD*/Run2026A*/RAW"
+    encoded = "/Fake%2BPD/Run2026A-v1%232/RAW"
+    upstream = patch_session_get(
+        monkeypatch,
+        {
+            f"{BASE}/datasets?dataset=/Fake%2BPD*/Run2026A*/RAW&detail=1": [],
+            f"{BASE}/datasets?dataset={encoded}&dataset_access_type=*&detail=1": [_row(odd)],
+            f"{BASE}/filesummaries?dataset={encoded}&validFileOnly=1": _summary(1, 10, 100),
+        },
+    )
+    output = tmp_path / "dbs-datasets"
+    assert _main(output, "--pattern", pattern) == 0
+    assert len(upstream.calls) == 3
+    assert [r["dataset"] for r in _records(output)] == [odd]
+
+
+def test_progress_goes_to_stderr_and_stdout_stays_the_summary(tmp_path, proxy, monkeypatch, capsys):
+    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "empty-root"))
+    names = [f"/FakeMany/Run2026C-v{i}/AOD" for i in range(450)]
+    answers = {_pattern_url("/FakeMany/*/AOD"): [_row(name) for name in names]}
+    answers.update({_summary_url(name): _summary(1, 1, 1) for name in names})
+    patch_session_get(monkeypatch, answers)
+    assert _main(tmp_path / "dbs-datasets", "--pattern", "/FakeMany/*/AOD") == 0
+    out, err = capsys.readouterr()
+    summary = json.loads(out)
+    assert summary["records"] == 450
+    lines = [line for line in err.splitlines() if line.startswith("dbs: ")]
+    assert [line.split(" datasets")[0] for line in lines] == [
+        "dbs: 200/450",
+        "dbs: 400/450",
+        "dbs: 450/450",
+    ]
+    assert "201 requests" in lines[0]

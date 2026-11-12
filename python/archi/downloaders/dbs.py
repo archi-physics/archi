@@ -8,7 +8,11 @@ Metadata only, never files. Which datasets:
 - by default, every input and output dataset of the workflows in the WMStats
   cache (``wmstats-workflows/records.json`` under ``ARCHI_DATA_ROOT``, or
   ``--wmstats-records``), as the ``wmstats_workflows`` reader itself reads
-  them; refresh it first with ``python -m archi.downloaders.wmstats``;
+  them; refresh it first with ``python -m archi.downloaders.wmstats``. A
+  relative ``--wmstats-records`` is taken under ``ARCHI_DATA_ROOT``, as the
+  reader takes it. A given path must exist; only when the default one is
+  missing does a run with ``--pattern`` go on with the pattern matches alone
+  (the summary's ``workflow_datasets_skipped`` says so);
 - plus, for each ``--pattern`` (repeatable, a DBS wildcard such as
   ``/*/Run2026*/AOD``), the VALID datasets DBS lists for it.
 
@@ -37,8 +41,13 @@ person's DN) are not kept.
 
 ``--limit N`` looks up only the first N names in sorted order, for a short
 trial. That is a partial catalog, and the reader claims a complete scope over
-its file, so ``--limit`` needs an ``--output-dir`` other than the pack's
-cache.
+its file, so a limited run must write elsewhere: ``--output-dir`` may be
+neither the pack's cache nor any directory named ``dbs-datasets`` (after
+symlinks are followed).
+
+Every 200 datasets, and after the last, a progress line (datasets done of
+total, requests so far, seconds elapsed) goes to stderr; stdout holds only
+the JSON summary.
 
 The run needs an X.509 proxy (``X509_USER_PROXY``, else
 ``/tmp/x509up_u<uid>``, or ``--proxy``), checked before any request; make
@@ -53,11 +62,13 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
+import time
 from pathlib import Path
 from typing import Any, Callable, Iterable
 from urllib.parse import quote
 
-from archi.auth.cache import data_root
+from archi.auth.cache import data_root, resolve_repo_path
 from archi.downloaders._catalog import (
     CatalogClient,
     DownloadError,
@@ -70,6 +81,9 @@ from archi.downloaders._catalog import (
 DEFAULT_BASE_URL = "https://cmsweb.cern.ch/dbs/prod/global/DBSReader"
 DEFAULT_TIMEOUT = 120
 WMSTATS_COMMAND = "`python -m archi.downloaders.wmstats`"
+#: The pack's cache directory under the data root.
+PACK_DIR = "dbs-datasets"
+DEFAULT_WMSTATS_RECORDS = "wmstats-workflows/records.json"
 #: The dataset row keys the reader reads; DBS sends more.
 METADATA_KEYS = (
     "dataset",
@@ -81,6 +95,8 @@ METADATA_KEYS = (
     "creation_date",
 )
 UNRESOLVED_SAMPLE = 20
+#: A progress line on stderr every this many datasets.
+PROGRESS_EVERY = 200
 _DATASET_PATH = re.compile(r"^/[^/*?]+/[^/*?]+/[^/*?]+$")
 
 Fetch = Callable[[str], Any]
@@ -136,13 +152,23 @@ def collect(
     """``(records, report)``, or :class:`DownloadError`.
 
     ``fetch`` takes a URL and returns its parsed JSON. ``names`` are exact
-    dataset names, ``patterns`` DBS wildcards.
+    dataset names, ``patterns`` DBS wildcards. Every
+    :data:`PROGRESS_EVERY` datasets, and after the last, one progress line
+    goes to stderr.
     """
+    started = time.monotonic()
+    requests = 0
+
+    def get(url: str) -> Any:
+        nonlocal requests
+        requests += 1
+        return fetch(url)
+
     rows: dict[str, dict[str, Any]] = {}
     matched: dict[str, int] = {}
     for pattern in dict.fromkeys(patterns):
         url = pattern_url(base_url, pattern)
-        found = _dataset_rows(fetch(url), url)
+        found = _dataset_rows(get(url), url)
         matched[pattern] = len(found)
         for row in found:
             rows.setdefault(row["dataset"], row)
@@ -151,45 +177,58 @@ def collect(
     if limit is not None:
         wanted = wanted[:limit]
     unresolved: list[str] = []
-    for name in wanted:
+    records = []
+    for done, name in enumerate(wanted, start=1):
+        if name not in rows:
+            row = _lookup(get, base_url, name)
+            if row is None:
+                unresolved.append(name)
+            else:
+                rows[name] = row
         if name in rows:
-            continue
-        if not _DATASET_PATH.match(name):
-            unresolved.append(name)
-            continue
-        url = datasets_url(base_url, name)
-        found = _dataset_rows(fetch(url), url)
-        if not found:
-            unresolved.append(name)
-            continue
-        if [row["dataset"] for row in found] != [name]:
-            raise DownloadError(
-                f"{url}: asked for {name}, DBS answered "
-                f"{', '.join(row['dataset'] for row in found)}"
+            url = summary_url(base_url, name)
+            counts = _summary_row(get(url), url)
+            record = {key: rows[name].get(key) for key in METADATA_KEYS}
+            record["nfiles"] = counts.get("num_file")
+            record["nevents"] = counts.get("num_event")
+            record["dataset_size"] = counts.get("file_size")
+            records.append(record)
+        if done % PROGRESS_EVERY == 0 or done == len(wanted):
+            print(
+                f"dbs: {done}/{len(wanted)} datasets, {requests} requests, "
+                f"{time.monotonic() - started:.0f}s",
+                file=sys.stderr,
+                flush=True,
             )
-        rows[name] = found[0]
-    found_names = [name for name in wanted if name in rows]
-    if not found_names:
+    if not records:
         raise DownloadError(
             f"none of the {len(wanted)} datasets is known to DBS at {base_url}; "
             "refusing to write an empty catalog"
         )
-    records = []
-    for name in found_names:
-        url = summary_url(base_url, name)
-        counts = _summary_row(fetch(url), url)
-        record = {key: rows[name].get(key) for key in METADATA_KEYS}
-        record["nfiles"] = counts.get("num_file")
-        record["nevents"] = counts.get("num_event")
-        record["dataset_size"] = counts.get("file_size")
-        records.append(record)
     report = {
+        "requests": requests,
         "workflow_datasets": len(names),
         "patterns": matched,
         "unresolved": len(unresolved),
         "unresolved_sample": unresolved[:UNRESOLVED_SAMPLE],
     }
     return records, report
+
+
+def _lookup(get: Fetch, base_url: str, name: str) -> dict[str, Any] | None:
+    """The dataset row DBS holds for ``name``, or ``None`` when it has none."""
+    if not _DATASET_PATH.match(name):
+        return None
+    url = datasets_url(base_url, name)
+    found = _dataset_rows(get(url), url)
+    if not found:
+        return None
+    if [row["dataset"] for row in found] != [name]:
+        raise DownloadError(
+            f"{url}: asked for {name}, DBS answered "
+            f"{', '.join(row['dataset'] for row in found)}"
+        )
+    return found[0]
 
 
 def _dataset_rows(answer: Any, url: str) -> list[dict[str, Any]]:
@@ -230,8 +269,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--wmstats-records",
         default=None,
-        help="The WMStats cache whose datasets to look up. Default: "
-        "wmstats-workflows/records.json under ARCHI_DATA_ROOT.",
+        help="The WMStats cache whose datasets to look up; a relative path is taken "
+        "under ARCHI_DATA_ROOT, as the reader takes it. It must exist when given. "
+        "Default: wmstats-workflows/records.json under ARCHI_DATA_ROOT (when that is "
+        "missing, a run with --pattern looks up the pattern matches alone).",
     )
     parser.add_argument(
         "--pattern",
@@ -243,8 +284,9 @@ def main(argv: list[str] | None = None) -> int:
         "--limit",
         type=int,
         default=None,
-        help="Look up only the first N dataset names (a trial; needs --output-dir "
-        "other than the pack's cache).",
+        help="Look up only the first N dataset names, for a trial. A limited run "
+        "must write elsewhere: --output-dir is required and may be neither the "
+        "pack's cache nor any directory named dbs-datasets.",
     )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
@@ -260,44 +302,42 @@ def main(argv: list[str] | None = None) -> int:
         help="X.509 proxy file. Default: X509_USER_PROXY, else /tmp/x509up_u<uid>.",
     )
     args = parser.parse_args(argv)
-    pack_cache = data_root() / "dbs-datasets"
+    pack_cache = data_root() / PACK_DIR
     output = Path(args.output_dir) if args.output_dir else pack_cache
     if args.limit is not None:
         if args.limit < 1:
             parser.error("--limit must be at least 1")
-        if output.resolve() == pack_cache.resolve():
+        resolved = output.expanduser().resolve()
+        if resolved == pack_cache.resolve() or resolved.name == PACK_DIR:
             parser.error(
-                "--limit writes a partial catalog, and the reader retracts every "
-                f"dataset missing from {pack_cache}; pass --output-dir elsewhere"
+                f"--limit writes a partial catalog, and the reader retracts every "
+                f"dataset missing from it; {resolved} is the pack's cache or named "
+                f"{PACK_DIR}, so pass --output-dir elsewhere"
             )
-    wmstats_records = (
-        Path(args.wmstats_records)
-        if args.wmstats_records
-        else data_root() / "wmstats-workflows" / "records.json"
-    )
+    # One absolute path for the existence check and the reader: a relative
+    # one is taken against the data root, as the reader would take it.
+    explicit_records = args.wmstats_records is not None
+    wmstats_records = resolve_repo_path(
+        args.wmstats_records or DEFAULT_WMSTATS_RECORDS
+    ).resolve()
 
     def download() -> dict[str, Any]:
+        skipped = None
         if wmstats_records.is_file():
             names = workflow_datasets(wmstats_records)
-        elif args.pattern:
+        elif args.pattern and not explicit_records:
             names = set()
+            skipped = f"no WMStats cache at {wmstats_records}"
         else:
             raise DownloadError(
                 f"no WMStats cache at {wmstats_records}, so no workflow datasets to "
-                f"look up; run {WMSTATS_COMMAND} first, or pass --pattern"
+                f"look up; run {WMSTATS_COMMAND} first"
+                + ("" if explicit_records else ", or pass --pattern")
             )
         proxy = require_proxy({"X509_USER_PROXY": args.proxy} if args.proxy else None)
-        requests = 0
-
         with CatalogClient(timeout=args.timeout, proxy=proxy, ca_path=args.ca_path) as client:
-
-            def fetch(url: str) -> Any:
-                nonlocal requests
-                requests += 1
-                return client.get_json(url)
-
             records, report = collect(
-                fetch,
+                client.get_json,
                 base_url=args.base_url,
                 names=names,
                 patterns=args.pattern,
@@ -308,7 +348,9 @@ def main(argv: list[str] | None = None) -> int:
             records,
             check=reader_check(make_reader, origins={"records.json": args.base_url}),
         )
-        summary = {"output": str(output), "records": count, "requests": requests, **report}
+        summary = {"output": str(output), "records": count, **report}
+        if skipped:
+            summary["workflow_datasets_skipped"] = skipped
         if args.limit is not None:
             summary["limit"] = args.limit
         return summary
