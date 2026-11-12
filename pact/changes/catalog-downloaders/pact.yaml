@@ -1,0 +1,109 @@
+pact_version: 5
+id: catalog-downloaders
+title: Downloaders for the six cms-catalogs caches (CRIC, CRIC core, DBS, WMStats, GOCDB, CondDB)
+tier: 2
+why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmstats_workflows,
+  gocdb_downtimes, conddb_global_tags) read a local cache file that nothing in archi writes.
+  docs/docs/reference/connector-caches.md lists them under "The eight without a downloader".
+  Since the 2026-09 empty-cache-fails-loudly change, a missing or empty cache makes each reader
+  report cache_missing and emit nothing, so a fresh cms-comp-ops install has no sites, storage
+  or compute endpoints, datasets, workflows, downtimes or global tags. The earlier plan
+  (compops-snapshot-builder) filled them from a private snapshot that is frozen at its
+  collection date and not available to every operator.
+
+
+  DECISION (operator, 2026-11-11): one standalone module per upstream, `python -m
+  archi.downloaders.<name>`, like jira and cmssst; not wired as cms-catalogs prepare steps,
+  so archi init is not blocked when no grid proxy is present.
+
+
+  DECISION (operator, 2026-11-11): the DBS downloader fetches dataset metadata only, never
+  files. By default it fetches the input and output datasets named in the WMStats cache;
+  --pattern adds more.
+
+
+  NOT CHANGED: the readers, their cache contracts and the snapshot builder. dqm and indico
+  are out of scope.'
+affected_code:
+- python/archi/downloaders/
+- python/tests/downloaders/
+- docs/docs/reference/connector-caches.md
+- bundles/cms-comp-ops/README.md
+requirements:
+- id: req.catalog-downloaders.write
+  statement: 'Each downloader writes exactly the files its reader reads, under ARCHI_DATA_ROOT
+    (or an explicit output directory), atomically, and writes nothing when any fetch fails or
+    the result is empty. Credentials come from the environment only and never appear in
+    output, logs or the cache.
+
+
+    Acceptance:
+
+    - acc.catalog-downloaders.roundtrip: for each of the six, a downloader run against recorded
+    upstream answers produces a cache that the existing reader reads with health ok, a complete
+    scope and the expected node count. [evidence: executed_test]
+
+    - acc.catalog-downloaders.fail-closed: an HTTP error, a malformed answer or an empty result
+    leaves the previous cache untouched and exits non-zero with a message naming the endpoint.
+    [evidence: executed_test]'
+- id: req.catalog-downloaders.auth
+  statement: 'DBS and WMStats authenticate with the grid proxy named by X509_USER_PROXY (default
+    /tmp/x509up_u<uid>); a missing or expired proxy stops the run before any request, with a
+    message that names voms-proxy-init. Public upstreams need no credential.
+
+
+    Acceptance:
+
+    - acc.catalog-downloaders.proxy: a missing proxy and an expired proxy each stop the run
+    with no request made. [evidence: executed_test]'
+- id: req.catalog-downloaders.dbs-scope
+  statement: 'The DBS downloader fetches dataset metadata only. With no flag it fetches the
+    input and output datasets named in the WMStats cache; --pattern adds datasets matching a
+    DBS pattern. It never fetches files.
+
+
+    Acceptance:
+
+    - acc.catalog-downloaders.dbs-scope: the dataset set requested equals the WMStats-named
+    datasets plus the pattern matches, each once. [evidence: executed_test]'
+- id: req.catalog-downloaders.docs
+  statement: 'connector-caches.md moves the six readers to "The ones that do have tooling" with
+    each command, credential and upstream; the cms-comp-ops README names the commands.
+
+
+    Acceptance:
+
+    - acc.catalog-downloaders.docs: the docs name every new module and its credential.
+    [evidence: review]'
+tasks:
+- id: task.catalog-downloaders.deliver
+  requirement: req.catalog-downloaders.write
+  verification: 'Unit tests per downloader with recorded upstream answers (synthetic data in
+    the real structure, no personal data), a round trip through each reader, and a read-only
+    live run on an operator host.
+
+
+    Test plan:
+
+    - python/tests [evidence: pytest]'
+- id: task.catalog-downloaders.auth
+  requirement: req.catalog-downloaders.auth
+  verification: 'Tests with a missing and an expired proxy file assert that no request is made.
+
+
+    Test plan:
+
+    - python/tests/downloaders [evidence: pytest]'
+- id: task.catalog-downloaders.dbs-scope
+  requirement: req.catalog-downloaders.dbs-scope
+  verification: 'A test with a WMStats cache and --pattern asserts the exact set of datasets
+    requested, each once, and that no file-level endpoint is called.
+
+
+    Test plan:
+
+    - python/tests/downloaders [evidence: pytest]'
+- id: task.catalog-downloaders.docs
+  requirement: req.catalog-downloaders.docs
+  verification: 'Review of connector-caches.md and the cms-comp-ops README against the modules
+    and their --help.'
