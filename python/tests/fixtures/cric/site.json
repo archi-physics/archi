@@ -1,0 +1,58 @@
+{
+  "T1_XX_Alpha": {
+    "cache-hint": "",
+    "computeunits": {
+      "CU_T1_XX_Alpha": [
+        {"gWMS": [{"GLIDEIN_CMSSite": "T1_XX_Alpha", "GLIDEIN_CPUS": "8", "cr_name": "CMSHTPC_T1_XX_Alpha_ce01", "enabled": true, "flavour": "HTCONDOR-CE", "gatekeeper": "ce01.alpha.example ce01.alpha.example:9619", "queue_status": "Production"}]}
+      ]
+    },
+    "corepower": null,
+    "country": "Exampleland",
+    "country_code": "XX",
+    "cu_rcsites": ["XX-ALPHA"],
+    "data-access": {},
+    "facility": "XX_Alpha",
+    "frontierproxy": {},
+    "id": 9001,
+    "name": "T1_XX_Alpha",
+    "perfsonars": {},
+    "read-hint": "",
+    "sitedb_title": "Alpha",
+    "stage-out": {},
+    "state": "ACTIVE",
+    "statistics-destination": "",
+    "status": "production",
+    "storage-units": [{"name": "T1_XX_Alpha_Disk", "type": "DISK"}],
+    "tier_level": 1,
+    "timeout-in-seconds": 0,
+    "vo_name": "cms"
+  },
+  "T2_XX_Beta": {
+    "cache-hint": "",
+    "computeunits": {
+      "CU_T2_XX_Beta": [
+        {"gWMS": [{"GLIDEIN_CMSSite": "T2_XX_Beta", "GLIDEIN_CPUS": "8", "cr_name": "CMSHTPC_T2_XX_Beta_ce01", "enabled": true, "flavour": "HTCONDOR-CE", "gatekeeper": "ce01.beta.example ce01.beta.example:9619", "queue_status": "Production"}]}
+      ]
+    },
+    "corepower": null,
+    "country": "Exampleland",
+    "country_code": "XX",
+    "cu_rcsites": ["XX-BETA"],
+    "data-access": {},
+    "facility": "XX_Alpha",
+    "frontierproxy": {},
+    "id": 9002,
+    "name": "T2_XX_Beta",
+    "perfsonars": {},
+    "read-hint": "",
+    "sitedb_title": "Beta",
+    "stage-out": {},
+    "state": "ACTIVE",
+    "statistics-destination": "",
+    "status": "production",
+    "storage-units": [{"name": "T2_XX_Beta", "type": "DISK"}],
+    "tier_level": 2,
+    "timeout-in-seconds": 0,
+    "vo_name": "cms"
+  }
+}

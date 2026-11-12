@@ -1,0 +1,12 @@
+{
+  "XX_Alpha": {
+    "cmssites": [{"name": "T1_XX_Alpha"}, {"name": "T2_XX_Beta"}],
+    "country": "Exampleland",
+    "fullname": "Alpha Example Laboratory",
+    "id": 9301,
+    "name": "XX_Alpha",
+    "state": "ACTIVE",
+    "timezone": "Europe/Zurich",
+    "webpage": "https://alpha.example"
+  }
+}

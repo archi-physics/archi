@@ -329,7 +329,7 @@ class CERNPreflightSource:
         proxy_path = _credential_file_path(
             self._credential_ref(), self.aliases,
         )
-        expiry = _x509_not_after(proxy_path)
+        expiry = x509_not_after(proxy_path)
         if expiry is not None and expiry <= datetime.now(timezone.utc):
             return PreflightResult(
                 source_name=self.name,
@@ -553,7 +553,7 @@ class CERNPreflightSource:
                 reason=f"{proxy_ref} file is not set or does not exist",
                 checked_at=_checked_at(),
             )
-        expiry = _x509_not_after(proxy_path)
+        expiry = x509_not_after(proxy_path)
         if expiry is not None and expiry <= datetime.now(timezone.utc):
             return PreflightResult(
                 source_name=self.name,
@@ -730,7 +730,8 @@ class CERNPreflightSource:
         )
 
 
-def _x509_not_after(path: Path | None) -> datetime | None:
+def x509_not_after(path: Path | None) -> datetime | None:
+    """The certificate's notAfter in UTC, or None when it cannot be read."""
     if path is None:
         return None
     try:
