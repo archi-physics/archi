@@ -140,7 +140,7 @@ def _row(element: ET.Element, url: str) -> dict[str, Any]:
         raise DownloadError(f"{url}: a DOWNTIME has ID {raw_id!r}, not an integer")
     return {
         "downtime_id": int(raw_id),
-        "primary_key": element.get("PRIMARY_KEY") or element.findtext("PRIMARY_KEY", ""),
+        "primary_key": element.get("PRIMARY_KEY") or "",
         "classification": element.get("CLASSIFICATION") or "",
         "severity": element.findtext("SEVERITY", ""),
         "description": element.findtext("DESCRIPTION", ""),

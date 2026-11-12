@@ -389,3 +389,16 @@ def test_a_missing_cric_cache_stops_before_any_request(root, upstream, capsys, m
     assert upstream.calls == []
     _assert_untouched(root, old)
 
+
+def test_primary_key_comes_from_the_downtime_attribute(root, upstream):
+    # Like ID and CLASSIFICATION; the child element is not a fallback.
+    upstream.answer = FakeResponse(
+        200,
+        XML.replace('ID="9102" PRIMARY_KEY="900102G0"', 'ID="9102"').replace(
+            "<PRIMARY_KEY>900101G0</PRIMARY_KEY>", "<PRIMARY_KEY>child-only</PRIMARY_KEY>"
+        ),
+    )
+    assert _main() == 0
+    rows = json.loads(_records(root).read_text(encoding="utf-8"))
+    keys = {(r["downtime_id"], r["primary_key"]) for r in rows}
+    assert keys == {(9101, "900101G0"), (9102, ""), (9103, "900103G0")}
