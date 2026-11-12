@@ -33,8 +33,10 @@ requirements:
 - id: req.catalog-downloaders.write
   statement: 'Each downloader writes exactly the files its reader reads, under ARCHI_DATA_ROOT
     (or an explicit output directory), atomically, and writes nothing when any fetch fails or
-    the result is empty. Credentials come from the environment only and never appear in
-    output, logs or the cache.
+    the result is empty, and replaces a cache only after the real reader accepts the staged
+    files (health ok and a complete scope). Credentials come from the environment or from a
+    file an explicit flag names (--proxy); credential contents never appear in output, logs
+    or the cache (a proxy file path may, so an error can say which file to renew).
 
 
     Acceptance:
