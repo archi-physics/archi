@@ -127,7 +127,7 @@ def test_download_feeds_the_reader_downtimes_linked_to_cric_services(root, upstr
     }
 
     summary = json.loads(capsys.readouterr().out)
-    assert summary["output"] == str(_records(root))
+    assert summary["output"] == str(root / "gocdb-downtimes")  # the directory, as cric writes
     assert summary["rows"] == 4
     assert summary["records"] == 3
     assert summary["url"] == upstream.url
@@ -239,6 +239,30 @@ def test_explicit_cric_cache_paths_are_used(tmp_path, root, upstream):
     assert (output / "records.json").is_file()
 
 
+def test_a_relative_archi_data_root_finds_the_cric_caches(tmp_path, root, upstream, monkeypatch):
+    # Review finding: the existence check took root/cric/sites.json against
+    # the cwd, the reader against the data root (root/root/cric/...).
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ARCHI_DATA_ROOT", "root")
+    assert _main() == 0
+    assert _reader(root).run("run-1", mode="scope_complete").health.status == "ok"
+
+
+def test_relative_cric_cache_paths_are_taken_under_the_data_root(
+    tmp_path, root, upstream, monkeypatch
+):
+    # Review finding: the check took them against the cwd and refused files
+    # the reader would find under the data root.
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    assert _main(
+        "--sites-path", "cric/sites.json",
+        "--services-path", "cric-core/services.json",
+    ) == 0
+    assert _records(root).is_file()
+
+
 # --- fail closed ---------------------------------------------------------
 
 
@@ -288,6 +312,10 @@ def _assert_untouched(root: Path, old: bytes) -> None:
             "not XML",
         ),
         (
+            FakeResponse(200, "<html>\n  <body>\n    Down for maintenance\n"),
+            "<html> <body> Down for maintenance",
+        ),
+        (
             FakeResponse(200, "<error>Unsupported parameter: page</error>"),
             "not a GOCDB results document (root <error>): Unsupported parameter: page",
         ),
@@ -302,7 +330,7 @@ def _assert_untouched(root: Path, old: bytes) -> None:
         (_raw(ENTITY_DOC.replace("UTF-8", "UTF-16").encode("utf-16-le")), "declares a DTD"),
         (
             FakeResponse(200, "<!DOCTYPE html>\n<html><body>Scheduled maintenance</body></html>"),
-            "declares a DTD; refusing to parse it: <!DOCTYPE html>\n<html><body>Scheduled maintenance",
+            "declares a DTD; refusing to parse it: <!DOCTYPE html> <html><body>Scheduled maintenance",
         ),
         (
             FakeResponse(200, '<?xml version="1.0" encoding="UTF-8"?>\n<results/>\n'),
@@ -331,6 +359,7 @@ def _assert_untouched(root: Path, old: bytes) -> None:
         "connection-error",
         "truncated-xml",
         "plain-text-error",
+        "multi-line-html",
         "error-document",
         "dtd",
         "dtd-utf16-bom",
@@ -349,6 +378,7 @@ def test_a_failed_or_unusable_answer_writes_nothing(root, upstream, capsys, answ
     assert _main() == 1
     err = capsys.readouterr().err
     assert err.startswith("gocdb download failed, cache not written: ")
+    assert err.count("\n") == 1  # one line, whatever the body held
     assert upstream.calls[0][0] in err
     assert message in err
     _assert_untouched(root, old)

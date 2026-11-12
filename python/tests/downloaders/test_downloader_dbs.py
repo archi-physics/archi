@@ -448,6 +448,22 @@ def test_no_proxy_stops_before_any_request(tmp_path, wmstats_records, upstream, 
     _assert_untouched(output, old)
 
 
+def test_no_proxy_and_no_wmstats_cache_names_the_proxy_first(
+    tmp_path, upstream, monkeypatch, capsys
+):
+    # Like cric and wmstats: the credential is checked before any input.
+    monkeypatch.setenv("X509_USER_PROXY", str(tmp_path / "absent"))
+    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "empty-root"))
+    output = tmp_path / "dbs-datasets"
+    old = _old_cache(output)
+    assert _main(output) == 1
+    err = capsys.readouterr().err
+    assert "voms-proxy-init -voms cms" in err
+    assert "no WMStats cache" not in err
+    assert upstream.calls == []
+    _assert_untouched(output, old)
+
+
 def test_an_expired_proxy_stops_before_any_request(tmp_path, wmstats_records, upstream, monkeypatch, capsys):
     expired = tmp_path / "expired"
     write_cert(expired, not_after=datetime.now(timezone.utc) - timedelta(minutes=5))

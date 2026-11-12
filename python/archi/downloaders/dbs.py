@@ -50,8 +50,9 @@ total, requests so far, seconds elapsed) goes to stderr; stdout holds only
 the JSON summary.
 
 The run needs an X.509 proxy (``X509_USER_PROXY``, else
-``/tmp/x509up_u<uid>``, or ``--proxy``), checked before any request; make
-one with ``voms-proxy-init -voms cms``. Off a grid host, pass ``--ca-path`` a
+``/tmp/x509up_u<uid>``, or ``--proxy``), checked first, before the WMStats
+cache and any request; make one with ``voms-proxy-init -voms cms``. Off a
+grid host, pass ``--ca-path`` a
 bundle holding the CERN Grid CA. The file goes to ``--output-dir``, default
 ``dbs-datasets`` under ``ARCHI_DATA_ROOT``: where the cms-catalogs pack's
 ``dbs_datasets`` source reads it. It is staged, the reader runs over the
@@ -322,6 +323,7 @@ def main(argv: list[str] | None = None) -> int:
     ).resolve()
 
     def download() -> dict[str, Any]:
+        proxy = require_proxy({"X509_USER_PROXY": args.proxy} if args.proxy else None)
         skipped = None
         if wmstats_records.is_file():
             names = workflow_datasets(wmstats_records)
@@ -334,7 +336,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"look up; run {WMSTATS_COMMAND} first"
                 + ("" if explicit_records else ", or pass --pattern")
             )
-        proxy = require_proxy({"X509_USER_PROXY": args.proxy} if args.proxy else None)
         with CatalogClient(timeout=args.timeout, proxy=proxy, ca_path=args.ca_path) as client:
             records, report = collect(
                 client.get_json,
