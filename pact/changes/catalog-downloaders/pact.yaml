@@ -134,3 +134,38 @@ tasks:
   requirement: req.catalog-downloaders.docs
   verification: 'Review of connector-caches.md and the cms-comp-ops README against the modules
     and their --help.'
+evidence:
+- kind: executed_test
+  requirement: req.catalog-downloaders.write
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q (4357 passed, 28 skipped, 0
+    failed)
+  head: 7022c201409eb19c579fa76cd57f153e4d52bc15
+  at: '2026-11-12T10:18:50+00:00'
+  note: Round trips through each real reader and fail-closed cases in tests/downloaders; live
+    cric_core (1349 records) and gocdb (71 downtimes) accepted by the pack readers.
+- kind: executed_test
+  requirement: req.catalog-downloaders.auth
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q (4357 passed, 28 skipped, 0
+    failed)
+  head: 7022c201409eb19c579fa76cd57f153e4d52bc15
+  at: '2026-11-12T10:18:51+00:00'
+  note: Missing, unreadable and expired proxy stop cric, wmstats and dbs before any request
+    (tests; and a logging local server saw zero requests).
+- kind: executed_test
+  requirement: req.catalog-downloaders.dbs-scope
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q (4357 passed, 28 skipped, 0
+    failed)
+  head: 7022c201409eb19c579fa76cd57f153e4d52bc15
+  at: '2026-11-12T10:18:52+00:00'
+  note: 'test_downloader_dbs scope test: exact dataset set, each once, only datasets and filesummaries
+    endpoints.'
+- kind: design_review
+  requirement: req.catalog-downloaders.docs
+  status: pass
+  head: 7022c201409eb19c579fa76cd57f153e4d52bc15
+  at: '2026-11-12T10:18:52+00:00'
+  note: Feature-level review checked connector-caches.md and the cms-comp-ops README against
+    each module's --help; its two doc findings fixed in d50ac50d.
