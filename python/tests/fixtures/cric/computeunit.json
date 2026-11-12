@@ -1,0 +1,32 @@
+{
+  "CU_T1_XX_Alpha": {
+    "CPU-bound-max": 0,
+    "IO-bound-max": 0,
+    "accounted_for": "XX-ALPHA",
+    "corepower": 12.5,
+    "glideinentries": [{"GLIDEIN_CMSSite": "T1_XX_Alpha", "cr_name": "CMSHTPC_T1_XX_Alpha_ce01", "enabled": true, "flavour": "HTCONDOR-CE"}],
+    "id": 9201,
+    "name": "CU_T1_XX_Alpha",
+    "pledged_cms": 40000.0,
+    "pledged_fraction": 1.0,
+    "potential_max": 60000.0,
+    "promised": 40000.0,
+    "rebus-site": "XX-ALPHA",
+    "state": "ACTIVE"
+  },
+  "CU_T2_XX_Beta": {
+    "CPU-bound-max": 0,
+    "IO-bound-max": 0,
+    "accounted_for": "XX-BETA",
+    "corepower": 11.0,
+    "glideinentries": [{"GLIDEIN_CMSSite": "T2_XX_Beta", "cr_name": "CMSHTPC_T2_XX_Beta_ce01", "enabled": true, "flavour": "HTCONDOR-CE"}],
+    "id": 9202,
+    "name": "CU_T2_XX_Beta",
+    "pledged_cms": 8000.0,
+    "pledged_fraction": 1.0,
+    "potential_max": 9000.0,
+    "promised": 8000.0,
+    "rebus-site": "XX-BETA",
+    "state": "ACTIVE"
+  }
+}

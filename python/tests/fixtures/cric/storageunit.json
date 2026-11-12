@@ -1,0 +1,32 @@
+{
+  "T1_XX_Alpha_Disk": {
+    "AnaOps-quota": 0,
+    "DataOps-quota": 0,
+    "accounted_for": "XX-ALPHA",
+    "allowed_sites": {},
+    "id": 9101,
+    "name": "T1_XX_Alpha_Disk",
+    "pledged-CMS": 1200.0,
+    "pledged_fraction": 1.0,
+    "rebus_site": "XX-ALPHA",
+    "resources": {},
+    "site": {"name": "T1_XX_Alpha", "tier_level": 1},
+    "state": "ACTIVE",
+    "type": "DISK"
+  },
+  "T2_XX_Beta": {
+    "AnaOps-quota": 0,
+    "DataOps-quota": 0,
+    "accounted_for": "XX-BETA",
+    "allowed_sites": {},
+    "id": 9102,
+    "name": "T2_XX_Beta",
+    "pledged-CMS": 300.0,
+    "pledged_fraction": 1.0,
+    "rebus_site": "XX-BETA",
+    "resources": {},
+    "site": {"name": "T2_XX_Beta", "tier_level": 2},
+    "state": "ACTIVE",
+    "type": "DISK"
+  }
+}

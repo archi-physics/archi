@@ -1,0 +1,9 @@
+{
+  "desc": {"columns": ["username", "site_name", "role"]},
+  "result": [
+    ["aexample", "Alpha", "Site Executive"],
+    ["aexample", "Beta", "Data Manager"],
+    ["bexample", "Beta", "Site Admin"],
+    ["cexample", null, "Site Admin"]
+  ]
+}
