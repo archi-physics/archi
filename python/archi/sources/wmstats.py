@@ -147,8 +147,13 @@ class WMStatsWorkflowSource:
     ) -> None:
         self.records_path = records_path
         self.base = base
+        # The probe skips files missing at probe time, so it gets both
+        # candidates: an authority.json that appears later is still seen.
         self.change_probe = content_hash_change_probe(
-            cache_paths=self.cache_paths,
+            cache_paths=(
+                self.records_path,
+                str(_authority_beside(Path(self.records_path))),
+            ),
             config={"records_path": self.records_path},
             emit_targets=WMStatsWorkflowSource,
             base=base,
@@ -156,6 +161,12 @@ class WMStatsWorkflowSource:
 
     @property
     def cache_paths(self) -> tuple[str, ...]:
+        # authority.json is read (_check_authority_count) when it sits
+        # beside the records, so it is a cache path then and the content
+        # hash covers it. (content_hash opens every path it is given.)
+        authority = _authority_beside(Path(self.records_path))
+        if resolve_repo_path(authority, base=self.base).is_file():
+            return (self.records_path, str(authority))
         return (self.records_path,)
 
     def preflight(self, mode: str = "live") -> PreflightResult:
@@ -319,9 +330,14 @@ def _workflow_items(payload: Any, path: Path) -> list[Any]:
     return items
 
 
+def _authority_beside(records: Path) -> Path:
+    """The collector's ``authority.json`` next to its records file."""
+    return records.parent / "authority.json"
+
+
 def _check_authority_count(path: Path, count: int) -> None:
     """The collector's ``authority.json`` record count, when it is there."""
-    authority = path.parent / "authority.json"
+    authority = _authority_beside(path)
     if not authority.is_file():
         return
     try:

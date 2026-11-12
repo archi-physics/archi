@@ -218,3 +218,69 @@ def test_authority_record_count_must_match(tmp_path):
     assert "holds 2 workflow records" in run.health.reason
     assert "counts 3" in run.health.reason
     assert bad.preflight().status == "endpoint_failed"
+
+
+# --- catalog-downloaders: authority.json is one of the reader's cache paths ---
+# The reader reads authority.json when it sits beside records.json, so it
+# lists it in cache_paths then: the downloader's reader check accepts it, and
+# the content hash and change probe see a change to it.
+
+
+def test_cache_paths_list_authority_json_only_when_it_is_there(tmp_path):
+    without = _source(tmp_path / "without", records=_status_payloads(*RECORDS))
+    assert without.cache_paths == ("data/wmstats-workflows/records.json",)
+
+    with_it = _source(tmp_path / "with", records=_status_payloads(*RECORDS))
+    _authority(tmp_path / "with", 1)
+    assert with_it.cache_paths == (
+        "data/wmstats-workflows/records.json",
+        "data/wmstats-workflows/authority.json",
+    )
+
+
+def test_an_absolute_records_path_lists_the_authority_beside_it(tmp_path):
+    records = tmp_path / "cache" / "records.json"
+    records.parent.mkdir()
+    records.write_text(json.dumps(_status_payloads(*RECORDS)))
+    (records.parent / "authority.json").write_text(json.dumps({"record_count": 1}))
+    source = WMStatsWorkflowSource(records_path=str(records))
+    assert source.cache_paths == (str(records), str(records.parent / "authority.json"))
+    assert source.run("run-1", mode="scope_complete").completed_scope is True
+
+
+def test_a_change_to_authority_json_alone_changes_the_content_hash(tmp_path):
+    source = _source(tmp_path, records=_status_payloads(*RECORDS))
+    _authority(tmp_path, 1)
+    first = WMStatsWorkflowSource(base=str(tmp_path))
+    before_run = first.run("run-1", mode="scope_complete")
+    before_token = first.change_probe.build_token()
+
+    path = tmp_path / "data" / "wmstats-workflows" / "authority.json"
+    path.write_text(json.dumps({"record_count": 1, "complete": False}))
+    after_run = source.run("run-2", mode="scope_complete")
+
+    assert after_run.completed_scope is True
+    assert after_run.health.content_hash != before_run.health.content_hash
+    assert first.change_probe.build_token() != before_token
+
+
+def test_a_cache_without_authority_json_reads_and_probes_as_before(tmp_path):
+    source = _source(tmp_path, records=_status_payloads(*RECORDS, SECOND))
+    run = source.run("run-1", mode="scope_complete")
+    assert run.health.status == "ok"
+    assert run.completed_scope is True
+    assert run.health.record_count == 2
+    assert source.preflight().status == "ok"
+    assert source.change_probe.build_token()
+
+
+def test_a_source_built_before_authority_json_exists_probes_it_later(tmp_path):
+    # The probe skips missing files, so it is given both candidate paths.
+    source = _source(tmp_path, records=_status_payloads(*RECORDS))
+    without = source.change_probe.build_token()
+    _authority(tmp_path, 1)
+    appeared = source.change_probe.build_token()
+    assert appeared != without
+    path = tmp_path / "data" / "wmstats-workflows" / "authority.json"
+    path.write_text(json.dumps({"record_count": 1, "complete": False}))
+    assert source.change_probe.build_token() != appeared
