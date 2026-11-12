@@ -272,3 +272,15 @@ def test_a_cache_without_authority_json_reads_and_probes_as_before(tmp_path):
     assert run.health.record_count == 2
     assert source.preflight().status == "ok"
     assert source.change_probe.build_token()
+
+
+def test_a_source_built_before_authority_json_exists_probes_it_later(tmp_path):
+    # The probe skips missing files, so it is given both candidate paths.
+    source = _source(tmp_path, records=_status_payloads(*RECORDS))
+    without = source.change_probe.build_token()
+    _authority(tmp_path, 1)
+    appeared = source.change_probe.build_token()
+    assert appeared != without
+    path = tmp_path / "data" / "wmstats-workflows" / "authority.json"
+    path.write_text(json.dumps({"record_count": 1, "complete": False}))
+    assert source.change_probe.build_token() != appeared

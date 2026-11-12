@@ -147,8 +147,13 @@ class WMStatsWorkflowSource:
     ) -> None:
         self.records_path = records_path
         self.base = base
+        # The probe skips files missing at probe time, so it gets both
+        # candidates: an authority.json that appears later is still seen.
         self.change_probe = content_hash_change_probe(
-            cache_paths=self.cache_paths,
+            cache_paths=(
+                self.records_path,
+                str(_authority_beside(Path(self.records_path))),
+            ),
             config={"records_path": self.records_path},
             emit_targets=WMStatsWorkflowSource,
             base=base,
@@ -157,9 +162,8 @@ class WMStatsWorkflowSource:
     @property
     def cache_paths(self) -> tuple[str, ...]:
         # authority.json is read (_check_authority_count) when it sits
-        # beside the records, so it is a cache path then: its content hash
-        # and the change probe cover it. The change probe takes these paths
-        # when the source is built.
+        # beside the records, so it is a cache path then and the content
+        # hash covers it. (content_hash opens every path it is given.)
         authority = _authority_beside(Path(self.records_path))
         if resolve_repo_path(authority, base=self.base).is_file():
             return (self.records_path, str(authority))
