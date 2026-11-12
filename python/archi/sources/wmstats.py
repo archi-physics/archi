@@ -156,6 +156,13 @@ class WMStatsWorkflowSource:
 
     @property
     def cache_paths(self) -> tuple[str, ...]:
+        # authority.json is read (_check_authority_count) when it sits
+        # beside the records, so it is a cache path then: its content hash
+        # and the change probe cover it. The change probe takes these paths
+        # when the source is built.
+        authority = _authority_beside(Path(self.records_path))
+        if resolve_repo_path(authority, base=self.base).is_file():
+            return (self.records_path, str(authority))
         return (self.records_path,)
 
     def preflight(self, mode: str = "live") -> PreflightResult:
@@ -319,9 +326,14 @@ def _workflow_items(payload: Any, path: Path) -> list[Any]:
     return items
 
 
+def _authority_beside(records: Path) -> Path:
+    """The collector's ``authority.json`` next to its records file."""
+    return records.parent / "authority.json"
+
+
 def _check_authority_count(path: Path, count: int) -> None:
     """The collector's ``authority.json`` record count, when it is there."""
-    authority = path.parent / "authority.json"
+    authority = _authority_beside(path)
     if not authority.is_file():
         return
     try:
