@@ -242,6 +242,20 @@ def test_explicit_cric_cache_paths_are_used(tmp_path, root, upstream):
 # --- fail closed ---------------------------------------------------------
 
 
+ENTITY_DOC = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<!DOCTYPE results [<!ENTITY e "injected">]>\n'
+    + XML.split("\n", 1)[1].replace("Worker nodes partly drained", "&e;")
+)
+
+
+def _raw(content: bytes) -> FakeResponse:
+    """A 200 answer whose body is ``content`` as sent (not UTF-8 text)."""
+    response = FakeResponse(200)
+    response.content = content
+    return response
+
+
 def _old_cache(root: Path) -> bytes:
     _records(root).parent.mkdir(parents=True)
     _records(root).write_text(json.dumps([{"downtime_id": 1}]) + "\n", encoding="utf-8")
@@ -284,6 +298,12 @@ def _assert_untouched(root: Path, old: bytes) -> None:
             ),
             "declares a DTD",
         ),
+        (_raw(ENTITY_DOC.replace("UTF-8", "UTF-16").encode("utf-16")), "declares a DTD"),
+        (_raw(ENTITY_DOC.replace("UTF-8", "UTF-16").encode("utf-16-le")), "declares a DTD"),
+        (
+            FakeResponse(200, "<!DOCTYPE html>\n<html><body>Scheduled maintenance</body></html>"),
+            "declares a DTD; refusing to parse it: <!DOCTYPE html>\n<html><body>Scheduled maintenance",
+        ),
         (
             FakeResponse(200, '<?xml version="1.0" encoding="UTF-8"?>\n<results/>\n'),
             "no downtimes in this window",
@@ -313,6 +333,9 @@ def _assert_untouched(root: Path, old: bytes) -> None:
         "plain-text-error",
         "error-document",
         "dtd",
+        "dtd-utf16-bom",
+        "dtd-utf16-no-bom",
+        "html-maintenance-page",
         "empty-window",
         "non-integer-id",
         "missing-date",
@@ -365,3 +388,4 @@ def test_a_missing_cric_cache_stops_before_any_request(root, upstream, capsys, m
     assert "python -m archi.downloaders.cric" in err
     assert upstream.calls == []
     _assert_untouched(root, old)
+

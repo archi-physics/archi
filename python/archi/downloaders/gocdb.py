@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -87,14 +88,8 @@ def parse_downtimes(body: bytes, url: str) -> list[dict[str, Any]]:
     An empty ``<results/>`` is refused too: the reader refuses an empty
     cache, so a window without downtimes keeps the previous one.
     """
-    # The stdlib parser expands internal entities; GOCDB sends no DTD, so
-    # any document that declares one is refused before parsing.
-    if b"<!DOCTYPE" in body or b"<!ENTITY" in body:
-        raise DownloadError(f"{url}: answer declares a DTD; refusing to parse it")
-    try:
-        root = ET.fromstring(body)
-    except ET.ParseError as exc:
-        raise DownloadError(f"{url}: answer is not XML ({exc}): {_head(body)}") from exc
+    _refuse_dtd(body, url)  # also refuses a body that is not well-formed XML
+    root = ET.fromstring(body)
     if root.tag != "results":
         raise DownloadError(
             f"{url}: answer is not a GOCDB results document (root <{root.tag}>): "
@@ -109,6 +104,34 @@ def parse_downtimes(body: bytes, url: str) -> list[dict[str, Any]]:
     rows = [_row(element, url) for element in elements]
     rows.sort(key=lambda row: (row["downtime_id"], row["hostname"], row["service_type"]))
     return rows
+
+
+class _DeclaresDTD(Exception):
+    pass
+
+
+def _refuse_dtd(body: bytes, url: str) -> None:
+    """Refuse a document that declares a DTD or an entity, or is not XML.
+
+    ElementTree expands internal entities, and GOCDB sends no DTD. A byte
+    search for ``<!DOCTYPE`` misses a UTF-16 body, so an expat pre-pass, which
+    decodes the body the way ElementTree will, raises on the declaration.
+    """
+
+    def declared(*_args: Any) -> None:
+        raise _DeclaresDTD
+
+    parser = expat.ParserCreate()
+    parser.StartDoctypeDeclHandler = declared
+    parser.EntityDeclHandler = declared
+    try:
+        parser.Parse(body, True)
+    except _DeclaresDTD:
+        raise DownloadError(
+            f"{url}: answer declares a DTD; refusing to parse it: {_head(body)}"
+        ) from None
+    except expat.ExpatError as exc:
+        raise DownloadError(f"{url}: answer is not XML ({exc}): {_head(body)}") from exc
 
 
 def _row(element: ET.Element, url: str) -> dict[str, Any]:
