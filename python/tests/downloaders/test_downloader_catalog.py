@@ -209,28 +209,17 @@ def test_stale_staging_directories_are_removed(tmp_path):
     assert fresh.is_dir()
 
 
-def _holds_at_most_the_lock(target: Path) -> None:
-    """A failed run leaves the target in place, holding nothing but .lock."""
-    assert target.is_dir()
-    assert [p.name for p in target.iterdir()] in ([], [".lock"])
-
-
-def test_a_losing_writer_on_a_new_target_leaves_the_winners_lock(tmp_path, monkeypatch):
-    # Review finding: two runs on a target that does not exist yet; the
-    # loser must not touch the winner's .lock, or a third run could lock a
-    # fresh inode and write alongside the winner.
+def test_writers_refused_on_a_new_target_leave_the_holders_lock_alone(tmp_path):
+    # Review finding: a run refused the lock must not touch the holder's
+    # .lock, or a later run could lock a fresh inode and write alongside
+    # the holder.
     target = tmp_path / "cric"
-    real_exists = Path.exists
     seen = {}
 
     def check(staging: Path) -> None:
         inode = (target / ".lock").stat().st_ino
-        with monkeypatch.context() as patch:
-            patch.setattr(
-                Path, "exists", lambda self, *a, **k: False if self == target else real_exists(self, *a, **k)
-            )
-            with pytest.raises(DownloadError, match="another download is writing"):
-                write_group_atomic(target, {"a.json": {"k": 2}})
+        with pytest.raises(DownloadError, match="another download is writing"):
+            write_group_atomic(target, {"a.json": {"k": 2}})
         seen["same lock after B"] = (target / ".lock").stat().st_ino == inode
         with pytest.raises(DownloadError, match="another download is writing"):
             write_group_atomic(target, {"c.json": {"k": 3}})
@@ -303,7 +292,9 @@ def test_a_lock_file_that_cannot_be_opened_writes_nothing(tmp_path, monkeypatch)
     monkeypatch.setattr(_catalog, "open", no_space, raising=False)
     with pytest.raises(OSError, match="No space left"):
         write_group_atomic(tmp_path / "cric", {"a.json": {"k": 1}})
-    _holds_at_most_the_lock(tmp_path / "cric")
+    # The lock file was never created; the target stays, empty.
+    assert (tmp_path / "cric").is_dir()
+    assert list((tmp_path / "cric").iterdir()) == []
 
 
 @pytest.mark.parametrize("code", [errno.ENOLCK, errno.EOPNOTSUPP], ids=["nfs", "fuse"])
@@ -349,7 +340,7 @@ def test_sigterm_during_a_write_removes_the_staging_copy(tmp_path):
         run_cli("thing", lambda: write_group_atomic(target, {"a.json": {"k": 1}}, check=check))
     assert info.value.code == 143
     assert not staged[0].exists()
-    _holds_at_most_the_lock(target)
+    assert [p.name for p in target.iterdir()] == [".lock"]
     assert signal.getsignal(signal.SIGTERM) is previous
 
 
@@ -360,7 +351,7 @@ def test_a_refused_check_on_a_new_target_leaves_only_the_lock(tmp_path):
     with pytest.raises(DownloadError):
         write_group_atomic(tmp_path / "new", {"a.json": {"k": 1}}, check=check)
     assert [p.name for p in tmp_path.iterdir()] == ["new"]
-    _holds_at_most_the_lock(tmp_path / "new")
+    assert [p.name for p in (tmp_path / "new").iterdir()] == [".lock"]
 
 
 def test_a_failed_move_after_an_earlier_one_names_the_replaced_files(tmp_path, monkeypatch):
@@ -381,6 +372,7 @@ def test_a_failed_move_after_an_earlier_one_names_the_replaced_files(tmp_path, m
     assert "a.json" in message and "b.json" in message
     assert "mixed" in message
     assert sorted(p.name for p in tmp_path.iterdir()) == ["group"]
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
 
 
 def test_a_failed_first_move_is_a_plain_download_error(tmp_path, monkeypatch):
@@ -391,7 +383,7 @@ def test_a_failed_first_move_is_a_plain_download_error(tmp_path, monkeypatch):
     with pytest.raises(OSError) as info:
         write_group_atomic(tmp_path / "group", {"a.json": {"k": 1}})
     assert not isinstance(info.value, PartialWriteError)
-    _holds_at_most_the_lock(tmp_path / "group")
+    assert [p.name for p in (tmp_path / "group").iterdir()] == [".lock"]
 
 
 # --- reader_check -------------------------------------------------------

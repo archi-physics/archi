@@ -470,8 +470,8 @@ def run_cli(name: str, download: Callable[[], Mapping[str, Any]]) -> int:
     A :class:`DownloadError` or ``OSError`` prints one line on stderr: "cache
     not written", or "failed part-way" for a :class:`PartialWriteError`.
     While ``download`` runs, SIGTERM raises ``SystemExit(143)`` instead of
-    killing the process outright, so staging directories and the lock are
-    cleaned up on the way out.
+    killing the process outright, so staging directories are removed and the
+    lock released on the way out.
     """
     previous = signal.signal(signal.SIGTERM, _exit_on_sigterm)
     try:
