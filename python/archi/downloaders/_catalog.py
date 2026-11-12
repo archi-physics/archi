@@ -36,6 +36,11 @@ Caches go under :func:`archi.auth.cache.data_root` (``ARCHI_DATA_ROOT``, else
 the current directory), the function the readers resolve their paths with.
 :func:`require_proxy` checks the grid proxy before any request.
 
+The target directory also holds ``.lock`` and, while a write runs or after a
+killed one, ``.staging.*`` entries; a tool that walks a cache directory
+recursively and refuses dot entries (the snapshot builder's ``_check_tree``)
+must exclude them.
+
 Known limit of :func:`write_group_atomic`: the final moves are one
 ``os.replace`` per file, not one filesystem operation. If a move fails after
 an earlier one succeeded, :class:`PartialWriteError` names the files already
@@ -219,6 +224,11 @@ class CatalogClient:
                 "the server may have refused the X.509 proxy; check it with "
                 "`voms-proxy-info` (expired, or not a CMS VOMS proxy)"
             )
+        if _TLS_ALERT.search(str(exc)):
+            return (
+                "the server ended the handshake, so the endpoint may need a "
+                "credential: pass --proxy with a valid X.509 proxy"
+            )
         if verify is True:
             return (
                 "pass --ca-path, or set REQUESTS_CA_BUNDLE, to a CA bundle that "
@@ -375,10 +385,12 @@ def write_group_atomic(
     created = not target.exists()
     target.mkdir(parents=True, exist_ok=True)
     lock_path = target / LOCK_NAME
-    lock = open(lock_path, "a")
+    lock = None
+    locked = False
     staging: Path | None = None
     done = False
     try:
+        lock = open(lock_path, "a")
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
@@ -386,6 +398,12 @@ def write_group_atomic(
                 f"another download is writing {target} (it holds {lock_path}); "
                 "try again when it has finished"
             ) from exc
+        except OSError as exc:
+            raise DownloadError(
+                f"cannot lock {lock_path}: the filesystem does not support flock "
+                f"({exc}); refusing to write the cache without a lock"
+            ) from exc
+        locked = True
         _remove_stale_staging(target)
         staging = Path(tempfile.mkdtemp(prefix=STAGING_PREFIX, dir=target))
         for name, payload in files.items():
@@ -413,13 +431,25 @@ def write_group_atomic(
     finally:
         if staging is not None:
             shutil.rmtree(staging, ignore_errors=True)
-        lock.close()
         if created and not done:
-            lock_path.unlink(missing_ok=True)
-            try:
-                target.rmdir()
-            except OSError:
-                pass
+            # Only the lock holder may remove .lock, and only while it still
+            # holds the lock: a run that lost the race (it too saw the target
+            # missing) must leave the winner's lock alone. Without the lock,
+            # the target is removed only if empty (the lock file could not
+            # even be opened).
+            if locked:
+                lock_path.unlink(missing_ok=True)
+            if locked or lock is None:
+                _remove_if_empty(target)
+        if lock is not None:
+            lock.close()
+
+
+def _remove_if_empty(directory: Path) -> None:
+    try:
+        directory.rmdir()
+    except OSError:
+        pass
 
 
 def _remove_stale_staging(target: Path) -> None:

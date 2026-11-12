@@ -8,6 +8,7 @@ together or not at all.
 """
 from __future__ import annotations
 
+import errno
 import fcntl
 import json
 import os
@@ -206,6 +207,87 @@ def test_stale_staging_directories_are_removed(tmp_path):
     write_group_atomic(target, {"a.json": {"k": 1}})
     assert not old.exists()
     assert fresh.is_dir()
+
+
+def test_a_losing_writer_on_a_new_target_leaves_the_winners_lock(tmp_path, monkeypatch):
+    # Review finding: two runs on a target that does not exist yet both see
+    # it as created by them; the loser must not remove the winner's .lock,
+    # or a third run would lock a fresh inode and write alongside the winner.
+    target = tmp_path / "cric"
+    real_exists = Path.exists
+    seen = {}
+
+    def check(staging: Path) -> None:
+        with monkeypatch.context() as patch:
+            patch.setattr(
+                Path, "exists", lambda self, *a, **k: False if self == target else real_exists(self, *a, **k)
+            )
+            with pytest.raises(DownloadError, match="another download is writing"):
+                write_group_atomic(target, {"a.json": {"k": 2}})
+        seen["lock after B"] = (target / ".lock").exists()
+        with pytest.raises(DownloadError, match="another download is writing"):
+            write_group_atomic(target, {"c.json": {"k": 3}})
+
+    write_group_atomic(target, {"a.json": {"k": 1}}, check=check)
+    assert seen == {"lock after B": True}
+    assert json.loads((target / "a.json").read_text()) == {"k": 1}
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
+
+
+def test_a_failing_writer_removes_its_new_target_while_still_holding_the_lock(tmp_path, monkeypatch):
+    # The lock must still be held when .lock is unlinked, or another run
+    # could lock it in between.
+    target = tmp_path / "cric"
+    real_unlink = Path.unlink
+    held_at_unlink = []
+
+    def unlink(self, *args, **kwargs):
+        if self.name == ".lock":
+            with open(self, "a") as probe:
+                try:
+                    fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    held_at_unlink.append(True)
+                else:
+                    held_at_unlink.append(False)
+                    fcntl.flock(probe, fcntl.LOCK_UN)
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+
+    def check(staging: Path) -> None:
+        raise DownloadError("refused")
+
+    with pytest.raises(DownloadError):
+        write_group_atomic(target, {"a.json": {"k": 1}}, check=check)
+    assert held_at_unlink == [True]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_lock_file_that_cannot_be_opened_leaves_no_new_target(tmp_path, monkeypatch):
+    def no_space(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(_catalog, "open", no_space, raising=False)
+    with pytest.raises(OSError, match="No space left"):
+        write_group_atomic(tmp_path / "cric", {"a.json": {"k": 1}})
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("code", [errno.ENOLCK, errno.EOPNOTSUPP], ids=["nfs", "fuse"])
+def test_a_filesystem_without_flock_refuses_the_write(tmp_path, monkeypatch, code):
+    target = tmp_path / "cric"
+    target.mkdir()
+    (target / "a.json").write_text('{"old": "a"}\n')
+
+    def unsupported(fd, operation):
+        raise OSError(code, os.strerror(code))
+
+    monkeypatch.setattr(_catalog.fcntl, "flock", unsupported)
+    with pytest.raises(DownloadError, match="does not support flock") as info:
+        write_group_atomic(target, {"a.json": {"new": "a"}})
+    assert str(target / ".lock") in str(info.value)
+    assert (target / "a.json").read_text() == '{"old": "a"}\n'
 
 
 def test_a_second_writer_fails_while_the_first_holds_the_lock(tmp_path):
@@ -558,6 +640,18 @@ def test_a_tls_failure_with_an_explicit_ca_does_not_suggest_requests_ca_bundle(
         client.get_json(URL)
     message = str(info.value)
     assert "--ca-path" in message and verifying_with in message
+    assert "REQUESTS_CA_BUNDLE" not in message
+
+
+CERT_REQUIRED_ALERT = "[SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required"
+
+
+def test_a_tls_alert_without_a_proxy_suggests_the_endpoint_wants_a_credential(monkeypatch):
+    patch_session_get(monkeypatch, {URL: requests.exceptions.SSLError(CERT_REQUIRED_ALERT)})
+    with pytest.raises(DownloadError) as info:
+        CatalogClient(timeout=7).get_json(URL)
+    message = str(info.value)
+    assert "may need a credential" in message and "--proxy" in message
     assert "REQUESTS_CA_BUNDLE" not in message
 
 
