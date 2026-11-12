@@ -296,6 +296,14 @@ def _assert_untouched(root: Path, old: bytes) -> None:
             FakeResponse(200, XML.replace("<END_DATE>1795165200</END_DATE>", "<END_DATE/>")),
             "DOWNTIME 9102 has END_DATE '', not epoch seconds",
         ),
+        (
+            FakeResponse(200, XML.replace("1793520000", "9" * 31)),
+            f"DOWNTIME 9103 has START_DATE '{'9' * 31}', not epoch seconds",
+        ),
+        (
+            FakeResponse(200, XML.replace('ID="9102"', 'ID="\u00b2"')),
+            "a DOWNTIME has ID '\u00b2', not an integer",
+        ),
     ],
     ids=[
         "http-error",
@@ -308,6 +316,8 @@ def _assert_untouched(root: Path, old: bytes) -> None:
         "empty-window",
         "non-integer-id",
         "missing-date",
+        "date-out-of-range",
+        "non-ascii-digit-id",
     ],
 )
 def test_a_failed_or_unusable_answer_writes_nothing(root, upstream, capsys, answer, message):

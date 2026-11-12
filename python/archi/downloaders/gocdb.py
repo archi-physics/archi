@@ -113,7 +113,7 @@ def parse_downtimes(body: bytes, url: str) -> list[dict[str, Any]]:
 
 def _row(element: ET.Element, url: str) -> dict[str, Any]:
     raw_id = element.get("ID") or ""
-    if not raw_id.isdigit():
+    if not _is_decimal(raw_id):
         raise DownloadError(f"{url}: a DOWNTIME has ID {raw_id!r}, not an integer")
     return {
         "downtime_id": int(raw_id),
@@ -131,11 +131,18 @@ def _row(element: ET.Element, url: str) -> dict[str, Any]:
 
 def _iso(element: ET.Element, tag: str, raw_id: str, url: str) -> str:
     raw = (element.findtext(tag) or "").strip()
-    if not raw.isdigit():
+    try:
+        if not _is_decimal(raw):
+            raise ValueError(raw)
+        return datetime.fromtimestamp(int(raw), timezone.utc).isoformat()
+    except (ValueError, OverflowError, OSError) as exc:
         raise DownloadError(
             f"{url}: DOWNTIME {raw_id} has {tag} {raw!r}, not epoch seconds"
-        )
-    return datetime.fromtimestamp(int(raw), timezone.utc).isoformat()
+        ) from exc
+
+
+def _is_decimal(text: str) -> bool:
+    return text.isascii() and text.isdigit()
 
 
 def _head(body: bytes) -> str:
