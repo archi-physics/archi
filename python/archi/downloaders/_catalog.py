@@ -6,6 +6,8 @@ caches and claim a complete scope over them: a record missing from the cache
 is retracted from the graph. So a downloader must never replace a good cache
 with one its reader would refuse. Every downloader here follows one shape::
 
+    from archi.auth.cache import data_root
+
     def download() -> dict:
         with CatalogClient(timeout=args.timeout, proxy=proxy, ca_path=args.ca_path) as client:
             payloads = {name: client.get_json(url) for name, url in urls.items()}
@@ -24,14 +26,15 @@ with one its reader would refuse. Every downloader here follows one shape::
    reader is the authority; pre-checks only say earlier what it would say.
 3. Hand all files to :func:`write_group_atomic` with
    ``check=reader_check(make_reader)``: the files are staged under their
-   real names in a sibling directory, the real reader runs over the staged
-   copy, and only a run with health ``ok`` and a complete scope lets the
-   files move into place.
+   real names in a staging directory inside the target, the real reader runs
+   over the staged copy, and only a run with health ``ok`` and a complete
+   scope lets the files move into place.
 4. Wrap it all in :func:`run_cli`, which prints a JSON summary or a one-line
    error and returns the exit status.
 
-:func:`data_root` (where caches go) and :func:`require_proxy` (the grid proxy,
-checked before any request) complete the set.
+Caches go under :func:`archi.auth.cache.data_root` (``ARCHI_DATA_ROOT``, else
+the current directory), the function the readers resolve their paths with.
+:func:`require_proxy` checks the grid proxy before any request.
 
 Known limit of :func:`write_group_atomic`: the final moves are one
 ``os.replace`` per file, not one filesystem operation. If a move fails after
@@ -41,9 +44,12 @@ set without that message. The next successful run replaces the whole set.
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import os
+import re
 import shutil
+import signal
 import sys
 import tempfile
 import time
@@ -53,7 +59,7 @@ from typing import Any, Callable, Mapping
 
 import requests
 
-from archi.auth.cache import data_root as _reader_data_root
+from archi.auth.cache import resolve_repo_path
 from archi.auth.preflight import x509_not_after
 
 #: The IGTF CA directory on grid hosts; it holds the CERN Grid CA that CERN
@@ -65,14 +71,23 @@ PROXY_ENV = "X509_USER_PROXY"
 PROXY_HINT = "create one with `voms-proxy-init -voms cms`"
 #: Top-level keys that mark an API error body sent in place of data.
 ERROR_BODY_KEYS = ("error", "errors")
-#: Requests per URL before a transient failure is final, and the first wait.
+#: Requests per URL before a transient failure is final, and the first wait
+#: (doubled after each failed attempt).
 ATTEMPTS = 3
 BACKOFF_SECONDS = 1.0
 CHECK_RUN_ID = "archi-download-check"
+#: Inside the target directory: the lock file held for a whole group write,
+#: and the prefix of staging directories.
+LOCK_NAME = ".lock"
+STAGING_PREFIX = ".staging."
+#: A staging directory older than this was left by a killed run.
+STALE_STAGING_SECONDS = 6 * 3600
 
 #: Given the staging directory (files under their real names), raise
 #: :class:`DownloadError` to refuse the group; the return value is passed on.
 Check = Callable[[Path], Any]
+
+_TLS_ALERT = re.compile(r"alert", re.IGNORECASE)
 
 
 class DownloadError(RuntimeError):
@@ -83,22 +98,12 @@ class PartialWriteError(DownloadError):
     """Some files of a group were replaced before a later move failed."""
 
 
-def data_root(explicit: Path | None = None) -> Path:
-    """``explicit``, else ``ARCHI_DATA_ROOT``, else the current directory.
-
-    It is :func:`archi.auth.cache.data_root`, the function the readers resolve
-    their relative cache paths with, so a downloader writes where its reader
-    reads.
-    """
-    return _reader_data_root(explicit)
-
-
 def require_proxy(env: Mapping[str, str] | None = None) -> Path:
     """The X.509 proxy to authenticate with, or :class:`DownloadError`.
 
     ``X509_USER_PROXY`` from ``env`` (default: the process environment),
     else ``/tmp/x509up_u<uid>``. A missing, unreadable or expired proxy is
-    refused, with the command that makes a new one.
+    refused, with its path and the command that makes a new one.
     """
     env = os.environ if env is None else env
     raw = env.get(PROXY_ENV)
@@ -127,9 +132,9 @@ class CatalogClient:
     CERN service that wants a login answers 302 to its login page, which must
     not be read as data.
 
-    A 5xx answer, a timeout or a connection error is retried, ``attempts``
-    times in all, waiting ``backoff``, then twice that, and so on. A 3xx or
-    4xx answer and a TLS failure are final at once.
+    A 5xx answer, a timeout or a connection error is retried, :data:`ATTEMPTS`
+    times in all, waiting :data:`BACKOFF_SECONDS`, then twice that, and so on.
+    A 3xx or 4xx answer and a TLS failure are final at once.
     """
 
     def __init__(
@@ -138,16 +143,10 @@ class CatalogClient:
         timeout: float,
         proxy: Path | None = None,
         ca_path: str | None = None,
-        attempts: int = ATTEMPTS,
-        backoff: float = BACKOFF_SECONDS,
     ) -> None:
-        if attempts < 1:
-            raise ValueError("attempts must be at least 1")
         self.timeout = timeout
         self.proxy = proxy
         self.ca_path = ca_path
-        self.attempts = attempts
-        self.backoff = backoff
         self.session = requests.Session()
 
     def __enter__(self) -> "CatalogClient":
@@ -161,23 +160,23 @@ class CatalogClient:
 
     def get(self, url: str, *, accept: str = "application/json") -> requests.Response:
         """The 200 answer for ``url``, or :class:`DownloadError` naming it."""
+        verify = self._verify()
         kwargs: dict[str, Any] = {
             "timeout": self.timeout,
             "allow_redirects": False,
             "headers": {"Accept": accept},
-            "verify": self._verify(),
+            "verify": verify,
         }
         if self.proxy is not None:
             kwargs["cert"] = (str(self.proxy), str(self.proxy))
-        for attempt in range(1, self.attempts + 1):
-            final = attempt == self.attempts
+        for attempt in range(1, ATTEMPTS + 1):
+            final = attempt == ATTEMPTS
             tries = f" after {attempt} attempts" if attempt > 1 else ""
             try:
                 response = self.session.get(url, **kwargs)
             except requests.exceptions.SSLError as exc:
                 raise DownloadError(
-                    f"GET {url} failed TLS verification ({exc}); pass --ca-path, or "
-                    "set REQUESTS_CA_BUNDLE, to a CA bundle that holds the server's CA"
+                    f"GET {url} failed TLS ({exc}); {self._tls_hint(exc, verify)}"
                 ) from exc
             except (requests.ConnectionError, requests.Timeout) as exc:
                 if final:
@@ -194,7 +193,7 @@ class CatalogClient:
                         f"GET {url} returned HTTP {response.status_code}{tries}"
                         f"{_redirect_note(response)}"
                     )
-            time.sleep(self.backoff * 2 ** (attempt - 1))
+            time.sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
         raise AssertionError("unreachable")  # pragma: no cover
 
     def get_json(self, url: str) -> Any:
@@ -211,6 +210,24 @@ class CatalogClient:
         if GRID_CA_DIR.is_dir():
             return str(GRID_CA_DIR)
         return True
+
+    def _tls_hint(self, exc: Exception, verify: str | bool) -> str:
+        if self.proxy is not None and _TLS_ALERT.search(str(exc)):
+            # An alert is the server ending the handshake, typically over the
+            # client certificate it was offered.
+            return (
+                "the server may have refused the X.509 proxy; check it with "
+                "`voms-proxy-info` (expired, or not a CMS VOMS proxy)"
+            )
+        if verify is True:
+            return (
+                "pass --ca-path, or set REQUESTS_CA_BUNDLE, to a CA bundle that "
+                "holds the server's CA"
+            )
+        return (
+            f"it was verified with {verify}; pass --ca-path a CA bundle or "
+            "directory that holds the server's CA"
+        )
 
 
 def _redirect_note(response: Any) -> str:
@@ -250,17 +267,32 @@ def reader_check(
     """A :data:`Check` that runs the real reader over the staged files.
 
     ``make_reader(staging)`` builds the reader with its cache paths inside
-    ``staging``. The check runs it in ``scope_complete`` mode, drains its
-    facts, and accepts only health ``ok``, a complete scope and at least one
-    record; it returns the record count. A refusal carries the reader's own
-    reason; ``origins`` (cache file name -> URL) adds which endpoint the
-    named file came from (every endpoint, when the reason names no file).
+    ``staging``. Every staged file must be one of the reader's
+    ``cache_paths`` (resolved against its ``base``): a file the reader does
+    not read would reach the cache unchecked. The reader may read more (the
+    GOCDB reader also reads the CRIC caches). The check then runs the reader
+    in ``scope_complete`` mode, drains its facts, and accepts only health
+    ``ok``, a complete scope and at least one record; it returns the record
+    count. A refusal carries the reader's own reason; ``origins`` (cache file
+    name -> URL) adds which endpoint the named file came from (every
+    endpoint, when the reason names no file).
     """
     origins = dict(origins or {})
 
     def check(staging: Path) -> int:
+        reader = make_reader(staging)
+        read = {
+            resolve_repo_path(path, base=reader.base).resolve()
+            for path in reader.cache_paths
+        }
+        unread = sorted(path.name for path in staging.iterdir() if path.resolve() not in read)
+        if unread:
+            raise DownloadError(
+                f"the reader does not read {', '.join(unread)}; refusing to write "
+                "a cache file no reader check has seen"
+            )
         try:
-            run = make_reader(staging).run(CHECK_RUN_ID, mode="scope_complete")
+            run = reader.run(CHECK_RUN_ID, mode="scope_complete")
             for _ in run.facts:
                 pass
         except Exception as exc:  # the reader's own failure, reported verbatim
@@ -288,7 +320,14 @@ def reader_check(
 
 
 def _origin_note(reason: str, origins: Mapping[str, str]) -> str:
-    named = {name: url for name, url in origins.items() if name in reason}
+    """Which endpoints the files named in ``reason`` came from. A file
+    counts as named only as a whole path segment (``/sites.json``), so
+    ``rcsites.json`` does not name ``sites.json``."""
+    named = {
+        name: url
+        for name, url in origins.items()
+        if re.search(rf"(?:^|/){re.escape(name)}(?![\w.-])", reason)
+    }
     if named:
         return "".join(f"; {name} came from {url}" for name, url in named.items())
     if origins:
@@ -309,51 +348,85 @@ def write_group_atomic(
 ) -> Any:
     """Write every ``name -> payload`` in ``directory``, or none of them.
 
-    Each payload must be a non-empty JSON object or list. The files are
+    Each payload must be a non-empty JSON object or list. ``directory`` is
+    resolved (a symlink to another filesystem is followed) and created if
+    needed, and a lock on ``directory/.lock`` is taken for the whole write: a
+    second writer fails at once instead of waiting. Staging directories in it
+    older than six hours (left by a killed run) are removed. The files are
     written, with sorted keys (an unchanged answer keeps the readers' content
-    hash) and fsynced, under their real names into a staging directory next
-    to ``directory``. ``check`` then sees that directory; if it raises, the
-    staging copy is deleted and the old files stay. Only then is each file
-    moved into ``directory`` (mode 0644 less the umask). Returns what
-    ``check`` returned.
+    hash) and fsynced, under their real names into a new staging directory
+    inside ``directory``, so the final moves never cross a filesystem.
+    ``check`` then sees that staging directory; if it raises, the staging
+    copy is deleted, the old files stay, and a directory this call created is
+    removed. Only then is each file moved into place (mode 0644 less the
+    umask). Returns what ``check`` returned.
     """
     if not files:
         raise DownloadError(f"no files to write in {directory}")
     for name, payload in files.items():
-        if Path(name).name != name or name in {"", ".", ".."}:
+        if Path(name).name != name or name in {"", ".", "..", LOCK_NAME}:
             raise DownloadError(f"cache name {name!r} is not a plain file name")
         if not isinstance(payload, (dict, list)) or not payload:
             raise DownloadError(
                 f"{directory / name}: refusing to write an empty or non-JSON-"
                 f"container payload ({type(payload).__name__})"
             )
-    directory.parent.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(prefix=f".{directory.name}.staging.", dir=directory.parent))
+    target = directory.resolve()
+    created = not target.exists()
+    target.mkdir(parents=True, exist_ok=True)
+    lock_path = target / LOCK_NAME
+    lock = open(lock_path, "a")
+    staging: Path | None = None
+    done = False
     try:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise DownloadError(
+                f"another download is writing {target} (it holds {lock_path}); "
+                "try again when it has finished"
+            ) from exc
+        _remove_stale_staging(target)
+        staging = Path(tempfile.mkdtemp(prefix=STAGING_PREFIX, dir=target))
         for name, payload in files.items():
-            _write_staged(staging / name, payload, target=directory / name)
+            _write_staged(staging / name, payload, target=target / name)
         result = None
         if check is not None:
             try:
                 result = check(staging)
             except DownloadError as exc:
-                raise type(exc)(str(exc).replace(str(staging), str(directory))) from exc
-        directory.mkdir(exist_ok=True)
+                raise type(exc)(str(exc).replace(str(staging), str(target))) from exc
         replaced: list[str] = []
         for name in files:
             try:
-                os.replace(staging / name, directory / name)
+                os.replace(staging / name, target / name)
             except OSError as exc:
                 if not replaced:
                     raise
                 raise PartialWriteError(
-                    f"replaced {', '.join(replaced)} in {directory}, then moving {name} "
+                    f"replaced {', '.join(replaced)} in {target}, then moving {name} "
                     f"failed ({exc}); the cache set there is mixed until a run succeeds"
                 ) from exc
             replaced.append(name)
+        done = True
         return result
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+        lock.close()
+        if created and not done:
+            lock_path.unlink(missing_ok=True)
+            try:
+                target.rmdir()
+            except OSError:
+                pass
+
+
+def _remove_stale_staging(target: Path) -> None:
+    cutoff = time.time() - STALE_STAGING_SECONDS
+    for entry in target.glob(f"{STAGING_PREFIX}*"):
+        if entry.is_dir() and not entry.is_symlink() and entry.stat().st_mtime < cutoff:
+            shutil.rmtree(entry, ignore_errors=True)
 
 
 def _write_staged(path: Path, payload: Any, *, target: Path) -> None:
@@ -372,12 +445,20 @@ def _write_staged(path: Path, payload: Any, *, target: Path) -> None:
         os.fsync(out.fileno())
 
 
+def _exit_on_sigterm(signum: int, frame: Any) -> None:
+    raise SystemExit(128 + signum)
+
+
 def run_cli(name: str, download: Callable[[], Mapping[str, Any]]) -> int:
     """Run ``download`` and print its summary as JSON; 0 on success, else 1.
 
     A :class:`DownloadError` or ``OSError`` prints one line on stderr: "cache
     not written", or "failed part-way" for a :class:`PartialWriteError`.
+    While ``download`` runs, SIGTERM raises ``SystemExit(143)`` instead of
+    killing the process outright, so staging directories and the lock are
+    cleaned up on the way out.
     """
+    previous = signal.signal(signal.SIGTERM, _exit_on_sigterm)
     try:
         summary = download()
     except PartialWriteError as exc:
@@ -386,5 +467,7 @@ def run_cli(name: str, download: Callable[[], Mapping[str, Any]]) -> int:
     except (DownloadError, OSError) as exc:
         print(f"{name} download failed, cache not written: {exc}", file=sys.stderr)
         return 1
+    finally:
+        signal.signal(signal.SIGTERM, previous)
     print(json.dumps(dict(summary), sort_keys=True))
     return 0

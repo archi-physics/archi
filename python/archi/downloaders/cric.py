@@ -47,10 +47,10 @@ import argparse
 from pathlib import Path
 from typing import Any, Callable
 
+from archi.auth.cache import data_root
 from archi.downloaders._catalog import (
     CatalogClient,
     DownloadError,
-    data_root,
     keyed_objects,
     reader_check,
     require_proxy,

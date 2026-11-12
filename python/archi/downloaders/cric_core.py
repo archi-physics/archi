@@ -38,9 +38,9 @@ import argparse
 from pathlib import Path
 from typing import Any, Callable
 
+from archi.auth.cache import data_root
 from archi.downloaders._catalog import (
     CatalogClient,
-    data_root,
     keyed_objects,
     reader_check,
     run_cli,

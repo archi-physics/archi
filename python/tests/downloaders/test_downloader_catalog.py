@@ -8,9 +8,12 @@ together or not at all.
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import os
+import signal
 import stat
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,7 +29,6 @@ from archi.downloaders._catalog import (
     CatalogClient,
     DownloadError,
     PartialWriteError,
-    data_root,
     keyed_objects,
     reader_check,
     require_proxy,
@@ -47,26 +49,6 @@ def sleeps(tmp_path, monkeypatch):
     return recorded
 
 
-# --- data_root ----------------------------------------------------------
-
-
-def test_data_root_prefers_the_explicit_directory(tmp_path, monkeypatch):
-    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "env"))
-    assert data_root(tmp_path / "explicit") == tmp_path / "explicit"
-
-
-def test_data_root_reads_archi_data_root(tmp_path, monkeypatch):
-    monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "env"))
-    assert data_root(None) == tmp_path / "env"
-
-
-def test_data_root_falls_back_to_the_current_directory(tmp_path, monkeypatch):
-    # Same rule as every other archi downloader and as the readers.
-    monkeypatch.delenv("ARCHI_DATA_ROOT", raising=False)
-    monkeypatch.chdir(tmp_path)
-    assert data_root(None) == tmp_path
-
-
 # --- write_json_atomic / write_group_atomic -----------------------------
 
 
@@ -74,7 +56,7 @@ def test_write_json_atomic_writes_sorted_json(tmp_path):
     path = tmp_path / "deep" / "cache.json"
     write_json_atomic(path, {"b": 1, "a": {"y": 2, "x": 1}})
     assert path.read_text(encoding="utf-8") == '{"a": {"x": 1, "y": 2}, "b": 1}\n'
-    assert [p.name for p in path.parent.iterdir()] == ["cache.json"]
+    assert sorted(p.name for p in path.parent.iterdir()) == [".lock", "cache.json"]
     assert [p.name for p in tmp_path.iterdir()] == ["deep"]
 
 
@@ -134,7 +116,7 @@ def test_a_payload_that_cannot_be_written_is_a_download_error(tmp_path, payload,
         write_group_atomic(target, {"a.json": {"new": "a"}, "b.json": payload})
     assert "b.json" in str(info.value)
     assert json.loads((target / "a.json").read_text()) == {"old": "a"}
-    assert sorted(p.name for p in target.iterdir()) == ["a.json"]
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
     assert sorted(p.name for p in tmp_path.iterdir()) == ["group"]
 
 
@@ -162,7 +144,7 @@ def test_the_check_sees_every_file_under_its_real_name_before_any_is_moved(tmp_p
     seen = {}
 
     def check(staging: Path) -> int:
-        assert staging.parent == tmp_path and staging != target
+        assert staging.parent == target and staging.name.startswith(".staging.")
         seen.update({p.name: json.loads(p.read_text()) for p in staging.iterdir()})
         assert json.loads((target / "a.json").read_text()) == {"old": "a"}
         return 7
@@ -170,7 +152,7 @@ def test_the_check_sees_every_file_under_its_real_name_before_any_is_moved(tmp_p
     assert write_group_atomic(target, {"a.json": {"new": "a"}, "b.json": [1]}, check=check) == 7
     assert seen == {"a.json": {"new": "a"}, "b.json": [1]}
     assert json.loads((target / "a.json").read_text()) == {"new": "a"}
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["group"]
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json", "b.json"]
 
 
 def test_a_refusing_check_leaves_the_old_files_and_no_staging_directory(tmp_path):
@@ -188,8 +170,73 @@ def test_a_refusing_check_leaves_the_old_files_and_no_staging_directory(tmp_path
     # The message points at the target, not at the deleted staging copy.
     assert str(info.value) == f"{target / 'a.json'} is no good"
     assert (target / "a.json").read_text() == '{"old": "a"}\n'
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["group"]
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
     assert not staged[0].exists()
+
+
+def test_a_symlinked_target_on_another_filesystem_is_staged_inside_it(tmp_path):
+    # Staging next to a symlink would stage on the link's filesystem and
+    # make os.replace fail with EXDEV when the link points elsewhere.
+    real = tmp_path / "elsewhere" / "cric"
+    real.mkdir(parents=True)
+    (tmp_path / "root").mkdir()
+    link = tmp_path / "root" / "cric"
+    link.symlink_to(real)
+    staged = []
+
+    def check(staging: Path) -> None:
+        staged.append(staging)
+
+    write_group_atomic(link, {"a.json": {"k": 1}}, check=check)
+    assert staged[0].parent == real
+    assert link.is_symlink()
+    assert json.loads((real / "a.json").read_text()) == {"k": 1}
+    assert sorted(p.name for p in (tmp_path / "root").iterdir()) == ["cric"]
+
+
+def test_stale_staging_directories_are_removed(tmp_path):
+    target = tmp_path / "group"
+    old = target / ".staging.killed"
+    fresh = target / ".staging.running"
+    old.mkdir(parents=True)
+    fresh.mkdir()
+    (old / "a.json").write_text("{}")
+    seven_hours_ago = time.time() - 7 * 3600
+    os.utime(old, (seven_hours_ago, seven_hours_ago))
+    write_group_atomic(target, {"a.json": {"k": 1}})
+    assert not old.exists()
+    assert fresh.is_dir()
+
+
+def test_a_second_writer_fails_while_the_first_holds_the_lock(tmp_path):
+    target = tmp_path / "group"
+    target.mkdir()
+    (target / "a.json").write_text('{"old": "a"}\n')
+    with open(target / ".lock", "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(DownloadError, match="another download is writing") as info:
+            write_group_atomic(target, {"a.json": {"new": "a"}})
+    assert str(target / ".lock") in str(info.value)
+    assert (target / "a.json").read_text() == '{"old": "a"}\n'
+    assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
+
+
+def test_sigterm_during_a_write_removes_the_staging_copy(tmp_path):
+    target = tmp_path / "group"
+    staged = []
+
+    def check(staging: Path) -> None:
+        staged.append(staging)
+        os.kill(os.getpid(), signal.SIGTERM)  # the handler raises right here
+        raise AssertionError("SIGTERM did not stop the write")
+
+    previous = signal.getsignal(signal.SIGTERM)
+    with pytest.raises(SystemExit) as info:
+        run_cli("thing", lambda: write_group_atomic(target, {"a.json": {"k": 1}}, check=check))
+    assert info.value.code == 143
+    assert not staged[0].exists()
+    assert not target.exists()
+    assert signal.getsignal(signal.SIGTERM) is previous
 
 
 def test_a_refused_check_on_a_new_target_creates_no_directory(tmp_path):
@@ -229,13 +276,14 @@ def test_a_failed_first_move_is_a_plain_download_error(tmp_path, monkeypatch):
     with pytest.raises(OSError) as info:
         write_group_atomic(tmp_path / "group", {"a.json": {"k": 1}})
     assert not isinstance(info.value, PartialWriteError)
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["group"]
+    # The run created the target, so it removes it again.
+    assert list(tmp_path.iterdir()) == []
 
 
 # --- reader_check -------------------------------------------------------
 
 
-def _reader(status="ok", completed=True, count=3, reason="", raises=None):
+def _reader(status="ok", completed=True, count=3, reason="", raises=None, reads=("x.json",)):
     def make(root: Path):
         def run(run_id, *, mode):
             assert mode == "scope_complete"
@@ -247,13 +295,30 @@ def _reader(status="ok", completed=True, count=3, reason="", raises=None):
                 health=SimpleNamespace(status=status, reason=reason, record_count=count),
             )
 
-        return SimpleNamespace(run=run)
+        return SimpleNamespace(
+            run=run, base=None, cache_paths=tuple(str(root / name) for name in reads)
+        )
 
     return make
 
 
-def test_reader_check_returns_the_record_count_of_an_accepted_cache(tmp_path):
-    assert reader_check(_reader(count=12))(tmp_path) == 12
+@pytest.fixture
+def staged(tmp_path):
+    """A staging directory holding x.json and y.json."""
+    for name in ("x.json", "y.json"):
+        (tmp_path / name).write_text("{}")
+    return tmp_path
+
+
+def test_reader_check_returns_the_record_count_of_an_accepted_cache(staged):
+    assert reader_check(_reader(count=12, reads=("x.json", "y.json")))(staged) == 12
+
+
+def test_reader_check_refuses_a_staged_file_the_reader_does_not_read(staged):
+    # A make_reader that points one path elsewhere would let an unchecked
+    # file into the cache.
+    with pytest.raises(DownloadError, match=r"does not read y\.json"):
+        reader_check(_reader(reads=("x.json",)))(staged)
 
 
 @pytest.mark.parametrize(
@@ -266,29 +331,50 @@ def test_reader_check_returns_the_record_count_of_an_accepted_cache(tmp_path):
     ],
     ids=["unhealthy", "incomplete", "no-records", "crash"],
 )
-def test_reader_check_refuses_what_the_reader_does_not_accept(tmp_path, kwargs, expected):
+def test_reader_check_refuses_what_the_reader_does_not_accept(staged, kwargs, expected):
     with pytest.raises(DownloadError, match=expected):
-        reader_check(_reader(**kwargs))(tmp_path)
+        reader_check(_reader(reads=("x.json", "y.json"), **kwargs))(staged)
 
 
-def test_reader_check_names_the_endpoint_behind_the_refused_file(tmp_path):
+def test_reader_check_names_the_endpoint_behind_the_refused_file(staged):
     check = reader_check(
-        _reader(status="endpoint_failed", reason=f"{tmp_path}/x.json holds nothing"),
+        _reader(
+            status="endpoint_failed",
+            reason=f"{staged}/x.json holds nothing",
+            reads=("x.json", "y.json"),
+        ),
         origins={"x.json": "https://a.example/x", "y.json": "https://a.example/y"},
     )
     with pytest.raises(DownloadError) as info:
-        check(tmp_path)
+        check(staged)
     assert "x.json came from https://a.example/x" in str(info.value)
     assert "https://a.example/y" not in str(info.value)
 
 
-def test_reader_check_names_every_endpoint_when_no_file_is_named(tmp_path):
+def test_reader_check_matches_a_file_name_as_a_whole_path_segment(tmp_path):
+    for name in ("sites.json", "rcsites.json"):
+        (tmp_path / name).write_text("{}")
     check = reader_check(
-        _reader(status="endpoint_failed", reason="drifted payload"),
-        origins={"x.json": "https://a.example/x", "y.json": "https://a.example/y"},
+        _reader(
+            status="endpoint_failed",
+            reason=f"{tmp_path}/rcsites.json holds nothing",
+            reads=("sites.json", "rcsites.json"),
+        ),
+        origins={"sites.json": "https://a.example/sites", "rcsites.json": "https://a.example/rc"},
     )
     with pytest.raises(DownloadError) as info:
         check(tmp_path)
+    assert "rcsites.json came from https://a.example/rc" in str(info.value)
+    assert "https://a.example/sites" not in str(info.value)
+
+
+def test_reader_check_names_every_endpoint_when_no_file_is_named(staged):
+    check = reader_check(
+        _reader(status="endpoint_failed", reason="drifted payload", reads=("x.json", "y.json")),
+        origins={"x.json": "https://a.example/x", "y.json": "https://a.example/y"},
+    )
+    with pytest.raises(DownloadError) as info:
+        check(staged)
     assert "https://a.example/x" in str(info.value)
     assert "https://a.example/y" in str(info.value)
 
@@ -443,13 +529,45 @@ def test_a_redirect_to_login_is_reported_as_needing_a_credential(monkeypatch):
     assert URL in message and "HTTP 302" in message and "/accounts/login/" in message
 
 
-def test_a_tls_failure_hints_at_the_ca_options(monkeypatch):
-    patch_session_get(monkeypatch, {URL: requests.exceptions.SSLError("certificate verify failed")})
+VERIFY_FAILED = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+UNKNOWN_CA_ALERT = "[SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca"
+
+
+def test_a_tls_failure_with_requests_default_bundle_hints_at_both_ca_options(monkeypatch):
+    patch_session_get(monkeypatch, {URL: requests.exceptions.SSLError(VERIFY_FAILED)})
     with pytest.raises(DownloadError) as info:
         CatalogClient(timeout=7).get_json(URL)
     message = str(info.value)
     assert URL in message
     assert "--ca-path" in message and "REQUESTS_CA_BUNDLE" in message
+
+
+@pytest.mark.parametrize("where", ["ca-path", "grid-ca-dir"])
+def test_a_tls_failure_with_an_explicit_ca_does_not_suggest_requests_ca_bundle(
+    tmp_path, monkeypatch, where
+):
+    patch_session_get(monkeypatch, {URL: requests.exceptions.SSLError(VERIFY_FAILED)})
+    if where == "grid-ca-dir":
+        monkeypatch.setattr(_catalog, "GRID_CA_DIR", tmp_path)
+        client = CatalogClient(timeout=7)
+        verifying_with = str(tmp_path)
+    else:
+        client = CatalogClient(timeout=7, ca_path="/etc/pki/custom.pem")
+        verifying_with = "/etc/pki/custom.pem"
+    with pytest.raises(DownloadError) as info:
+        client.get_json(URL)
+    message = str(info.value)
+    assert "--ca-path" in message and verifying_with in message
+    assert "REQUESTS_CA_BUNDLE" not in message
+
+
+def test_a_tls_alert_with_a_proxy_points_at_the_proxy(tmp_path, monkeypatch):
+    patch_session_get(monkeypatch, {URL: requests.exceptions.SSLError(UNKNOWN_CA_ALERT)})
+    with pytest.raises(DownloadError) as info:
+        CatalogClient(timeout=7, proxy=tmp_path / "x509up").get_json(URL)
+    message = str(info.value)
+    assert "refused the X.509 proxy" in message
+    assert "voms-proxy-info" in message
 
 
 def test_a_non_json_body_is_refused(monkeypatch):

@@ -61,19 +61,24 @@ def _old_cache(output: Path) -> dict[str, bytes]:
     output.mkdir(parents=True)
     for name in URLS:
         (output / name).write_text(json.dumps({"old": name}) + "\n", encoding="utf-8")
-    return {p.name: p.read_bytes() for p in output.iterdir()}
+    return _snapshot(output)
+
+
+def _snapshot(output: Path) -> dict[str, bytes]:
+    """The cache files (the write lock file excluded)."""
+    return {p.name: p.read_bytes() for p in output.iterdir() if not p.name.startswith(".")}
 
 
 def _assert_untouched(output: Path, old: dict[str, bytes]) -> None:
-    assert {p.name: p.read_bytes() for p in output.iterdir()} == old
-    assert sorted(p.name for p in output.parent.iterdir() if p.name.startswith(".")) == []
+    assert _snapshot(output) == old
+    assert [p.name for p in output.iterdir() if p.name.startswith(".staging.")] == []
 
 
 def test_download_feeds_the_reader_services_and_cms_federations(tmp_path, upstream, capsys):
     output = tmp_path / "cric-core"
     assert _main(output) == 0
 
-    assert sorted(p.name for p in output.iterdir()) == sorted(URLS)
+    assert sorted(p.name for p in output.iterdir()) == sorted([".lock", *URLS])
     source = CRICCoreSource(
         services_path=str(output / "services.json"),
         rcsites_path=str(output / "rcsites.json"),
@@ -114,7 +119,7 @@ def test_no_credential_is_sent(tmp_path, upstream):
 def test_the_default_output_is_cric_core_under_archi_data_root(tmp_path, upstream, monkeypatch):
     monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "root"))
     assert cric_core.main(["--base-url", BASE]) == 0
-    assert sorted(p.name for p in (tmp_path / "root" / "cric-core").iterdir()) == sorted(URLS)
+    assert sorted(p.name for p in (tmp_path / "root" / "cric-core").iterdir()) == sorted([".lock", *URLS])
 
 
 def test_a_federation_serving_cms_only_through_pledges_is_accepted(tmp_path, upstream):

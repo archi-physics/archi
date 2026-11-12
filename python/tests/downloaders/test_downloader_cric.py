@@ -100,13 +100,13 @@ def _old_cache(output: Path) -> dict[str, bytes]:
 
 
 def _snapshot(output: Path) -> dict[str, bytes]:
-    return {p.name: p.read_bytes() for p in output.iterdir()}
+    """The cache files (the write lock file excluded)."""
+    return {p.name: p.read_bytes() for p in output.iterdir() if not p.name.startswith(".")}
 
 
 def _assert_untouched(output: Path, old: dict[str, bytes]) -> None:
     assert _snapshot(output) == old
-    # No staging directory is left next to the cache.
-    assert sorted(p.name for p in output.parent.iterdir() if p.name.startswith(".")) == []
+    assert [p.name for p in output.iterdir() if p.name.startswith(".staging.")] == []
 
 
 # --- the round trip -----------------------------------------------------
@@ -116,7 +116,7 @@ def test_download_feeds_the_reader_a_complete_topology(tmp_path, proxy, upstream
     output = tmp_path / "cric"
     assert _main(output) == 0
 
-    assert sorted(p.name for p in output.iterdir()) == sorted(URLS)
+    assert sorted(p.name for p in output.iterdir()) == sorted([".lock", *URLS])
     run = _reader(output).run("run-1", mode="scope_complete")
     facts = list(run.facts)
     assert run.health.status == "ok"
@@ -174,7 +174,7 @@ def test_every_request_carries_the_proxy(tmp_path, proxy, upstream):
 def test_the_default_output_is_cric_under_archi_data_root(tmp_path, proxy, upstream, monkeypatch):
     monkeypatch.setenv("ARCHI_DATA_ROOT", str(tmp_path / "root"))
     assert cric.main(["--base-url", BASE]) == 0
-    assert sorted(p.name for p in (tmp_path / "root" / "cric").iterdir()) == sorted(URLS)
+    assert sorted(p.name for p in (tmp_path / "root" / "cric").iterdir()) == sorted([".lock", *URLS])
 
 
 def test_an_explicit_proxy_overrides_the_environment(tmp_path, proxy, upstream, monkeypatch):
