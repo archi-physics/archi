@@ -209,48 +209,45 @@ def test_stale_staging_directories_are_removed(tmp_path):
     assert fresh.is_dir()
 
 
+def _holds_at_most_the_lock(target: Path) -> None:
+    """A failed run leaves the target in place, holding nothing but .lock."""
+    assert target.is_dir()
+    assert [p.name for p in target.iterdir()] in ([], [".lock"])
+
+
 def test_a_losing_writer_on_a_new_target_leaves_the_winners_lock(tmp_path, monkeypatch):
-    # Review finding: two runs on a target that does not exist yet both see
-    # it as created by them; the loser must not remove the winner's .lock,
-    # or a third run would lock a fresh inode and write alongside the winner.
+    # Review finding: two runs on a target that does not exist yet; the
+    # loser must not touch the winner's .lock, or a third run could lock a
+    # fresh inode and write alongside the winner.
     target = tmp_path / "cric"
     real_exists = Path.exists
     seen = {}
 
     def check(staging: Path) -> None:
+        inode = (target / ".lock").stat().st_ino
         with monkeypatch.context() as patch:
             patch.setattr(
                 Path, "exists", lambda self, *a, **k: False if self == target else real_exists(self, *a, **k)
             )
             with pytest.raises(DownloadError, match="another download is writing"):
                 write_group_atomic(target, {"a.json": {"k": 2}})
-        seen["lock after B"] = (target / ".lock").exists()
+        seen["same lock after B"] = (target / ".lock").stat().st_ino == inode
         with pytest.raises(DownloadError, match="another download is writing"):
             write_group_atomic(target, {"c.json": {"k": 3}})
 
     write_group_atomic(target, {"a.json": {"k": 1}}, check=check)
-    assert seen == {"lock after B": True}
+    assert seen == {"same lock after B": True}
     assert json.loads((target / "a.json").read_text()) == {"k": 1}
     assert sorted(p.name for p in target.iterdir()) == [".lock", "a.json"]
 
 
-def test_a_failing_writer_removes_its_new_target_while_still_holding_the_lock(tmp_path, monkeypatch):
-    # The lock must still be held when .lock is unlinked, or another run
-    # could lock it in between.
+def test_a_failing_writer_on_a_new_target_keeps_the_target_and_its_lock(tmp_path, monkeypatch):
     target = tmp_path / "cric"
     real_unlink = Path.unlink
-    held_at_unlink = []
+    unlinked = []
 
     def unlink(self, *args, **kwargs):
-        if self.name == ".lock":
-            with open(self, "a") as probe:
-                try:
-                    fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError:
-                    held_at_unlink.append(True)
-                else:
-                    held_at_unlink.append(False)
-                    fcntl.flock(probe, fcntl.LOCK_UN)
+        unlinked.append(self.name)
         return real_unlink(self, *args, **kwargs)
 
     monkeypatch.setattr(Path, "unlink", unlink)
@@ -260,18 +257,53 @@ def test_a_failing_writer_removes_its_new_target_while_still_holding_the_lock(tm
 
     with pytest.raises(DownloadError):
         write_group_atomic(target, {"a.json": {"k": 1}}, check=check)
-    assert held_at_unlink == [True]
-    assert list(tmp_path.iterdir()) == []
+    assert ".lock" not in unlinked
+    assert [p.name for p in target.iterdir()] == [".lock"]
 
 
-def test_a_lock_file_that_cannot_be_opened_leaves_no_new_target(tmp_path, monkeypatch):
+def test_a_stale_handle_on_the_lock_cannot_lock_while_another_run_writes(tmp_path):
+    # Review round 4 (orphaned inode): W creates the target and fails; X
+    # opened .lock while W ran and calls flock only later; T then writes.
+    # Because .lock is never unlinked, X's handle is T's lock file, so X
+    # cannot take the lock while T writes: only one writer proceeds.
+    target = tmp_path / "cric"
+    handles = []
+
+    def w_check(staging: Path) -> None:
+        handles.append(open(target / ".lock", "a"))  # X opens the lock file
+        raise DownloadError("W refused")
+
+    with pytest.raises(DownloadError, match="W refused"):
+        write_group_atomic(target, {"a.json": {"by": "W"}}, check=w_check)
+    x_handle = handles[0]
+    try:
+        assert os.fstat(x_handle.fileno()).st_ino == (target / ".lock").stat().st_ino
+        x_blocked = []
+
+        def t_check(staging: Path) -> None:
+            try:
+                fcntl.flock(x_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                x_blocked.append(True)
+            else:
+                x_blocked.append(False)
+                fcntl.flock(x_handle, fcntl.LOCK_UN)
+
+        write_group_atomic(target, {"a.json": {"by": "T"}}, check=t_check)
+        assert x_blocked == [True]
+    finally:
+        x_handle.close()
+    assert json.loads((target / "a.json").read_text()) == {"by": "T"}
+
+
+def test_a_lock_file_that_cannot_be_opened_writes_nothing(tmp_path, monkeypatch):
     def no_space(*args, **kwargs):
         raise OSError(errno.ENOSPC, "No space left on device")
 
     monkeypatch.setattr(_catalog, "open", no_space, raising=False)
     with pytest.raises(OSError, match="No space left"):
         write_group_atomic(tmp_path / "cric", {"a.json": {"k": 1}})
-    assert list(tmp_path.iterdir()) == []
+    _holds_at_most_the_lock(tmp_path / "cric")
 
 
 @pytest.mark.parametrize("code", [errno.ENOLCK, errno.EOPNOTSUPP], ids=["nfs", "fuse"])
@@ -284,7 +316,7 @@ def test_a_filesystem_without_flock_refuses_the_write(tmp_path, monkeypatch, cod
         raise OSError(code, os.strerror(code))
 
     monkeypatch.setattr(_catalog.fcntl, "flock", unsupported)
-    with pytest.raises(DownloadError, match="does not support flock") as info:
+    with pytest.raises(DownloadError, match="cannot take a lock on") as info:
         write_group_atomic(target, {"a.json": {"new": "a"}})
     assert str(target / ".lock") in str(info.value)
     assert (target / "a.json").read_text() == '{"old": "a"}\n'
@@ -317,17 +349,18 @@ def test_sigterm_during_a_write_removes_the_staging_copy(tmp_path):
         run_cli("thing", lambda: write_group_atomic(target, {"a.json": {"k": 1}}, check=check))
     assert info.value.code == 143
     assert not staged[0].exists()
-    assert not target.exists()
+    _holds_at_most_the_lock(target)
     assert signal.getsignal(signal.SIGTERM) is previous
 
 
-def test_a_refused_check_on_a_new_target_creates_no_directory(tmp_path):
+def test_a_refused_check_on_a_new_target_leaves_only_the_lock(tmp_path):
     def check(staging: Path) -> None:
         raise DownloadError("no")
 
     with pytest.raises(DownloadError):
         write_group_atomic(tmp_path / "new", {"a.json": {"k": 1}}, check=check)
-    assert list(tmp_path.iterdir()) == []
+    assert [p.name for p in tmp_path.iterdir()] == ["new"]
+    _holds_at_most_the_lock(tmp_path / "new")
 
 
 def test_a_failed_move_after_an_earlier_one_names_the_replaced_files(tmp_path, monkeypatch):
@@ -358,8 +391,7 @@ def test_a_failed_first_move_is_a_plain_download_error(tmp_path, monkeypatch):
     with pytest.raises(OSError) as info:
         write_group_atomic(tmp_path / "group", {"a.json": {"k": 1}})
     assert not isinstance(info.value, PartialWriteError)
-    # The run created the target, so it removes it again.
-    assert list(tmp_path.iterdir()) == []
+    _holds_at_most_the_lock(tmp_path / "group")
 
 
 # --- reader_check -------------------------------------------------------
@@ -651,7 +683,8 @@ def test_a_tls_alert_without_a_proxy_suggests_the_endpoint_wants_a_credential(mo
     with pytest.raises(DownloadError) as info:
         CatalogClient(timeout=7).get_json(URL)
     message = str(info.value)
-    assert "may need a credential" in message and "--proxy" in message
+    assert "may require a client certificate" in message
+    assert "--proxy" not in message
     assert "REQUESTS_CA_BUNDLE" not in message
 
 

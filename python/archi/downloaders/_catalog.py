@@ -36,10 +36,11 @@ Caches go under :func:`archi.auth.cache.data_root` (``ARCHI_DATA_ROOT``, else
 the current directory), the function the readers resolve their paths with.
 :func:`require_proxy` checks the grid proxy before any request.
 
-The target directory also holds ``.lock`` and, while a write runs or after a
-killed one, ``.staging.*`` entries; a tool that walks a cache directory
-recursively and refuses dot entries (the snapshot builder's ``_check_tree``)
-must exclude them.
+The target directory also holds ``.lock`` (never removed, so a failed first
+run leaves the directory with only that file) and, while a write runs or
+after a killed one, ``.staging.*`` entries; a tool that walks a cache
+directory recursively and refuses dot entries (the snapshot builder's
+``_check_tree``) must exclude them.
 
 Known limit of :func:`write_group_atomic`: the final moves are one
 ``os.replace`` per file, not one filesystem operation. If a move fails after
@@ -226,8 +227,8 @@ class CatalogClient:
             )
         if _TLS_ALERT.search(str(exc)):
             return (
-                "the server ended the handshake, so the endpoint may need a "
-                "credential: pass --proxy with a valid X.509 proxy"
+                "the server ended the handshake; the endpoint may require a "
+                "client certificate, which this request did not send"
             )
         if verify is True:
             return (
@@ -367,9 +368,14 @@ def write_group_atomic(
     hash) and fsynced, under their real names into a new staging directory
     inside ``directory``, so the final moves never cross a filesystem.
     ``check`` then sees that staging directory; if it raises, the staging
-    copy is deleted, the old files stay, and a directory this call created is
-    removed. Only then is each file moved into place (mode 0644 less the
-    umask). Returns what ``check`` returned.
+    copy is deleted and the old files stay. Only then is each file moved into
+    place (mode 0644 less the umask). Returns what ``check`` returned.
+
+    ``.lock`` is never removed and the target directory is never deleted,
+    even when this call created it and then failed: removing either would let
+    a run holding an open handle on the old ``.lock`` and a run on a new one
+    both take "the" lock. A failed first run leaves the target holding only
+    ``.lock``, which the next run reuses.
     """
     if not files:
         raise DownloadError(f"no files to write in {directory}")
@@ -382,15 +388,9 @@ def write_group_atomic(
                 f"container payload ({type(payload).__name__})"
             )
     target = directory.resolve()
-    created = not target.exists()
     target.mkdir(parents=True, exist_ok=True)
     lock_path = target / LOCK_NAME
-    lock = None
-    locked = False
-    staging: Path | None = None
-    done = False
-    try:
-        lock = open(lock_path, "a")
+    with open(lock_path, "a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
@@ -400,56 +400,41 @@ def write_group_atomic(
             ) from exc
         except OSError as exc:
             raise DownloadError(
-                f"cannot lock {lock_path}: the filesystem does not support flock "
-                f"({exc}); refusing to write the cache without a lock"
+                f"cannot take a lock on {lock_path} ({exc}); refusing to write "
+                "the cache without a lock"
             ) from exc
-        locked = True
         _remove_stale_staging(target)
         staging = Path(tempfile.mkdtemp(prefix=STAGING_PREFIX, dir=target))
-        for name, payload in files.items():
-            _write_staged(staging / name, payload, target=target / name)
-        result = None
-        if check is not None:
-            try:
-                result = check(staging)
-            except DownloadError as exc:
-                raise type(exc)(str(exc).replace(str(staging), str(target))) from exc
-        replaced: list[str] = []
-        for name in files:
-            try:
-                os.replace(staging / name, target / name)
-            except OSError as exc:
-                if not replaced:
-                    raise
-                raise PartialWriteError(
-                    f"replaced {', '.join(replaced)} in {target}, then moving {name} "
-                    f"failed ({exc}); the cache set there is mixed until a run succeeds"
-                ) from exc
-            replaced.append(name)
-        done = True
-        return result
-    finally:
-        if staging is not None:
+        try:
+            return _stage_check_and_move(staging, target, files, check)
+        finally:
             shutil.rmtree(staging, ignore_errors=True)
-        if created and not done:
-            # Only the lock holder may remove .lock, and only while it still
-            # holds the lock: a run that lost the race (it too saw the target
-            # missing) must leave the winner's lock alone. Without the lock,
-            # the target is removed only if empty (the lock file could not
-            # even be opened).
-            if locked:
-                lock_path.unlink(missing_ok=True)
-            if locked or lock is None:
-                _remove_if_empty(target)
-        if lock is not None:
-            lock.close()
 
 
-def _remove_if_empty(directory: Path) -> None:
-    try:
-        directory.rmdir()
-    except OSError:
-        pass
+def _stage_check_and_move(
+    staging: Path, target: Path, files: Mapping[str, Any], check: Check | None
+) -> Any:
+    for name, payload in files.items():
+        _write_staged(staging / name, payload, target=target / name)
+    result = None
+    if check is not None:
+        try:
+            result = check(staging)
+        except DownloadError as exc:
+            raise type(exc)(str(exc).replace(str(staging), str(target))) from exc
+    replaced: list[str] = []
+    for name in files:
+        try:
+            os.replace(staging / name, target / name)
+        except OSError as exc:
+            if not replaced:
+                raise
+            raise PartialWriteError(
+                f"replaced {', '.join(replaced)} in {target}, then moving {name} "
+                f"failed ({exc}); the cache set there is mixed until a run succeeds"
+            ) from exc
+        replaced.append(name)
+    return result
 
 
 def _remove_stale_staging(target: Path) -> None:
