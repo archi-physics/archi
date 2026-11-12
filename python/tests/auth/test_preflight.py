@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 import requests
 
+from support.x509 import write_cert
+
 from archi.auth import preflight as preflight_mod
 from archi.auth.preflight import CERNPreflightSource
 
@@ -18,29 +20,6 @@ def _write_cookie_file(path: Path, *, expires: int) -> None:
         "# Netscape HTTP Cookie File\n"
         f".cern.ch\tTRUE\t/\tTRUE\t{expires}\tsessionid\ttest-value\n"
     )
-
-
-def _write_cert(path: Path, *, not_after: datetime) -> None:
-    from cryptography import x509
-    from cryptography.hazmat.primitives import hashes, serialization
-    from cryptography.hazmat.primitives.asymmetric import ec
-    from cryptography.x509.oid import NameOID
-
-    key = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name(
-        [x509.NameAttribute(NameOID.COMMON_NAME, "archi-preflight-test")]
-    )
-    cert = (
-        x509.CertificateBuilder()
-        .subject_name(name)
-        .issuer_name(name)
-        .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(not_after - timedelta(days=30))
-        .not_valid_after(not_after)
-        .sign(key, hashes.SHA256())
-    )
-    path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
 
 
 class _FakeResponse:
@@ -181,14 +160,14 @@ def test_x509_proxy_kind(monkeypatch, tmp_path):
     )
     monkeypatch.setenv("ARCHI_T_PROXY", str(proxy_path))
     assert source.preflight().status == "missing_credential"
-    _write_cert(
+    write_cert(
         proxy_path,
         not_after=datetime.now(timezone.utc) + timedelta(hours=12),
     )
     result = source.preflight()
     assert result.status == "ok"
     assert "valid until" in result.reason
-    _write_cert(
+    write_cert(
         proxy_path,
         not_after=datetime.now(timezone.utc) - timedelta(hours=1),
     )
@@ -320,7 +299,7 @@ def test_cern_tls_kind(monkeypatch, tmp_path):
 
 def test_x509_http_expired_proxy_skips_network(monkeypatch, tmp_path):
     proxy_path = tmp_path / "proxy.pem"
-    _write_cert(
+    write_cert(
         proxy_path,
         not_after=datetime.now(timezone.utc) - timedelta(hours=1),
     )
@@ -340,7 +319,7 @@ def test_x509_http_expired_proxy_skips_network(monkeypatch, tmp_path):
 
 def test_x509_http_valid_proxy(monkeypatch, tmp_path):
     proxy_path = tmp_path / "proxy.pem"
-    _write_cert(
+    write_cert(
         proxy_path,
         not_after=datetime.now(timezone.utc) + timedelta(hours=12),
     )
@@ -361,7 +340,7 @@ def test_x509_http_valid_proxy(monkeypatch, tmp_path):
 
 def test_x509_http_ssl_error_vocabulary(monkeypatch, tmp_path):
     proxy_path = tmp_path / "proxy.pem"
-    _write_cert(
+    write_cert(
         proxy_path,
         not_after=datetime.now(timezone.utc) + timedelta(hours=12),
     )
