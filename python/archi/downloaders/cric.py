@@ -20,7 +20,10 @@ The first three answer anonymously; the facility and site-responsibilities
 endpoints redirect an anonymous request to CRIC's login page. So the run
 needs an X.509 proxy (``X509_USER_PROXY``, else ``/tmp/x509up_u<uid>``, or
 ``--proxy``), checked before any request; make one with
-``voms-proxy-init -voms cms``. Every request carries it.
+``voms-proxy-init -voms cms``. Every request carries it. CRIC presents a
+CERN Grid CA certificate: off a grid host (no
+``/etc/grid-security/certificates``), pass ``--ca-path`` a bundle holding
+that CA.
 
 The files go to ``--output-dir``, default ``cric`` under ``ARCHI_DATA_ROOT``
 (or under the current directory when that variable is unset), which is
@@ -28,28 +31,30 @@ where the cms-catalogs pack's ``cric`` source reads them.
 
 All or nothing: the reader claims a complete scope over these five files
 together and retracts any site, endpoint or operator missing from them. So
-every answer is fetched and checked first, and only then are the five files
-written, as one group (:func:`archi.downloaders._catalog.write_group_atomic`).
-A failed request, a body that is not JSON, an empty or error-shaped answer,
-a site without an integer ``tier_level`` (the reader would present it as
-Tier-0), or responsibility rows none of which names a known site stops the
-run with a message naming the endpoint, exit status 1, and the previous
-caches untouched.
+every answer is fetched first; then the five files are staged, the ``cric``
+reader runs over the staged copy, and only a run with health ``ok`` and a
+complete scope moves them into place (see :mod:`archi.downloaders._catalog`).
+Before that, two pre-checks give clearer messages: each answer must be a
+non-empty ``name -> object`` map (the responsibilities answer a non-empty
+``result`` of ``[username, site title, role]`` rows), and every site must
+carry an integer ``tier_level``, which the reader would otherwise default to
+0 and present as Tier-0. Any failure exits 1 with a message naming the
+endpoint and leaves the previous caches untouched.
 """
 from __future__ import annotations
 
 import argparse
-import json
-import re
-import sys
 from pathlib import Path
 from typing import Any, Callable
 
 from archi.downloaders._catalog import (
+    CatalogClient,
     DownloadError,
     data_root,
-    get_json,
+    keyed_objects,
+    reader_check,
     require_proxy,
+    run_cli,
     write_group_atomic,
 )
 
@@ -65,116 +70,65 @@ ENDPOINTS = {
     "responsibilities.json": "/api/accounts/user/query/?json&preset=site-responsibilities",
 }
 
-#: The reader's CMS site-name rule (``archi.sources.cric._CMS_SITE_NAME``).
-CMS_SITE_NAME = re.compile(r"^T[0-3]_[A-Z]{2}_\w+$")
-RESPONSIBILITY_COLUMNS = ["username", "site_name", "role"]
-_ERROR_BODY_KEYS = ("error", "errors")
-
 Fetch = Callable[[str], Any]
 
 
+def endpoint_urls(base_url: str) -> dict[str, str]:
+    """Cache file -> full URL."""
+    base = base_url.rstrip("/")
+    return {name: base + path for name, path in ENDPOINTS.items()}
+
+
 def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> dict[str, Any]:
-    """Every cache file's payload, checked, or :class:`DownloadError`.
+    """Every cache file's payload, pre-checked, or :class:`DownloadError`.
 
     ``fetch`` takes a URL and returns its parsed JSON (raising
     :class:`DownloadError` on failure).
     """
-    base = base_url.rstrip("/")
-    urls = {name: base + path for name, path in ENDPOINTS.items()}
+    urls = endpoint_urls(base_url)
     payloads = {name: fetch(url) for name, url in urls.items()}
-
-    sites = keyed_objects(payloads["sites.json"], urls["sites.json"])
-    for name, site in sites.items():
-        if not CMS_SITE_NAME.match(name):
-            raise DownloadError(f"{urls['sites.json']}: not a CMS site name: {name!r}")
+    for name in ("sites.json", "storage_units.json", "compute_units.json", "facilities.json"):
+        keyed_objects(payloads[name], urls[name])
+    for name, site in payloads["sites.json"].items():
         tier = site.get("tier_level")
         if not isinstance(tier, int) or isinstance(tier, bool):
-            raise DownloadError(
-                f"{urls['sites.json']}: site {name} has no integer tier_level"
-            )
-
-    storage_units = keyed_objects(
-        payloads["storage_units.json"], urls["storage_units.json"]
-    )
-    for name, unit in storage_units.items():
-        site = unit.get("site")
-        if not isinstance(site, dict) or not isinstance(site.get("name"), str):
-            raise DownloadError(
-                f"{urls['storage_units.json']}: storage unit {name} has no "
-                "'site' object with a name"
-            )
-
-    keyed_objects(payloads["compute_units.json"], urls["compute_units.json"])
-
-    facilities = keyed_objects(payloads["facilities.json"], urls["facilities.json"])
-    for name, facility in facilities.items():
-        if not isinstance(facility.get("cmssites", []), list):
-            raise DownloadError(
-                f"{urls['facilities.json']}: facility {name} 'cmssites' is not a list"
-            )
-
-    _check_responsibilities(
-        payloads["responsibilities.json"], urls["responsibilities.json"], sites
-    )
+            raise DownloadError(f"{urls['sites.json']}: site {name} has no integer tier_level")
+    _check_responsibility_rows(payloads["responsibilities.json"], urls["responsibilities.json"])
     return payloads
 
 
-def keyed_objects(payload: Any, url: str) -> dict[str, dict[str, Any]]:
-    """A CRIC ``name -> object`` answer, or :class:`DownloadError`."""
-    if not isinstance(payload, dict):
-        raise DownloadError(
-            f"{url}: answer is a {type(payload).__name__}, not a JSON object"
-        )
-    error_keys = [key for key in _ERROR_BODY_KEYS if key in payload]
-    if error_keys:
-        raise DownloadError(
-            f"{url}: answer is an API error body (top-level {error_keys[0]!r} key)"
-        )
-    if not payload:
-        raise DownloadError(f"{url}: answer is empty; refusing to write an empty cache")
-    for name, value in payload.items():
-        if not isinstance(value, dict):
-            raise DownloadError(
-                f"{url}: entry {name} is a {type(value).__name__}, not an object"
-            )
-    return payload
-
-
-def _check_responsibilities(payload: Any, url: str, sites: dict[str, Any]) -> None:
-    """The site-responsibilities answer: ``result`` rows of username, site
-    title, role, at least one naming a site in the sites answer (else the
-    reader would emit no operator and refuse the whole cache)."""
+def _check_responsibility_rows(payload: Any, url: str) -> None:
+    """A non-empty ``result`` of ``[username or null, site title or null,
+    role]`` rows; the reader drops rows with a null username or site."""
     if not isinstance(payload, dict) or not isinstance(payload.get("result"), list):
         raise DownloadError(f"{url}: answer has no 'result' list of responsibility rows")
-    desc = payload.get("desc")
-    columns = desc.get("columns") if isinstance(desc, dict) else None
-    if columns is not None and columns != RESPONSIBILITY_COLUMNS:
-        raise DownloadError(
-            f"{url}: columns are {columns}, expected {RESPONSIBILITY_COLUMNS}"
-        )
     rows = payload["result"]
     if not rows:
-        raise DownloadError(
-            f"{url}: answer has an empty 'result'; refusing to write zero operators"
-        )
+        raise DownloadError(f"{url}: answer has an empty 'result'; refusing to write zero operators")
     for index, row in enumerate(rows):
-        if (
-            not isinstance(row, list)
-            or len(row) != 3
-            or not isinstance(row[0], str)
-            or not isinstance(row[2], str)
-            or not (row[1] is None or isinstance(row[1], str))
+        if not (
+            isinstance(row, list)
+            and len(row) == 3
+            and (row[0] is None or isinstance(row[0], str))
+            and (row[1] is None or isinstance(row[1], str))
+            and isinstance(row[2], str)
         ):
             raise DownloadError(
-                f"{url}: row {index} is not [username, site title or null, role]"
+                f"{url}: row {index} is not [username or null, site title or null, role]"
             )
-    titles = set(sites)
-    titles.update(site["sitedb_title"] for site in sites.values() if site.get("sitedb_title"))
-    if not any(row[0] and row[1] in titles for row in rows):
-        raise DownloadError(
-            f"{url}: none of its {len(rows)} rows names a site title from the "
-            f"sites answer ({len(sites)} sites); drifted titles or payload"
-        )
+
+
+def make_reader(directory: Path) -> Any:
+    """The ``cric`` reader over the five files in ``directory``."""
+    from archi.sources.cric import CRICSource
+
+    return CRICSource(
+        sites_path=str(directory / "sites.json"),
+        storage_units_path=str(directory / "storage_units.json"),
+        compute_units_path=str(directory / "compute_units.json"),
+        facilities_path=str(directory / "facilities.json"),
+        responsibilities_path=str(directory / "responsibilities.json"),
+    )
 
 
 def _count(payload: Any) -> int:
@@ -208,28 +162,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     output = Path(args.output_dir) if args.output_dir else data_root() / "cric"
-    try:
-        proxy = require_proxy(
-            {"X509_USER_PROXY": args.proxy} if args.proxy else None
+
+    def download() -> dict[str, Any]:
+        proxy = require_proxy({"X509_USER_PROXY": args.proxy} if args.proxy else None)
+        with CatalogClient(timeout=args.timeout, proxy=proxy, ca_path=args.ca_path) as client:
+            payloads = collect(client.get_json, base_url=args.base_url)
+        records = write_group_atomic(
+            output,
+            payloads,
+            check=reader_check(make_reader, origins=endpoint_urls(args.base_url)),
         )
-        payloads = collect(
-            lambda url: get_json(
-                url, timeout=args.timeout, proxy=proxy, ca_path=args.ca_path
-            ),
-            base_url=args.base_url,
-        )
-        write_group_atomic(output, payloads)
-    except (DownloadError, OSError) as exc:
-        print(f"cric download failed, cache not written: {exc}", file=sys.stderr)
-        return 1
-    print(json.dumps(
-        {
+        return {
             "output": str(output),
             "files": {name: _count(payload) for name, payload in payloads.items()},
-        },
-        sort_keys=True,
-    ))
-    return 0
+            "records": records,
+        }
+
+    return run_cli("cric", download)
 
 
 if __name__ == "__main__":

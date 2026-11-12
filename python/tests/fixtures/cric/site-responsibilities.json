@@ -4,6 +4,7 @@
     ["aexample", "Alpha", "Site Executive"],
     ["aexample", "Beta", "Data Manager"],
     ["bexample", "Beta", "Site Admin"],
-    ["cexample", null, "Site Admin"]
+    ["cexample", null, "Site Admin"],
+    [null, "Beta", "Site Admin"]
   ]
 }

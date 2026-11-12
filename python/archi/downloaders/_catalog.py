@@ -1,124 +1,96 @@
 """Shared plumbing for the CMS catalog downloaders (issue #903).
 
 The cms-catalogs pack's readers (``cric``, ``cric_core``, ``gocdb_downtimes``,
-``conddb_global_tags``, ``wmstats_workflows``, ``dbs_datasets``) read JSON
-caches and claim a complete scope over them: a record missing from the
-cache is retracted from the graph. So a downloader must never replace a good
-cache with a partial, empty or error-shaped one. This module holds the five
-pieces every such downloader needs, and nothing source-specific:
+``conddb_global_tags``, ``wmstats_workflows``, ``dbs_datasets``) read local
+caches and claim a complete scope over them: a record missing from the cache
+is retracted from the graph. So a downloader must never replace a good cache
+with one its reader would refuse. Every downloader here follows one shape::
 
-``data_root(explicit)``
-    Where caches go: ``explicit``, else ``ARCHI_DATA_ROOT``, else the current
-    directory. It is :func:`archi.auth.cache.data_root`, the function the
-    readers resolve their relative cache paths with, so a downloader writes
-    exactly where its reader reads.
-``get_json(url, *, timeout, proxy=None, ca_path=None, session=None)``
-    One HTTPS GET returning parsed JSON. Redirects are not followed (a CERN
-    service that wants a login answers 302 to its login page, which must not
-    be read as data). Any non-200 answer, transport error or non-JSON body
-    raises :class:`DownloadError` naming the URL, never the credential.
-``require_proxy(env)``
-    The X.509 proxy path (``X509_USER_PROXY``, else ``/tmp/x509up_u<uid>``),
-    checked present, readable and unexpired before any request is sent.
-``write_json_atomic(path, payload)``
-    One cache file, written to a temp file in the same directory and moved
-    into place; an empty payload is refused and the old file stays.
-``write_group_atomic(directory, {name: payload})``
-    A set of cache files one reader reads together (CRIC's five). Every
-    payload is checked and serialised to a temp file first; only then are
-    the temp files moved into place, so a failure before that point leaves
-    the old set whole.
+    def download() -> dict:
+        with CatalogClient(timeout=args.timeout, proxy=proxy, ca_path=args.ca_path) as client:
+            payloads = {name: client.get_json(url) for name, url in urls.items()}
+        records = write_group_atomic(
+            output, payloads, check=reader_check(make_reader, origins=urls)
+        )
+        return {"output": str(output), "files": ..., "records": records}
 
-A downloader therefore fetches everything, validates it, and only then
-writes; a failure anywhere exits non-zero with the old caches untouched.
+    return run_cli("thing", download)
 
-Known limit of ``write_group_atomic``: the final moves are one
-``os.replace`` per file, not one filesystem operation, so a crash *between*
-two of them (power loss, SIGKILL) can leave a mixed set. The readers'
-content hash then changes and the next successful run replaces the set.
+1. Fetch every answer with :class:`CatalogClient` (one ``requests.Session``,
+   an optional X.509 proxy, transient failures retried, login redirects and
+   non-200 answers refused with the URL in the message).
+2. Optionally pre-check each answer for a clearer message
+   (:func:`keyed_objects` for CRIC-style ``name -> object`` answers). The
+   reader is the authority; pre-checks only say earlier what it would say.
+3. Hand all files to :func:`write_group_atomic` with
+   ``check=reader_check(make_reader)``: the files are staged under their
+   real names in a sibling directory, the real reader runs over the staged
+   copy, and only a run with health ``ok`` and a complete scope lets the
+   files move into place.
+4. Wrap it all in :func:`run_cli`, which prints a JSON summary or a one-line
+   error and returns the exit status.
+
+:func:`data_root` (where caches go) and :func:`require_proxy` (the grid proxy,
+checked before any request) complete the set.
+
+Known limit of :func:`write_group_atomic`: the final moves are one
+``os.replace`` per file, not one filesystem operation. If a move fails after
+an earlier one succeeded, :class:`PartialWriteError` names the files already
+replaced; a crash between two moves (power loss, SIGKILL) can leave a mixed
+set without that message. The next successful run replaces the whole set.
 """
 from __future__ import annotations
 
 import json
 import os
+import shutil
+import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import requests
 
 from archi.auth.cache import data_root as _reader_data_root
 from archi.auth.preflight import x509_not_after
 
-#: The IGTF CA directory on grid hosts; CERN services present certificates
-#: from the CERN Grid CA, which it holds.
+#: The IGTF CA directory on grid hosts; it holds the CERN Grid CA that CERN
+#: services such as CRIC present certificates from.
 GRID_CA_DIR = Path("/etc/grid-security/certificates")
 #: Where ``voms-proxy-init`` writes the proxy when X509_USER_PROXY is unset.
 DEFAULT_PROXY_DIR = Path("/tmp")
 PROXY_ENV = "X509_USER_PROXY"
 PROXY_HINT = "create one with `voms-proxy-init -voms cms`"
+#: Top-level keys that mark an API error body sent in place of data.
+ERROR_BODY_KEYS = ("error", "errors")
+#: Requests per URL before a transient failure is final, and the first wait.
+ATTEMPTS = 3
+BACKOFF_SECONDS = 1.0
+CHECK_RUN_ID = "archi-download-check"
+
+#: Given the staging directory (files under their real names), raise
+#: :class:`DownloadError` to refuse the group; the return value is passed on.
+Check = Callable[[Path], Any]
 
 
 class DownloadError(RuntimeError):
     """The download cannot produce a complete cache; nothing is written."""
 
 
+class PartialWriteError(DownloadError):
+    """Some files of a group were replaced before a later move failed."""
+
+
 def data_root(explicit: Path | None = None) -> Path:
-    """``explicit``, else ``ARCHI_DATA_ROOT``, else the current directory."""
-    return _reader_data_root(explicit)
+    """``explicit``, else ``ARCHI_DATA_ROOT``, else the current directory.
 
-
-def get_json(
-    url: str,
-    *,
-    timeout: float,
-    proxy: Path | None = None,
-    ca_path: str | None = None,
-    session: Any = None,
-) -> Any:
-    """GET ``url`` and return its parsed JSON body.
-
-    ``proxy`` is sent as both client certificate and key (a VOMS proxy file
-    holds both). ``verify`` is ``ca_path`` when given, else
-    :data:`GRID_CA_DIR` when that directory exists, else requests' own CA
-    bundle. ``session`` is anything with a requests-style ``get``; without
-    one, :func:`requests.get` is used.
+    It is :func:`archi.auth.cache.data_root`, the function the readers resolve
+    their relative cache paths with, so a downloader writes where its reader
+    reads.
     """
-    kwargs: dict[str, Any] = {
-        "timeout": timeout,
-        "allow_redirects": False,
-        "headers": {"Accept": "application/json"},
-        "verify": _verify(ca_path),
-    }
-    if proxy is not None:
-        kwargs["cert"] = (str(proxy), str(proxy))
-    getter = session.get if session is not None else requests.get
-    try:
-        response = getter(url, **kwargs)
-    except requests.RequestException as exc:
-        raise DownloadError(f"GET {url} failed: {type(exc).__name__}: {exc}") from exc
-    if response.status_code != 200:
-        detail = ""
-        location = response.headers.get("Location")
-        if 300 <= response.status_code < 400 and location:
-            detail = (
-                f" (redirect to {location}; the endpoint wants a login, "
-                "so the request carried no accepted credential)"
-            )
-        raise DownloadError(f"GET {url} returned HTTP {response.status_code}{detail}")
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise DownloadError(f"GET {url} answered 200 but the body is not JSON") from exc
-
-
-def _verify(ca_path: str | None) -> str | bool:
-    if ca_path:
-        return ca_path
-    if GRID_CA_DIR.is_dir():
-        return str(GRID_CA_DIR)
-    return True
+    return _reader_data_root(explicit)
 
 
 def require_proxy(env: Mapping[str, str] | None = None) -> Path:
@@ -136,8 +108,7 @@ def require_proxy(env: Mapping[str, str] | None = None) -> Path:
     expiry = x509_not_after(path)
     if expiry is None:
         raise DownloadError(
-            f"the X.509 proxy at {path} could not be read as a certificate; "
-            f"{PROXY_HINT}"
+            f"the X.509 proxy at {path} could not be read as a certificate; {PROXY_HINT}"
         )
     if expiry <= datetime.now(timezone.utc):
         raise DownloadError(
@@ -146,17 +117,205 @@ def require_proxy(env: Mapping[str, str] | None = None) -> Path:
     return path
 
 
-def write_json_atomic(path: Path, payload: Any) -> None:
-    """Write one cache file atomically; refuse an empty or non-container one."""
-    write_group_atomic(path.parent, {path.name: payload})
+class CatalogClient:
+    """HTTPS GETs for one download run, over one ``requests.Session``.
+
+    ``proxy`` is sent as both client certificate and key (a VOMS proxy file
+    holds both). TLS is verified against ``ca_path`` when given, else
+    :data:`GRID_CA_DIR` when that directory exists, else requests' own bundle
+    (which honours ``REQUESTS_CA_BUNDLE``). Redirects are not followed: a
+    CERN service that wants a login answers 302 to its login page, which must
+    not be read as data.
+
+    A 5xx answer, a timeout or a connection error is retried, ``attempts``
+    times in all, waiting ``backoff``, then twice that, and so on. A 3xx or
+    4xx answer and a TLS failure are final at once.
+    """
+
+    def __init__(
+        self,
+        *,
+        timeout: float,
+        proxy: Path | None = None,
+        ca_path: str | None = None,
+        attempts: int = ATTEMPTS,
+        backoff: float = BACKOFF_SECONDS,
+    ) -> None:
+        if attempts < 1:
+            raise ValueError("attempts must be at least 1")
+        self.timeout = timeout
+        self.proxy = proxy
+        self.ca_path = ca_path
+        self.attempts = attempts
+        self.backoff = backoff
+        self.session = requests.Session()
+
+    def __enter__(self) -> "CatalogClient":
+        return self
+
+    def __exit__(self, *exc_info: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self.session.close()
+
+    def get(self, url: str, *, accept: str = "application/json") -> requests.Response:
+        """The 200 answer for ``url``, or :class:`DownloadError` naming it."""
+        kwargs: dict[str, Any] = {
+            "timeout": self.timeout,
+            "allow_redirects": False,
+            "headers": {"Accept": accept},
+            "verify": self._verify(),
+        }
+        if self.proxy is not None:
+            kwargs["cert"] = (str(self.proxy), str(self.proxy))
+        for attempt in range(1, self.attempts + 1):
+            final = attempt == self.attempts
+            tries = f" after {attempt} attempts" if attempt > 1 else ""
+            try:
+                response = self.session.get(url, **kwargs)
+            except requests.exceptions.SSLError as exc:
+                raise DownloadError(
+                    f"GET {url} failed TLS verification ({exc}); pass --ca-path, or "
+                    "set REQUESTS_CA_BUNDLE, to a CA bundle that holds the server's CA"
+                ) from exc
+            except (requests.ConnectionError, requests.Timeout) as exc:
+                if final:
+                    raise DownloadError(
+                        f"GET {url} failed{tries}: {type(exc).__name__}: {exc}"
+                    ) from exc
+            except requests.RequestException as exc:
+                raise DownloadError(f"GET {url} failed: {type(exc).__name__}: {exc}") from exc
+            else:
+                if response.status_code == 200:
+                    return response
+                if response.status_code < 500 or final:
+                    raise DownloadError(
+                        f"GET {url} returned HTTP {response.status_code}{tries}"
+                        f"{_redirect_note(response)}"
+                    )
+            time.sleep(self.backoff * 2 ** (attempt - 1))
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    def get_json(self, url: str) -> Any:
+        """:meth:`get` ``url`` and parse its body as JSON."""
+        response = self.get(url)
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise DownloadError(f"GET {url} answered 200 but the body is not JSON") from exc
+
+    def _verify(self) -> str | bool:
+        if self.ca_path:
+            return self.ca_path
+        if GRID_CA_DIR.is_dir():
+            return str(GRID_CA_DIR)
+        return True
 
 
-def write_group_atomic(directory: Path, files: Mapping[str, Any]) -> None:
+def _redirect_note(response: Any) -> str:
+    location = response.headers.get("Location")
+    if 300 <= response.status_code < 400 and location:
+        return (
+            f" (redirect to {location}; the endpoint wants a login, so the "
+            "request carried no accepted credential)"
+        )
+    return ""
+
+
+def keyed_objects(payload: Any, url: str) -> dict[str, dict[str, Any]]:
+    """A ``name -> object`` answer (CRIC's shape), or :class:`DownloadError`.
+
+    Refuses a non-object, an API error body (top-level ``error``/``errors``),
+    an empty object, and an entry that is not an object.
+    """
+    if not isinstance(payload, dict):
+        raise DownloadError(f"{url}: answer is a {type(payload).__name__}, not a JSON object")
+    error_keys = [key for key in ERROR_BODY_KEYS if key in payload]
+    if error_keys:
+        raise DownloadError(f"{url}: answer is an API error body (top-level {error_keys[0]!r} key)")
+    if not payload:
+        raise DownloadError(f"{url}: answer is empty; refusing to write an empty cache")
+    for name, value in payload.items():
+        if not isinstance(value, dict):
+            raise DownloadError(f"{url}: entry {name} is a {type(value).__name__}, not an object")
+    return payload
+
+
+def reader_check(
+    make_reader: Callable[[Path], Any],
+    *,
+    origins: Mapping[str, str] | None = None,
+) -> Check:
+    """A :data:`Check` that runs the real reader over the staged files.
+
+    ``make_reader(staging)`` builds the reader with its cache paths inside
+    ``staging``. The check runs it in ``scope_complete`` mode, drains its
+    facts, and accepts only health ``ok``, a complete scope and at least one
+    record; it returns the record count. A refusal carries the reader's own
+    reason; ``origins`` (cache file name -> URL) adds which endpoint the
+    named file came from (every endpoint, when the reason names no file).
+    """
+    origins = dict(origins or {})
+
+    def check(staging: Path) -> int:
+        try:
+            run = make_reader(staging).run(CHECK_RUN_ID, mode="scope_complete")
+            for _ in run.facts:
+                pass
+        except Exception as exc:  # the reader's own failure, reported verbatim
+            raise DownloadError(
+                f"the reader failed on the downloaded answers: {type(exc).__name__}: "
+                f"{exc}{_origin_note(str(exc), origins)}"
+            ) from exc
+        health = run.health
+        reason = health.reason or "no reason given"
+        if health.status != "ok" or not run.completed_scope:
+            raise DownloadError(
+                "the reader refuses the downloaded answers (health "
+                f"{health.status}, completed_scope={run.completed_scope}): "
+                f"{reason}{_origin_note(reason, origins)}"
+            )
+        count = health.record_count
+        if not isinstance(count, int) or count <= 0:
+            raise DownloadError(
+                f"the reader read {count} records from the downloaded answers"
+                f"{_origin_note('', origins)}"
+            )
+        return count
+
+    return check
+
+
+def _origin_note(reason: str, origins: Mapping[str, str]) -> str:
+    named = {name: url for name, url in origins.items() if name in reason}
+    if named:
+        return "".join(f"; {name} came from {url}" for name, url in named.items())
+    if origins:
+        return "; answers from " + ", ".join(origins.values())
+    return ""
+
+
+def write_json_atomic(path: Path, payload: Any, *, check: Check | None = None) -> Any:
+    """Write one cache file the way :func:`write_group_atomic` writes a group."""
+    return write_group_atomic(path.parent, {path.name: payload}, check=check)
+
+
+def write_group_atomic(
+    directory: Path,
+    files: Mapping[str, Any],
+    *,
+    check: Check | None = None,
+) -> Any:
     """Write every ``name -> payload`` in ``directory``, or none of them.
 
-    Each payload must be a non-empty JSON object or list. JSON is written
-    with sorted keys, so an unchanged upstream answer gives an unchanged
-    file and the readers' content hash does not move.
+    Each payload must be a non-empty JSON object or list. The files are
+    written, with sorted keys (an unchanged answer keeps the readers' content
+    hash) and fsynced, under their real names into a staging directory next
+    to ``directory``. ``check`` then sees that directory; if it raises, the
+    staging copy is deleted and the old files stay. Only then is each file
+    moved into ``directory`` (mode 0644 less the umask). Returns what
+    ``check`` returned.
     """
     if not files:
         raise DownloadError(f"no files to write in {directory}")
@@ -168,18 +327,64 @@ def write_group_atomic(directory: Path, files: Mapping[str, Any]) -> None:
                 f"{directory / name}: refusing to write an empty or non-JSON-"
                 f"container payload ({type(payload).__name__})"
             )
-    directory.mkdir(parents=True, exist_ok=True)
-    staged: list[tuple[str, Path]] = []
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{directory.name}.staging.", dir=directory.parent))
     try:
         for name, payload in files.items():
-            handle, temp_name = tempfile.mkstemp(prefix=f".{name}.", dir=str(directory))
-            staged.append((temp_name, directory / name))
-            with os.fdopen(handle, "w", encoding="utf-8") as out:
-                json.dump(payload, out, ensure_ascii=False, sort_keys=True)
-                out.write("\n")
-        for temp_name, target in staged:
-            os.replace(temp_name, target)
-    except BaseException:
-        for temp_name, _ in staged:
-            Path(temp_name).unlink(missing_ok=True)
-        raise
+            _write_staged(staging / name, payload, target=directory / name)
+        result = None
+        if check is not None:
+            try:
+                result = check(staging)
+            except DownloadError as exc:
+                raise type(exc)(str(exc).replace(str(staging), str(directory))) from exc
+        directory.mkdir(exist_ok=True)
+        replaced: list[str] = []
+        for name in files:
+            try:
+                os.replace(staging / name, directory / name)
+            except OSError as exc:
+                if not replaced:
+                    raise
+                raise PartialWriteError(
+                    f"replaced {', '.join(replaced)} in {directory}, then moving {name} "
+                    f"failed ({exc}); the cache set there is mixed until a run succeeds"
+                ) from exc
+            replaced.append(name)
+        return result
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def _write_staged(path: Path, payload: Any, *, target: Path) -> None:
+    try:
+        text = json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n"
+    except (TypeError, ValueError) as exc:
+        raise DownloadError(f"{target}: payload is not JSON-serialisable ({exc})") from exc
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise DownloadError(f"{target}: payload is not encodable as UTF-8 ({exc})") from exc
+    handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    with os.fdopen(handle, "wb") as out:
+        out.write(data)
+        out.flush()
+        os.fsync(out.fileno())
+
+
+def run_cli(name: str, download: Callable[[], Mapping[str, Any]]) -> int:
+    """Run ``download`` and print its summary as JSON; 0 on success, else 1.
+
+    A :class:`DownloadError` or ``OSError`` prints one line on stderr: "cache
+    not written", or "failed part-way" for a :class:`PartialWriteError`.
+    """
+    try:
+        summary = download()
+    except PartialWriteError as exc:
+        print(f"{name} download failed part-way: {exc}", file=sys.stderr)
+        return 1
+    except (DownloadError, OSError) as exc:
+        print(f"{name} download failed, cache not written: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(dict(summary), sort_keys=True))
+    return 0
