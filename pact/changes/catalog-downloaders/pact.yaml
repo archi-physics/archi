@@ -215,3 +215,41 @@ evidence:
   at: '2026-11-12T10:18:52+00:00'
   note: Feature-level review checked connector-caches.md and the cms-comp-ops README against
     each module's --help; its two doc findings fixed in d50ac50d.
+- kind: executed_test
+  requirement: req.catalog-downloaders.conddb
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q (4401 passed, 28 skipped, 0
+    failed)
+  head: 7086a6b8
+  at: '2026-11-13T17:12:31+00:00'
+  note: 'tests/downloaders/test_downloader_conddb.py (39): fake server with the real search
+    semantics (ILIKE, wildcards, 3000-row limit); every refusal case; reader_check round trip
+    through CondDBGlobalTagSource.'
+- kind: executed_test
+  requirement: req.catalog-downloaders.conddb
+  status: pass
+  command: python -m archi.downloaders.conddb --cookie-file <sso cookie> --ca-path <Grid CA
+    + Root CA 2> --output-dir <trial dir>
+  head: c0e12cb9
+  at: '2026-11-13T17:12:32+00:00'
+  note: 'Live, read-only, 2026-11-13: exit 0, 16390 records in 399 searches (1938 s, majors
+    1, 10, 12 refined); name set and releases identical to CMSSW conddb listGTs; later commits
+    change no output. The cms-comp-ops reader ingested it and the instance published.'
+- kind: executed_test
+  requirement: req.catalog-downloaders.write
+  status: pass
+  command: cd python && PYTHONPATH=. python -m pytest tests -q (4401 passed, 28 skipped, 0
+    failed)
+  head: 7086a6b8
+  at: '2026-11-13T17:12:32+00:00'
+  note: Round trips through each real reader, now six downloaders; live cric 965, cric_core
+    1350, gocdb 616 rows, wmstats 1505, dbs 1077, conddb 16390 records all accepted by the
+    pack readers and published.
+- kind: design_review
+  requirement: req.catalog-downloaders.docs
+  status: pass
+  head: 7086a6b8
+  at: '2026-11-13T17:12:33+00:00'
+  note: Two review rounds plus a feature-level intent review of the CondDB change (connector-caches.md,
+    cms-comp-ops README, --ca-path wording, source header); all findings fixed in 831051f5,
+    78011565, a0f04c38, 1a916282, 6e8caee8.
