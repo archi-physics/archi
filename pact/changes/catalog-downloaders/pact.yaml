@@ -111,7 +111,8 @@ requirements:
     expired cookie file stops the run before any request; a redirect or a login page fails the
     run with the sso_login command. It writes nothing when a search it relies on may be cut
     short by the 3000-row limit, when a release breaks the CMSSW_<major>_<minor>_ form the
-    listing relies on, when one name comes back with two different rows, or when the page''s
+    listing relies on, when one name comes back with a different release, description or
+    insertion time, or when the page''s
     gts table drifts (headers, row shape, an unknown Type, a time format).
 
 
@@ -119,7 +120,8 @@ requirements:
 
     - acc.catalog-downloaders.conddb-complete: a capped major is searched per minor and every
     global tag reaches the reader; a per-minor search at the limit, a non-CMSSW release, a
-    conflicting duplicate and each page drift exit 1 with the old cache untouched.
+    name that comes back with a different release, description or insertion time, and each
+    page drift exit 1 with the old cache untouched.
     [evidence: executed_test]
 
     - acc.catalog-downloaders.conddb-auth: a missing or expired cookie file makes no request; a

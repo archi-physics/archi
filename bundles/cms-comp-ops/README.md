@@ -83,9 +83,9 @@ Each one replaces its cache only when the pack's reader accepts the new
 files, and otherwise keeps the old cache. Off a grid host, pass `--ca-path`
 to `cric`, `cric_core`, `wmstats`, `dbs` and `conddb`: a PEM file holding
 both the CERN Grid CA and the CERN Root CA 2, or a CA directory such as
-`/etc/grid-security/certificates`. The Grid CA alone is not enough: a
-server that sends only its own certificate (cms-conddb does) fails
-verification on Python before 3.13. `gocdb` verifies with the system store.
+`/etc/grid-security/certificates`. The Grid CA alone is not enough on
+Python before 3.13: it is an intermediate CA, and verification there must
+end at a root CA. `gocdb` verifies with the system store.
 
 `conddb` reads the CMS CondDB browser with a CERN SSO session cookie, made
 by hand first:

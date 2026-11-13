@@ -52,8 +52,8 @@ the JSON summary.
 The run needs an X.509 proxy (``X509_USER_PROXY``, else
 ``/tmp/x509up_u<uid>``, or ``--proxy``), checked first, before the WMStats
 cache and any request; make one with ``voms-proxy-init -voms cms``. Off a
-grid host, pass ``--ca-path`` a
-bundle holding the CERN Grid CA. The file goes to ``--output-dir``, default
+grid host, pass ``--ca-path`` a PEM file holding both the CERN Grid CA and
+the CERN Root CA 2, or a CA directory. The file goes to ``--output-dir``, default
 ``dbs-datasets`` under ``ARCHI_DATA_ROOT``: where the cms-catalogs pack's
 ``dbs_datasets`` source reads it. It is staged, the reader runs over the
 staged copy, and only health ``ok`` with a complete scope moves it into
