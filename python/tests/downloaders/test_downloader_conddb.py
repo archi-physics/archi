@@ -283,6 +283,17 @@ def test_progress_goes_to_stderr_and_only_the_summary_to_stdout(
     assert json.loads(captured.out)["records"] == 5
 
 
+def test_a_description_quoting_the_table_code_is_read_as_text(
+    tmp_path, root, cookie_file, monkeypatch
+):
+    quoting = 'copied from new API.DataTables.Table({"data": [], "headers": []}, "gts"); by hand'
+    serve(monkeypatch, SMALL + [gt("140X_FAKEquoting_v1", "CMSSW_14_0_X", description=quoting)])
+    output = tmp_path / "conddb-global-tags"
+    assert _main(output, cookie_file) == 0
+    records = {record["name"]: record for record in _records(output)}
+    assert records["140X_FAKEquoting_v1"]["description"] == quoting
+
+
 def test_the_default_output_is_conddb_global_tags_under_archi_data_root(
     root, cookie_file, monkeypatch
 ):
@@ -344,14 +355,51 @@ def test_a_release_outside_the_searched_majors_fails(tmp_path, root, cookie_file
     assert "1000X_FAKEfuture_v1 has release CMSSW_100_0_X, which no complete search covers" in err
 
 
-def test_one_name_with_two_different_rows_fails(tmp_path, root, cookie_file, monkeypatch, capsys):
+def test_a_minor_above_99_of_a_refined_major_fails(tmp_path, root, cookie_file, monkeypatch, capsys):
+    # Major 13 is refined; CMSSW_13_100_X comes back through the CMSSW_13_10_
+    # search's wildcard, but no search covers minor 100 as a whole.
+    upstream = serve(monkeypatch, SMALL + BIG_SERIES + [gt("13100X_FAKEfar_v1", "CMSSW_13_100_X")])
+    err = _fails(tmp_path, cookie_file, capsys)
+    assert "13100X_FAKEfar_v1 has release CMSSW_13_100_X, which no complete search covers" in err
+    assert "CMSSW_13_10_" in upstream.terms()
+
+
+@pytest.mark.parametrize(
+    "column, value",
+    [(3, "CMSSW_14_1_X"), (4, "2024-03-02 09:00:00 (UTC)"), (6, "edited between two searches")],
+    ids=["release", "inserted", "description"],
+)
+def test_one_name_with_two_different_written_values_fails(
+    tmp_path, root, cookie_file, monkeypatch, capsys, column, value
+):
     upstream = serve(monkeypatch, SMALL)
     # CMSSW_1_ and CMSSW_14_ both return the 14_0 tags; let the second differ.
     changed = [list(row) for row in SMALL if row[3] == "CMSSW_14_0_X"]
-    changed[0][6] = "edited between two searches"
+    changed[0][column] = value
     upstream.overrides["CMSSW_14_"] = FakeResponse(200, page(changed))
     err = _fails(tmp_path, cookie_file, capsys)
     assert "140X_FAKEdataRun3_v1 came back as two different rows" in err
+
+
+@pytest.mark.parametrize(
+    "column, value",
+    [(2, "Global Tag"), (5, "2026-11-13 08:00:00 (UTC)")],
+    ids=["type", "snapshot"],
+)
+def test_a_type_or_snapshot_change_between_searches_is_not_a_conflict(
+    tmp_path, root, cookie_file, monkeypatch, column, value
+):
+    # A candidate promoted, or a snapshot set, while the run goes on: neither
+    # value is written, so the two rows agree on the record.
+    upstream = serve(monkeypatch, SMALL)
+    changed = [list(row) for row in SMALL if row[3] == "CMSSW_15_1_X"]
+    changed[0][column] = value
+    upstream.overrides["CMSSW_15_"] = FakeResponse(200, page(changed))
+    output = tmp_path / "conddb-global-tags"
+    assert _main(output, cookie_file) == 0
+    names = [record["name"] for record in _records(output)]
+    assert names.count("151X_FAKEmcRun4_Candidate_2026_10_28") == 1
+    assert len(names) == len(SMALL)
 
 
 def test_an_empty_catalog_fails(tmp_path, root, cookie_file, monkeypatch, capsys):
@@ -459,27 +507,13 @@ def test_the_default_cookie_file_is_where_sso_login_writes_it(tmp_path, root, mo
 # --- TLS ----------------------------------------------------------------
 
 
-def test_a_ca_file_is_verified_together_with_the_public_bundle(
-    tmp_path, root, cookie_file, monkeypatch
-):
-    import certifi
-
-    grid_ca = tmp_path / "cern-grid-ca.pem"
-    grid_ca.write_text("-----BEGIN CERTIFICATE-----\nFAKEGRIDCA\n-----END CERTIFICATE-----\n")
+def test_a_ca_file_is_used_as_it_is(tmp_path, root, cookie_file, monkeypatch):
+    # As in the other catalog downloaders: the file is the whole trust store.
+    bundle = tmp_path / "cern-cas.pem"
+    bundle.write_text("-----BEGIN CERTIFICATE-----\nFAKECA\n-----END CERTIFICATE-----\n")
     upstream = serve(monkeypatch, SMALL)
-    seen = []
-    real = upstream.__call__
-
-    def recording(session, url, **kwargs):
-        seen.append(Path(kwargs["verify"]).read_text())
-        return real(session, url, **kwargs)
-
-    monkeypatch.setattr(requests.Session, "get", recording)
-    assert _main(tmp_path / "out", cookie_file, "--ca-path", str(grid_ca)) == 0
-    public = Path(certifi.where()).read_text()
-    assert seen and all(text.startswith(public) and "FAKEGRIDCA" in text for text in seen)
-    # The merged bundle is temporary.
-    assert not Path(upstream.calls[0][1]["verify"]).exists()
+    assert _main(tmp_path / "out", cookie_file, "--ca-path", str(bundle)) == 0
+    assert {kwargs["verify"] for _, kwargs in upstream.calls} == {str(bundle)}
 
 
 def test_a_ca_directory_is_used_as_it_is(tmp_path, root, cookie_file, monkeypatch):

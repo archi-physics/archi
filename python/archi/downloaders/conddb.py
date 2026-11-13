@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Download every CondDB global tag into the cache ``archi.sources.conddb`` reads.
 
-    python -m archi.downloaders.conddb [--output-dir DIR] [--cookie-file PATH] [--ca-path PEM]
+    python -m archi.downloaders.conddb [--output-dir DIR] [--cookie-file PATH] [--ca-path PATH]
 
 The source is the CMS CondDB web browser (default
 ``https://cms-conddb.cern.ch/cmsDbBrowser``), read with one request type
@@ -14,8 +14,13 @@ term, ``_`` matches any one character and ``%`` any run (the browser does
 not escape them), case-insensitively. So a search that returns exactly 3000
 rows may have been cut short.
 
-Every global tag names its release as ``CMSSW_<major>_<minor>_...``. The
-download lists them all this way:
+The listing assumes every global tag names its release as
+``CMSSW_<major>_<minor>_...``, with a major of 1-99 and a minor of 0-99.
+That held for all 16,390 global tags on 2026-11-13 (checked against
+CMSSW's ``conddb listGTs``), but a run cannot verify it: the server gives no
+total count, so a tag with another release form would be missed without a
+trace. The checks below catch such a tag only when some search happens to
+return it. The download lists them all this way:
 
 1. one search per major release, ``CMSSW_<M>_`` for M in 1..99. The ``_``
    wildcards make each answer a superset (``CMSSW_1_`` also matches majors
@@ -26,8 +31,10 @@ download lists them all this way:
    :data:`SEARCH_CAP` rows; when a returned release does not start
    ``CMSSW_<digits>_<digits>_``, or starts with no search term whose answer
    was complete (a major above 99, a capped major's minor above 99: tags
-   like it could be missing); when one name comes back with two different
-   rows; and when no global tag comes back at all.
+   like it could be missing); when one name comes back with a different
+   release, description or insertion time (the values written; a type or
+   snapshot that changes during the run is not a conflict, and the first
+   row seen is kept); and when no global tag comes back at all.
 
 Each answer is an HTML page whose JavaScript builds four tables from inline
 JSON: ``new API.DataTables.Table({"data": [...], "headers": [...]},
@@ -47,7 +54,9 @@ Every 20 searches, and after the last, a progress line (searches done,
 global tags so far, seconds elapsed) goes to stderr; stdout holds only the
 JSON summary: the output directory, the record count, the count per type,
 the number of searches and the majors searched per minor. A full run makes
-about 100 searches, plus 100 per refined major.
+about 100 searches, plus 100 per refined major: on 2026-11-13, 399 searches
+(majors 1, 10 and 12 refined) at about 5 s each, one at a time, so about 30
+minutes.
 
 Authentication is a CERN SSO session cookie, never a password. Make one
 out of band, on a host with a Kerberos ticket::
@@ -64,12 +73,15 @@ scheduled refresh needs a fresh login first. An expired session makes the
 server redirect to the CERN login page; the run fails on it with the login
 command in the message, and redirects are never followed.
 
-The server's certificate is signed by the CERN Grid CA, which is not in the
-public CA bundle. Pass ``--ca-path`` a PEM file holding it: TLS is then
-verified against the public bundle (``certifi``) plus that file. A directory
-(such as ``/etc/grid-security/certificates``) is used as it is. Without
-``--ca-path``, verification uses ``/etc/grid-security/certificates`` when
-present, else requests' bundle. Verification is never turned off.
+The server's certificate is issued by the CERN Grid CA, itself signed by the
+CERN Root CA 2, and the server sends only its own certificate. Neither CA is
+in the public bundle, and before Python 3.13 an intermediate CA alone does
+not complete a chain. So ``--ca-path`` takes a PEM file holding both the CERN
+Grid CA and the CERN Root CA 2, or a CA directory such as
+``/etc/grid-security/certificates``; either is used as it is, as in the other
+catalog downloaders. Without ``--ca-path``, verification uses
+``/etc/grid-security/certificates`` when present, else requests' bundle.
+Verification is never turned off.
 
 The file goes to ``--output-dir``, default ``conddb-global-tags`` under
 ``ARCHI_DATA_ROOT`` (else the current directory): where the cms-catalogs
@@ -84,15 +96,13 @@ import json
 import os
 import re
 import sys
-import tempfile
 import time
 from collections import Counter
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Iterator, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import quote, urlparse
 
 from archi.auth.cache import data_root, resolve_repo_path
@@ -218,7 +228,10 @@ def search_url(base_url: str, term: str) -> str:
 def parse_search_page(html: str, url: str) -> list[GlobalTag]:
     """The global tags in one search page, or :class:`DownloadError`."""
     tables: dict[str, list[Any]] = {}
-    for start in _TABLE_START.finditer(html):
+    # One table after another: a table's JSON may itself quote the table code
+    # (in a description), and that text must not be read as a table.
+    pos = 0
+    while (start := _TABLE_START.search(html, pos)) is not None:
         try:
             payload, end = _JSON.raw_decode(html, start.end())
         except ValueError:
@@ -231,6 +244,7 @@ def parse_search_page(html: str, url: str) -> list[GlobalTag]:
                 f"{url}: a DataTables table is not ({{...}}, \"<name>\"); the page layout changed"
             )
         tables.setdefault(name.group(1), []).append(payload)
+        pos = name.end()
     found = tables.get(GTS_TABLE, [])
     if len(found) != 1:
         if not found and looks_like_login_page(html):
@@ -283,11 +297,13 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> tuple[list[dic
                     "CMSSW_<major>_<minor>_...; listing by release no longer finds "
                     "every global tag"
                 )
+            # Only the written values must agree: a candidate promoted or a
+            # snapshot set while the run goes on changes neither.
             seen = found.setdefault(tag.name, tag)
-            if seen != tag:
+            if seen.record() != tag.record():
                 raise DownloadError(
                     f"{url}: global tag {tag.name} came back as two different rows "
-                    f"({_clip(_row_text(seen))} and {_clip(_row_text(tag))})"
+                    f"({_clip(seen.record())} and {_clip(tag.record())})"
                 )
         if searches % PROGRESS_EVERY == 0:
             progress()
@@ -312,8 +328,8 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> tuple[list[dic
         if not tag.release.startswith(tuple(complete_terms)):
             raise DownloadError(
                 f"global tag {tag.name} has release {tag.release}, which no complete "
-                f"search covers (majors 1-99, and minors 0-99 of a major with more "
-                f"than {SEARCH_CAP} tags); other tags like it could be missing"
+                f"search covers (majors 1-99, and minors 0-99 of a major whose search "
+                f"hit the {SEARCH_CAP}-row limit); other tags like it could be missing"
             )
     if not found:
         raise DownloadError(
@@ -327,16 +343,6 @@ def collect(fetch: Fetch, *, base_url: str = DEFAULT_BASE_URL) -> tuple[list[dic
         "refined_majors": refined,
     }
     return records, report
-
-
-def _row_text(tag: GlobalTag) -> dict[str, Any]:
-    return {
-        "type": tag.type.value,
-        "release": tag.release,
-        "inserted": tag.inserted.isoformat(),
-        "snapshot": tag.snapshot.isoformat() if tag.snapshot else None,
-        "description": tag.description,
-    }
 
 
 def cookie_file_path(explicit: str | None, env: Mapping[str, str] | None = None) -> Path:
@@ -362,32 +368,6 @@ def session_cookies(path: Path, host: str) -> Any:
         raise DownloadError(
             f"the CondDB cookie file {path} could not be read ({type(exc).__name__}); {SSO_HINT}"
         ) from exc
-
-
-@contextmanager
-def ca_bundle(ca_path: str | None) -> Iterator[str | None]:
-    """What to verify TLS with: ``None`` (the client's default), a directory
-    as given, or a temporary PEM file holding certifi's bundle plus ``ca_path``."""
-    if ca_path is None:
-        yield None
-        return
-    path = Path(ca_path).expanduser()
-    if path.is_dir():
-        yield str(path)
-        return
-    if not path.is_file():
-        raise DownloadError(f"--ca-path {path} is neither a file nor a directory")
-    import certifi
-
-    with tempfile.TemporaryDirectory(prefix="archi-conddb-ca-") as directory:
-        merged = Path(directory) / "ca.pem"
-        merged.write_text(
-            Path(certifi.where()).read_text(encoding="utf-8")
-            + "\n"
-            + path.read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
-        yield str(merged)
 
 
 def make_reader(directory: Path) -> Any:
@@ -422,19 +402,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--ca-path",
         default=None,
-        help="PEM file holding the CERN Grid CA, verified together with the public "
-        "bundle; or a CA directory, used as it is. Default: "
-        "/etc/grid-security/certificates when present, else requests' bundle.",
+        help="CA bundle or directory to verify cms-conddb with: a PEM file holding both "
+        "the CERN Grid CA and the CERN Root CA 2 (the server sends only its own "
+        "certificate), or a directory such as /etc/grid-security/certificates. "
+        "Default: /etc/grid-security/certificates when present, else requests' bundle.",
     )
     args = parser.parse_args(argv)
     output = Path(args.output_dir) if args.output_dir else data_root() / PACK_DIR
 
     def download() -> dict[str, Any]:
+        if args.ca_path is not None and not Path(args.ca_path).expanduser().exists():
+            raise DownloadError(f"--ca-path {args.ca_path} is neither a file nor a directory")
         cookies = session_cookies(
             cookie_file_path(args.cookie_file), urlparse(args.base_url).hostname or ""
         )
-        with ca_bundle(args.ca_path) as verify, CatalogClient(
-            timeout=args.timeout, ca_path=verify, credential_hint=SSO_HINT
+        with CatalogClient(
+            timeout=args.timeout, ca_path=args.ca_path, credential_hint=SSO_HINT
         ) as client:
             client.session.cookies.update(cookies)
 
