@@ -635,6 +635,30 @@ def test_a_redirect_to_login_is_reported_as_needing_a_credential(monkeypatch):
     assert URL in message and "HTTP 302" in message and "/accounts/login/" in message
 
 
+@pytest.mark.parametrize(
+    "answer",
+    [
+        FakeResponse(302, "", {"Location": "https://login.example/auth"}),
+        FakeResponse(401, "Unauthorized"),
+        FakeResponse(403, "Forbidden"),
+    ],
+    ids=["redirect", "unauthorized", "forbidden"],
+)
+def test_a_credential_hint_is_added_to_an_auth_failure(monkeypatch, answer):
+    patch_session_get(monkeypatch, {URL: answer})
+    with pytest.raises(DownloadError) as info:
+        CatalogClient(timeout=7, credential_hint="renew it with `make-login`").get(URL)
+    assert str(info.value).endswith("; renew it with `make-login`")
+
+
+@pytest.mark.parametrize("hint", [None, "renew it with `make-login`"])
+def test_a_credential_hint_is_not_added_to_other_failures(monkeypatch, hint):
+    patch_session_get(monkeypatch, {URL: FakeResponse(404, "Not Found")})
+    with pytest.raises(DownloadError) as info:
+        CatalogClient(timeout=7, credential_hint=hint).get(URL)
+    assert "make-login" not in str(info.value)
+
+
 VERIFY_FAILED = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
 UNKNOWN_CA_ALERT = "[SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca"
 
