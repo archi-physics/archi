@@ -22,8 +22,8 @@ needs an X.509 proxy (``X509_USER_PROXY``, else ``/tmp/x509up_u<uid>``, or
 ``--proxy``), checked before any request; make one with
 ``voms-proxy-init -voms cms``. Every request carries it. CRIC presents a
 CERN Grid CA certificate: off a grid host (no
-``/etc/grid-security/certificates``), pass ``--ca-path`` a bundle holding
-that CA.
+``/etc/grid-security/certificates``), pass ``--ca-path`` a PEM file holding
+both the CERN Grid CA and the CERN Root CA 2, or a CA directory.
 
 The files go to ``--output-dir``, default ``cric`` under ``ARCHI_DATA_ROOT``
 (or under the current directory when that variable is unset), which is

@@ -141,6 +141,10 @@ class CatalogClient:
     A 5xx answer, a timeout or a connection error is retried, :data:`ATTEMPTS`
     times in all, waiting :data:`BACKOFF_SECONDS`, then twice that, and so on.
     A 3xx or 4xx answer and a TLS failure are final at once.
+
+    ``credential_hint`` (off by default) is appended to the message of a 3xx,
+    401 or 403 answer: how to renew the credential the server did not accept
+    (``conddb`` names the SSO login command).
     """
 
     def __init__(
@@ -149,10 +153,12 @@ class CatalogClient:
         timeout: float,
         proxy: Path | None = None,
         ca_path: str | None = None,
+        credential_hint: str | None = None,
     ) -> None:
         self.timeout = timeout
         self.proxy = proxy
         self.ca_path = ca_path
+        self.credential_hint = credential_hint
         self.session = requests.Session()
 
     def __enter__(self) -> "CatalogClient":
@@ -197,7 +203,7 @@ class CatalogClient:
                 if response.status_code < 500 or final:
                     raise DownloadError(
                         f"GET {url} returned HTTP {response.status_code}{tries}"
-                        f"{_redirect_note(response)}"
+                        f"{_redirect_note(response)}{self._credential_note(response)}"
                     )
             time.sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
         raise AssertionError("unreachable")  # pragma: no cover
@@ -209,6 +215,12 @@ class CatalogClient:
             return response.json()
         except ValueError as exc:
             raise DownloadError(f"GET {url} answered 200 but the body is not JSON") from exc
+
+    def _credential_note(self, response: Any) -> str:
+        code = response.status_code
+        if self.credential_hint and (300 <= code < 400 or code in (401, 403)):
+            return f"; {self.credential_hint}"
+        return ""
 
     def _verify(self) -> str | bool:
         if self.ca_path:

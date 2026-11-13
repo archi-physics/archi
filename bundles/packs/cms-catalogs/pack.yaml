@@ -16,7 +16,7 @@ invariants: invariants.yaml
 # about them now: 24h. CRIC, CRIC core and SITECONF describe sites, which
 # change over weeks: 7d. DBS and the CondDB global tags only grow by new
 # entries: 7d. The downloaders are in archi.downloaders (cric, cric_core, dbs,
-# wmstats, gocdb); CondDB has none.
+# wmstats, gocdb, conddb).
 freshness:
   cms-catalogs.cric: {max_staleness: 7d}
   cms-catalogs.cric_core: {max_staleness: 7d}

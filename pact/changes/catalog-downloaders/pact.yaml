@@ -1,6 +1,6 @@
 pact_version: 5
 id: catalog-downloaders
-title: Downloaders for five cms-catalogs caches (CRIC, CRIC core, DBS, WMStats, GOCDB)
+title: Downloaders for six cms-catalogs caches (CRIC, CRIC core, DBS, WMStats, GOCDB, CondDB)
 tier: 2
 why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmstats_workflows,
   gocdb_downtimes, conddb_global_tags) read a local cache file that nothing in archi writes.
@@ -25,6 +25,17 @@ why: 'Issue #903. Six cms-catalogs readers (cric, cric_core, dbs_datasets, wmsta
   DECISION (operator, 2026-11-12): CondDB is skipped for now. Its web API is behind CERN SSO,
   and the anonymous route (Frontier, the conddb CLI''s own path) is plain HTTP with SQL in the
   URL; conddb_global_tags keeps reading whatever cache an operator places.
+
+
+  DECISION (operator, 2026-11-13; replaces the one above): CondDB gets a downloader after all.
+  It reads the CMS CondDB web browser (cms-conddb.cern.ch/cmsDbBrowser) through its read-only
+  search, GET /search/Prod/<term>, authenticated with the CERN SSO session cookie that
+  archi.downloaders.sso_login cms_conddb writes (Kerberos + TOTP, about 12 hours). The search
+  answers at most 3000 rows, unordered and unpaged, so the downloader searches once per CMSSW
+  major (CMSSW_<M>_, M 1-99) and per minor (CMSSW_<M>_<m>_, m 0-99) for a major that hits the
+  limit, and fails when a per-minor search still hits it or a release does not read
+  CMSSW_<major>_<minor>_... (on 16,390 real global tags every release does, in 45 series, the
+  largest 1,142).
 
 
   DECISION (captain, 2026-11-12): one reader change. WMStatsWorkflowSource.cache_paths lists
@@ -64,7 +75,7 @@ requirements:
 
     Acceptance:
 
-    - acc.catalog-downloaders.roundtrip: for each of the five, a downloader run against recorded
+    - acc.catalog-downloaders.roundtrip: for each of the six, a downloader run against recorded
     upstream answers produces a cache that the existing reader reads with health ok, a complete
     scope and the expected node count. [evidence: executed_test]
 
@@ -93,8 +104,30 @@ requirements:
 
     - acc.catalog-downloaders.dbs-scope: the dataset set requested equals the WMStats-named
     datasets plus the pattern matches, each once. [evidence: executed_test]'
+- id: req.catalog-downloaders.conddb
+  statement: 'The CondDB downloader lists every global tag through the CondDB browser''s search
+    GET and no other route, authenticated with the CERN SSO cookie file (--cookie-file, else
+    CONDDB_COOKIE_FILE, else cms_conddb.txt where sso_login writes it). A missing, unreadable or
+    expired cookie file stops the run before any request; a redirect or a login page fails the
+    run with the sso_login command. It writes nothing when a search it relies on may be cut
+    short by the 3000-row limit, when a release breaks the CMSSW_<major>_<minor>_ form the
+    listing relies on, when one name comes back with a different release, description or
+    insertion time, or when the page''s
+    gts table drifts (headers, row shape, an unknown Type, a time format).
+
+
+    Acceptance:
+
+    - acc.catalog-downloaders.conddb-complete: a capped major is searched per minor and every
+    global tag reaches the reader; a per-minor search at the limit, a non-CMSSW release, a
+    name that comes back with a different release, description or insertion time, and each
+    page drift exit 1 with the old cache untouched.
+    [evidence: executed_test]
+
+    - acc.catalog-downloaders.conddb-auth: a missing or expired cookie file makes no request; a
+    redirect to the CERN login page fails naming sso_login. [evidence: executed_test]'
 - id: req.catalog-downloaders.docs
-  statement: 'connector-caches.md moves the five readers to "The ones that do have tooling" with
+  statement: 'connector-caches.md moves the six readers to "The ones that do have tooling" with
     each command, credential and upstream; the cms-comp-ops README names the commands.
 
 
@@ -125,6 +158,19 @@ tasks:
   requirement: req.catalog-downloaders.dbs-scope
   verification: 'A test with a WMStats cache and --pattern asserts the exact set of datasets
     requested, each once, and that no file-level endpoint is called.
+
+
+    Test plan:
+
+    - python/tests/downloaders [evidence: pytest]'
+- id: task.catalog-downloaders.conddb
+  requirement: req.catalog-downloaders.conddb
+  verification: 'Unit tests against a fake CondDB browser that answers the search the way the
+    real one does (ILIKE on name or release, _ and % as wildcards, LIMIT 3000) with synthetic
+    pages in the real page''s shape: the round trip through the conddb_global_tags reader with
+    two capped majors refined, every fail-closed case above, the cookie file checks with no
+    request made, and the login redirect. A read-only live run on an operator host with a fresh
+    sso_login cookie.
 
 
     Test plan:
