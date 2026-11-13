@@ -73,11 +73,11 @@ scheduled refresh needs a fresh login first. An expired session makes the
 server redirect to the CERN login page; the run fails on it with the login
 command in the message, and redirects are never followed.
 
-The server's certificate is issued by the CERN Grid CA, itself signed by the
-CERN Root CA 2, and the server sends only its own certificate. Neither CA is
-in the public bundle, and before Python 3.13 an intermediate CA alone does
-not complete a chain. So ``--ca-path`` takes a PEM file holding both the CERN
-Grid CA and the CERN Root CA 2, or a CA directory such as
+The server's certificate is issued by the CERN Grid CA, an intermediate CA
+signed by the CERN Root CA 2; neither is in the public bundle. Before Python
+3.13, verification must end at a root CA, so the Grid CA alone is not
+enough: ``--ca-path`` takes a PEM file holding both the CERN Grid CA and the
+CERN Root CA 2, or a CA directory such as
 ``/etc/grid-security/certificates``; either is used as it is, as in the other
 catalog downloaders. Without ``--ca-path``, verification uses
 ``/etc/grid-security/certificates`` when present, else requests' bundle.
@@ -403,21 +403,22 @@ def main(argv: list[str] | None = None) -> int:
         "--ca-path",
         default=None,
         help="CA bundle or directory to verify cms-conddb with: a PEM file holding both "
-        "the CERN Grid CA and the CERN Root CA 2 (the server sends only its own "
-        "certificate), or a directory such as /etc/grid-security/certificates. "
+        "the CERN Grid CA and the CERN Root CA 2 (the Grid CA is an intermediate "
+        "CA), or a directory such as /etc/grid-security/certificates. "
         "Default: /etc/grid-security/certificates when present, else requests' bundle.",
     )
     args = parser.parse_args(argv)
     output = Path(args.output_dir) if args.output_dir else data_root() / PACK_DIR
 
     def download() -> dict[str, Any]:
-        if args.ca_path is not None and not Path(args.ca_path).expanduser().exists():
-            raise DownloadError(f"--ca-path {args.ca_path} is neither a file nor a directory")
+        ca_path = str(Path(args.ca_path).expanduser()) if args.ca_path is not None else None
+        if ca_path is not None and not Path(ca_path).exists():
+            raise DownloadError(f"--ca-path {ca_path} is neither a file nor a directory")
         cookies = session_cookies(
             cookie_file_path(args.cookie_file), urlparse(args.base_url).hostname or ""
         )
         with CatalogClient(
-            timeout=args.timeout, ca_path=args.ca_path, credential_hint=SSO_HINT
+            timeout=args.timeout, ca_path=ca_path, credential_hint=SSO_HINT
         ) as client:
             client.session.cookies.update(cookies)
 

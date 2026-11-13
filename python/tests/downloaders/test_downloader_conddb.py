@@ -533,3 +533,13 @@ def test_a_missing_ca_path_fails_before_any_request(tmp_path, root, cookie_file,
     err = _fails(tmp_path, cookie_file, capsys, "--ca-path", str(tmp_path / "nowhere.pem"))
     assert "is neither a file nor a directory" in err
     assert upstream.calls == []
+
+
+def test_a_home_relative_ca_path_is_checked_and_used_expanded(tmp_path, root, cookie_file, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    bundle = tmp_path / "home" / "cern-cas.pem"
+    bundle.parent.mkdir()
+    bundle.write_text("-----BEGIN CERTIFICATE-----\nFAKECA\n-----END CERTIFICATE-----\n")
+    upstream = serve(monkeypatch, SMALL)
+    assert _main(tmp_path / "out", cookie_file, "--ca-path", "~/cern-cas.pem") == 0
+    assert {kwargs["verify"] for _, kwargs in upstream.calls} == {str(bundle)}
