@@ -39,10 +39,10 @@ needs to know exactly what to produce. That is this page.
 
 ## Cache shapes
 
-These eight readers were the ones without a downloader. Five now have one
+These eight readers were the ones without a downloader. Six now have one
 (see [the table below](#the-ones-that-do-have-tooling)): `cric`,
-`cric_core`, `dbs_datasets`, `gocdb_downtimes` and `wmstats_workflows`.
-`conddb_global_tags`, `dqm` and `indico` still read a cache that someone
+`cric_core`, `conddb_global_tags`, `dbs_datasets`, `gocdb_downtimes` and
+`wmstats_workflows`. `dqm` and `indico` still read a cache that someone
 else places.
 
 ### `cric` — CRIC topology
@@ -78,7 +78,9 @@ or be a bare host; both parse.
 `name` (or `tag_name`), `description`, `release`, `scenario`,
 `snapshot_time` (or `created_at`). The `release` value is matched
 against the CMSSW release set when `cmssw_records_path` is configured,
-so it should be a release label like `CMSSW_14_0_2`.
+so it should be a release label like `CMSSW_14_0_2`. The downloader
+writes `name`, `release`, `description` and `created_at` (the CondDB
+insertion time, ISO 8601 UTC); CondDB's browser has no `scenario`.
 
 ### `dbs_datasets` — dataset catalog
 `data/dbs-datasets/records.json`, a JSON **list**. Keys, upstream name or
@@ -141,8 +143,9 @@ Keys read, upstream or normalized names: `RequestName` / `request_name` /
 | `gocdb_downtimes` | `gocdb-downtimes/records.json` | `python -m archi.downloaders.gocdb`, from the public GOCDB interface (`get_downtime`, no credential): every downtime overlapping 7 days back to 60 days ahead (`--days-back`, `--days-ahead`), in one answer. One row per affected service, dates in ISO 8601 UTC. Run it after `cric` and `cric_core`: the reader matches against their caches, and the downloader stops before any request without them. An empty window exits 1 and keeps the old cache. |
 | `wmstats_workflows` | `wmstats-workflows/records.json` and `authority.json` | `python -m archi.downloaders.wmstats`, one GET per status to ReqMgr2 on cmsweb (`/reqmgr2/data/request?status=<s>`), whole request documents. Default statuses: assigned, staging, staged, acquired, running-open, running-closed, force-complete, completed, closed-out (`--status` to choose). A request seen under two statuses keeps the later one, and `authority.json` counts it in `deliberate_merge_count`. Needs an X.509 proxy and, off a grid host, `--ca-path`, as `cric` (cmsweb uses the CERN Grid CA). The local cache holds requestor names and DNs; the snapshot builder drops the DNs. |
 | `dbs_datasets` | `dbs-datasets/records.json` | `python -m archi.downloaders.dbs`, dataset **metadata** only (never file listings) from the DBS global reader on cmsweb: `datasets?detail=1` and `filesummaries?validFileOnly=1`, one of each per dataset. Looks up the input and output datasets the WMStats cache names (run `wmstats` first), plus the VALID datasets matching each `--pattern`. A dataset DBS does not know is skipped and counted; the run fails only when none resolves. `--limit N` makes a trial run and refuses to write the pack's cache. Needs an X.509 proxy and, off a grid host, `--ca-path`, as `cric`. Progress goes to stderr. |
+| `conddb_global_tags` | `conddb-global-tags/records.json` | `python -m archi.downloaders.conddb`, every global tag from the CMS CondDB browser (`cms-conddb.cern.ch/cmsDbBrowser`), read only through its search, `GET /search/Prod/<term>`. The search answers at most 3000 rows, so the download searches once per CMSSW major (`CMSSW_<M>_`, M 1-99) and again per minor (`CMSSW_<M>_<m>_`) for a major that hits the limit; it fails, writing nothing, when a per-minor search still hits it or a release does not read `CMSSW_<major>_<minor>_...`. About 100 searches, plus 100 per refined major. Needs a CERN SSO session cookie: run `kinit <username>@CERN.CH`, then `python -m archi.downloaders.sso_login cms_conddb`, which asks for the CERN TOTP code and writes `cms_conddb.txt` in `ARCHI_COOKIE_DIR` (else `./.cookies`). The downloader reads `--cookie-file`, else `CONDDB_COOKIE_FILE`, else that file, and stops before any request when it is missing or expired. The session lasts about 12 hours, so a scheduled refresh needs a fresh login; an expired one fails with the login command in the message. The server uses the CERN Grid CA: pass `--ca-path` a PEM file holding it (verified together with the public bundle). Progress goes to stderr. |
 
-The five downloaders above share one rule: they write nothing unless the
+The six catalog downloaders above share one rule: they write nothing unless the
 real reader accepts the staged files (health `ok` and a complete scope),
 and they keep the previous cache byte for byte on any failure. Each cache
 directory also holds a `.lock` file (two runs cannot write at once) and,
