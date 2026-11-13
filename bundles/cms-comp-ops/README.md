@@ -81,8 +81,11 @@ python -m archi.downloaders.conddb      # CERN SSO cookie (see below)
 
 Each one replaces its cache only when the pack's reader accepts the new
 files, and otherwise keeps the old cache. Off a grid host, pass `--ca-path`
-(a bundle holding the CERN Grid CA) to `cric`, `cric_core`, `wmstats`,
-`dbs` and `conddb`; `gocdb` verifies with the system store.
+to `cric`, `cric_core`, `wmstats`, `dbs` and `conddb`: a PEM file holding
+both the CERN Grid CA and the CERN Root CA 2, or a CA directory such as
+`/etc/grid-security/certificates`. The Grid CA alone is not enough: a
+server that sends only its own certificate (cms-conddb does) fails
+verification on Python before 3.13. `gocdb` verifies with the system store.
 
 `conddb` reads the CMS CondDB browser with a CERN SSO session cookie, made
 by hand first:
