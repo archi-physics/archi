@@ -1,6 +1,7 @@
 # CRIC core (cache-backed): infrastructure services and WLCG federations,
 # linked to the sites the cric source emits. Reads the JSON caches under
-# ${archi_data_root}/cric-core/.
+# ${archi_data_root}/cric-core/, written by `python -m archi.downloaders.cric_core`
+# (WLCG CRIC, no credential).
 cric_core:
   module: archi.sources.cric
   class: CRICCoreAdapter

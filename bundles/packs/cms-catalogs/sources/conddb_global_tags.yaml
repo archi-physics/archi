@@ -1,6 +1,7 @@
 # CondDB global tags (cache-backed), each linked to the CMSSW release it
 # targets. A release the cmssw-releases pack does not hold is still emitted
 # as a referenced release node.
+# Written by `python -m archi.downloaders.conddb` (a CERN SSO cookie from `python -m archi.downloaders.sso_login cms_conddb`).
 conddb_global_tags:
   module: archi.sources.conddb
   class: CondDBGlobalTagAdapter

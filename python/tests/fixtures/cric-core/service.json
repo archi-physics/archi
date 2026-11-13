@@ -1,0 +1,30 @@
+{
+  "XX-ALPHA-CE-HTCONDOR-CE-ce01.alpha.example": {
+    "arch": "", "auth": [], "country": "Exampleland", "country_code": "XX", "description": "",
+    "endpoint": "ce01.alpha.example:9619", "federation": "XX-ALPHA-FED", "flavour": "HTCONDOR-CE",
+    "id": 9401, "impl": "", "in_report": false, "info_url": "", "is_ipv6": false, "is_monitored": true,
+    "is_virtual": false, "last_modified": "2026-01-15T10:00:00.000000",
+    "metric_profile": {"is_accessible": null, "is_valid": null, "last_generated": null, "last_modified": null, "last_processed": null},
+    "name": "XX-ALPHA-CE-HTCONDOR-CE-ce01.alpha.example", "rcsite": "XX-ALPHA", "rcsite_state": "ACTIVE",
+    "resources": {"prod": {"id": 9501, "name": "prod", "state": "ACTIVE", "status": "production", "vos": []}},
+    "state": "ACTIVE", "status": "production", "type": "CE", "usage": {}, "version": "", "vos": []
+  },
+  "XX-ALPHA_SE": {
+    "aprotocols": {}, "arch": "", "auth": [], "country": "Exampleland", "country_code": "XX", "description": "",
+    "federation": "XX-ALPHA-FED", "id": 9402, "impl": "", "in_report": false, "info_url": "", "is_virtual": true,
+    "last_modified": "2026-01-15T10:00:00.000000",
+    "metric_profile": {"is_accessible": null, "is_valid": null, "last_generated": null, "last_modified": null, "last_processed": null},
+    "name": "XX-ALPHA_SE",
+    "protocols": {"XX-ALPHA_SE-WEBDAV-se01.alpha.example": {"endpoint": "davs://se01.alpha.example:443", "flavour": "WEBDAV", "id": 9601, "name": "XX-ALPHA_SE-WEBDAV-se01.alpha.example", "state": "ACTIVE"}},
+    "rcsite": "XX-ALPHA", "rcsite_state": "ACTIVE", "state": "ACTIVE", "type": "SE", "usage": {}, "version": "", "vos": []
+  },
+  "YY-OTHER-CE-ARC-CE-arc01.other.example": {
+    "arch": "", "auth": [], "country": "Otherland", "country_code": "YY", "description": "",
+    "endpoint": "https://arc01.other.example:443/arex", "federation": "YY-ATLAS-FED", "flavour": "ARC-CE",
+    "id": 9403, "impl": "", "in_report": false, "info_url": "", "is_ipv6": true, "is_monitored": false,
+    "is_virtual": false, "last_modified": "2026-01-15T10:00:00.000000",
+    "metric_profile": {"is_accessible": null, "is_valid": null, "last_generated": null, "last_modified": null, "last_processed": null},
+    "name": "YY-OTHER-CE-ARC-CE-arc01.other.example", "rcsite": "YY-OTHER", "rcsite_state": "ACTIVE",
+    "state": "ACTIVE", "status": "production", "type": "CE", "usage": {}, "version": "", "vos": ["atlas"]
+  }
+}

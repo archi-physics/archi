@@ -49,7 +49,7 @@ manifest or answer file.
 
 | Pack | Credential or input |
 |---|---|
-| `cms-catalogs` | `CERN_GITLAB_TOKEN` for SITECONF. The CRIC, CRIC core, DBS, WMStats, GOCDB and CondDB caches are files under `archi_data_root`; fetching CRIC, DBS and WMStats needs a CERN grid certificate or SSO. |
+| `cms-catalogs` | `CERN_GITLAB_TOKEN` for SITECONF. The CRIC, CRIC core, DBS, WMStats, GOCDB and CondDB caches are files under `archi_data_root`, written by the downloaders below. CRIC, WMStats and DBS need an X.509 grid proxy (`voms-proxy-init -voms cms`, read from `X509_USER_PROXY` or `/tmp/x509up_u<uid>`). CondDB needs a CERN SSO session cookie, `CONDDB_COOKIE_FILE` (see below). |
 | `cmssst` | none; the cmssst downloader fills its cache from public data |
 | `cmssw-releases` | none |
 | `ops-record` | none; records arrive through okg admission |
@@ -62,6 +62,45 @@ manifest or answer file.
 A bare install is not credential-free: `cms-catalogs` is a default and its
 SITECONF source reads GitLab with `CERN_GITLAB_TOKEN`. Run `archi init
 myops --bundle cms-comp-ops --without cms-catalogs` to start without it.
+
+## Refreshing the catalog caches
+
+The `cms-catalogs` readers read caches; these commands write them. Run them
+in this order, with `ARCHI_DATA_ROOT` exported to the instance's data root
+(`data_root` in `archi.yaml`, default `~/.local/share/archi/<name>`), then
+`archi ingest --publish`:
+
+```bash
+python -m archi.downloaders.cric        # X.509 proxy
+python -m archi.downloaders.cric_core   # no credential
+python -m archi.downloaders.gocdb       # no credential; needs the two CRIC caches
+python -m archi.downloaders.wmstats     # X.509 proxy
+python -m archi.downloaders.dbs         # X.509 proxy; looks up the WMStats datasets
+python -m archi.downloaders.conddb      # CERN SSO cookie (see below)
+```
+
+Each one replaces its cache only when the pack's reader accepts the new
+files, and otherwise keeps the old cache. Off a grid host, pass `--ca-path`
+to `cric`, `cric_core`, `wmstats`, `dbs` and `conddb`: a PEM file holding
+both the CERN Grid CA and the CERN Root CA 2, or a CA directory such as
+`/etc/grid-security/certificates`. The Grid CA alone is not enough on
+Python before 3.13: it is an intermediate CA, and verification there must
+end at a root CA. `gocdb` verifies with the system store.
+
+`conddb` reads the CMS CondDB browser with a CERN SSO session cookie, made
+by hand first:
+
+```bash
+kinit <username>@CERN.CH
+python -m archi.downloaders.sso_login cms_conddb   # asks for your CERN TOTP code
+```
+
+That writes `cms_conddb.txt` in `ARCHI_COOKIE_DIR` (else `./.cookies`), where
+`conddb` looks for it (or set `CONDDB_COOKIE_FILE`, or pass
+`--cookie-file`). The session lasts about 12 hours, so a scheduled refresh
+needs a fresh login first; with an expired one `conddb` exits 1, keeps the
+old cache, and prints the login command.
+`docs/docs/reference/connector-caches.md` has the details.
 
 ## Playbooks
 

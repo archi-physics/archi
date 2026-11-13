@@ -1,0 +1,27 @@
+{
+  "XX-ALPHA": {
+    "altname": "", "cert_status": null, "coreenergy": 10.0, "corepower": 12.5, "cores": 4000,
+    "country": "Exampleland", "country_code": "XX", "cpu_capacity": 50000, "crr_url": "",
+    "description": "Alpha Example Laboratory", "disk_capacity": 0, "federations": ["XX-ALPHA-FED"],
+    "gocdb_pk": null, "gocdb_url": "", "id": 9701, "infourl": "https://alpha.example", "institute": "Alpha",
+    "is_pledged": true, "latitude": 0.0, "longitude": 0.0, "monit_tag": "Exampleland", "name": "XX-ALPHA",
+    "netroutes": {}, "netsites": {}, "oim_groupid": null, "pue": 0.0, "rc_tier_level": 1, "roc": "",
+    "services": [], "sites": [
+      {"name": "T1_XX_Alpha", "tier_level": 1, "vo_name": "cms"},
+      {"name": "ALPHA-ATLAS", "tier_level": 1, "vo_name": "atlas"}
+    ],
+    "slots": 4000, "srr_url": "", "state": "ACTIVE", "status": "production", "tape_capacity": 0,
+    "timezone": "Europe/Zurich"
+  },
+  "YY-OTHER": {
+    "altname": "", "cert_status": null, "coreenergy": 10.0, "corepower": 10.0, "cores": 800,
+    "country": "Otherland", "country_code": "YY", "cpu_capacity": 8000, "crr_url": "",
+    "description": "", "disk_capacity": 0, "federations": ["YY-ATLAS-FED"],
+    "gocdb_pk": null, "gocdb_url": "", "id": 9702, "infourl": "", "institute": "Other",
+    "is_pledged": false, "latitude": 0.0, "longitude": 0.0, "monit_tag": "Otherland", "name": "YY-OTHER",
+    "netroutes": {}, "netsites": {}, "oim_groupid": null, "pue": 0.0, "rc_tier_level": 2, "roc": "",
+    "services": [], "sites": [{"name": "OTHER-ATLAS", "tier_level": 2, "vo_name": "atlas"}],
+    "slots": 800, "srr_url": "", "state": "ACTIVE", "status": "production", "tape_capacity": 0,
+    "timezone": "UTC"
+  }
+}

@@ -1,6 +1,7 @@
 # DBS dataset catalog (cache-backed): one dataset node per dataset path in
-# ${archi_data_root}/dbs-datasets/records.json. Reading DBS needs a CERN
-# grid certificate; nothing in archi downloads it yet.
+# ${archi_data_root}/dbs-datasets/records.json, written by
+# `python -m archi.downloaders.dbs` (an X.509 grid proxy; run the wmstats
+# downloader first, since the datasets it looks up come from that cache).
 dbs_datasets:
   module: archi.sources.dbs
   class: DBSDatasetAdapter

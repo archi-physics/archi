@@ -1,0 +1,16 @@
+{
+  "XX-ALPHA-FED": {
+    "accounting_name": "Exampleland Tier-1 Federation", "country": "Exampleland", "country_code": "XX",
+    "id": 9801, "infrastructure": "WLCG", "monit_tag": "Exampleland", "name": "XX-ALPHA-FED",
+    "pledges": {"2026": {
+      "Q1": {"atlas": {"CPU": 1000, "Disk": 100}, "cms": {"CPU": 40000, "Disk": 1200}},
+      "Q2": {"atlas": {"CPU": 1000, "Disk": 100}, "cms": {"CPU": 42000, "Disk": 1300}}
+    }},
+    "rcsites": ["XX-ALPHA"], "tier_level": 1, "type": "official", "vos": ["atlas", "cms"]
+  },
+  "YY-ATLAS-FED": {
+    "accounting_name": "Otherland Tier-2 Federation", "country": "Otherland", "country_code": "YY",
+    "id": 9802, "infrastructure": "EGI", "monit_tag": "Otherland", "name": "YY-ATLAS-FED",
+    "pledges": {}, "rcsites": ["YY-OTHER"], "tier_level": 2, "type": "official", "vos": ["atlas"]
+  }
+}
